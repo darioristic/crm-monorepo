@@ -19,7 +19,7 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 
 # Install production dependencies only
-RUN bun install --frozen-lockfile --production
+RUN bun install --no-frozen-lockfile --production
 
 # ============================================
 # Stage 2: Builder

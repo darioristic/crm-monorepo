@@ -22,7 +22,7 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 
 # Install bun and dependencies
-RUN npm install -g bun && bun install --frozen-lockfile
+RUN npm install -g bun && bun install --no-frozen-lockfile
 
 # ============================================
 # Stage 2: Builder
