@@ -126,7 +126,7 @@ export function ProjectReportsContent() {
 
   const exportColumns: ColumnDef<ProjectReport>[] = [
     { key: "name", header: "Project Name" },
-    { key: "status", header: "Status", format: (v) => statusLabels[v as string] || v },
+    { key: "status", header: "Status", format: (v) => String(statusLabels[v as string] || v) },
     { key: "progressPercent", header: "Progress", format: (v) => `${v}%` },
     { key: "taskCount", header: "Total Tasks" },
     { key: "completedTaskCount", header: "Completed Tasks" },
