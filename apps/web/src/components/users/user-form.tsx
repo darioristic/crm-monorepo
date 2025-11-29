@@ -35,7 +35,7 @@ const userFormSchema = z.object({
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
   role: z.enum(["admin", "user"], {
-    required_error: "Please select a role",
+    message: "Please select a role",
   }),
   companyId: z.string().optional(),
   phone: z.string().optional(),
