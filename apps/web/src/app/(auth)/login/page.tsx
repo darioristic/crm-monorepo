@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -24,10 +24,10 @@ const loginSchema = z.object({
 type LoginFormData = z.infer<typeof loginSchema>;
 
 // ============================================
-// Login Page
+// Login Form Component (uses useSearchParams)
 // ============================================
 
-export default function LoginPage() {
+function LoginForm() {
 	const router = useRouter();
 	const searchParams = useSearchParams();
 	const returnUrl = searchParams.get("returnUrl") || "/dashboard";
@@ -56,8 +56,7 @@ export default function LoginPage() {
 			const result = await login(data);
 
 			if (result.success) {
-				// Cast required for dynamic returnUrl with typedRoutes
-				router.push(returnUrl as never);
+				router.push(returnUrl);
 				router.refresh();
 			} else {
 				setError(result.error?.message || "Prijava nije uspela");
@@ -69,6 +68,89 @@ export default function LoginPage() {
 		}
 	};
 
+	return (
+		<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+			{/* Error Alert */}
+			{error && (
+				<div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+					{error}
+				</div>
+			)}
+
+			{/* Email Field */}
+			<div className="space-y-2">
+				<Label htmlFor="email">Email adresa</Label>
+				<div className="relative">
+					<RiMailLine className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						id="email"
+						type="email"
+						placeholder="vas@email.com"
+						className="pl-10"
+						autoComplete="email"
+						disabled={isLoading}
+						aria-invalid={!!errors.email}
+						{...register("email")}
+					/>
+				</div>
+				{errors.email && (
+					<p className="text-xs text-destructive">{errors.email.message}</p>
+				)}
+			</div>
+
+			{/* Password Field */}
+			<div className="space-y-2">
+				<Label htmlFor="password">Lozinka</Label>
+				<div className="relative">
+					<RiLockLine className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						id="password"
+						type={showPassword ? "text" : "password"}
+						placeholder="••••••••"
+						className="pl-10 pr-10"
+						autoComplete="current-password"
+						disabled={isLoading}
+						aria-invalid={!!errors.password}
+						{...register("password")}
+					/>
+					<button
+						type="button"
+						onClick={() => setShowPassword(!showPassword)}
+						className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+						tabIndex={-1}
+					>
+						{showPassword ? (
+							<RiEyeOffLine className="h-4 w-4" />
+						) : (
+							<RiEyeLine className="h-4 w-4" />
+						)}
+					</button>
+				</div>
+				{errors.password && (
+					<p className="text-xs text-destructive">{errors.password.message}</p>
+				)}
+			</div>
+
+			{/* Submit Button */}
+			<Button type="submit" className="w-full" disabled={isLoading}>
+				{isLoading ? (
+					<>
+						<RiLoader4Line className="h-4 w-4 animate-spin" />
+						<span>Prijavljivanje...</span>
+					</>
+				) : (
+					"Prijavite se"
+				)}
+			</Button>
+		</form>
+	);
+}
+
+// ============================================
+// Login Page
+// ============================================
+
+export default function LoginPage() {
 	return (
 		<div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
 			<div className="w-full max-w-md">
@@ -93,80 +175,9 @@ export default function LoginPage() {
 					</CardHeader>
 
 					<CardContent>
-						<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-							{/* Error Alert */}
-							{error && (
-								<div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
-									{error}
-								</div>
-							)}
-
-							{/* Email Field */}
-							<div className="space-y-2">
-								<Label htmlFor="email">Email adresa</Label>
-								<div className="relative">
-									<RiMailLine className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-									<Input
-										id="email"
-										type="email"
-										placeholder="vas@email.com"
-										className="pl-10"
-										autoComplete="email"
-										disabled={isLoading}
-										aria-invalid={!!errors.email}
-										{...register("email")}
-									/>
-								</div>
-								{errors.email && (
-									<p className="text-xs text-destructive">{errors.email.message}</p>
-								)}
-							</div>
-
-							{/* Password Field */}
-							<div className="space-y-2">
-								<Label htmlFor="password">Lozinka</Label>
-								<div className="relative">
-									<RiLockLine className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-									<Input
-										id="password"
-										type={showPassword ? "text" : "password"}
-										placeholder="••••••••"
-										className="pl-10 pr-10"
-										autoComplete="current-password"
-										disabled={isLoading}
-										aria-invalid={!!errors.password}
-										{...register("password")}
-									/>
-									<button
-										type="button"
-										onClick={() => setShowPassword(!showPassword)}
-										className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-										tabIndex={-1}
-									>
-										{showPassword ? (
-											<RiEyeOffLine className="h-4 w-4" />
-										) : (
-											<RiEyeLine className="h-4 w-4" />
-										)}
-									</button>
-								</div>
-								{errors.password && (
-									<p className="text-xs text-destructive">{errors.password.message}</p>
-								)}
-							</div>
-
-							{/* Submit Button */}
-							<Button type="submit" className="w-full" disabled={isLoading}>
-								{isLoading ? (
-									<>
-										<RiLoader4Line className="h-4 w-4 animate-spin" />
-										<span>Prijavljivanje...</span>
-									</>
-								) : (
-									"Prijavite se"
-								)}
-							</Button>
-						</form>
+						<Suspense fallback={<div className="h-48 flex items-center justify-center"><RiLoader4Line className="h-6 w-6 animate-spin text-muted-foreground" /></div>}>
+							<LoginForm />
+						</Suspense>
 
 						{/* Development Helper */}
 						{process.env.NODE_ENV === "development" && (
@@ -198,4 +209,3 @@ export default function LoginPage() {
 		</div>
 	);
 }
-
