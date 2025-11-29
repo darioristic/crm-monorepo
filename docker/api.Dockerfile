@@ -13,13 +13,13 @@ FROM oven/bun:1-alpine AS deps
 WORKDIR /app
 
 # Copy workspace configuration for caching
-COPY package.json bun.lock ./
+COPY package.json ./
 COPY apps/api-server/package.json ./apps/api-server/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 
-# Install production dependencies only
-RUN bun install --no-frozen-lockfile --production
+# Install production dependencies (generate fresh lockfile)
+RUN bun install --production
 
 # ============================================
 # Stage 2: Builder

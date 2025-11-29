@@ -16,13 +16,13 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 # Copy workspace configuration for caching
-COPY package.json bun.lock ./
+COPY package.json ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 
-# Install bun and dependencies
-RUN npm install -g bun && bun install --no-frozen-lockfile
+# Install bun and dependencies (generate fresh lockfile)
+RUN npm install -g bun && bun install
 
 # ============================================
 # Stage 2: Builder
