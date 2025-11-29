@@ -11,7 +11,7 @@ spec:
   source:
     type: Git
     git:
-      uri: https://github.com/your-org/crm-monorepo.git
+      uri: https://github.com/darioristic/crm-monorepo.git
       ref: main
     contextDir: /
   strategy:
@@ -58,7 +58,7 @@ spec:
   source:
     type: Git
     git:
-      uri: https://github.com/your-org/crm-monorepo.git
+      uri: https://github.com/darioristic/crm-monorepo.git
       ref: main
     contextDir: /
   strategy:
@@ -67,7 +67,7 @@ spec:
       dockerfilePath: docker/web.Dockerfile
       buildArgs:
         - name: NEXT_PUBLIC_API_URL
-          value: "https://api.crm.example.com"
+          value: "https://crm-backend-crm-dev.apps.ocp-5.datsci.softergee.si"
         - name: NEXT_PUBLIC_APP_ENV
           value: production
       env:

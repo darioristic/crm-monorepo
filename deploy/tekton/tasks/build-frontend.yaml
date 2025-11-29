@@ -35,7 +35,7 @@ spec:
     - name: api-url
       type: string
       description: Backend API URL
-      default: https://api.crm.apps.cluster-domain.com
+      default: https://crm-backend-crm-dev.apps.ocp-5.datsci.softergee.si
 
   workspaces:
     - name: source
