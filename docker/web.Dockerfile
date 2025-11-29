@@ -80,12 +80,13 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV TZ=UTC
 
-# Copy public assets
-COPY --from=builder /app/apps/web/public ./public
+# Copy public assets (matching monorepo structure)
+COPY --from=builder /app/apps/web/public ./apps/web/public
 
 # Copy standalone build (requires output: 'standalone' in next.config)
+# Monorepo standalone output preserves the directory structure
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 
 # Switch to non-root user
 USER nextjs
@@ -102,7 +103,7 @@ LABEL org.opencontainers.image.title="CRM Web Application" \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Start the application
-CMD ["node", "server.js"]
+# Start the application - server.js is at apps/web/ in monorepo standalone output
+CMD ["node", "apps/web/server.js"]
 
 
