@@ -5,6 +5,9 @@ exact = true
 # Symlink workspace packages
 link-workspace-packages = true
 
+# Allow lockfile updates during install
+frozen = false
+
 [install.scopes]
 # Registry for @crm/* packages (internal)
 "@crm" = { token = "$BUN_AUTH_TOKEN", url = "https://registry.npmjs.org/" }
