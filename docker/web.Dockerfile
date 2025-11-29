@@ -16,13 +16,18 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 # Copy workspace configuration for caching
-COPY package.json ./
+COPY package.json bun.lock ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 
-# Install bun and dependencies (generate fresh lockfile)
-RUN npm install -g bun && bun install
+# Install bun and dependencies
+RUN npm install -g bun && bun install --no-frozen-lockfile
+
+# Ensure web app node_modules are properly linked
+WORKDIR /app/apps/web
+RUN bun install --no-frozen-lockfile
+WORKDIR /app
 
 # ============================================
 # Stage 2: Builder
@@ -31,8 +36,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies from deps stage (hoisted to root by bun workspaces)
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages ./packages
 
 # Copy source code
@@ -52,7 +58,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the application
 WORKDIR /app/apps/web
-RUN /app/node_modules/.bin/next build
+RUN npx next build
 
 # ============================================
 # Stage 3: Production Runner

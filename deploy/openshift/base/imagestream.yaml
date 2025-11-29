@@ -2,7 +2,7 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: crm-api
-  namespace: crm
+  namespace: crm-dev
   labels:
     app.kubernetes.io/name: crm-api
     app.kubernetes.io/component: backend
@@ -22,7 +22,7 @@ apiVersion: image.openshift.io/v1
 kind: ImageStream
 metadata:
   name: crm-web
-  namespace: crm
+  namespace: crm-dev
   labels:
     app.kubernetes.io/name: crm-web
     app.kubernetes.io/component: frontend

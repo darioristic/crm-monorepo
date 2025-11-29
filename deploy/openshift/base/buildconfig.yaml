@@ -2,7 +2,7 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   name: crm-api-build
-  namespace: crm
+  namespace: crm-dev
   labels:
     app.kubernetes.io/name: crm-api
     app.kubernetes.io/component: backend
@@ -49,7 +49,7 @@ apiVersion: build.openshift.io/v1
 kind: BuildConfig
 metadata:
   name: crm-web-build
-  namespace: crm
+  namespace: crm-dev
   labels:
     app.kubernetes.io/name: crm-web
     app.kubernetes.io/component: frontend
