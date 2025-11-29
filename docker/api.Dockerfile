@@ -26,6 +26,9 @@ RUN bun install --production
 # ============================================
 FROM oven/bun:1-alpine AS builder
 
+# Set NODE_ENV for build-time optimizations (important for cookie settings)
+ENV NODE_ENV=production
+
 WORKDIR /app
 
 # Copy dependencies from deps stage
