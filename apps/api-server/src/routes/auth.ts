@@ -34,7 +34,8 @@ function setAuthCookies(
 	sessionId: string,
 ): Record<string, string> {
 	const isProduction = process.env.NODE_ENV === "production";
-	const sameSite = isProduction ? "Strict" : "Lax";
+	// Use SameSite=None for cross-origin requests (frontend/backend on different subdomains)
+	const sameSite = isProduction ? "None" : "Lax";
 	const secure = isProduction ? "Secure; " : "";
 
 	// Access token - 15 minutes
@@ -53,11 +54,12 @@ function setAuthCookies(
 
 function clearAuthCookies(): Record<string, string> {
 	const isProduction = process.env.NODE_ENV === "production";
+	const sameSite = isProduction ? "None" : "Lax";
 	const secure = isProduction ? "Secure; " : "";
 
-	const clearAccess = `access_token=; HttpOnly; ${secure}SameSite=Strict; Path=/; Max-Age=0`;
-	const clearRefresh = `refresh_token=; HttpOnly; ${secure}SameSite=Strict; Path=/api/v1/auth/refresh; Max-Age=0`;
-	const clearSession = `session_id=; HttpOnly; ${secure}SameSite=Strict; Path=/; Max-Age=0`;
+	const clearAccess = `access_token=; HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=0`;
+	const clearRefresh = `refresh_token=; HttpOnly; ${secure}SameSite=${sameSite}; Path=/api/v1/auth/refresh; Max-Age=0`;
+	const clearSession = `session_id=; HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=0`;
 
 	return {
 		"Set-Cookie": [clearAccess, clearRefresh, clearSession].join(", "),
