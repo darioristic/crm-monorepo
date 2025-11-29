@@ -17,8 +17,8 @@ import { Label } from "@/components/ui/label";
 // ============================================
 
 const loginSchema = z.object({
-	email: z.string().email("Unesite validnu email adresu"),
-	password: z.string().min(1, "Lozinka je obavezna"),
+	email: z.string().email("Please enter a valid email address"),
+	password: z.string().min(1, "Password is required"),
 });
 
 type LoginFormData = z.infer<typeof loginSchema>;
@@ -59,10 +59,10 @@ function LoginForm() {
 				router.push(returnUrl);
 				router.refresh();
 			} else {
-				setError(result.error?.message || "Prijava nije uspela");
+				setError(result.error?.message || "Login failed");
 			}
 		} catch (err) {
-			setError("Došlo je do greške. Pokušajte ponovo.");
+			setError("An error occurred. Please try again.");
 		} finally {
 			setIsLoading(false);
 		}
@@ -79,13 +79,13 @@ function LoginForm() {
 
 			{/* Email Field */}
 			<div className="space-y-2">
-				<Label htmlFor="email">Email adresa</Label>
+				<Label htmlFor="email">Email Address</Label>
 				<div className="relative">
 					<RiMailLine className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						id="email"
 						type="email"
-						placeholder="vas@email.com"
+						placeholder="you@example.com"
 						className="pl-10"
 						autoComplete="email"
 						disabled={isLoading}
@@ -100,7 +100,7 @@ function LoginForm() {
 
 			{/* Password Field */}
 			<div className="space-y-2">
-				<Label htmlFor="password">Lozinka</Label>
+				<Label htmlFor="password">Password</Label>
 				<div className="relative">
 					<RiLockLine className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
@@ -136,10 +136,10 @@ function LoginForm() {
 				{isLoading ? (
 					<>
 						<RiLoader4Line className="h-4 w-4 animate-spin" />
-						<span>Prijavljivanje...</span>
+						<span>Signing in...</span>
 					</>
 				) : (
-					"Prijavite se"
+					"Sign In"
 				)}
 			</Button>
 		</form>
@@ -161,16 +161,16 @@ export default function LoginPage() {
 					</div>
 					<h1 className="text-2xl font-bold tracking-tight">CRM System</h1>
 					<p className="mt-1 text-sm text-muted-foreground">
-						Upravljanje klijentima, prodajom i projektima
+						Manage customers, sales, and projects
 					</p>
 				</div>
 
 				{/* Login Card */}
 				<Card className="border-border/50 shadow-lg">
 					<CardHeader className="space-y-1 text-center">
-						<CardTitle className="text-xl">Dobrodošli nazad</CardTitle>
+						<CardTitle className="text-xl">Welcome Back</CardTitle>
 						<CardDescription>
-							Unesite vaše podatke za prijavu
+							Enter your credentials to sign in
 						</CardDescription>
 					</CardHeader>
 
@@ -183,7 +183,7 @@ export default function LoginPage() {
 						{process.env.NODE_ENV === "development" && (
 							<div className="mt-6 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-3">
 								<p className="mb-2 text-xs font-medium text-muted-foreground">
-									Demo kredencijali:
+									Demo Credentials:
 								</p>
 								<div className="space-y-1 text-xs text-muted-foreground">
 									<p>
@@ -193,7 +193,7 @@ export default function LoginPage() {
 										<span className="font-medium">User:</span> sarah.johnson@techcorp.com
 									</p>
 									<p>
-										<span className="font-medium">Lozinka:</span> changeme123
+										<span className="font-medium">Password:</span> changeme123
 									</p>
 								</div>
 							</div>
@@ -203,7 +203,7 @@ export default function LoginPage() {
 
 				{/* Footer */}
 				<p className="mt-6 text-center text-xs text-muted-foreground">
-					&copy; {new Date().getFullYear()} CRM System. Sva prava zadržana.
+					&copy; {new Date().getFullYear()} CRM System. All rights reserved.
 				</p>
 			</div>
 		</div>

@@ -77,19 +77,19 @@ export default function UserMenu() {
 					<DropdownMenuItem asChild>
 						<Link href="/dashboard/profile">
 							<BadgeCheck />
-							Profil
+							Profile
 						</Link>
 					</DropdownMenuItem>
 					<DropdownMenuItem asChild>
 						<Link href="/dashboard/settings">
 							<Settings />
-							Podešavanja
+							Settings
 						</Link>
 					</DropdownMenuItem>
 					<DropdownMenuItem asChild>
 						<Link href="/dashboard/settings/notifications">
 							<Bell />
-							Notifikacije
+							Notifications
 						</Link>
 					</DropdownMenuItem>
 				</DropdownMenuGroup>
@@ -100,7 +100,7 @@ export default function UserMenu() {
 							<DropdownMenuItem asChild>
 								<Link href="/dashboard/users">
 									<Shield />
-									Upravljanje korisnicima
+									User Management
 								</Link>
 							</DropdownMenuItem>
 						</DropdownMenuGroup>
@@ -109,7 +109,7 @@ export default function UserMenu() {
 				<DropdownMenuSeparator />
 				<DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
 					<LogOut />
-					Odjava
+					Sign Out
 				</DropdownMenuItem>
 			</DropdownMenuContent>
 		</DropdownMenu>
