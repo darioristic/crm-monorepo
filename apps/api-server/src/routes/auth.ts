@@ -43,8 +43,11 @@ async function parseBody<T = Record<string, unknown>>(
 // ============================================
 
 // Helper to get environment at runtime (prevents bundler inlining)
+// Uses Bun.env which is not statically analyzable
 function getNodeEnv(): string {
-	return String(process.env["NODE_ENV"] || "development");
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const env = (globalThis as any).Bun?.env || process.env;
+	return String(env.NODE_ENV || "development");
 }
 
 function setAuthCookies(
