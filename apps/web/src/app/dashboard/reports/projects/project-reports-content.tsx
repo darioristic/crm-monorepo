@@ -152,7 +152,7 @@ export function ProjectReportsContent() {
           <ExportButton
             data={projects as unknown as Record<string, unknown>[]}
             filename={`project-report-${format(new Date(), "yyyy-MM-dd")}`}
-            columns={exportColumns}
+            columns={exportColumns as unknown as ColumnDef<Record<string, unknown>>[]}
             elementId="project-report-content"
             pdfOptions={{
               title: "Project Report",
