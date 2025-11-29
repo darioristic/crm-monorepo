@@ -13,11 +13,8 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: path.join(__dirname, "../.."),
   },
-  // Experimental settings for monorepo
-  experimental: {
-    // Output file tracing for standalone builds in monorepo
-    outputFileTracingRoot: path.join(__dirname, "../.."),
-  },
+  // Output file tracing for standalone builds in monorepo
+  outputFileTracingRoot: path.join(__dirname, "../.."),
 };
 
 export default nextConfig;
