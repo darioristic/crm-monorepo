@@ -121,9 +121,9 @@ export function SalesReportsContent() {
         </div>
         <div className="flex items-center gap-2">
           <ExportButton
-            data={topCustomers}
+            data={topCustomers as unknown as Record<string, unknown>[]}
             filename={`sales-report-${format(new Date(), "yyyy-MM-dd")}`}
-            columns={exportColumns}
+            columns={exportColumns as unknown as ColumnDef<Record<string, unknown>>[]}
             elementId="sales-report-content"
             pdfOptions={{
               title: "Sales Report",
