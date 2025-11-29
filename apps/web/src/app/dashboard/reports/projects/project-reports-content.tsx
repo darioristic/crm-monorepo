@@ -150,7 +150,7 @@ export function ProjectReportsContent() {
         </div>
         <div className="flex items-center gap-2">
           <ExportButton
-            data={projects}
+            data={projects as unknown as Record<string, unknown>[]}
             filename={`project-report-${format(new Date(), "yyyy-MM-dd")}`}
             columns={exportColumns}
             elementId="project-report-content"
