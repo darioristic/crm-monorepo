@@ -5,7 +5,8 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
   output: "standalone",
   transpilePackages: ["@crm/types", "@crm/utils"],
-  typedRoutes: true,
+  // typedRoutes disabled due to dynamic route compatibility issues
+  // typedRoutes: true,
   env: {
     API_URL: process.env.API_URL || "http://localhost:3001",
   },
