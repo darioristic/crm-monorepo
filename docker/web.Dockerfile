@@ -52,7 +52,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 # Build the application
 WORKDIR /app/apps/web
-RUN npm run build
+RUN ../../node_modules/.bin/next build
 
 # ============================================
 # Stage 3: Production Runner
