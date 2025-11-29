@@ -1,9 +1,17 @@
 import Redis from "ioredis";
 
-const REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
+// Get Redis configuration from environment
+const REDIS_HOST = process.env.REDIS_HOST || "localhost";
+const REDIS_PORT = parseInt(process.env.REDIS_PORT || "6379", 10);
+const REDIS_PASSWORD = process.env.REDIS_PASSWORD || undefined;
 
-// Create Redis client
-export const redis = new Redis(REDIS_URL, {
+console.log(`Connecting to Redis at ${REDIS_HOST}:${REDIS_PORT}`);
+
+// Create Redis client with explicit configuration
+export const redis = new Redis({
+	host: REDIS_HOST,
+	port: REDIS_PORT,
+	password: REDIS_PASSWORD,
 	maxRetriesPerRequest: 3,
 	retryStrategy(times: number) {
 		if (times > 3) {
@@ -12,7 +20,7 @@ export const redis = new Redis(REDIS_URL, {
 		}
 		return Math.min(times * 200, 2000);
 	},
-	lazyConnect: true,
+	lazyConnect: false,
 });
 
 // Connection event handlers
