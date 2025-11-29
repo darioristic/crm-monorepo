@@ -27,23 +27,10 @@ const loggerConfig: pino.LoggerOptions = {
 	},
 };
 
-// Use pretty printing in development
-const transport = IS_PRODUCTION
-	? undefined
-	: {
-			target: "pino-pretty",
-			options: {
-				colorize: true,
-				translateTime: "SYS:standard",
-				ignore: "pid,hostname",
-			},
-		};
-
 // Create the logger instance
-export const logger = pino(
-	loggerConfig,
-	transport ? pino.transport(transport) : undefined,
-);
+// In production, use standard JSON output for log aggregation
+// In development, we could use pino-pretty but it requires the package to be installed
+export const logger = pino(loggerConfig);
 
 // ============================================
 // Request Logger - Creates child logger with request context
