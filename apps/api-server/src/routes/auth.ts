@@ -50,6 +50,14 @@ function getNodeEnv(): string {
 	return String(env.NODE_ENV || "development");
 }
 
+// Get cookie domain from env or derive from host
+function getCookieDomain(): string {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const env = (globalThis as any).Bun?.env || process.env;
+	// Allow explicit domain configuration, or use shared domain for OpenShift
+	return env.COOKIE_DOMAIN || "";
+}
+
 function setAuthCookies(
 	accessToken: string,
 	refreshToken: string,
@@ -59,15 +67,17 @@ function setAuthCookies(
 	// Use SameSite=None for cross-origin requests (frontend/backend on different subdomains)
 	const sameSite = isProduction ? "None" : "Lax";
 	const secure = isProduction ? "Secure; " : "";
+	const cookieDomain = getCookieDomain();
+	const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
 
 	// Access token - 15 minutes
-	const accessCookie = `access_token=${accessToken}; HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=900`;
+	const accessCookie = `access_token=${accessToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=900`;
 
 	// Refresh token - 7 days
-	const refreshCookie = `refresh_token=${refreshToken}; HttpOnly; ${secure}SameSite=${sameSite}; Path=/api/v1/auth/refresh; Max-Age=604800`;
+	const refreshCookie = `refresh_token=${refreshToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth/refresh; Max-Age=604800`;
 
 	// Session ID - 7 days
-	const sessionCookie = `session_id=${sessionId}; HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=604800`;
+	const sessionCookie = `session_id=${sessionId}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=604800`;
 
 	return {
 		"Set-Cookie": [accessCookie, refreshCookie, sessionCookie].join(", "),
@@ -78,10 +88,12 @@ function clearAuthCookies(): Record<string, string> {
 	const isProduction = getNodeEnv() === "production";
 	const sameSite = isProduction ? "None" : "Lax";
 	const secure = isProduction ? "Secure; " : "";
+	const cookieDomain = getCookieDomain();
+	const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
 
-	const clearAccess = `access_token=; HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=0`;
-	const clearRefresh = `refresh_token=; HttpOnly; ${secure}SameSite=${sameSite}; Path=/api/v1/auth/refresh; Max-Age=0`;
-	const clearSession = `session_id=; HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=0`;
+	const clearAccess = `access_token=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=0`;
+	const clearRefresh = `refresh_token=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth/refresh; Max-Age=0`;
+	const clearSession = `session_id=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=0`;
 
 	return {
 		"Set-Cookie": [clearAccess, clearRefresh, clearSession].join(", "),

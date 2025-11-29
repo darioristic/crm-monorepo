@@ -65,7 +65,10 @@ function createEmailWorker(): Worker {
 	});
 
 	worker.on("failed", (job, err) => {
-		logger.error({ jobId: job?.id, queue: QUEUES.EMAIL, error: err }, "Job failed");
+		logger.error(
+			{ jobId: job?.id, queue: QUEUES.EMAIL, error: err },
+			"Job failed",
+		);
 	});
 
 	return worker;
@@ -81,15 +84,28 @@ function createNotificationCleanupWorker(): Worker {
 		async (job: Job<NotificationCleanupJobData>) => {
 			const { daysOld = 30 } = job.data;
 
-			logger.info({ jobId: job.id, daysOld }, "Processing notification cleanup job");
+			logger.info(
+				{ jobId: job.id, daysOld },
+				"Processing notification cleanup job",
+			);
 
 			try {
 				const deletedCount = await notificationQueries.deleteOld(daysOld);
 
-				logger.info({ jobId: job.id, deletedCount }, "Notification cleanup completed");
-				return { success: true, deletedCount, cleanedAt: new Date().toISOString() };
+				logger.info(
+					{ jobId: job.id, deletedCount },
+					"Notification cleanup completed",
+				);
+				return {
+					success: true,
+					deletedCount,
+					cleanedAt: new Date().toISOString(),
+				};
 			} catch (error) {
-				logger.error({ jobId: job.id, error }, "Failed to cleanup notifications");
+				logger.error(
+					{ jobId: job.id, error },
+					"Failed to cleanup notifications",
+				);
 				throw error;
 			}
 		},
@@ -100,11 +116,17 @@ function createNotificationCleanupWorker(): Worker {
 	);
 
 	worker.on("completed", (job) => {
-		logger.debug({ jobId: job.id, queue: QUEUES.NOTIFICATION_CLEANUP }, "Job completed");
+		logger.debug(
+			{ jobId: job.id, queue: QUEUES.NOTIFICATION_CLEANUP },
+			"Job completed",
+		);
 	});
 
 	worker.on("failed", (job, err) => {
-		logger.error({ jobId: job?.id, queue: QUEUES.NOTIFICATION_CLEANUP, error: err }, "Job failed");
+		logger.error(
+			{ jobId: job?.id, queue: QUEUES.NOTIFICATION_CLEANUP, error: err },
+			"Job failed",
+		);
 	});
 
 	return worker;
@@ -120,7 +142,10 @@ function createWebhookDeliveryWorker(): Worker {
 		async (job: Job<WebhookDeliveryJobData>) => {
 			const { url, payload, headers = {}, retryCount = 0 } = job.data;
 
-			logger.info({ jobId: job.id, url, retryCount }, "Processing webhook delivery job");
+			logger.info(
+				{ jobId: job.id, url, retryCount },
+				"Processing webhook delivery job",
+			);
 
 			try {
 				const response = await fetch(url, {
@@ -137,8 +162,15 @@ function createWebhookDeliveryWorker(): Worker {
 					throw new Error(`Webhook failed with status ${response.status}`);
 				}
 
-				logger.info({ jobId: job.id, status: response.status }, "Webhook delivered successfully");
-				return { success: true, status: response.status, deliveredAt: new Date().toISOString() };
+				logger.info(
+					{ jobId: job.id, status: response.status },
+					"Webhook delivered successfully",
+				);
+				return {
+					success: true,
+					status: response.status,
+					deliveredAt: new Date().toISOString(),
+				};
 			} catch (error) {
 				logger.error({ jobId: job.id, error }, "Failed to deliver webhook");
 				throw error;
@@ -155,11 +187,17 @@ function createWebhookDeliveryWorker(): Worker {
 	);
 
 	worker.on("completed", (job) => {
-		logger.debug({ jobId: job.id, queue: QUEUES.WEBHOOK_DELIVERY }, "Job completed");
+		logger.debug(
+			{ jobId: job.id, queue: QUEUES.WEBHOOK_DELIVERY },
+			"Job completed",
+		);
 	});
 
 	worker.on("failed", (job, err) => {
-		logger.error({ jobId: job?.id, queue: QUEUES.WEBHOOK_DELIVERY, error: err }, "Job failed");
+		logger.error(
+			{ jobId: job?.id, queue: QUEUES.WEBHOOK_DELIVERY, error: err },
+			"Job failed",
+		);
 	});
 
 	return worker;
@@ -211,4 +249,3 @@ export default {
 	stopWorkers,
 	getWorkerStatuses,
 };
-

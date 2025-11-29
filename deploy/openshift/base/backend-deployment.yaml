@@ -103,6 +103,31 @@ spec:
                   name: crm-secrets
                   key: ERP_API_SECRET
                   optional: true
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: crm-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: crm-config
+                  key: REDIS_PORT
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: crm-secrets
+                  key: REDIS_PASSWORD
+            - name: COOKIE_DOMAIN
+              valueFrom:
+                configMapKeyRef:
+                  name: crm-config
+                  key: COOKIE_DOMAIN
+            - name: ALLOWED_ORIGINS
+              valueFrom:
+                configMapKeyRef:
+                  name: crm-config
+                  key: ALLOWED_ORIGINS
           resources:
             requests:
               memory: "512Mi"

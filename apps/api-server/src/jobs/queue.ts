@@ -127,7 +127,7 @@ export async function addJob<T extends JobData>(
 	},
 ): Promise<Job<T>> {
 	const queue = getQueue(queueName);
-	
+
 	const job = await queue.add(queueName, data, {
 		delay: options?.delay,
 		priority: options?.priority,
@@ -154,7 +154,7 @@ export async function addEmailJob(
  */
 export async function scheduleNotificationCleanup(): Promise<void> {
 	const queue = getQueue(QUEUES.NOTIFICATION_CLEANUP);
-	
+
 	// Remove any existing repeatable job
 	const repeatableJobs = await queue.getRepeatableJobs();
 	for (const job of repeatableJobs) {
@@ -162,12 +162,16 @@ export async function scheduleNotificationCleanup(): Promise<void> {
 	}
 
 	// Add new repeatable job (runs at 3 AM daily)
-	await addJob(QUEUES.NOTIFICATION_CLEANUP, { daysOld: 30 }, {
-		repeat: {
-			pattern: "0 3 * * *", // Every day at 3 AM
+	await addJob(
+		QUEUES.NOTIFICATION_CLEANUP,
+		{ daysOld: 30 },
+		{
+			repeat: {
+				pattern: "0 3 * * *", // Every day at 3 AM
+			},
+			jobId: "notification-cleanup-daily",
 		},
-		jobId: "notification-cleanup-daily",
-	});
+	);
 
 	logger.info("Notification cleanup scheduled for daily execution at 3 AM");
 }
@@ -177,7 +181,7 @@ export async function scheduleNotificationCleanup(): Promise<void> {
  */
 export async function scheduleInvoiceReminderCheck(): Promise<void> {
 	const queue = getQueue(QUEUES.INVOICE_REMINDER);
-	
+
 	// Remove any existing repeatable job
 	const repeatableJobs = await queue.getRepeatableJobs();
 	for (const job of repeatableJobs) {
@@ -272,4 +276,3 @@ export default {
 	closeQueues,
 	QUEUES,
 };
-
