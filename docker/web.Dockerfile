@@ -31,9 +31,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies from deps stage
+# Copy dependencies from deps stage (hoisted to root by bun workspaces)
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages ./packages
 
 # Copy source code
