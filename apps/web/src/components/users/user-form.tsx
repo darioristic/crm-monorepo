@@ -65,7 +65,7 @@ export function UserForm({ user, mode }: UserFormProps) {
   );
 
   const form = useForm<UserFormValues>({
-    resolver: zodResolver(userFormSchema),
+    resolver: zodResolver(userFormSchema) as any,
     defaultValues: {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",

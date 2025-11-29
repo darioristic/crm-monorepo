@@ -79,7 +79,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   const defaultDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(invoiceFormSchema),
+    resolver: zodResolver(invoiceFormSchema) as any,
     defaultValues: {
       companyId: invoice?.companyId || "",
       issueDate: invoice?.issueDate?.split("T")[0] || today,

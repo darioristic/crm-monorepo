@@ -75,7 +75,7 @@ export function DeliveryNoteForm({ deliveryNote, mode }: DeliveryNoteFormProps) 
   );
 
   const form = useForm<DeliveryNoteFormValues>({
-    resolver: zodResolver(deliveryNoteFormSchema),
+    resolver: zodResolver(deliveryNoteFormSchema) as any,
     defaultValues: {
       companyId: deliveryNote?.companyId || "",
       shippingAddress: deliveryNote?.shippingAddress || "",

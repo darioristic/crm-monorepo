@@ -53,7 +53,7 @@ export function PaymentDialog({
   const balance = invoice ? invoice.total - invoice.paidAmount : 0;
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentSchema),
+    resolver: zodResolver(paymentSchema) as any,
     defaultValues: {
       amount: balance,
       reference: "",

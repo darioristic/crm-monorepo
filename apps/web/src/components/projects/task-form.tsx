@@ -75,7 +75,7 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
   );
 
   const form = useForm<TaskFormValues>({
-    resolver: zodResolver(taskFormSchema),
+    resolver: zodResolver(taskFormSchema) as any,
     defaultValues: {
       title: task?.title || "",
       description: task?.description || "",

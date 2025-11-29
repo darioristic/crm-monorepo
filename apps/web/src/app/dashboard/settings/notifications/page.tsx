@@ -44,7 +44,7 @@ const defaultValues: Partial<NotificationsFormValues> = {
 
 export default function Page() {
   const form = useForm<NotificationsFormValues>({
-    resolver: zodResolver(notificationsFormSchema),
+    resolver: zodResolver(notificationsFormSchema) as any,
     defaultValues
   });
 

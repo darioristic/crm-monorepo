@@ -73,7 +73,7 @@ export function CompanyForm({ company, mode }: CompanyFormProps) {
   );
 
   const form = useForm<CompanyFormValues>({
-    resolver: zodResolver(companyFormSchema),
+    resolver: zodResolver(companyFormSchema) as any,
     defaultValues: {
       name: company?.name || "",
       industry: company?.industry || "",

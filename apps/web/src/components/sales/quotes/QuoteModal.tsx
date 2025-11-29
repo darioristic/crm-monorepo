@@ -94,7 +94,7 @@ export function QuoteModal({
     .split("T")[0];
 
   const form = useForm<QuoteFormValues>({
-    resolver: zodResolver(quoteFormSchema),
+    resolver: zodResolver(quoteFormSchema) as any,
     defaultValues: {
       companyId: "",
       issueDate: today,

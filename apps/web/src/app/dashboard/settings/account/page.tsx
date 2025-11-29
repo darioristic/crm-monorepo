@@ -74,7 +74,7 @@ const defaultValues: Partial<AccountFormValues> = {
 
 export default function Page() {
   const form = useForm<AccountFormValues>({
-    resolver: zodResolver(accountFormSchema),
+    resolver: zodResolver(accountFormSchema) as any,
     defaultValues,
   });
 

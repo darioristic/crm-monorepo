@@ -89,7 +89,7 @@ export function DeliveryModal({
   );
 
   const form = useForm<DeliveryNoteFormValues>({
-    resolver: zodResolver(deliveryNoteFormSchema),
+    resolver: zodResolver(deliveryNoteFormSchema) as any,
     defaultValues: {
       companyId: "",
       shippingAddress: "",

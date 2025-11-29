@@ -73,7 +73,7 @@ export default function Page() {
   const fileName = files[0]?.file.name || null;
 
   const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema),
+    resolver: zodResolver(profileFormSchema) as any,
     defaultValues,
     mode: "onChange"
   });

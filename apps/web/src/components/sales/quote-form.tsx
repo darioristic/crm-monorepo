@@ -79,7 +79,7 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
   const defaultValidUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
   const form = useForm<QuoteFormValues>({
-    resolver: zodResolver(quoteFormSchema),
+    resolver: zodResolver(quoteFormSchema) as any,
     defaultValues: {
       companyId: quote?.companyId || "",
       issueDate: quote?.issueDate?.split("T")[0] || today,

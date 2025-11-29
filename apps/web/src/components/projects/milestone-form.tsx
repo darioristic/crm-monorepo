@@ -64,7 +64,7 @@ export function MilestoneForm({ milestone, mode, defaultProjectId }: MilestoneFo
   );
 
   const form = useForm<MilestoneFormValues>({
-    resolver: zodResolver(milestoneFormSchema),
+    resolver: zodResolver(milestoneFormSchema) as any,
     defaultValues: {
       name: milestone?.name || "",
       description: milestone?.description || "",

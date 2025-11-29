@@ -94,7 +94,7 @@ export function InvoiceModal({
     .split("T")[0];
 
   const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(invoiceFormSchema),
+    resolver: zodResolver(invoiceFormSchema) as any,
     defaultValues: {
       companyId: "",
       issueDate: today,

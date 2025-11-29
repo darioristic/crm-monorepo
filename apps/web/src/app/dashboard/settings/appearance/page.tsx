@@ -49,7 +49,7 @@ export default function Page() {
   const { theme, setTheme } = useTheme();
 
   const form = useForm<AppearanceFormValues>({
-    resolver: zodResolver(appearanceFormSchema),
+    resolver: zodResolver(appearanceFormSchema) as any,
     defaultValues,
   });
 
