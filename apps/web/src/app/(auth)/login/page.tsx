@@ -56,7 +56,8 @@ export default function LoginPage() {
 			const result = await login(data);
 
 			if (result.success) {
-				router.push(returnUrl);
+				// Cast required for dynamic returnUrl with typedRoutes
+				router.push(returnUrl as never);
 				router.refresh();
 			} else {
 				setError(result.error?.message || "Prijava nije uspela");
