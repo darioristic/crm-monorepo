@@ -1,21 +1,35 @@
 import { successResponse, errorResponse } from "@crm/utils";
 import { authService } from "../services/auth.service";
-import { auditService, getClientIp, getUserAgent } from "../services/audit.service";
+import {
+	auditService,
+	getClientIp,
+	getUserAgent,
+} from "../services/audit.service";
 import { verifyAndGetUser, type AuthContext } from "../middleware/auth";
-import { checkRateLimitByIp, RATE_LIMITS, rateLimitExceededResponse } from "../middleware/rate-limit";
+import {
+	checkRateLimitByIp,
+	RATE_LIMITS,
+	rateLimitExceededResponse,
+} from "../middleware/rate-limit";
 
 // ============================================
 // Response Helper
 // ============================================
 
-function json<T>(data: T, status = 200, headers: Record<string, string> = {}): Response {
+function json<T>(
+	data: T,
+	status = 200,
+	headers: Record<string, string> = {},
+): Response {
 	return new Response(JSON.stringify(data), {
 		status,
 		headers: { "Content-Type": "application/json", ...headers },
 	});
 }
 
-async function parseBody<T = Record<string, unknown>>(request: Request): Promise<T | null> {
+async function parseBody<T = Record<string, unknown>>(
+	request: Request,
+): Promise<T | null> {
 	try {
 		const data = await request.json();
 		return data as T;
@@ -28,22 +42,27 @@ async function parseBody<T = Record<string, unknown>>(request: Request): Promise
 // Cookie Helpers
 // ============================================
 
+// Helper to get environment at runtime (prevents bundler inlining)
+function getNodeEnv(): string {
+	return String(process.env["NODE_ENV"] || "development");
+}
+
 function setAuthCookies(
 	accessToken: string,
 	refreshToken: string,
 	sessionId: string,
 ): Record<string, string> {
-	const isProduction = process.env.NODE_ENV === "production";
+	const isProduction = getNodeEnv() === "production";
 	// Use SameSite=None for cross-origin requests (frontend/backend on different subdomains)
 	const sameSite = isProduction ? "None" : "Lax";
 	const secure = isProduction ? "Secure; " : "";
 
 	// Access token - 15 minutes
 	const accessCookie = `access_token=${accessToken}; HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=900`;
-	
+
 	// Refresh token - 7 days
 	const refreshCookie = `refresh_token=${refreshToken}; HttpOnly; ${secure}SameSite=${sameSite}; Path=/api/v1/auth/refresh; Max-Age=604800`;
-	
+
 	// Session ID - 7 days
 	const sessionCookie = `session_id=${sessionId}; HttpOnly; ${secure}SameSite=${sameSite}; Path=/; Max-Age=604800`;
 
@@ -53,7 +72,7 @@ function setAuthCookies(
 }
 
 function clearAuthCookies(): Record<string, string> {
-	const isProduction = process.env.NODE_ENV === "production";
+	const isProduction = getNodeEnv() === "production";
 	const sameSite = isProduction ? "None" : "Lax";
 	const secure = isProduction ? "Secure; " : "";
 
@@ -112,7 +131,10 @@ export async function loginHandler(
 	const body = await parseBody<{ email: string; password: string }>(request);
 
 	if (!body?.email || !body?.password) {
-		return json(errorResponse("BAD_REQUEST", "Email and password are required"), 400);
+		return json(
+			errorResponse("BAD_REQUEST", "Email and password are required"),
+			400,
+		);
 	}
 
 	const result = await authService.login(body.email, body.password);
@@ -252,10 +274,7 @@ export async function refreshHandler(
 /**
  * GET /api/v1/auth/me
  */
-export async function meHandler(
-	request: Request,
-	url: URL,
-): Promise<Response> {
+export async function meHandler(request: Request, url: URL): Promise<Response> {
 	const auth = await verifyAndGetUser(request);
 
 	if (!auth) {
@@ -284,11 +303,17 @@ export async function changePasswordHandler(
 		return json(errorResponse("UNAUTHORIZED", "Not authenticated"), 401);
 	}
 
-	const body = await parseBody<{ currentPassword: string; newPassword: string }>(request);
+	const body = await parseBody<{
+		currentPassword: string;
+		newPassword: string;
+	}>(request);
 
 	if (!body?.currentPassword || !body?.newPassword) {
 		return json(
-			errorResponse("BAD_REQUEST", "Current password and new password are required"),
+			errorResponse(
+				"BAD_REQUEST",
+				"Current password and new password are required",
+			),
 			400,
 		);
 	}
@@ -316,4 +341,3 @@ export async function changePasswordHandler(
 	// Clear cookies to force re-login
 	return json(result, 200, clearAuthCookies());
 }
-
