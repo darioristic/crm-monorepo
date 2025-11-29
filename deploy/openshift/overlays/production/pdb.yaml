@@ -1,0 +1,30 @@
+# Pod Disruption Budget for Frontend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: crm-frontend-pdb
+  labels:
+    app: crm-frontend
+    app.kubernetes.io/name: crm-frontend
+    app.kubernetes.io/component: frontend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: crm-frontend
+---
+# Pod Disruption Budget for Backend
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: crm-backend-pdb
+  labels:
+    app: crm-backend
+    app.kubernetes.io/name: crm-backend
+    app.kubernetes.io/component: backend
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: crm-backend
+

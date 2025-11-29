@@ -1,0 +1,141 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: deploy-crm
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  description: Deploy CRM application to OpenShift
+  
+  params:
+    - name: namespace
+      type: string
+      description: Target namespace for deployment
+      default: crm-dev
+    - name: environment
+      type: string
+      description: Target environment (dev, staging, production)
+      default: dev
+    - name: frontend-image
+      type: string
+      description: Frontend image URL with tag
+    - name: backend-image
+      type: string
+      description: Backend image URL with tag
+
+  workspaces:
+    - name: source
+      description: Workspace containing the manifests
+
+  steps:
+    - name: update-manifests
+      image: quay.io/openshift/origin-cli:4.14
+      script: |
+        #!/usr/bin/env bash
+        set -eu
+        
+        cd $(workspaces.source.path)
+        
+        echo "Updating image references in manifests..."
+        
+        # Update frontend image in deployment
+        sed -i "s|image:.*crm-frontend.*|image: $(params.frontend-image)|g" \
+          deploy/openshift/base/frontend-deployment.yaml
+        
+        # Update backend image in deployment
+        sed -i "s|image:.*crm-backend.*|image: $(params.backend-image)|g" \
+          deploy/openshift/base/backend-deployment.yaml
+        
+        echo "Manifests updated successfully"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+
+    - name: apply-manifests
+      image: quay.io/openshift/origin-cli:4.14
+      script: |
+        #!/usr/bin/env bash
+        set -eu
+        
+        cd $(workspaces.source.path)
+        
+        echo "Deploying to namespace: $(params.namespace)"
+        echo "Environment: $(params.environment)"
+        
+        # Apply Kustomize overlay for the target environment
+        oc apply -k deploy/openshift/overlays/$(params.environment) \
+          -n $(params.namespace)
+        
+        echo "Manifests applied successfully"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+
+    - name: wait-for-rollout
+      image: quay.io/openshift/origin-cli:4.14
+      script: |
+        #!/usr/bin/env bash
+        set -eu
+        
+        echo "Waiting for frontend rollout..."
+        oc rollout status deployment/crm-frontend \
+          -n $(params.namespace) \
+          --timeout=300s
+        
+        echo "Waiting for backend rollout..."
+        oc rollout status deployment/crm-backend \
+          -n $(params.namespace) \
+          --timeout=300s
+        
+        echo "All deployments rolled out successfully!"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+
+    - name: smoke-test
+      image: quay.io/openshift/origin-cli:4.14
+      script: |
+        #!/usr/bin/env bash
+        set -eu
+        
+        echo "Running smoke tests..."
+        
+        # Get route URLs
+        FRONTEND_URL=$(oc get route crm-frontend -n $(params.namespace) -o jsonpath='{.spec.host}')
+        BACKEND_URL=$(oc get route crm-backend -n $(params.namespace) -o jsonpath='{.spec.host}')
+        
+        echo "Frontend URL: https://${FRONTEND_URL}"
+        echo "Backend URL: https://${BACKEND_URL}"
+        
+        # Test frontend health
+        echo "Testing frontend health..."
+        curl -sf "https://${FRONTEND_URL}/" > /dev/null || {
+          echo "Frontend health check failed!"
+          exit 1
+        }
+        echo "Frontend is healthy!"
+        
+        # Test backend health
+        echo "Testing backend health..."
+        curl -sf "https://${BACKEND_URL}/health" > /dev/null || {
+          echo "Backend health check failed!"
+          exit 1
+        }
+        echo "Backend is healthy!"
+        
+        # Test API endpoint
+        echo "Testing API endpoint..."
+        API_RESPONSE=$(curl -sf "https://${BACKEND_URL}/api/v1" 2>/dev/null)
+        if echo "${API_RESPONSE}" | grep -q "success"; then
+          echo "API is responding correctly!"
+        else
+          echo "API response unexpected: ${API_RESPONSE}"
+          exit 1
+        fi
+        
+        echo "All smoke tests passed!"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+

@@ -1,0 +1,24 @@
+[install]
+# Use exact versions for reproducible builds
+exact = true
+
+# Symlink workspace packages
+link-workspace-packages = true
+
+[install.scopes]
+# Registry for @crm/* packages (internal)
+"@crm" = { token = "$BUN_AUTH_TOKEN", url = "https://registry.npmjs.org/" }
+
+[run]
+# Automatically restart on file changes in development
+bun = true
+
+[test]
+# Test configuration
+coverage = true
+coverageDir = "coverage"
+
+[debug]
+# Enable source maps in development
+sourcemap = "external"
+

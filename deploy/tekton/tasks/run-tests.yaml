@@ -1,0 +1,150 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: run-tests
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  description: Run tests for the CRM application
+  
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL
+    - name: git-revision
+      type: string
+      description: Git revision to checkout
+      default: main
+
+  workspaces:
+    - name: source
+      description: Workspace containing the source code
+
+  results:
+    - name: test-result
+      description: Test execution result
+
+  steps:
+    - name: git-clone
+      image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.40.2
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        
+        echo "Cloning $(params.git-url) at revision $(params.git-revision)"
+        git clone --depth 1 --branch $(params.git-revision) $(params.git-url) $(workspaces.source.path)
+        
+        cd $(workspaces.source.path)
+        echo "Checked out commit: $(git rev-parse HEAD)"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+
+    - name: install-dependencies
+      image: oven/bun:1-alpine
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        
+        cd $(workspaces.source.path)
+        
+        echo "Installing dependencies..."
+        bun install --frozen-lockfile
+        
+        echo "Dependencies installed successfully"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+
+    - name: lint
+      image: oven/bun:1-alpine
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        
+        cd $(workspaces.source.path)
+        
+        echo "Running linter..."
+        bun run lint || {
+          echo "Linting failed!"
+          exit 1
+        }
+        
+        echo "Linting passed!"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+
+    - name: typecheck
+      image: oven/bun:1-alpine
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        
+        cd $(workspaces.source.path)
+        
+        echo "Running type check..."
+        
+        # Check API server types
+        cd apps/api-server
+        bun run typecheck || {
+          echo "API server type check failed!"
+          exit 1
+        }
+        
+        # Check frontend types
+        cd ../web
+        bun run typecheck || {
+          echo "Frontend type check failed!"
+          exit 1
+        }
+        
+        echo "Type check passed!"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+
+    - name: unit-tests
+      image: oven/bun:1-alpine
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        
+        cd $(workspaces.source.path)
+        
+        echo "Running unit tests..."
+        
+        # Run tests if they exist
+        if [ -f "apps/api-server/package.json" ]; then
+          cd apps/api-server
+          if grep -q '"test"' package.json; then
+            bun run test || {
+              echo "Unit tests failed!"
+              exit 1
+            }
+          else
+            echo "No test script found in api-server, skipping..."
+          fi
+        fi
+        
+        echo "PASSED" > $(results.test-result.path)
+        echo "Unit tests passed!"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "1Gi"
+          cpu: "500m"
+

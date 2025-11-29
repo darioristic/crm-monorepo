@@ -1,0 +1,87 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-dev
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/env: dev
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-staging
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/env: staging
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: crm-prod
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/env: production
+---
+# Service Account for pipeline
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crm-pipeline
+  namespace: crm-dev
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crm-pipeline
+  namespace: crm-staging
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: crm-pipeline
+  namespace: crm-prod
+---
+# RBAC for pipeline service account
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: crm-pipeline-edit
+  namespace: crm-dev
+subjects:
+  - kind: ServiceAccount
+    name: crm-pipeline
+    namespace: crm-dev
+roleRef:
+  kind: ClusterRole
+  name: edit
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: crm-pipeline-edit
+  namespace: crm-staging
+subjects:
+  - kind: ServiceAccount
+    name: crm-pipeline
+    namespace: crm-staging
+roleRef:
+  kind: ClusterRole
+  name: edit
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: crm-pipeline-edit
+  namespace: crm-prod
+subjects:
+  - kind: ServiceAccount
+    name: crm-pipeline
+    namespace: crm-prod
+roleRef:
+  kind: ClusterRole
+  name: edit
+  apiGroup: rbac.authorization.k8s.io
+

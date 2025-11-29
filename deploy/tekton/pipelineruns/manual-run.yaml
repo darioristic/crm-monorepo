@@ -1,0 +1,81 @@
+# Manual Pipeline Run for Development
+# Usage: oc create -f deploy/tekton/pipelineruns/manual-run.yaml
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: crm-manual-build-
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+    tekton.dev/pipeline: crm-build-deploy
+spec:
+  pipelineRef:
+    name: crm-build-deploy
+  params:
+    - name: git-url
+      value: https://github.com/your-org/crm-monorepo.git
+    - name: git-revision
+      value: main
+    - name: image-tag
+      value: latest
+    - name: target-namespace
+      value: crm-dev
+    - name: target-environment
+      value: dev
+    - name: registry
+      value: image-registry.openshift-image-registry.svc:5000
+    - name: api-url
+      value: https://api.crm.apps.cluster-domain.com
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+  serviceAccountName: crm-pipeline
+  timeout: 1h0m0s
+---
+# Staging Pipeline Run
+# Usage: oc create -f deploy/tekton/pipelineruns/manual-run.yaml -l environment=staging
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: crm-staging-build-
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+    tekton.dev/pipeline: crm-build-deploy
+    environment: staging
+spec:
+  pipelineRef:
+    name: crm-build-deploy
+  params:
+    - name: git-url
+      value: https://github.com/your-org/crm-monorepo.git
+    - name: git-revision
+      value: main
+    - name: image-tag
+      value: staging
+    - name: target-namespace
+      value: crm-staging
+    - name: target-environment
+      value: staging
+    - name: registry
+      value: image-registry.openshift-image-registry.svc:5000
+    - name: api-url
+      value: https://api.staging.crm.apps.cluster-domain.com
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+  serviceAccountName: crm-pipeline
+  timeout: 1h0m0s
+

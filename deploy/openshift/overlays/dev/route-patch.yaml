@@ -1,0 +1,16 @@
+# Frontend route patch for dev
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: crm-frontend
+spec:
+  host: dev.crm.apps.cluster-domain.com
+---
+# Backend route patch for dev
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: crm-backend
+spec:
+  host: api.dev.crm.apps.cluster-domain.com
+

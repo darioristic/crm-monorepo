@@ -1,0 +1,26 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: crm-frontend
+  labels:
+    app: crm-frontend
+    app.kubernetes.io/name: crm-frontend
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: crm
+  annotations:
+    # Enable HSTS
+    haproxy.router.openshift.io/hsts_header: max-age=31536000;includeSubDomains;preload
+spec:
+  # Host will be set per environment via Kustomize overlay
+  # host: crm.apps.cluster-domain.com
+  to:
+    kind: Service
+    name: crm-frontend
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+

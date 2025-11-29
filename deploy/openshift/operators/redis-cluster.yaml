@@ -1,0 +1,132 @@
+# Redis Cluster using Redis Community Operator
+# Prerequisites: Install Redis Operator from OperatorHub
+#
+# Install via OperatorHub:
+#   1. Go to OperatorHub in OpenShift Console
+#   2. Search for "Redis"
+#   3. Install "Redis Operator" by OpsTree Solutions
+#
+# Or install via CLI:
+#   oc apply -f https://raw.githubusercontent.com/OT-CONTAINER-KIT/redis-operator/master/config/crd/bases/redis.redis.opstreelabs.in_redis.yaml
+---
+apiVersion: redis.redis.opstreelabs.in/v1beta2
+kind: Redis
+metadata:
+  name: crm-redis
+  labels:
+    app.kubernetes.io/name: crm-redis
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: crm
+spec:
+  # Redis configuration
+  kubernetesConfig:
+    image: redis:7-alpine
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        memory: "256Mi"
+        cpu: "100m"
+      limits:
+        memory: "1Gi"
+        cpu: "500m"
+  
+  # Storage configuration
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+        # storageClassName: gp3-csi
+  
+  # Redis custom configuration
+  redisConfig:
+    additionalRedisConfig: |
+      maxmemory 512mb
+      maxmemory-policy allkeys-lru
+      appendonly yes
+      appendfsync everysec
+      save 900 1
+      save 300 10
+      save 60 10000
+      tcp-keepalive 300
+      timeout 0
+  
+  # Security context
+  securityContext:
+    runAsUser: 1001
+    runAsNonRoot: true
+    fsGroup: 1001
+
+  # Readiness and liveness probes
+  redisExporter:
+    enabled: true
+    image: quay.io/opstree/redis-exporter:v1.44.0
+    imagePullPolicy: IfNotPresent
+    resources:
+      requests:
+        memory: "32Mi"
+        cpu: "50m"
+      limits:
+        memory: "64Mi"
+        cpu: "100m"
+
+---
+# Alternative: Redis Sentinel for HA (if needed instead of single instance)
+# Uncomment this section for high availability setup
+#
+# apiVersion: redis.redis.opstreelabs.in/v1beta2
+# kind: RedisSentinel
+# metadata:
+#   name: crm-redis-sentinel
+#   labels:
+#     app.kubernetes.io/name: crm-redis-sentinel
+#     app.kubernetes.io/component: cache
+#     app.kubernetes.io/part-of: crm
+# spec:
+#   clusterSize: 3
+#   kubernetesConfig:
+#     image: redis:7-alpine
+#     imagePullPolicy: IfNotPresent
+#     resources:
+#       requests:
+#         memory: "128Mi"
+#         cpu: "100m"
+#       limits:
+#         memory: "256Mi"
+#         cpu: "200m"
+#   redisSentinelConfig:
+#     redisReplicationName: crm-redis-replication
+#     masterGroupName: crm-master
+#     quorum: "2"
+#     parallelSyncs: "1"
+#     failoverTimeout: "180000"
+#     downAfterMilliseconds: "30000"
+
+---
+# Redis Service (created automatically by operator, but explicit definition for clarity)
+apiVersion: v1
+kind: Service
+metadata:
+  name: crm-redis
+  labels:
+    app.kubernetes.io/name: crm-redis
+    app.kubernetes.io/component: cache
+    app.kubernetes.io/part-of: crm
+spec:
+  type: ClusterIP
+  ports:
+    - name: redis
+      port: 6379
+      targetPort: 6379
+      protocol: TCP
+    - name: metrics
+      port: 9121
+      targetPort: 9121
+      protocol: TCP
+  selector:
+    app: crm-redis
+    redis_setup_type: standalone
+

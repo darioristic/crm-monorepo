@@ -1,0 +1,40 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: crm-github-binding
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  params:
+    - name: git-revision
+      value: $(body.ref)
+    - name: git-url
+      value: $(body.repository.clone_url)
+    - name: git-commit-sha
+      value: $(body.after)
+    - name: git-commit-message
+      value: $(body.head_commit.message)
+    - name: git-author
+      value: $(body.head_commit.author.name)
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerBinding
+metadata:
+  name: crm-gitlab-binding
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  params:
+    - name: git-revision
+      value: $(body.ref)
+    - name: git-url
+      value: $(body.project.git_http_url)
+    - name: git-commit-sha
+      value: $(body.checkout_sha)
+    - name: git-commit-message
+      value: $(body.commits[0].message)
+    - name: git-author
+      value: $(body.commits[0].author.name)
+

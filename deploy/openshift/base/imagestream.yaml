@@ -1,0 +1,41 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: crm-api
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: crm-api
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: crm-monorepo
+spec:
+  lookupPolicy:
+    local: true
+  tags:
+    - name: latest
+      from:
+        kind: DockerImage
+        name: crm-api:latest
+      referencePolicy:
+        type: Source
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: crm-web
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: crm-web
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: crm-monorepo
+spec:
+  lookupPolicy:
+    local: true
+  tags:
+    - name: latest
+      from:
+        kind: DockerImage
+        name: crm-web:latest
+      referencePolicy:
+        type: Source
+
+

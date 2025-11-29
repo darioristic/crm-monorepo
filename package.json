@@ -1,0 +1,38 @@
+{
+  "name": "crm-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run --filter '*' dev",
+    "dev:api": "bun run --filter @crm/api-server dev",
+    "dev:web": "bun run --filter @crm/web dev",
+    "dev:start": "bash scripts/dev.sh",
+    "dev:quick": "bash scripts/dev-quick.sh",
+    "build": "bun run --filter '*' build",
+    "build:api": "bun run --filter @crm/api-server build",
+    "build:web": "bun run --filter @crm/web build",
+    "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
+    "db:up": "docker-compose up -d postgres redis",
+    "db:down": "docker-compose down",
+    "kill-ports": "lsof -ti :3000 | xargs kill -9 2>/dev/null; lsof -ti :3001 | xargs kill -9 2>/dev/null; echo 'Ports freed'",
+    "typecheck": "bun run --filter '*' typecheck",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint . --write",
+    "format": "biome format . --write",
+    "check": "biome check .",
+    "check:fix": "biome check . --write"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.3.3",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "bun@1.1.0"
+}

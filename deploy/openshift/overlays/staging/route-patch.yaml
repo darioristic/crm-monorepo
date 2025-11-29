@@ -1,0 +1,16 @@
+# Frontend route patch for staging
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: crm-frontend
+spec:
+  host: staging.crm.apps.cluster-domain.com
+---
+# Backend route patch for staging
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: crm-backend
+spec:
+  host: api.staging.crm.apps.cluster-domain.com
+

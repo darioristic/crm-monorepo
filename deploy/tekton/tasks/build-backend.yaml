@@ -1,0 +1,117 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: build-backend
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  description: Build and push the CRM backend Docker image
+  
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL
+    - name: git-revision
+      type: string
+      description: Git revision to checkout
+      default: main
+    - name: image-name
+      type: string
+      description: Name of the image to build
+      default: crm-backend
+    - name: image-tag
+      type: string
+      description: Tag for the image
+      default: latest
+    - name: registry
+      type: string
+      description: Container registry
+      default: image-registry.openshift-image-registry.svc:5000
+    - name: namespace
+      type: string
+      description: Namespace for the image
+      default: crm-dev
+
+  workspaces:
+    - name: source
+      description: Workspace containing the source code
+    - name: dockerconfig
+      description: Docker config for registry authentication
+      optional: true
+
+  results:
+    - name: image-digest
+      description: Digest of the built image
+    - name: image-url
+      description: Full URL of the built image
+
+  steps:
+    - name: git-clone
+      image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.40.2
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        
+        echo "Cloning $(params.git-url) at revision $(params.git-revision)"
+        git clone --depth 1 --branch $(params.git-revision) $(params.git-url) $(workspaces.source.path)
+        
+        cd $(workspaces.source.path)
+        echo "Checked out commit: $(git rev-parse HEAD)"
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+
+    - name: build-and-push
+      image: quay.io/buildah/stable:v1.31
+      script: |
+        #!/usr/bin/env bash
+        set -eu
+        
+        cd $(workspaces.source.path)
+        
+        FULL_IMAGE="$(params.registry)/$(params.namespace)/$(params.image-name):$(params.image-tag)"
+        CONTEXT_DIR="."
+        DOCKERFILE="apps/api-server/Dockerfile"
+        
+        echo "Building image: ${FULL_IMAGE}"
+        echo "Using Dockerfile: ${DOCKERFILE}"
+        
+        # Build the image
+        buildah bud \
+          --storage-driver=vfs \
+          --format=oci \
+          -f ${DOCKERFILE} \
+          -t ${FULL_IMAGE} \
+          ${CONTEXT_DIR}
+        
+        # Push to registry
+        echo "Pushing image to registry..."
+        buildah push \
+          --storage-driver=vfs \
+          --digestfile /tmp/image-digest \
+          ${FULL_IMAGE} \
+          docker://${FULL_IMAGE}
+        
+        # Write results
+        cat /tmp/image-digest | tee $(results.image-digest.path)
+        echo -n "${FULL_IMAGE}" | tee $(results.image-url.path)
+        
+        echo "Build complete!"
+      securityContext:
+        privileged: true
+      volumeMounts:
+        - name: varlibcontainers
+          mountPath: /var/lib/containers
+      resources:
+        requests:
+          memory: "1Gi"
+          cpu: "500m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+
+  volumes:
+    - name: varlibcontainers
+      emptyDir: {}
+

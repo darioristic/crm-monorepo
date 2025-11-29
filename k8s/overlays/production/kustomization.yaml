@@ -1,0 +1,118 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: crm-production
+
+namespace: crm-prod
+
+resources:
+  - ../../base
+  - resourcequota.yaml
+  - limitrange.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/env: production
+    includeSelectors: false
+
+patches:
+  # Production replicas (use base values - 3 for API, 2 for web)
+  # Update resource limits for production
+  - target:
+      kind: Deployment
+      name: crm-api
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 200m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+  - target:
+      kind: Deployment
+      name: crm-web
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 150m
+            memory: 384Mi
+          limits:
+            cpu: 750m
+            memory: 768Mi
+  # Production HPA settings
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: crm-api-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 3
+      - op: replace
+        path: /spec/maxReplicas
+        value: 15
+  - target:
+      kind: HorizontalPodAutoscaler
+      name: crm-web-hpa
+    patch: |
+      - op: replace
+        path: /spec/minReplicas
+        value: 2
+      - op: replace
+        path: /spec/maxReplicas
+        value: 10
+  # Production PDB (higher availability)
+  - target:
+      kind: PodDisruptionBudget
+      name: crm-api-pdb
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: 2
+  - target:
+      kind: PodDisruptionBudget
+      name: crm-web-pdb
+    patch: |
+      - op: replace
+        path: /spec/minAvailable
+        value: 1
+  # Production Ingress
+  - target:
+      kind: Ingress
+      name: crm-ingress
+    patch: |
+      - op: replace
+        path: /spec/tls/0/hosts
+        value:
+          - crm.company.com
+          - api.crm.company.com
+      - op: replace
+        path: /spec/rules/0/host
+        value: crm.company.com
+      - op: replace
+        path: /spec/rules/1/host
+        value: api.crm.company.com
+      - op: replace
+        path: /spec/tls/0/secretName
+        value: crm-prod-tls-secret
+
+configMapGenerator:
+  - name: crm-config
+    behavior: merge
+    literals:
+      - NODE_ENV=production
+      - LOG_LEVEL=warn
+      - NEXT_PUBLIC_APP_ENV=production
+
+images:
+  - name: crm-api
+    newTag: latest
+  - name: crm-web
+    newTag: latest
+
+

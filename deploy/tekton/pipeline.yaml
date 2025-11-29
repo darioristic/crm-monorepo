@@ -1,0 +1,142 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: crm-build-deploy
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  description: Build and deploy CRM application
+  
+  params:
+    - name: git-url
+      type: string
+      description: Git repository URL
+      default: https://github.com/your-org/crm-monorepo.git
+    - name: git-revision
+      type: string
+      description: Git revision to build
+      default: main
+    - name: image-tag
+      type: string
+      description: Tag for the images
+      default: latest
+    - name: target-namespace
+      type: string
+      description: Target namespace for deployment
+      default: crm-dev
+    - name: target-environment
+      type: string
+      description: Target environment (dev, staging, production)
+      default: dev
+    - name: registry
+      type: string
+      description: Container registry
+      default: image-registry.openshift-image-registry.svc:5000
+    - name: api-url
+      type: string
+      description: Backend API URL for frontend
+      default: https://api.crm.apps.cluster-domain.com
+
+  workspaces:
+    - name: shared-workspace
+      description: Shared workspace for pipeline tasks
+    - name: dockerconfig
+      description: Docker config for registry authentication
+      optional: true
+
+  tasks:
+    # Run tests first
+    - name: run-tests
+      taskRef:
+        name: run-tests
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Build frontend and backend in parallel after tests pass
+    - name: build-frontend
+      taskRef:
+        name: build-frontend
+      runAfter:
+        - run-tests
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+        - name: image-tag
+          value: $(params.image-tag)
+        - name: registry
+          value: $(params.registry)
+        - name: namespace
+          value: $(params.target-namespace)
+        - name: api-url
+          value: $(params.api-url)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: dockerconfig
+
+    - name: build-backend
+      taskRef:
+        name: build-backend
+      runAfter:
+        - run-tests
+      params:
+        - name: git-url
+          value: $(params.git-url)
+        - name: git-revision
+          value: $(params.git-revision)
+        - name: image-tag
+          value: $(params.image-tag)
+        - name: registry
+          value: $(params.registry)
+        - name: namespace
+          value: $(params.target-namespace)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+        - name: dockerconfig
+          workspace: dockerconfig
+
+    # Deploy after both images are built
+    - name: deploy
+      taskRef:
+        name: deploy-crm
+      runAfter:
+        - build-frontend
+        - build-backend
+      params:
+        - name: namespace
+          value: $(params.target-namespace)
+        - name: environment
+          value: $(params.target-environment)
+        - name: frontend-image
+          value: $(tasks.build-frontend.results.image-url)
+        - name: backend-image
+          value: $(tasks.build-backend.results.image-url)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+  results:
+    - name: frontend-image
+      description: Built frontend image URL
+      value: $(tasks.build-frontend.results.image-url)
+    - name: backend-image
+      description: Built backend image URL
+      value: $(tasks.build-backend.results.image-url)
+    - name: frontend-digest
+      description: Frontend image digest
+      value: $(tasks.build-frontend.results.image-digest)
+    - name: backend-digest
+      description: Backend image digest
+      value: $(tasks.build-backend.results.image-digest)
+

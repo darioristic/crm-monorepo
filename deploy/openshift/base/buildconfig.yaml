@@ -1,0 +1,97 @@
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: crm-api-build
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: crm-api
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: crm-monorepo
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/your-org/crm-monorepo.git
+      ref: main
+    contextDir: /
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: docker/api.Dockerfile
+      buildArgs:
+        - name: NODE_ENV
+          value: production
+      env:
+        - name: NODE_ENV
+          value: production
+  output:
+    to:
+      kind: ImageStreamTag
+      name: crm-api:latest
+  triggers:
+    - type: ConfigChange
+    - type: GitHub
+      github:
+        secret: crm-webhook-secret
+    - type: Generic
+      generic:
+        secret: crm-generic-webhook-secret
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  runPolicy: Serial
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: crm-web-build
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: crm-web
+    app.kubernetes.io/component: frontend
+    app.kubernetes.io/part-of: crm-monorepo
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/your-org/crm-monorepo.git
+      ref: main
+    contextDir: /
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: docker/web.Dockerfile
+      buildArgs:
+        - name: NEXT_PUBLIC_API_URL
+          value: "https://api.crm.example.com"
+        - name: NEXT_PUBLIC_APP_ENV
+          value: production
+      env:
+        - name: NODE_ENV
+          value: production
+  output:
+    to:
+      kind: ImageStreamTag
+      name: crm-web:latest
+  triggers:
+    - type: ConfigChange
+    - type: GitHub
+      github:
+        secret: crm-webhook-secret
+    - type: Generic
+      generic:
+        secret: crm-generic-webhook-secret
+  resources:
+    requests:
+      cpu: 500m
+      memory: 2Gi
+    limits:
+      cpu: 2000m
+      memory: 4Gi
+  runPolicy: Serial
+
+

@@ -1,0 +1,31 @@
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: crm-backend
+  labels:
+    app: crm-backend
+    app.kubernetes.io/name: crm-backend
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: crm
+  annotations:
+    # Enable HSTS
+    haproxy.router.openshift.io/hsts_header: max-age=31536000;includeSubDomains;preload
+    # CORS headers for API access
+    haproxy.router.openshift.io/response-headers: |
+      Access-Control-Allow-Origin: *
+      Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS
+      Access-Control-Allow-Headers: Content-Type, Authorization, X-API-Key
+spec:
+  # Host will be set per environment via Kustomize overlay
+  # host: api.crm.apps.cluster-domain.com
+  to:
+    kind: Service
+    name: crm-backend
+    weight: 100
+  port:
+    targetPort: http
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+  wildcardPolicy: None
+

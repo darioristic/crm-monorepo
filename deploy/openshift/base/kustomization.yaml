@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: crm-base
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - frontend-deployment.yaml
+  - frontend-service.yaml
+  - frontend-route.yaml
+  - backend-deployment.yaml
+  - backend-service.yaml
+  - backend-route.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize
+  app.kubernetes.io/part-of: crm
+
+images:
+  - name: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-frontend
+    newTag: latest
+  - name: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-backend
+    newTag: latest
+

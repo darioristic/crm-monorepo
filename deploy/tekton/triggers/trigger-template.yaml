@@ -1,0 +1,143 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: crm-build-deploy-template
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  params:
+    - name: git-revision
+      description: Git revision to build
+    - name: git-url
+      description: Git repository URL
+    - name: git-commit-sha
+      description: Git commit SHA
+    - name: git-commit-message
+      description: Git commit message
+      default: ""
+    - name: git-author
+      description: Git commit author
+      default: ""
+
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: crm-build-deploy-
+        labels:
+          app.kubernetes.io/name: crm
+          app.kubernetes.io/component: pipeline
+          tekton.dev/pipeline: crm-build-deploy
+        annotations:
+          triggers.tekton.dev/commit-sha: $(tt.params.git-commit-sha)
+          triggers.tekton.dev/commit-message: $(tt.params.git-commit-message)
+          triggers.tekton.dev/commit-author: $(tt.params.git-author)
+      spec:
+        pipelineRef:
+          name: crm-build-deploy
+        params:
+          - name: git-url
+            value: $(tt.params.git-url)
+          - name: git-revision
+            value: $(tt.params.git-revision)
+          - name: image-tag
+            value: $(tt.params.git-commit-sha)
+          - name: target-namespace
+            value: crm-dev
+          - name: target-environment
+            value: dev
+        workspaces:
+          - name: shared-workspace
+            volumeClaimTemplate:
+              spec:
+                accessModes:
+                  - ReadWriteOnce
+                resources:
+                  requests:
+                    storage: 1Gi
+        serviceAccountName: crm-pipeline
+        timeout: 1h0m0s
+---
+apiVersion: triggers.tekton.dev/v1beta1
+kind: EventListener
+metadata:
+  name: crm-webhook-listener
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  serviceAccountName: crm-pipeline
+  triggers:
+    - name: github-push
+      bindings:
+        - ref: crm-github-binding
+      template:
+        ref: crm-build-deploy-template
+      interceptors:
+        - ref:
+            name: github
+            kind: ClusterInterceptor
+          params:
+            - name: secretRef
+              value:
+                secretName: crm-webhook-secret
+                secretKey: webhook-secret
+            - name: eventTypes
+              value:
+                - push
+        - ref:
+            name: cel
+            kind: ClusterInterceptor
+          params:
+            - name: filter
+              value: "body.ref == 'refs/heads/main' || body.ref == 'refs/heads/develop'"
+    - name: gitlab-push
+      bindings:
+        - ref: crm-gitlab-binding
+      template:
+        ref: crm-build-deploy-template
+      interceptors:
+        - ref:
+            name: gitlab
+            kind: ClusterInterceptor
+          params:
+            - name: secretRef
+              value:
+                secretName: crm-webhook-secret
+                secretKey: webhook-secret
+            - name: eventTypes
+              value:
+                - Push Hook
+---
+# Webhook secret - replace with actual secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: crm-webhook-secret
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+type: Opaque
+stringData:
+  webhook-secret: "CHANGE_ME_TO_A_SECURE_WEBHOOK_SECRET"
+---
+# Route to expose webhook endpoint
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: crm-webhook
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: pipeline
+spec:
+  to:
+    kind: Service
+    name: el-crm-webhook-listener
+    weight: 100
+  port:
+    targetPort: http-listener
+  tls:
+    termination: edge
+    insecureEdgeTerminationPolicy: Redirect
+

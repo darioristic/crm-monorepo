@@ -1,0 +1,149 @@
+# PostgreSQL Cluster using Crunchy Data PostgreSQL Operator (PGO)
+# Prerequisites: Install the Crunchy Data PostgreSQL Operator from OperatorHub
+#
+# Install operator:
+#   oc apply -k https://github.com/CrunchyData/postgres-operator-examples/install
+#
+# Alternatively, install via OperatorHub in OpenShift Console
+---
+apiVersion: postgres-operator.crunchydata.com/v1beta1
+kind: PostgresCluster
+metadata:
+  name: crm-postgresql
+  labels:
+    app.kubernetes.io/name: crm-postgresql
+    app.kubernetes.io/component: database
+    app.kubernetes.io/part-of: crm
+spec:
+  # PostgreSQL version
+  postgresVersion: 16
+  
+  # Instance configuration
+  instances:
+    - name: pgha
+      replicas: 2
+      dataVolumeClaimSpec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 10Gi
+        # Use default storage class or specify one
+        # storageClassName: gp3-csi
+      resources:
+        requests:
+          memory: "512Mi"
+          cpu: "250m"
+        limits:
+          memory: "2Gi"
+          cpu: "1000m"
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    postgres-operator.crunchydata.com/cluster: crm-postgresql
+                    postgres-operator.crunchydata.com/instance-set: pgha
+
+  # Connection pooling with PgBouncer
+  proxy:
+    pgBouncer:
+      replicas: 2
+      config:
+        global:
+          pool_mode: transaction
+          max_client_conn: "200"
+          default_pool_size: "20"
+      resources:
+        requests:
+          memory: "64Mi"
+          cpu: "50m"
+        limits:
+          memory: "256Mi"
+          cpu: "500m"
+
+  # Backup configuration
+  backups:
+    pgbackrest:
+      configuration:
+        - secret:
+            name: crm-postgresql-backup-secret
+      global:
+        repo1-retention-full: "14"
+        repo1-retention-full-type: time
+      repos:
+        - name: repo1
+          volume:
+            volumeClaimSpec:
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 20Gi
+          schedules:
+            full: "0 1 * * 0"    # Weekly full backup on Sunday at 1 AM
+            incremental: "0 1 * * 1-6"  # Daily incremental backups
+
+  # Monitoring with built-in metrics
+  monitoring:
+    pgmonitor:
+      exporter:
+        image: registry.developers.crunchydata.com/crunchydata/crunchy-postgres-exporter:ubi8-5.5.0-0
+
+  # Database initialization
+  users:
+    - name: crm_user
+      databases:
+        - crm_database
+      options: "SUPERUSER"
+    - name: crm_readonly
+      databases:
+        - crm_database
+      options: "LOGIN"
+
+  # Custom PostgreSQL configuration
+  patroni:
+    dynamicConfiguration:
+      postgresql:
+        parameters:
+          max_connections: "200"
+          shared_buffers: "256MB"
+          effective_cache_size: "1GB"
+          maintenance_work_mem: "128MB"
+          checkpoint_completion_target: "0.9"
+          wal_buffers: "16MB"
+          default_statistics_target: "100"
+          random_page_cost: "1.1"
+          effective_io_concurrency: "200"
+          min_wal_size: "1GB"
+          max_wal_size: "4GB"
+          max_worker_processes: "4"
+          max_parallel_workers_per_gather: "2"
+          max_parallel_workers: "4"
+          max_parallel_maintenance_workers: "2"
+          log_statement: "ddl"
+          log_min_duration_statement: "1000"
+---
+# Secret for backup repository (create before applying PostgresCluster)
+apiVersion: v1
+kind: Secret
+metadata:
+  name: crm-postgresql-backup-secret
+  labels:
+    app.kubernetes.io/name: crm-postgresql
+    app.kubernetes.io/component: database
+type: Opaque
+stringData:
+  # For S3-compatible storage (optional)
+  # s3.conf: |
+  #   [global]
+  #   repo1-s3-key=YOUR_ACCESS_KEY
+  #   repo1-s3-key-secret=YOUR_SECRET_KEY
+  # For local volume backups, this can be empty
+  pgbackrest.conf: |
+    [global]
+    repo1-path=/pgbackrest/repo1
+

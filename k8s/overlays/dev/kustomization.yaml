@@ -1,0 +1,86 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+metadata:
+  name: crm-dev
+
+namespace: crm-dev
+
+resources:
+  - ../../base
+
+nameSuffix: ""
+
+labels:
+  - pairs:
+      app.kubernetes.io/env: development
+    includeSelectors: false
+
+patches:
+  # Reduce replicas for dev environment
+  - target:
+      kind: Deployment
+      name: crm-api
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  - target:
+      kind: Deployment
+      name: crm-web
+    patch: |
+      - op: replace
+        path: /spec/replicas
+        value: 1
+  # Reduce resource requests/limits for dev
+  - target:
+      kind: Deployment
+      name: crm-api
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+  - target:
+      kind: Deployment
+      name: crm-web
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 50m
+            memory: 128Mi
+          limits:
+            cpu: 200m
+            memory: 256Mi
+  # Disable HPA in dev
+  - target:
+      kind: HorizontalPodAutoscaler
+    patch: |
+      $patch: delete
+      apiVersion: autoscaling/v2
+      kind: HorizontalPodAutoscaler
+      metadata:
+        name: placeholder
+
+configMapGenerator:
+  - name: crm-config
+    behavior: merge
+    literals:
+      - NODE_ENV=development
+      - LOG_LEVEL=debug
+      - NEXT_PUBLIC_APP_ENV=development
+
+images:
+  - name: crm-api
+    newTag: dev
+  - name: crm-web
+    newTag: dev
+
+

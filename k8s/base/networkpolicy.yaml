@@ -1,0 +1,168 @@
+# Default deny all ingress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  namespace: crm
+  labels:
+    app.kubernetes.io/part-of: crm-monorepo
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+---
+# Default deny all egress traffic
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-egress
+  namespace: crm
+  labels:
+    app.kubernetes.io/part-of: crm-monorepo
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+---
+# Allow API ingress from web and ingress controller
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-ingress
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: crm-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: crm-api
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from web pods
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: crm-web
+      ports:
+        - protocol: TCP
+          port: 3001
+    # Allow from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3001
+---
+# Allow web ingress from ingress controller only
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-ingress
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: crm-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: crm-web
+  policyTypes:
+    - Ingress
+  ingress:
+    # Allow from ingress controller
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000
+---
+# Allow API egress to database and redis
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-api-egress
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: crm-api
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: crm-api
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow PostgreSQL (adjust selector as needed)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - protocol: TCP
+          port: 5432
+    # Allow Redis (adjust selector as needed)
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: redis
+      ports:
+        - protocol: TCP
+          port: 6379
+    # Allow external HTTPS (for external APIs, email, etc.)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+---
+# Allow web egress to API
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-web-egress
+  namespace: crm
+  labels:
+    app.kubernetes.io/name: crm-web
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: crm-web
+  policyTypes:
+    - Egress
+  egress:
+    # Allow DNS resolution
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - protocol: UDP
+          port: 53
+    # Allow API access
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: crm-api
+      ports:
+        - protocol: TCP
+          port: 3001
+
+

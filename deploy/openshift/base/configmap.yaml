@@ -1,0 +1,23 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: crm-config
+  labels:
+    app.kubernetes.io/name: crm
+    app.kubernetes.io/component: config
+data:
+  # General settings
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  
+  # API settings
+  API_PORT: "3001"
+  API_URL: "https://api.crm.apps.cluster-domain.com"
+  
+  # Frontend settings
+  FRONTEND_URL: "https://crm.apps.cluster-domain.com"
+  
+  # Feature flags
+  ENABLE_METRICS: "true"
+  ENABLE_TRACING: "false"
+
