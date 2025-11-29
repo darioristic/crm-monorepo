@@ -51,7 +51,12 @@ const server = Bun.serve({
 
     // Get origin from request for CORS
     const origin = request.headers.get("Origin") || "http://localhost:3000";
-    const allowedOrigins = ["http://localhost:3000", "http://127.0.0.1:3000"];
+    const allowedOrigins = [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      "https://crm-frontend-crm-dev.apps.ocp-5.datsci.softergee.si",
+      ...(process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim()) || []),
+    ];
     const allowOrigin = allowedOrigins.includes(origin) ? origin : allowedOrigins[0];
 
     // CORS headers for development - must use specific origin with credentials
