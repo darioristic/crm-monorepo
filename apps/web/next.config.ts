@@ -20,7 +20,10 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../.."),
   // Proxy API requests to backend to avoid cross-origin cookie issues
   async rewrites() {
-    const apiUrl = process.env.API_URL || "http://localhost:3001";
+    // Use internal Kubernetes service URL for production, localhost for dev
+    const apiUrl = process.env.NODE_ENV === "production" 
+      ? "http://crm-backend:3001"
+      : (process.env.API_URL || "http://localhost:3001");
     return [
       {
         source: "/api/:path*",

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "main": "src/index.tsx",
+  "types": "src/index.tsx",
   "scripts": {
     "clean": "rm -rf .turbo node_modules",
     "lint": "biome check .",
@@ -11,19 +12,16 @@
   },
   "exports": {
     ".": "./src/index.tsx",
-    "./token": "./src/token/index.ts",
+    "./types": "./src/types.ts",
     "./templates/html": "./src/templates/html/index.tsx",
     "./templates/pdf": "./src/templates/pdf/index.tsx",
     "./calculate": "./src/utils/calculate.ts",
     "./format": "./src/utils/format.ts",
-    "./content": "./src/utils/content.ts",
-    "./types": "./src/types.ts",
     "./utils": "./src/utils/transform.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.3.1",
     "date-fns": "^4.1.0",
-    "jose": "^6.1.2",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
@@ -36,4 +34,3 @@
     "react": "^18.2.0"
   }
 }
-
