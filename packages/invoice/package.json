@@ -1,0 +1,39 @@
+{
+  "name": "@crm/invoice",
+  "version": "1.0.0",
+  "private": true,
+  "main": "src/index.tsx",
+  "scripts": {
+    "clean": "rm -rf .turbo node_modules",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit"
+  },
+  "exports": {
+    ".": "./src/index.tsx",
+    "./token": "./src/token/index.ts",
+    "./templates/html": "./src/templates/html/index.tsx",
+    "./templates/pdf": "./src/templates/pdf/index.tsx",
+    "./calculate": "./src/utils/calculate.ts",
+    "./format": "./src/utils/format.ts",
+    "./content": "./src/utils/content.ts",
+    "./types": "./src/types.ts",
+    "./utils": "./src/utils/transform.ts"
+  },
+  "dependencies": {
+    "@react-pdf/renderer": "^4.3.1",
+    "date-fns": "^4.1.0",
+    "jose": "^6.1.2",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/qrcode": "^1.5.6",
+    "@types/react": "^18.2.0",
+    "react": "^18.2.0",
+    "typescript": "^5.3.0"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0"
+  }
+}
+
