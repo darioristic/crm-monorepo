@@ -6,7 +6,13 @@ import type {
   PaginationParams,
   FilterParams,
 } from "@crm/types";
-import db from "../client";
+import { sql as db } from "../client";
+import {
+  createQueryBuilder,
+  sanitizeSortColumn,
+  sanitizeSortOrder,
+  type QueryParam,
+} from "../query-builder";
 
 // ============================================
 // User Queries
@@ -18,33 +24,34 @@ export const userQueries = {
     filters: FilterParams
   ): Promise<{ data: UserWithCompany[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let whereClause = "";
-    const conditions: string[] = [];
+    // Sanitizuj paginaciju
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.search) {
-      conditions.push(
-        `(u.first_name ILIKE '%${filters.search}%' OR u.last_name ILIKE '%${filters.search}%' OR u.email ILIKE '%${filters.search}%')`
-      );
-    }
+    // Gradi uslove sa query builder-om
+    const qb = createQueryBuilder("users");
+    qb.addSearchCondition(["u.first_name", "u.last_name", "u.email"], filters.search);
+    qb.addEqualCondition("u.role", filters.status); // status filter se mapira na role
 
-    if (filters.status) {
-      conditions.push(`u.role = '${filters.status}'`);
-    }
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
-    if (conditions.length > 0) {
-      whereClause = `WHERE ${conditions.join(" AND ")}`;
-    }
-
-    const countResult = await db.unsafe(`SELECT COUNT(*) FROM users u ${whereClause}`);
+    // Izvršavaj count
+    const countQuery = `SELECT COUNT(*) FROM users u ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const sortBy = pagination.sortBy || "u.created_at";
-    const sortOrder = pagination.sortOrder || "desc";
+    // Sanitizuj sortiranje - dodaj prefiks za JOIN
+    let sortBy = sanitizeSortColumn("users", pagination.sortBy);
+    if (!sortBy.startsWith("u.")) {
+      sortBy = `u.${sortBy}`;
+    }
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
 
-    const data = await db.unsafe(
-      `SELECT 
+    // Izvršavaj select sa JOIN-om
+    const selectQuery = `
+      SELECT 
         u.*,
         c.id as company_id_join,
         c.name as company_name,
@@ -52,12 +59,14 @@ export const userQueries = {
         c.address as company_address,
         c.created_at as company_created_at,
         c.updated_at as company_updated_at
-       FROM users u
-       LEFT JOIN companies c ON u.company_id = c.id
-       ${whereClause}
-       ORDER BY ${sortBy} ${sortOrder}
-       LIMIT ${pageSize} OFFSET ${offset}`
-    );
+      FROM users u
+      LEFT JOIN companies c ON u.company_id = c.id
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+    `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     return { data: data.map(mapUserWithCompany), total };
   },
@@ -138,14 +147,14 @@ export const userQueries = {
   async update(id: string, data: Partial<User>): Promise<User> {
     const result = await db`
       UPDATE users SET
-        first_name = COALESCE(${data.firstName}, first_name),
-        last_name = COALESCE(${data.lastName}, last_name),
-        email = COALESCE(${data.email}, email),
-        role = COALESCE(${data.role}, role),
-        company_id = COALESCE(${data.companyId}, company_id),
-        status = COALESCE(${data.status}, status),
-        avatar_url = COALESCE(${data.avatarUrl}, avatar_url),
-        phone = COALESCE(${data.phone}, phone),
+        first_name = COALESCE(${data.firstName ?? null}, first_name),
+        last_name = COALESCE(${data.lastName ?? null}, last_name),
+        email = COALESCE(${data.email ?? null}, email),
+        role = COALESCE(${data.role ?? null}, role),
+        company_id = COALESCE(${data.companyId ?? null}, company_id),
+        status = COALESCE(${data.status ?? null}, status),
+        avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
+        phone = COALESCE(${data.phone ?? null}, phone),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -205,11 +214,17 @@ export const userQueries = {
 // Mapping Functions (snake_case -> camelCase)
 // ============================================
 
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return new Date(value).toISOString();
+  return new Date().toISOString();
+}
+
 function mapUser(row: Record<string, unknown>): User {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     firstName: row.first_name as string,
     lastName: row.last_name as string,
     email: row.email as string,
@@ -218,7 +233,7 @@ function mapUser(row: Record<string, unknown>): User {
     status: row.status as User["status"],
     avatarUrl: row.avatar_url as string | undefined,
     phone: row.phone as string | undefined,
-    lastLoginAt: row.last_login_at ? (row.last_login_at as Date).toISOString() : undefined,
+    lastLoginAt: row.last_login_at ? toISOString(row.last_login_at) : undefined,
   };
 }
 
@@ -229,8 +244,8 @@ function mapUserWithCompany(row: Record<string, unknown>): UserWithCompany {
   if (row.company_id_join) {
     company = {
       id: row.company_id_join as string,
-      createdAt: (row.company_created_at as Date).toISOString(),
-      updatedAt: (row.company_updated_at as Date).toISOString(),
+      createdAt: toISOString(row.company_created_at),
+      updatedAt: toISOString(row.company_updated_at),
       name: row.company_name as string,
       industry: row.company_industry as string,
       address: row.company_address as string,

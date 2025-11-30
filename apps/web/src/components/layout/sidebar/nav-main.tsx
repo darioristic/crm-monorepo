@@ -14,11 +14,13 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
+  BellIcon,
   Building2Icon,
   CalendarIcon,
   ChartBarDecreasingIcon,
   ChevronRight,
   ClipboardCheckIcon,
+  CreditCardIcon,
   FileTextIcon,
   FolderDotIcon,
   LayoutDashboardIcon,
@@ -75,6 +77,11 @@ export const navItems: NavGroup[] = [
         href: "/dashboard/calendar",
         icon: CalendarIcon,
       },
+      {
+        title: "Notifications",
+        href: "/dashboard/notifications",
+        icon: BellIcon,
+      },
     ],
   },
   {
@@ -124,6 +131,11 @@ export const navItems: NavGroup[] = [
         title: "Products",
         href: "/dashboard/products",
         icon: PackageIcon,
+      },
+      {
+        title: "Payments",
+        href: "/dashboard/payments",
+        icon: CreditCardIcon,
       },
     ],
   },
@@ -239,7 +251,7 @@ export function NavMain() {
                                 asChild
                                 key={subItem.title}
                               >
-                                <a href={subItem.href}>{subItem.title}</a>
+                                <Link href={subItem.href}>{subItem.title}</Link>
                               </DropdownMenuItem>
                             ))}
                           </DropdownMenuContent>
@@ -266,9 +278,9 @@ export function NavMain() {
                             {item?.items?.map((subItem, key) => (
                               <SidebarMenuSubItem key={key}>
                                 <SidebarMenuSubButton
-                                  className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
-                                  isActive={pathname === subItem.href}
                                   asChild
+                                  className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 w-full"
+                                  isActive={pathname === subItem.href}
                                 >
                                   <Link href={subItem.href}>
                                     <span>{subItem.title}</span>
@@ -282,10 +294,10 @@ export function NavMain() {
                     </>
                   ) : (
                     <SidebarMenuButton
-                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
+                      asChild
+                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 w-full"
                       isActive={pathname === item.href}
                       tooltip={item.title}
-                      asChild
                     >
                       <Link href={item.href}>
                         {item.icon && <item.icon className="h-4 w-4" />}

@@ -5,7 +5,13 @@ import type {
   FilterParams,
   MilestoneStatus,
 } from "@crm/types";
-import db from "../client";
+import { sql as db } from "../client";
+import {
+  createQueryBuilder,
+  sanitizeSortColumn,
+  sanitizeSortOrder,
+  type QueryParam,
+} from "../query-builder";
 
 // ============================================
 // Milestone Queries
@@ -17,38 +23,40 @@ export const milestoneQueries = {
     filters: FilterParams & { projectId?: string }
   ): Promise<{ data: Milestone[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let whereClause = "";
-    const conditions: string[] = [];
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.search) {
-      conditions.push(`(name ILIKE '%${filters.search}%')`);
-    }
-    if (filters.status) {
-      conditions.push(`status = '${filters.status}'`);
-    }
-    if (filters.projectId) {
-      conditions.push(`project_id = '${filters.projectId}'`);
-    }
+    // Koristi query builder za sigurne upite
+    const qb = createQueryBuilder("milestones");
+    qb.addSearchCondition(["name"], filters.search);
+    qb.addEqualCondition("status", filters.status);
+    qb.addUuidCondition("project_id", filters.projectId);
 
-    if (conditions.length > 0) {
-      whereClause = `WHERE ${conditions.join(" AND ")}`;
-    }
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
-    const countResult = await db.unsafe(
-      `SELECT COUNT(*) FROM milestones ${whereClause}`
-    );
+    const countQuery = `SELECT COUNT(*) FROM milestones ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const sortBy = pagination.sortBy || "sort_order";
-    const sortOrder = pagination.sortOrder || "asc";
+    // Milestone default sort je sort_order, ne created_at
+    let sortBy = pagination.sortBy || "sort_order";
+    // Dodaj validaciju za sort_order kolonu
+    const allowedSortColumns = ["sort_order", "created_at", "updated_at", "name", "status", "due_date"];
+    if (!allowedSortColumns.includes(sortBy)) {
+      sortBy = "sort_order";
+    }
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder === "desc" ? "desc" : "asc");
 
-    const data = await db.unsafe(
-      `SELECT * FROM milestones ${whereClause}
-       ORDER BY ${sortBy} ${sortOrder}
-       LIMIT ${pageSize} OFFSET ${offset}`
-    );
+    const selectQuery = `
+      SELECT * FROM milestones
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+    `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     return { data: data.map(mapMilestone), total };
   },
@@ -71,8 +79,8 @@ export const milestoneQueries = {
     const milestone = mapMilestone(result[0]);
     return {
       ...milestone,
-      totalTasks: parseInt(taskCounts[0].total, 10),
-      completedTasks: parseInt(taskCounts[0].completed, 10),
+      totalTasks: parseInt(taskCounts[0].total as string, 10),
+      completedTasks: parseInt(taskCounts[0].completed as string, 10),
     };
   },
 
@@ -91,7 +99,7 @@ export const milestoneQueries = {
       SELECT COALESCE(MAX(sort_order), 0) + 1 as next_order
       FROM milestones WHERE project_id = ${milestone.projectId}
     `;
-    const order = parseInt(orderResult[0].next_order, 10);
+    const order = parseInt(orderResult[0].next_order as string, 10);
 
     const result = await db`
       INSERT INTO milestones (
@@ -111,12 +119,12 @@ export const milestoneQueries = {
   async update(id: string, data: Partial<Milestone>): Promise<Milestone> {
     const result = await db`
       UPDATE milestones SET
-        name = COALESCE(${data.name}, name),
-        description = COALESCE(${data.description}, description),
-        status = COALESCE(${data.status}, status),
-        due_date = COALESCE(${data.dueDate}, due_date),
-        completed_date = COALESCE(${data.completedDate}, completed_date),
-        sort_order = COALESCE(${data.order}, sort_order),
+        name = COALESCE(${data.name ?? null}, name),
+        description = COALESCE(${data.description ?? null}, description),
+        status = COALESCE(${data.status ?? null}, status),
+        due_date = COALESCE(${data.dueDate ?? null}, due_date),
+        completed_date = COALESCE(${data.completedDate ?? null}, completed_date),
+        sort_order = COALESCE(${data.order ?? null}, sort_order),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -132,10 +140,10 @@ export const milestoneQueries = {
   async count(projectId?: string): Promise<number> {
     if (projectId) {
       const result = await db`SELECT COUNT(*) FROM milestones WHERE project_id = ${projectId}`;
-      return parseInt(result[0].count, 10);
+      return parseInt(result[0].count as string, 10);
     }
     const result = await db`SELECT COUNT(*) FROM milestones`;
-    return parseInt(result[0].count, 10);
+    return parseInt(result[0].count as string, 10);
   },
 
   async findByStatus(status: MilestoneStatus, projectId?: string): Promise<Milestone[]> {
@@ -154,10 +162,12 @@ export const milestoneQueries = {
   },
 
   async getUpcoming(days: number = 7): Promise<Milestone[]> {
+    // Koristi parametrizovani upit za days
+    const safeDays = Math.max(1, Math.min(365, Math.floor(days)));
     const result = await db`
       SELECT * FROM milestones 
       WHERE status NOT IN ('completed', 'delayed')
-        AND due_date <= NOW() + INTERVAL '${days} days'
+        AND due_date <= NOW() + (${safeDays} || ' days')::INTERVAL
         AND due_date >= NOW()
       ORDER BY due_date ASC
     `;
@@ -213,4 +223,3 @@ function mapMilestone(row: Record<string, unknown>): Milestone {
 }
 
 export default milestoneQueries;
-

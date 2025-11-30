@@ -8,7 +8,13 @@ import type {
   FilterParams,
   DealStage,
 } from "@crm/types";
-import db from "../client";
+import { sql as db } from "../client";
+import {
+  createQueryBuilder,
+  sanitizeSortColumn,
+  sanitizeSortOrder,
+  type QueryParam,
+} from "../query-builder";
 
 // ============================================
 // Lead Queries
@@ -20,29 +26,37 @@ export const leadQueries = {
     filters: FilterParams
   ): Promise<{ data: Lead[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let query = db`SELECT * FROM leads WHERE 1=1`;
+    // Sanitizuj paginaciju
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.status) {
-      query = db`${query} AND status = ${filters.status}`;
-    }
-    if (filters.search) {
-      const search = `%${filters.search}%`;
-      query = db`${query} AND (name ILIKE ${search} OR email ILIKE ${search} OR company ILIKE ${search})`;
-    }
-    if (filters.assignedTo) {
-      query = db`${query} AND assigned_to = ${filters.assignedTo}`;
-    }
+    // Gradi uslove sa query builder-om
+    const qb = createQueryBuilder("leads");
+    qb.addSearchCondition(["name", "email", "company"], filters.search);
+    qb.addEqualCondition("status", filters.status);
+    qb.addUuidCondition("assigned_to", filters.assignedTo);
 
-    const countResult = await db`SELECT COUNT(*) FROM (${query}) AS count_query`;
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
+
+    // Count
+    const countQuery = `SELECT COUNT(*) FROM leads ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const data = await db`
-      ${query}
-      ORDER BY created_at DESC
-      LIMIT ${pageSize} OFFSET ${offset}
+    // Select
+    const sortBy = sanitizeSortColumn("leads", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
+
+    const selectQuery = `
+      SELECT * FROM leads
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     return { data: data.map(mapLead), total };
   },
@@ -71,18 +85,18 @@ export const leadQueries = {
   async update(id: string, data: Partial<Lead>): Promise<Lead> {
     const result = await db`
       UPDATE leads SET
-        name = COALESCE(${data.name}, name),
-        email = COALESCE(${data.email}, email),
-        phone = COALESCE(${data.phone}, phone),
-        company = COALESCE(${data.company}, company),
-        position = COALESCE(${data.position}, position),
-        status = COALESCE(${data.status}, status),
-        source = COALESCE(${data.source}, source),
-        assigned_to = COALESCE(${data.assignedTo}, assigned_to),
-        value = COALESCE(${data.value}, value),
-        notes = COALESCE(${data.notes}, notes),
-        tags = COALESCE(${data.tags}, tags),
-        updated_at = ${data.updatedAt || new Date().toISOString()}
+        name = COALESCE(${data.name ?? null}, name),
+        email = COALESCE(${data.email ?? null}, email),
+        phone = COALESCE(${data.phone ?? null}, phone),
+        company = COALESCE(${data.company ?? null}, company),
+        position = COALESCE(${data.position ?? null}, position),
+        status = COALESCE(${data.status ?? null}, status),
+        source = COALESCE(${data.source ?? null}, source),
+        assigned_to = COALESCE(${data.assignedTo ?? null}, assigned_to),
+        value = COALESCE(${data.value ?? null}, value),
+        notes = COALESCE(${data.notes ?? null}, notes),
+        tags = COALESCE(${data.tags ?? null}, tags),
+        updated_at = ${data.updatedAt ?? new Date().toISOString()}
       WHERE id = ${id}
       RETURNING *
     `;
@@ -104,23 +118,31 @@ export const contactQueries = {
     filters: FilterParams
   ): Promise<{ data: Contact[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let query = db`SELECT * FROM contacts WHERE 1=1`;
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.search) {
-      const search = `%${filters.search}%`;
-      query = db`${query} AND (first_name ILIKE ${search} OR last_name ILIKE ${search} OR email ILIKE ${search})`;
-    }
+    const qb = createQueryBuilder("contacts");
+    qb.addSearchCondition(["first_name", "last_name", "email"], filters.search);
 
-    const countResult = await db`SELECT COUNT(*) FROM (${query}) AS count_query`;
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
+
+    const countQuery = `SELECT COUNT(*) FROM contacts ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const data = await db`
-      ${query}
-      ORDER BY created_at DESC
-      LIMIT ${pageSize} OFFSET ${offset}
+    const sortBy = sanitizeSortColumn("contacts", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
+
+    const selectQuery = `
+      SELECT * FROM contacts
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     return { data: data.map(mapContact), total };
   },
@@ -152,14 +174,14 @@ export const contactQueries = {
   async update(id: string, data: Partial<Contact>): Promise<Contact> {
     const result = await db`
       UPDATE contacts SET
-        first_name = COALESCE(${data.firstName}, first_name),
-        last_name = COALESCE(${data.lastName}, last_name),
-        email = COALESCE(${data.email}, email),
-        phone = COALESCE(${data.phone}, phone),
-        company = COALESCE(${data.company}, company),
-        position = COALESCE(${data.position}, position),
-        notes = COALESCE(${data.notes}, notes),
-        updated_at = ${data.updatedAt || new Date().toISOString()}
+        first_name = COALESCE(${data.firstName ?? null}, first_name),
+        last_name = COALESCE(${data.lastName ?? null}, last_name),
+        email = COALESCE(${data.email ?? null}, email),
+        phone = COALESCE(${data.phone ?? null}, phone),
+        company = COALESCE(${data.company ?? null}, company),
+        position = COALESCE(${data.position ?? null}, position),
+        notes = COALESCE(${data.notes ?? null}, notes),
+        updated_at = ${data.updatedAt ?? new Date().toISOString()}
       WHERE id = ${id}
       RETURNING *
     `;
@@ -181,25 +203,32 @@ export const dealQueries = {
     filters: FilterParams
   ): Promise<{ data: Deal[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let query = db`SELECT * FROM deals WHERE 1=1`;
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.status) {
-      query = db`${query} AND stage = ${filters.status}`;
-    }
-    if (filters.assignedTo) {
-      query = db`${query} AND assigned_to = ${filters.assignedTo}`;
-    }
+    const qb = createQueryBuilder("deals");
+    qb.addEqualCondition("stage", filters.status);
+    qb.addUuidCondition("assigned_to", filters.assignedTo);
 
-    const countResult = await db`SELECT COUNT(*) FROM (${query}) AS count_query`;
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
+
+    const countQuery = `SELECT COUNT(*) FROM deals ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const data = await db`
-      ${query}
-      ORDER BY created_at DESC
-      LIMIT ${pageSize} OFFSET ${offset}
+    const sortBy = sanitizeSortColumn("deals", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
+
+    const selectQuery = `
+      SELECT * FROM deals
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     return { data: data.map(mapDeal), total };
   },
@@ -230,17 +259,17 @@ export const dealQueries = {
   async update(id: string, data: Partial<Deal>): Promise<Deal> {
     const result = await db`
       UPDATE deals SET
-        title = COALESCE(${data.title}, title),
-        description = COALESCE(${data.description}, description),
-        value = COALESCE(${data.value}, value),
-        currency = COALESCE(${data.currency}, currency),
-        stage = COALESCE(${data.stage}, stage),
-        priority = COALESCE(${data.priority}, priority),
-        probability = COALESCE(${data.probability}, probability),
-        expected_close_date = COALESCE(${data.expectedCloseDate}, expected_close_date),
-        actual_close_date = COALESCE(${data.actualCloseDate}, actual_close_date),
-        tags = COALESCE(${data.tags}, tags),
-        updated_at = ${data.updatedAt || new Date().toISOString()}
+        title = COALESCE(${data.title ?? null}, title),
+        description = COALESCE(${data.description ?? null}, description),
+        value = COALESCE(${data.value ?? null}, value),
+        currency = COALESCE(${data.currency ?? null}, currency),
+        stage = COALESCE(${data.stage ?? null}, stage),
+        priority = COALESCE(${data.priority ?? null}, priority),
+        probability = COALESCE(${data.probability ?? null}, probability),
+        expected_close_date = COALESCE(${data.expectedCloseDate ?? null}, expected_close_date),
+        actual_close_date = COALESCE(${data.actualCloseDate ?? null}, actual_close_date),
+        tags = COALESCE(${data.tags ?? null}, tags),
+        updated_at = ${data.updatedAt ?? new Date().toISOString()}
       WHERE id = ${id}
       RETURNING *
     `;
@@ -273,12 +302,12 @@ export const dealQueries = {
     return {
       stages: stagesResult.map((row) => ({
         stage: row.stage as DealStage,
-        count: parseInt(row.count, 10),
-        totalValue: parseFloat(row.total_value),
+        count: parseInt(row.count as string, 10),
+        totalValue: parseFloat(row.total_value as string),
       })),
-      totalDeals: parseInt(totalsResult[0].total_deals, 10),
-      totalValue: parseFloat(totalsResult[0].total_value),
-      avgDealValue: parseFloat(totalsResult[0].avg_value),
+      totalDeals: parseInt(totalsResult[0].total_deals as string, 10),
+      totalValue: parseFloat(totalsResult[0].total_value as string),
+      avgDealValue: parseFloat(totalsResult[0].avg_value as string),
     };
   },
 };
@@ -293,22 +322,31 @@ export const projectQueries = {
     filters: FilterParams
   ): Promise<{ data: Project[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let query = db`SELECT * FROM projects WHERE 1=1`;
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.status) {
-      query = db`${query} AND status = ${filters.status}`;
-    }
+    const qb = createQueryBuilder("projects");
+    qb.addEqualCondition("status", filters.status);
 
-    const countResult = await db`SELECT COUNT(*) FROM (${query}) AS count_query`;
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
+
+    const countQuery = `SELECT COUNT(*) FROM projects ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const data = await db`
-      ${query}
-      ORDER BY created_at DESC
-      LIMIT ${pageSize} OFFSET ${offset}
+    const sortBy = sanitizeSortColumn("projects", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
+
+    const selectQuery = `
+      SELECT * FROM projects
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     return { data: data.map(mapProject), total };
   },
@@ -338,16 +376,16 @@ export const projectQueries = {
   async update(id: string, data: Partial<Project>): Promise<Project> {
     const result = await db`
       UPDATE projects SET
-        name = COALESCE(${data.name}, name),
-        description = COALESCE(${data.description}, description),
-        status = COALESCE(${data.status}, status),
-        start_date = COALESCE(${data.startDate}, start_date),
-        end_date = COALESCE(${data.endDate}, end_date),
-        budget = COALESCE(${data.budget}, budget),
-        currency = COALESCE(${data.currency}, currency),
-        team_members = COALESCE(${data.teamMembers}, team_members),
-        tags = COALESCE(${data.tags}, tags),
-        updated_at = ${data.updatedAt || new Date().toISOString()}
+        name = COALESCE(${data.name ?? null}, name),
+        description = COALESCE(${data.description ?? null}, description),
+        status = COALESCE(${data.status ?? null}, status),
+        start_date = COALESCE(${data.startDate ?? null}, start_date),
+        end_date = COALESCE(${data.endDate ?? null}, end_date),
+        budget = COALESCE(${data.budget ?? null}, budget),
+        currency = COALESCE(${data.currency ?? null}, currency),
+        team_members = COALESCE(${data.teamMembers ?? null}, team_members),
+        tags = COALESCE(${data.tags ?? null}, tags),
+        updated_at = ${data.updatedAt ?? new Date().toISOString()}
       WHERE id = ${id}
       RETURNING *
     `;
@@ -369,44 +407,36 @@ export const taskQueries = {
     filters: FilterParams & { projectId?: string; milestoneId?: string; assignedTo?: string }
   ): Promise<{ data: Task[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let whereClause = "";
-    const conditions: string[] = [];
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.search) {
-      conditions.push(`(title ILIKE '%${filters.search}%')`);
-    }
-    if (filters.status) {
-      conditions.push(`status = '${filters.status}'`);
-    }
-    if (filters.projectId) {
-      conditions.push(`project_id = '${filters.projectId}'`);
-    }
-    if (filters.milestoneId) {
-      conditions.push(`milestone_id = '${filters.milestoneId}'`);
-    }
-    if (filters.assignedTo) {
-      conditions.push(`assigned_to = '${filters.assignedTo}'`);
-    }
+    // Koristi query builder za sigurne upite
+    const qb = createQueryBuilder("tasks");
+    qb.addSearchCondition(["title"], filters.search);
+    qb.addEqualCondition("status", filters.status);
+    qb.addUuidCondition("project_id", filters.projectId);
+    qb.addUuidCondition("milestone_id", filters.milestoneId);
+    qb.addUuidCondition("assigned_to", filters.assignedTo);
 
-    if (conditions.length > 0) {
-      whereClause = `WHERE ${conditions.join(" AND ")}`;
-    }
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
-    const countResult = await db.unsafe(
-      `SELECT COUNT(*) FROM tasks ${whereClause}`
-    );
+    const countQuery = `SELECT COUNT(*) FROM tasks ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const sortBy = pagination.sortBy || "created_at";
-    const sortOrder = pagination.sortOrder || "desc";
+    const sortBy = sanitizeSortColumn("tasks", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
 
-    const data = await db.unsafe(
-      `SELECT * FROM tasks ${whereClause}
-       ORDER BY ${sortBy} ${sortOrder}
-       LIMIT ${pageSize} OFFSET ${offset}`
-    );
+    const selectQuery = `
+      SELECT * FROM tasks
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+    `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     return { data: data.map(mapTask), total };
   },
@@ -416,18 +446,21 @@ export const taskQueries = {
     pagination: PaginationParams
   ): Promise<{ data: Task[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
+
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
     const countResult = await db`
       SELECT COUNT(*) FROM tasks WHERE project_id = ${projectId}
     `;
-    const total = parseInt(countResult[0].count, 10);
+    const total = parseInt(countResult[0].count as string, 10);
 
     const data = await db`
       SELECT * FROM tasks
       WHERE project_id = ${projectId}
       ORDER BY created_at DESC
-      LIMIT ${pageSize} OFFSET ${offset}
+      LIMIT ${safePageSize} OFFSET ${safeOffset}
     `;
 
     return { data: data.map(mapTask), total };
@@ -467,17 +500,17 @@ export const taskQueries = {
   async update(id: string, data: Partial<Task>): Promise<Task> {
     const result = await db`
       UPDATE tasks SET
-        title = COALESCE(${data.title}, title),
-        description = COALESCE(${data.description}, description),
-        status = COALESCE(${data.status}, status),
-        priority = COALESCE(${data.priority}, priority),
-        milestone_id = COALESCE(${data.milestoneId}, milestone_id),
-        assigned_to = COALESCE(${data.assignedTo}, assigned_to),
-        due_date = COALESCE(${data.dueDate}, due_date),
-        estimated_hours = COALESCE(${data.estimatedHours}, estimated_hours),
-        actual_hours = COALESCE(${data.actualHours}, actual_hours),
-        tags = COALESCE(${data.tags}, tags),
-        updated_at = ${data.updatedAt || new Date().toISOString()}
+        title = COALESCE(${data.title ?? null}, title),
+        description = COALESCE(${data.description ?? null}, description),
+        status = COALESCE(${data.status ?? null}, status),
+        priority = COALESCE(${data.priority ?? null}, priority),
+        milestone_id = COALESCE(${data.milestoneId ?? null}, milestone_id),
+        assigned_to = COALESCE(${data.assignedTo ?? null}, assigned_to),
+        due_date = COALESCE(${data.dueDate ?? null}, due_date),
+        estimated_hours = COALESCE(${data.estimatedHours ?? null}, estimated_hours),
+        actual_hours = COALESCE(${data.actualHours ?? null}, actual_hours),
+        tags = COALESCE(${data.tags ?? null}, tags),
+        updated_at = ${data.updatedAt ?? new Date().toISOString()}
       WHERE id = ${id}
       RETURNING *
     `;
@@ -491,10 +524,10 @@ export const taskQueries = {
   async count(projectId?: string): Promise<number> {
     if (projectId) {
       const result = await db`SELECT COUNT(*) FROM tasks WHERE project_id = ${projectId}`;
-      return parseInt(result[0].count, 10);
+      return parseInt(result[0].count as string, 10);
     }
     const result = await db`SELECT COUNT(*) FROM tasks`;
-    return parseInt(result[0].count, 10);
+    return parseInt(result[0].count as string, 10);
   },
 };
 

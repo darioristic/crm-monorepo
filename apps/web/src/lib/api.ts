@@ -43,9 +43,28 @@ import type {
   TaskPriorityStats,
   ProjectDurationStats,
   AnalyticsDateRange,
+  Product,
+  ProductWithCategory,
+  ProductCategory,
+  ProductCategoryWithChildren,
+  CreateProductRequest,
+  UpdateProductRequest,
+  CreateProductCategoryRequest,
+  UpdateProductCategoryRequest,
+  Notification,
+  CreateNotificationRequest,
+  Payment,
+  PaymentWithInvoice,
+  PaymentSummary,
+  CreatePaymentRequest,
+  UpdatePaymentRequest,
 } from "@crm/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Use empty string for client-side requests (will use proxy via rewrites)
+// Use full URL for server-side requests
+const API_URL = typeof window === "undefined" 
+  ? (process.env.API_URL || "http://localhost:3001")
+  : "";
 
 export type ApiResponse<T> = {
   success: boolean;
@@ -88,6 +107,7 @@ async function request<T>(
   try {
     const response = await fetch(url, {
       ...options,
+      credentials: "include", // Important: send cookies with requests
       headers: {
         ...defaultHeaders,
         ...options.headers,
@@ -403,6 +423,142 @@ export const analyticsApi = {
 
   getProjectDurationStats: () =>
     request<ProjectDurationStats>(`/api/v1/analytics/projects/duration-stats`),
+};
+
+// Product Categories API
+export const productCategoriesApi = {
+  getAll: (params: FilterParams & PaginationParams = {}) =>
+    request<ProductCategoryWithChildren[]>(`/api/v1/product-categories${buildQueryString(params)}`),
+
+  getById: (id: string) => request<ProductCategory>(`/api/v1/product-categories/${id}`),
+
+  create: (data: CreateProductCategoryRequest) =>
+    request<ProductCategory>("/api/v1/product-categories", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: UpdateProductCategoryRequest) =>
+    request<ProductCategory>(`/api/v1/product-categories/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/v1/product-categories/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+// Products API
+export const productsApi = {
+  getAll: (params: FilterParams & PaginationParams = {}) =>
+    request<ProductWithCategory[]>(`/api/v1/products${buildQueryString(params)}`),
+
+  getById: (id: string) => request<ProductWithCategory>(`/api/v1/products/${id}`),
+
+  getBySku: (sku: string) => request<ProductWithCategory>(`/api/v1/products/sku/${sku}`),
+
+  getLowStock: () => request<ProductWithCategory[]>(`/api/v1/products/low-stock`),
+
+  create: (data: CreateProductRequest) =>
+    request<Product>("/api/v1/products", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: UpdateProductRequest) =>
+    request<Product>(`/api/v1/products/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/v1/products/${id}`, {
+      method: "DELETE",
+    }),
+
+  updateStock: (id: string, quantity: number) =>
+    request<Product>(`/api/v1/products/${id}/stock`, {
+      method: "PATCH",
+      body: JSON.stringify({ quantity }),
+    }),
+};
+
+// Notifications API
+export const notificationsApi = {
+  getAll: (params: FilterParams & PaginationParams & { isRead?: boolean; type?: string; entityType?: string } = {}) =>
+    request<{ notifications: Notification[]; unreadCount: number }>(`/api/v1/notifications${buildQueryString(params)}`),
+
+  getById: (id: string) => request<Notification>(`/api/v1/notifications/${id}`),
+
+  getUnreadCount: () => request<{ count: number }>(`/api/v1/notifications/unread-count`),
+
+  create: (data: CreateNotificationRequest) =>
+    request<Notification>("/api/v1/notifications", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  markAsRead: (id: string) =>
+    request<Notification>(`/api/v1/notifications/${id}/read`, {
+      method: "PATCH",
+    }),
+
+  markAllAsRead: () =>
+    request<{ count: number }>("/api/v1/notifications/mark-all-read", {
+      method: "POST",
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/v1/notifications/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+// Payments API
+export const paymentsApi = {
+  getAll: (params: FilterParams & PaginationParams & {
+    invoiceId?: string;
+    paymentMethod?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    recordedBy?: string;
+  } = {}) =>
+    request<PaymentWithInvoice[]>(`/api/v1/payments${buildQueryString(params)}`),
+
+  getById: (id: string) => request<PaymentWithInvoice>(`/api/v1/payments/${id}`),
+
+  getByInvoice: (invoiceId: string) =>
+    request<Payment[]>(`/api/v1/invoices/${invoiceId}/payments`),
+
+  getInvoiceSummary: (invoiceId: string) =>
+    request<PaymentSummary>(`/api/v1/invoices/${invoiceId}/payment-summary`),
+
+  getStats: (params: { dateFrom?: string; dateTo?: string } = {}) =>
+    request<PaymentSummary>(`/api/v1/payments/stats${buildQueryString(params)}`),
+
+  record: (data: CreatePaymentRequest) =>
+    request<Payment>("/api/v1/payments", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: UpdatePaymentRequest) =>
+    request<Payment>(`/api/v1/payments/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  refund: (id: string) =>
+    request<Payment>(`/api/v1/payments/${id}/refund`, {
+      method: "POST",
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/v1/payments/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 export { request, buildQueryString };

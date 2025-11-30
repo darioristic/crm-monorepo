@@ -1,4 +1,4 @@
-import db from "../client";
+import { sql as db } from "../client";
 
 export const name = "002_create_users";
 

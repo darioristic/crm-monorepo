@@ -6,7 +6,13 @@ import type {
   FilterParams,
   QuoteStatus,
 } from "@crm/types";
-import db from "../client";
+import { sql as db } from "../client";
+import {
+  createQueryBuilder,
+  sanitizeSortColumn,
+  sanitizeSortOrder,
+  type QueryParam,
+} from "../query-builder";
 
 // ============================================
 // Quote Queries
@@ -18,37 +24,33 @@ export const quoteQueries = {
     filters: FilterParams
   ): Promise<{ data: Quote[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let whereClause = "";
-    const conditions: string[] = [];
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.search) {
-      conditions.push(
-        `(quote_number ILIKE '%${filters.search}%')`
-      );
-    }
-    if (filters.status) {
-      conditions.push(`status = '${filters.status}'`);
-    }
+    // Koristi query builder za sigurne upite
+    const qb = createQueryBuilder("quotes");
+    qb.addSearchCondition(["quote_number"], filters.search);
+    qb.addEqualCondition("status", filters.status);
 
-    if (conditions.length > 0) {
-      whereClause = `WHERE ${conditions.join(" AND ")}`;
-    }
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
-    const countResult = await db.unsafe(
-      `SELECT COUNT(*) FROM quotes ${whereClause}`
-    );
+    const countQuery = `SELECT COUNT(*) FROM quotes ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const sortBy = pagination.sortBy || "created_at";
-    const sortOrder = pagination.sortOrder || "desc";
+    const sortBy = sanitizeSortColumn("quotes", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
 
-    const data = await db.unsafe(
-      `SELECT * FROM quotes ${whereClause}
-       ORDER BY ${sortBy} ${sortOrder}
-       LIMIT ${pageSize} OFFSET ${offset}`
-    );
+    const selectQuery = `
+      SELECT * FROM quotes
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+    `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     // Fetch items for each quote
     const quotesWithItems = await Promise.all(
@@ -128,16 +130,16 @@ export const quoteQueries = {
   async update(id: string, data: Partial<Quote>, items?: Omit<QuoteItem, "quoteId">[]): Promise<Quote> {
     const result = await db`
       UPDATE quotes SET
-        company_id = COALESCE(${data.companyId}, company_id),
-        contact_id = COALESCE(${data.contactId}, contact_id),
-        status = COALESCE(${data.status}, status),
-        valid_until = COALESCE(${data.validUntil}, valid_until),
-        subtotal = COALESCE(${data.subtotal}, subtotal),
-        tax_rate = COALESCE(${data.taxRate}, tax_rate),
-        tax = COALESCE(${data.tax}, tax),
-        total = COALESCE(${data.total}, total),
-        notes = COALESCE(${data.notes}, notes),
-        terms = COALESCE(${data.terms}, terms),
+        company_id = COALESCE(${data.companyId ?? null}, company_id),
+        contact_id = COALESCE(${data.contactId ?? null}, contact_id),
+        status = COALESCE(${data.status ?? null}, status),
+        valid_until = COALESCE(${data.validUntil ?? null}, valid_until),
+        subtotal = COALESCE(${data.subtotal ?? null}, subtotal),
+        tax_rate = COALESCE(${data.taxRate ?? null}, tax_rate),
+        tax = COALESCE(${data.tax ?? null}, tax),
+        total = COALESCE(${data.total ?? null}, total),
+        notes = COALESCE(${data.notes ?? null}, notes),
+        terms = COALESCE(${data.terms ?? null}, terms),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -164,7 +166,7 @@ export const quoteQueries = {
 
   async count(): Promise<number> {
     const result = await db`SELECT COUNT(*) FROM quotes`;
-    return parseInt(result[0].count, 10);
+    return parseInt(result[0].count as string, 10);
   },
 
   async generateNumber(): Promise<string> {
@@ -172,7 +174,7 @@ export const quoteQueries = {
     const result = await db`
       SELECT COUNT(*) FROM quotes WHERE EXTRACT(YEAR FROM created_at) = ${year}
     `;
-    const count = parseInt(result[0].count, 10) + 1;
+    const count = parseInt(result[0].count as string, 10) + 1;
     return `QUO-${year}-${String(count).padStart(5, "0")}`;
   },
 
@@ -268,4 +270,3 @@ function mapQuoteWithRelations(row: Record<string, unknown>, items: unknown[]): 
 }
 
 export default quoteQueries;
-

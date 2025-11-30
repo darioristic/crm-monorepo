@@ -42,6 +42,7 @@ import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 type MilestoneWithRelations = Milestone & {
   projectName?: string;
@@ -150,7 +151,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
       setSelectedMilestone(null);
       refetch();
     } else {
-      toast.error(result.error || "Failed to delete milestone");
+      toast.error(getErrorMessage(result.error, "Failed to delete milestone"));
     }
   };
 
@@ -165,7 +166,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
       toast.success("Milestone marked as complete");
       refetch();
     } else {
-      toast.error(result.error || "Failed to update milestone");
+      toast.error(getErrorMessage(result.error, "Failed to update milestone"));
     }
   };
 

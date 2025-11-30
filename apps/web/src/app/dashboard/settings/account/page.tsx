@@ -57,10 +57,10 @@ const accountFormSchema = z.object({
       message: "Name must not be longer than 30 characters.",
     }),
   dob: z.date({
-    error: "A date of birth is required.",
+    required_error: "A date of birth is required.",
   }),
   language: z.string({
-    error: "Please select a language.",
+    required_error: "Please select a language.",
   }),
 });
 

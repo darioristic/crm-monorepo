@@ -92,7 +92,7 @@ class PaymentsService {
 
 			// Check if invoice is already fully paid
 			const summary = await paymentQueries.getInvoicePaymentSummary(data.invoiceId);
-			const remaining = invoice.totalAmount - summary.totalPaid;
+			const remaining = invoice.total - summary.totalPaid;
 
 			if (remaining <= 0) {
 				return errorResponse("CONFLICT", "Invoice is already fully paid");
@@ -115,11 +115,11 @@ class PaymentsService {
 			const newPaidAmount = summary.totalPaid + data.amount;
 			await invoiceQueries.update(data.invoiceId, {
 				paidAmount: newPaidAmount,
-				status: newPaidAmount >= invoice.totalAmount ? "paid" : invoice.status,
+				status: newPaidAmount >= invoice.total ? "paid" : invoice.status,
 			});
 
 			// Send notification if invoice is now paid
-			if (newPaidAmount >= invoice.totalAmount) {
+			if (newPaidAmount >= invoice.total) {
 				await notificationsService.createNotification({
 					userId: invoice.createdBy,
 					type: "invoice_paid",
@@ -195,7 +195,7 @@ class PaymentsService {
 				const newPaidAmount = Math.max(0, invoice.paidAmount - existing.amount);
 				await invoiceQueries.update(existing.invoiceId, {
 					paidAmount: newPaidAmount,
-					status: newPaidAmount >= invoice.totalAmount ? "paid" : "sent",
+					status: newPaidAmount >= invoice.total ? "paid" : "sent",
 				});
 			}
 

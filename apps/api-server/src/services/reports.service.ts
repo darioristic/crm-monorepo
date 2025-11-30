@@ -25,7 +25,7 @@ import type {
   AnalyticsDateRange,
 } from "@crm/types";
 import { successResponse, errorResponse, paginatedResponse } from "@crm/utils";
-import db from "../db/client";
+import { sql as db } from "../db/client";
 import { cache } from "../cache/redis";
 
 const CACHE_TTL = 300; // 5 minutes

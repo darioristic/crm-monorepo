@@ -1,6 +1,10 @@
 import type { User, UserRole } from "@crm/types";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+// Use empty string for client-side requests (will use proxy via rewrites)
+// Use full URL for server-side requests
+const API_URL = typeof window === "undefined" 
+  ? (process.env.API_URL || "http://localhost:3001")
+  : "";
 
 // ============================================
 // Auth Types

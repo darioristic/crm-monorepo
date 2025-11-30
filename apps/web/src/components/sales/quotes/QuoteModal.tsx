@@ -36,6 +36,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SalesSummary } from "@/components/sales/shared";
 
@@ -192,7 +193,7 @@ export function QuoteModal({
       onOpenChange(false);
       onSuccess?.();
     } else {
-      toast.error(result.error || "Failed to save quote");
+      toast.error(getErrorMessage(result.error, "Failed to save quote"));
     }
   };
 

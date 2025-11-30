@@ -6,7 +6,13 @@ import type {
   FilterParams,
   InvoiceStatus,
 } from "@crm/types";
-import db from "../client";
+import { sql as db } from "../client";
+import {
+  createQueryBuilder,
+  sanitizeSortColumn,
+  sanitizeSortOrder,
+  type QueryParam,
+} from "../query-builder";
 
 // ============================================
 // Invoice Queries
@@ -18,35 +24,33 @@ export const invoiceQueries = {
     filters: FilterParams
   ): Promise<{ data: Invoice[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let whereClause = "";
-    const conditions: string[] = [];
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.search) {
-      conditions.push(`(invoice_number ILIKE '%${filters.search}%')`);
-    }
-    if (filters.status) {
-      conditions.push(`status = '${filters.status}'`);
-    }
+    // Koristi query builder za sigurne upite
+    const qb = createQueryBuilder("invoices");
+    qb.addSearchCondition(["invoice_number"], filters.search);
+    qb.addEqualCondition("status", filters.status);
 
-    if (conditions.length > 0) {
-      whereClause = `WHERE ${conditions.join(" AND ")}`;
-    }
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
-    const countResult = await db.unsafe(
-      `SELECT COUNT(*) FROM invoices ${whereClause}`
-    );
+    const countQuery = `SELECT COUNT(*) FROM invoices ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const sortBy = pagination.sortBy || "created_at";
-    const sortOrder = pagination.sortOrder || "desc";
+    const sortBy = sanitizeSortColumn("invoices", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
 
-    const data = await db.unsafe(
-      `SELECT * FROM invoices ${whereClause}
-       ORDER BY ${sortBy} ${sortOrder}
-       LIMIT ${pageSize} OFFSET ${offset}`
-    );
+    const selectQuery = `
+      SELECT * FROM invoices
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+    `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     // Fetch items for each invoice
     const invoicesWithItems = await Promise.all(
@@ -136,18 +140,18 @@ export const invoiceQueries = {
   ): Promise<Invoice> {
     const result = await db`
       UPDATE invoices SET
-        quote_id = COALESCE(${data.quoteId}, quote_id),
-        company_id = COALESCE(${data.companyId}, company_id),
-        contact_id = COALESCE(${data.contactId}, contact_id),
-        status = COALESCE(${data.status}, status),
-        due_date = COALESCE(${data.dueDate}, due_date),
-        subtotal = COALESCE(${data.subtotal}, subtotal),
-        tax_rate = COALESCE(${data.taxRate}, tax_rate),
-        tax = COALESCE(${data.tax}, tax),
-        total = COALESCE(${data.total}, total),
-        paid_amount = COALESCE(${data.paidAmount}, paid_amount),
-        notes = COALESCE(${data.notes}, notes),
-        terms = COALESCE(${data.terms}, terms),
+        quote_id = COALESCE(${data.quoteId ?? null}, quote_id),
+        company_id = COALESCE(${data.companyId ?? null}, company_id),
+        contact_id = COALESCE(${data.contactId ?? null}, contact_id),
+        status = COALESCE(${data.status ?? null}, status),
+        due_date = COALESCE(${data.dueDate ?? null}, due_date),
+        subtotal = COALESCE(${data.subtotal ?? null}, subtotal),
+        tax_rate = COALESCE(${data.taxRate ?? null}, tax_rate),
+        tax = COALESCE(${data.tax ?? null}, tax),
+        total = COALESCE(${data.total ?? null}, total),
+        paid_amount = COALESCE(${data.paidAmount ?? null}, paid_amount),
+        notes = COALESCE(${data.notes ?? null}, notes),
+        terms = COALESCE(${data.terms ?? null}, terms),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -174,7 +178,7 @@ export const invoiceQueries = {
 
   async count(): Promise<number> {
     const result = await db`SELECT COUNT(*) FROM invoices`;
-    return parseInt(result[0].count, 10);
+    return parseInt(result[0].count as string, 10);
   },
 
   async generateNumber(): Promise<string> {
@@ -182,7 +186,7 @@ export const invoiceQueries = {
     const result = await db`
       SELECT COUNT(*) FROM invoices WHERE EXTRACT(YEAR FROM created_at) = ${year}
     `;
-    const count = parseInt(result[0].count, 10) + 1;
+    const count = parseInt(result[0].count as string, 10) + 1;
     return `INV-${year}-${String(count).padStart(5, "0")}`;
   },
 
@@ -347,4 +351,3 @@ function mapInvoiceWithRelations(
 }
 
 export default invoiceQueries;
-

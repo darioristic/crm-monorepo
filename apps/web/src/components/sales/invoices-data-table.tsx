@@ -22,6 +22,7 @@ import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import { getInvoicesColumns, type InvoiceWithCompany } from "@/components/sales/invoices/InvoicesColumns";
 import { InvoicesToolbar } from "@/components/sales/invoices/InvoicesToolbar";
 import { PaymentDialog } from "@/components/sales/invoices/PaymentDialog";
@@ -97,7 +98,7 @@ export function InvoicesDataTable() {
       setSelectedInvoice(null);
       refetch();
     } else {
-      toast.error(result.error || "Failed to delete invoice");
+      toast.error(getErrorMessage(result.error, "Failed to delete invoice"));
     }
   };
 
@@ -112,7 +113,7 @@ export function InvoicesDataTable() {
       setPaymentInvoice(null);
       refetch();
     } else {
-      toast.error(result.error?.message || "Failed to record payment");
+      toast.error(getErrorMessage(result.error, "Failed to record payment"));
     }
   };
 

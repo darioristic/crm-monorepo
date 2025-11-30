@@ -35,6 +35,7 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 
 const lineItemSchema = z.object({
@@ -169,7 +170,7 @@ export function DeliveryModal({
       onOpenChange(false);
       onSuccess?.();
     } else {
-      toast.error(result.error || "Failed to save delivery note");
+      toast.error(getErrorMessage(result.error, "Failed to save delivery note"));
     }
   };
 

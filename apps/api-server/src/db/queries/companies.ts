@@ -1,5 +1,11 @@
 import type { Company, PaginationParams, FilterParams } from "@crm/types";
-import db from "../client";
+import { sql as db } from "../client";
+import {
+  createQueryBuilder,
+  sanitizeSortColumn,
+  sanitizeSortOrder,
+  type QueryParam,
+} from "../query-builder";
 
 // ============================================
 // Company Queries
@@ -13,28 +19,35 @@ export const companyQueries = {
     const { page = 1, pageSize = 20 } = pagination;
     const offset = (page - 1) * pageSize;
 
-    let whereClause = "";
-    const conditions: string[] = [];
+    // Sanitizuj paginaciju
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.search) {
-      conditions.push(`(name ILIKE '%${filters.search}%' OR industry ILIKE '%${filters.search}%')`);
-    }
+    // Gradi uslove sa query builder-om
+    const qb = createQueryBuilder("companies");
+    qb.addSearchCondition(["name", "industry"], filters.search);
 
-    if (conditions.length > 0) {
-      whereClause = `WHERE ${conditions.join(" AND ")}`;
-    }
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
-    const countResult = await db.unsafe(`SELECT COUNT(*) FROM companies ${whereClause}`);
+    // Izvršavaj count
+    const countQuery = `SELECT COUNT(*) FROM companies ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const sortBy = pagination.sortBy || "created_at";
-    const sortOrder = pagination.sortOrder || "desc";
+    // Sanitizuj sortiranje
+    const sortBy = sanitizeSortColumn("companies", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
 
-    const data = await db.unsafe(
-      `SELECT * FROM companies ${whereClause}
-       ORDER BY ${sortBy} ${sortOrder}
-       LIMIT ${pageSize} OFFSET ${offset}`
-    );
+    // Izvršavaj select - dodaj pagination parametre na kraj
+    const selectQuery = `
+      SELECT * FROM companies 
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+    `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     return { data: data.map(mapCompany), total };
   },
@@ -77,9 +90,9 @@ export const companyQueries = {
   async update(id: string, data: Partial<Company>): Promise<Company> {
     const result = await db`
       UPDATE companies SET
-        name = COALESCE(${data.name}, name),
-        industry = COALESCE(${data.industry}, industry),
-        address = COALESCE(${data.address}, address),
+        name = COALESCE(${data.name ?? null}, name),
+        industry = COALESCE(${data.industry ?? null}, industry),
+        address = COALESCE(${data.address ?? null}, address),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -110,6 +123,19 @@ export const companyQueries = {
       SELECT DISTINCT industry FROM companies ORDER BY industry ASC
     `;
     return result.map((row) => row.industry as string);
+  },
+
+  async nameExists(name: string, excludeId?: string): Promise<boolean> {
+    if (excludeId) {
+      const result = await db`
+        SELECT COUNT(*) FROM companies WHERE name = ${name} AND id != ${excludeId}
+      `;
+      return parseInt(result[0].count, 10) > 0;
+    }
+    const result = await db`
+      SELECT COUNT(*) FROM companies WHERE name = ${name}
+    `;
+    return parseInt(result[0].count, 10) > 0;
   },
 };
 

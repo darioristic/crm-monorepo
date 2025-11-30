@@ -36,12 +36,12 @@ function createEmailWorker(): Worker {
 			logger.info({ jobId: job.id, to, subject }, "Processing email job");
 
 			try {
-				await emailService.sendEmail({
-					to,
+				await emailService.send(
+					{ to },
 					subject,
-					text,
-					html,
-				});
+					html || text || "",
+					text
+				);
 
 				logger.info({ jobId: job.id }, "Email sent successfully");
 				return { success: true, sentAt: new Date().toISOString() };

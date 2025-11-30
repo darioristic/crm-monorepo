@@ -22,6 +22,7 @@ import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import { getDeliveryColumns, type DeliveryNoteWithCompany } from "@/components/sales/delivery/DeliveryColumns";
 import { DeliveryToolbar } from "@/components/sales/delivery/DeliveryToolbar";
 
@@ -96,7 +97,7 @@ export function DeliveryNotesDataTable() {
       setSelectedNote(null);
       refetch();
     } else {
-      toast.error(result.error || "Failed to delete delivery note");
+      toast.error(getErrorMessage(result.error, "Failed to delete delivery note"));
     }
   };
 
@@ -106,7 +107,7 @@ export function DeliveryNotesDataTable() {
       toast.success("Delivery marked as delivered");
       refetch();
     } else {
-      toast.error(result.error?.message || "Failed to update delivery status");
+      toast.error(getErrorMessage(result.error, "Failed to update delivery status"));
     }
   };
 

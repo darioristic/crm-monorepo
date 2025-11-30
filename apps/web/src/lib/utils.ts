@@ -65,3 +65,11 @@ export function formatDateTime(date: string | Date): string {
     minute: "2-digit"
   }).format(new Date(date));
 }
+
+export function getErrorMessage(error: unknown, fallback = "An error occurred"): string {
+  if (typeof error === 'string') return error;
+  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+    return error.message;
+  }
+  return fallback;
+}

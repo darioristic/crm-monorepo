@@ -42,6 +42,7 @@ import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 type TaskWithRelations = Task & {
   projectName?: string;
@@ -181,7 +182,7 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
       setSelectedTask(null);
       refetch();
     } else {
-      toast.error(result.error || "Failed to delete task");
+      toast.error(getErrorMessage(result.error, "Failed to delete task"));
     }
   };
 
@@ -192,7 +193,7 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
       toast.success("Task marked as done");
       refetch();
     } else {
-      toast.error(result.error || "Failed to update task");
+      toast.error(getErrorMessage(result.error, "Failed to update task"));
     }
   };
 

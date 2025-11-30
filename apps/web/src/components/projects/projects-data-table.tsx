@@ -43,6 +43,7 @@ import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 type ProjectWithRelations = Project & {
   ownerName?: string;
@@ -154,7 +155,7 @@ export function ProjectsDataTable() {
       setSelectedProject(null);
       refetch();
     } else {
-      toast.error(result.error || "Failed to delete project");
+      toast.error(getErrorMessage(result.error, "Failed to delete project"));
     }
   };
 

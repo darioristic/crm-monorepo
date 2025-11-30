@@ -1,4 +1,4 @@
-import db from "../client";
+import { sql as db } from "../client";
 
 // ============================================
 // Auth Credentials Queries
@@ -76,9 +76,10 @@ export const authQueries = {
 		tokenHash: string,
 		expiresAt: Date,
 	): Promise<RefreshToken> {
+		const expiresAtStr = expiresAt.toISOString();
 		const result = await db`
       INSERT INTO refresh_tokens (user_id, token_hash, expires_at)
-      VALUES (${userId}, ${tokenHash}, ${expiresAt})
+      VALUES (${userId}, ${tokenHash}, ${expiresAtStr})
       RETURNING *
     `;
 		return mapRefreshToken(result[0]);
@@ -136,13 +137,19 @@ export const authQueries = {
 // Mapping Functions
 // ============================================
 
+function toISOString(value: unknown): string {
+	if (value instanceof Date) return value.toISOString();
+	if (typeof value === 'string') return new Date(value).toISOString();
+	return new Date().toISOString();
+}
+
 function mapAuthCredential(row: Record<string, unknown>): AuthCredential {
 	return {
 		id: row.id as string,
 		userId: row.user_id as string,
 		passwordHash: row.password_hash as string,
-		createdAt: (row.created_at as Date).toISOString(),
-		updatedAt: (row.updated_at as Date).toISOString(),
+		createdAt: toISOString(row.created_at),
+		updatedAt: toISOString(row.updated_at),
 	};
 }
 
@@ -151,10 +158,10 @@ function mapRefreshToken(row: Record<string, unknown>): RefreshToken {
 		id: row.id as string,
 		userId: row.user_id as string,
 		tokenHash: row.token_hash as string,
-		expiresAt: (row.expires_at as Date).toISOString(),
-		createdAt: (row.created_at as Date).toISOString(),
+		expiresAt: toISOString(row.expires_at),
+		createdAt: toISOString(row.created_at),
 		revokedAt: row.revoked_at
-			? (row.revoked_at as Date).toISOString()
+			? toISOString(row.revoked_at)
 			: null,
 	};
 }

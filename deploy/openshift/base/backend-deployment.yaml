@@ -31,11 +31,10 @@ spec:
       serviceAccountName: default
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1001
-        fsGroup: 1001
+        # Let OpenShift assign appropriate UID from the namespace range
       containers:
         - name: backend
-          image: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-backend:latest
+          image: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-api:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -168,13 +167,11 @@ spec:
             - -c
             - |
               echo "Waiting for PostgreSQL..."
-              until nc -z crm-postgresql 5432; do
+              until nc -z postgresql 5432; do
                 echo "PostgreSQL is unavailable - sleeping"
                 sleep 2
               done
               echo "PostgreSQL is up!"
           securityContext:
             runAsNonRoot: true
-            runAsUser: 1001
             allowPrivilegeEscalation: false
-

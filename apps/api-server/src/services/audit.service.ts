@@ -1,4 +1,4 @@
-import db from "../db/client";
+import { sql as db } from "../db/client";
 
 // ============================================
 // Audit Action Types

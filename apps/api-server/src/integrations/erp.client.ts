@@ -169,13 +169,13 @@ class ERPClient {
 			clearTimeout(timeoutId);
 
 			if (!response.ok) {
-				const error = await response
+				const errorData = await response
 					.json()
-					.catch(() => ({ message: response.statusText }));
-				throw new Error(error.message || `HTTP ${response.status}`);
+					.catch(() => ({ message: response.statusText })) as { message?: string };
+				throw new Error(errorData.message || `HTTP ${response.status}`);
 			}
 
-			const data = await response.json();
+			const data = await response.json() as T;
 			return { success: true, data };
 		} catch (error) {
 			const errorMessage =

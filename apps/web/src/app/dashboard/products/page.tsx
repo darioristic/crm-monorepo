@@ -2,6 +2,7 @@ import { generateMeta } from "@/lib/utils";
 import Link from "next/link";
 import { PlusIcon } from "@radix-ui/react-icons";
 import { Metadata } from "next";
+import { cookies } from "next/headers";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,88 +14,88 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { ProductsDataTable } from "@/components/products/products-data-table";
+import type { ProductWithCategory } from "@crm/types";
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateMeta({
-    title: "Product List",
-    description: "Product list page for CRM Dashboard.",
+    title: "Products",
+    description: "Manage your products and inventory",
     canonical: "/dashboard/products",
   });
 }
 
-// Sample products data
-const products = [
-  {
-    id: 1,
-    name: "Sports Shoes",
-    sku: "PRD-001",
-    price: 89.99,
-    stock: 156,
-    category: "Footwear",
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Black T-Shirt",
-    sku: "PRD-002",
-    price: 29.99,
-    stock: 342,
-    category: "Clothing",
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "Jeans",
-    sku: "PRD-003",
-    price: 59.99,
-    stock: 89,
-    category: "Clothing",
-    status: "active",
-  },
-  {
-    id: 4,
-    name: "Red Sneakers",
-    sku: "PRD-004",
-    price: 119.99,
-    stock: 45,
-    category: "Footwear",
-    status: "low-stock",
-  },
-  {
-    id: 5,
-    name: "Red Scarf",
-    sku: "PRD-005",
-    price: 24.99,
-    stock: 0,
-    category: "Accessories",
-    status: "out-of-stock",
-  },
-  {
-    id: 6,
-    name: "Kitchen Accessory",
-    sku: "PRD-006",
-    price: 34.99,
-    stock: 78,
-    category: "Home",
-    status: "active",
-  },
-];
+async function getProducts(): Promise<{
+  products: ProductWithCategory[];
+  stats: {
+    total: number;
+    totalStock: number;
+    lowStock: number;
+    outOfStock: number;
+  };
+}> {
+  const API_URL = process.env.API_URL || "http://localhost:3001";
+  
+  try {
+    const cookieStore = await cookies();
+    const cookieHeader = cookieStore.getAll()
+      .map(c => `${c.name}=${c.value}`)
+      .join("; ");
 
-export default function Page() {
+    const response = await fetch(`${API_URL}/api/v1/products?pageSize=100`, {
+      headers: {
+        "Content-Type": "application/json",
+        Cookie: cookieHeader,
+      },
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      console.error("Failed to fetch products:", response.status);
+      return {
+        products: [],
+        stats: { total: 0, totalStock: 0, lowStock: 0, outOfStock: 0 },
+      };
+    }
+
+    const data = await response.json();
+    const products: ProductWithCategory[] = data.data || [];
+
+    // Calculate stats
+    const stats = {
+      total: products.length,
+      totalStock: products.reduce((sum, p) => sum + (Number(p.stockQuantity) || 0), 0),
+      lowStock: products.filter(
+        (p) =>
+          p.stockQuantity !== undefined &&
+          p.minStockLevel !== undefined &&
+          Number(p.stockQuantity) > 0 &&
+          Number(p.stockQuantity) <= Number(p.minStockLevel)
+      ).length,
+      outOfStock: products.filter(
+        (p) => p.stockQuantity !== undefined && Number(p.stockQuantity) === 0
+      ).length,
+    };
+
+    return { products, stats };
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    return {
+      products: [],
+      stats: { total: 0, totalStock: 0, lowStock: 0, outOfStock: 0 },
+    };
+  }
+}
+
+export default async function ProductsPage() {
+  const { products, stats } = await getProducts();
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between space-y-2">
         <h1 className="text-2xl font-bold tracking-tight">Products</h1>
         <Button asChild>
-          <Link href="/dashboard/products">
+          <Link href="/dashboard/products/new">
             <PlusIcon className="mr-2 h-4 w-4" /> Add Product
           </Link>
         </Button>
@@ -105,7 +106,7 @@ export default function Page() {
           <CardHeader>
             <CardDescription>Total Products</CardDescription>
             <CardTitle className="font-display text-2xl lg:text-3xl">
-              {products.length}
+              {stats.total}
             </CardTitle>
             <CardAction>
               <Badge variant="outline">
@@ -118,11 +119,11 @@ export default function Page() {
           <CardHeader>
             <CardDescription>Total Stock</CardDescription>
             <CardTitle className="font-display text-2xl lg:text-3xl">
-              {products.reduce((acc, p) => acc + p.stock, 0)}
+              {stats.totalStock.toLocaleString()}
             </CardTitle>
             <CardAction>
               <Badge variant="outline">
-                <span className="text-green-600">+5.02%</span>
+                <span className="text-muted-foreground">units</span>
               </Badge>
             </CardAction>
           </CardHeader>
@@ -131,12 +132,18 @@ export default function Page() {
           <CardHeader>
             <CardDescription>Low Stock</CardDescription>
             <CardTitle className="font-display text-2xl lg:text-3xl">
-              {products.filter((p) => p.status === "low-stock").length}
+              {stats.lowStock}
             </CardTitle>
             <CardAction>
-              <Badge variant="outline">
-                <span className="text-yellow-600">Warning</span>
-              </Badge>
+              {stats.lowStock > 0 ? (
+                <Badge variant="outline">
+                  <span className="text-yellow-600">Warning</span>
+                </Badge>
+              ) : (
+                <Badge variant="outline">
+                  <span className="text-green-600">OK</span>
+                </Badge>
+              )}
             </CardAction>
           </CardHeader>
         </Card>
@@ -144,12 +151,18 @@ export default function Page() {
           <CardHeader>
             <CardDescription>Out of Stock</CardDescription>
             <CardTitle className="font-display text-2xl lg:text-3xl">
-              {products.filter((p) => p.status === "out-of-stock").length}
+              {stats.outOfStock}
             </CardTitle>
             <CardAction>
-              <Badge variant="outline">
-                <span className="text-red-600">Alert</span>
-              </Badge>
+              {stats.outOfStock > 0 ? (
+                <Badge variant="outline">
+                  <span className="text-red-600">Alert</span>
+                </Badge>
+              ) : (
+                <Badge variant="outline">
+                  <span className="text-green-600">OK</span>
+                </Badge>
+              )}
             </CardAction>
           </CardHeader>
         </Card>
@@ -161,44 +174,7 @@ export default function Page() {
           <CardDescription>Manage your products inventory</CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className="text-right">Price</TableHead>
-                <TableHead className="text-right">Stock</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product.id}>
-                  <TableCell className="font-medium">{product.name}</TableCell>
-                  <TableCell>{product.sku}</TableCell>
-                  <TableCell>{product.category}</TableCell>
-                  <TableCell className="text-right">
-                    ${product.price.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right">{product.stock}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        product.status === "active"
-                          ? "success"
-                          : product.status === "low-stock"
-                          ? "warning"
-                          : "destructive"
-                      }
-                    >
-                      {product.status}
-                    </Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <ProductsDataTable data={products} />
         </CardContent>
       </Card>
     </div>

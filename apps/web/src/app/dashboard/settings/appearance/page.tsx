@@ -31,10 +31,10 @@ import { useTheme } from "next-themes";
 
 const appearanceFormSchema = z.object({
   theme: z.enum(["light", "dark"], {
-    error: "Please select a theme.",
+    required_error: "Please select a theme.",
   }),
   font: z.enum(["inter", "manrope", "system"], {
-    error: "Please select a font.",
+    required_error: "Please select a font.",
   }),
 });
 

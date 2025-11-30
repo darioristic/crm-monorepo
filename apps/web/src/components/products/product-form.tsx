@@ -1,0 +1,509 @@
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import type {
+  Product,
+  ProductCategory,
+  CreateProductRequest,
+  UpdateProductRequest,
+} from "@crm/types";
+import { productsApi } from "@/lib/api";
+import { useMutation } from "@/hooks/use-api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
+
+const units = [
+  { value: "pcs", label: "Pieces" },
+  { value: "kg", label: "Kilograms" },
+  { value: "g", label: "Grams" },
+  { value: "l", label: "Liters" },
+  { value: "ml", label: "Milliliters" },
+  { value: "m", label: "Meters" },
+  { value: "cm", label: "Centimeters" },
+  { value: "box", label: "Boxes" },
+  { value: "pack", label: "Packs" },
+  { value: "hr", label: "Hours" },
+  { value: "day", label: "Days" },
+];
+
+const currencies = [
+  { value: "EUR", label: "Euro (€)" },
+  { value: "USD", label: "US Dollar ($)" },
+  { value: "RSD", label: "Serbian Dinar (RSD)" },
+  { value: "GBP", label: "British Pound (£)" },
+];
+
+const productFormSchema = z.object({
+  name: z.string().min(2, "Product name must be at least 2 characters"),
+  sku: z.string().optional(),
+  description: z.string().optional(),
+  unitPrice: z.coerce.number().min(0, "Price must be a positive number"),
+  costPrice: z.coerce.number().min(0).optional(),
+  currency: z.string().default("EUR"),
+  unit: z.string().default("pcs"),
+  taxRate: z.coerce.number().min(0).max(100).default(20),
+  categoryId: z.string().optional(),
+  stockQuantity: z.coerce.number().min(0).optional(),
+  minStockLevel: z.coerce.number().min(0).optional(),
+  isActive: z.boolean().default(true),
+  isService: z.boolean().default(false),
+});
+
+type ProductFormValues = z.infer<typeof productFormSchema>;
+
+interface ProductFormProps {
+  product?: Product;
+  categories: ProductCategory[];
+  mode: "create" | "edit";
+}
+
+export function ProductForm({ product, categories, mode }: ProductFormProps) {
+  const router = useRouter();
+
+  const createMutation = useMutation<Product, CreateProductRequest>((data) =>
+    productsApi.create(data)
+  );
+
+  const updateMutation = useMutation<Product, UpdateProductRequest>((data) =>
+    productsApi.update(product?.id || "", data)
+  );
+
+  const form = useForm<ProductFormValues>({
+    resolver: zodResolver(productFormSchema) as any,
+    defaultValues: {
+      name: product?.name || "",
+      sku: product?.sku || "",
+      description: product?.description || "",
+      unitPrice: Number(product?.unitPrice) || 0,
+      costPrice: Number(product?.costPrice) || undefined,
+      currency: product?.currency || "EUR",
+      unit: product?.unit || "pcs",
+      taxRate: Number(product?.taxRate) || 20,
+      categoryId: product?.categoryId || undefined,
+      stockQuantity: Number(product?.stockQuantity) || undefined,
+      minStockLevel: Number(product?.minStockLevel) || undefined,
+      isActive: product?.isActive ?? true,
+      isService: product?.isService ?? false,
+    },
+  });
+
+  const isService = form.watch("isService");
+
+  useEffect(() => {
+    if (product) {
+      form.reset({
+        name: product.name,
+        sku: product.sku || "",
+        description: product.description || "",
+        unitPrice: Number(product.unitPrice) || 0,
+        costPrice: Number(product.costPrice) || undefined,
+        currency: product.currency || "EUR",
+        unit: product.unit || "pcs",
+        taxRate: Number(product.taxRate) || 20,
+        categoryId: product.categoryId || undefined,
+        stockQuantity: Number(product.stockQuantity) || undefined,
+        minStockLevel: Number(product.minStockLevel) || undefined,
+        isActive: product.isActive ?? true,
+        isService: product.isService ?? false,
+      });
+    }
+  }, [product, form]);
+
+  const onSubmit = async (values: ProductFormValues) => {
+    const payload = {
+      ...values,
+      unitPrice: values.unitPrice,
+      costPrice: values.costPrice,
+      taxRate: values.taxRate,
+      stockQuantity: values.isService ? undefined : values.stockQuantity,
+      minStockLevel: values.isService ? undefined : values.minStockLevel,
+      categoryId: values.categoryId || undefined,
+    };
+
+    let result;
+    if (mode === "create") {
+      result = await createMutation.mutate(payload as CreateProductRequest);
+    } else {
+      result = await updateMutation.mutate(payload as UpdateProductRequest);
+    }
+
+    if (result.success) {
+      toast.success(
+        mode === "create"
+          ? "Product created successfully"
+          : "Product updated successfully"
+      );
+      router.push("/dashboard/products");
+      router.refresh();
+    } else {
+      toast.error(getErrorMessage(result.error, "Failed to save product"));
+    }
+  };
+
+  const isLoading = createMutation.isLoading || updateMutation.isLoading;
+  const error = createMutation.error || updateMutation.error;
+
+  return (
+    <Card className="max-w-2xl">
+      <CardHeader>
+        <CardTitle>
+          {mode === "create" ? "Create Product" : "Edit Product"}
+        </CardTitle>
+        <CardDescription>
+          {mode === "create"
+            ? "Add a new product or service to your catalog"
+            : "Update product information"}
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {error && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Basic Info */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem className="md:col-span-2">
+                    <FormLabel>Product Name *</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Enter product name" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="sku"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>SKU</FormLabel>
+                    <FormControl>
+                      <Input placeholder="PRD-001" {...field} />
+                    </FormControl>
+                    <FormDescription>Unique product identifier</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="categoryId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Category</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select category" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {categories.map((category) => (
+                          <SelectItem key={category.id} value={category.id}>
+                            {category.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Product description..."
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Pricing */}
+            <div className="grid gap-4 md:grid-cols-3">
+              <FormField
+                control={form.control}
+                name="unitPrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unit Price *</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="costPrice"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Cost Price</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>Your purchase cost</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="currency"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Currency</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select currency" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {currencies.map((currency) => (
+                          <SelectItem key={currency.value} value={currency.value}>
+                            {currency.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Tax and Unit */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="taxRate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Tax Rate (%)</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="number"
+                        step="0.1"
+                        min="0"
+                        max="100"
+                        placeholder="20"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="unit"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Unit</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select unit" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {units.map((unit) => (
+                          <SelectItem key={unit.value} value={unit.value}>
+                            {unit.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            {/* Stock (only for products, not services) */}
+            {!isService && (
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="stockQuantity"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Stock Quantity</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="minStockLevel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Min Stock Level</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          placeholder="10"
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>Alert when below this</FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
+
+            {/* Toggles */}
+            <div className="flex flex-col gap-4 rounded-lg border p-4">
+              <FormField
+                control={form.control}
+                name="isService"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Service</FormLabel>
+                      <FormDescription>
+                        This is a service (no stock tracking)
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="isActive"
+                render={({ field }) => (
+                  <FormItem className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <FormLabel className="text-base">Active</FormLabel>
+                      <FormDescription>
+                        Product is available for sale
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+            </div>
+
+            <div className="flex gap-4">
+              <Button type="submit" disabled={isLoading}>
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {mode === "create" ? "Create Product" : "Update Product"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.back()}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </Form>
+      </CardContent>
+    </Card>
+  );
+}
+

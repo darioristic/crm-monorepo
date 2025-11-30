@@ -1,0 +1,101 @@
+/**
+ * Notification Routes
+ */
+
+import { errorResponse } from "@crm/utils";
+import { notificationsService } from "../services/notifications.service";
+import { RouteBuilder, withAuth, parseBody, parsePagination } from "./helpers";
+import type { NotificationType, CreateNotificationRequest } from "@crm/types";
+
+const router = new RouteBuilder();
+
+// ============================================
+// List Notifications (for current user)
+// ============================================
+
+router.get("/api/v1/notifications", async (request, url) => {
+  return withAuth(request, async (auth) => {
+    const pagination = parsePagination(url);
+
+    // Parse notification-specific filters
+    const isRead = url.searchParams.get("isRead");
+    const type = url.searchParams.get("type") as NotificationType | undefined;
+    const entityType = url.searchParams.get("entityType") || undefined;
+
+    return notificationsService.getNotifications(auth.userId, pagination, {
+      isRead: isRead ? isRead === "true" : undefined,
+      type,
+      entityType,
+    });
+  });
+});
+
+// ============================================
+// Get Unread Count
+// ============================================
+
+router.get("/api/v1/notifications/unread-count", async (request) => {
+  return withAuth(request, async (auth) => {
+    return notificationsService.getUnreadCount(auth.userId);
+  });
+});
+
+// ============================================
+// Get Single Notification
+// ============================================
+
+router.get("/api/v1/notifications/:id", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    return notificationsService.getNotificationById(params.id, auth.userId);
+  });
+});
+
+// ============================================
+// Create Notification (Admin only)
+// ============================================
+
+router.post("/api/v1/notifications", async (request) => {
+  return withAuth(
+    request,
+    async () => {
+      const body = await parseBody<CreateNotificationRequest>(request);
+      if (!body) {
+        return errorResponse("VALIDATION_ERROR", "Invalid request body");
+      }
+      return notificationsService.createNotification(body);
+    },
+    201
+  );
+});
+
+// ============================================
+// Mark as Read
+// ============================================
+
+router.patch("/api/v1/notifications/:id/read", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    return notificationsService.markAsRead(params.id, auth.userId);
+  });
+});
+
+// ============================================
+// Mark All as Read
+// ============================================
+
+router.post("/api/v1/notifications/mark-all-read", async (request) => {
+  return withAuth(request, async (auth) => {
+    return notificationsService.markAllAsRead(auth.userId);
+  });
+});
+
+// ============================================
+// Delete Notification
+// ============================================
+
+router.delete("/api/v1/notifications/:id", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    return notificationsService.deleteNotification(params.id, auth.userId);
+  });
+});
+
+export const notificationRoutes = router.getRoutes();

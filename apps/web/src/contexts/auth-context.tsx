@@ -134,9 +134,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 				return { success: true };
 			}
 
-			return {
+			const errorMsg = typeof result.error === 'object' && result.error?.message 
+			? result.error.message 
+			: typeof result.error === 'string' 
+				? result.error 
+				: "Login failed";
+		return {
 				success: false,
-				error: result.error?.message || "Login failed",
+				error: errorMsg,
 			};
 		},
 		[],

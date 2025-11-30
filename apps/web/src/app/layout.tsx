@@ -5,7 +5,6 @@ import { ActiveThemeProvider } from "@/components/shared/active-theme";
 import { AuthProvider } from "@/contexts/auth-context";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
-import "./themes.css";
 
 export const metadata: Metadata = {
   title: "CRM Dashboard",

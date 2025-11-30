@@ -1,10 +1,13 @@
+import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
+import * as schema from "./schema";
+import { dbLogger } from "../lib/logger";
 
 const DATABASE_URL =
   process.env.DATABASE_URL || "postgres://crm_user:crm_password@localhost:5432/crm_db";
 
 // Create PostgreSQL client with connection pooling
-export const db = postgres(DATABASE_URL, {
+const queryClient = postgres(DATABASE_URL, {
   max: 20, // Maximum connections in pool
   idle_timeout: 20, // Close idle connections after 20 seconds
   connect_timeout: 10, // Connection timeout in seconds
@@ -15,27 +18,35 @@ export const db = postgres(DATABASE_URL, {
   debug: process.env.NODE_ENV === "development",
 });
 
+// Create Drizzle ORM instance with schema
+export const db = drizzle(queryClient, { schema });
+
+// Export the raw postgres client for migrations and raw queries if needed
+export const sql = queryClient;
+
 // Test connection
 export async function testConnection(): Promise<boolean> {
   try {
-    await db`SELECT 1`;
-    console.log("✅ Database connected successfully");
+    await queryClient`SELECT 1`;
+    dbLogger.info("Database connected successfully");
     return true;
   } catch (error) {
-    console.error("❌ Database connection failed:", error);
+    dbLogger.error({ error }, "Database connection failed");
     return false;
   }
 }
 
-// Transaction helper
-export async function transaction<T>(callback: (sql: typeof db) => Promise<T>): Promise<T> {
-  return db.begin(callback);
+// Transaction helper using Drizzle
+export async function transaction<T>(
+  callback: Parameters<typeof db.transaction>[0]
+): Promise<T> {
+  return db.transaction(callback) as Promise<T>;
 }
 
 // Graceful shutdown
 export async function closeConnection(): Promise<void> {
-  await db.end();
-  console.log("Database connection closed");
+  await queryClient.end();
+  dbLogger.info("Database connection closed");
 }
 
 export default db;

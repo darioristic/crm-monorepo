@@ -113,9 +113,15 @@ export async function authenticateApiKey(
 		};
 	}
 
+	// Cast scopes to ApiScope[] (they're stored as strings in Redis)
+	const apiKeyData: ApiKeyData = {
+		...keyData,
+		scopes: keyData.scopes as ApiScope[],
+	};
+
 	return {
 		authenticated: true,
-		apiKey: keyData,
+		apiKey: apiKeyData,
 	};
 }
 

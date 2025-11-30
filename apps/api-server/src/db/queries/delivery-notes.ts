@@ -6,7 +6,13 @@ import type {
   FilterParams,
   DeliveryNoteStatus,
 } from "@crm/types";
-import db from "../client";
+import { sql as db } from "../client";
+import {
+  createQueryBuilder,
+  sanitizeSortColumn,
+  sanitizeSortOrder,
+  type QueryParam,
+} from "../query-builder";
 
 // ============================================
 // Delivery Note Queries
@@ -18,35 +24,33 @@ export const deliveryNoteQueries = {
     filters: FilterParams
   ): Promise<{ data: DeliveryNote[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
-    let whereClause = "";
-    const conditions: string[] = [];
+    const safePage = Math.max(1, Math.floor(page));
+    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+    const safeOffset = (safePage - 1) * safePageSize;
 
-    if (filters.search) {
-      conditions.push(`(delivery_number ILIKE '%${filters.search}%')`);
-    }
-    if (filters.status) {
-      conditions.push(`status = '${filters.status}'`);
-    }
+    // Koristi query builder za sigurne upite
+    const qb = createQueryBuilder("delivery_notes");
+    qb.addSearchCondition(["delivery_number"], filters.search);
+    qb.addEqualCondition("status", filters.status);
 
-    if (conditions.length > 0) {
-      whereClause = `WHERE ${conditions.join(" AND ")}`;
-    }
+    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
-    const countResult = await db.unsafe(
-      `SELECT COUNT(*) FROM delivery_notes ${whereClause}`
-    );
+    const countQuery = `SELECT COUNT(*) FROM delivery_notes ${whereClause}`;
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
-    const sortBy = pagination.sortBy || "created_at";
-    const sortOrder = pagination.sortOrder || "desc";
+    const sortBy = sanitizeSortColumn("delivery_notes", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
 
-    const data = await db.unsafe(
-      `SELECT * FROM delivery_notes ${whereClause}
-       ORDER BY ${sortBy} ${sortOrder}
-       LIMIT ${pageSize} OFFSET ${offset}`
-    );
+    const selectQuery = `
+      SELECT * FROM delivery_notes
+      ${whereClause}
+      ORDER BY ${sortBy} ${sortOrder}
+      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+    `;
+
+    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
     // Fetch items for each delivery note
     const notesWithItems = await Promise.all(
@@ -136,16 +140,16 @@ export const deliveryNoteQueries = {
   ): Promise<DeliveryNote> {
     const result = await db`
       UPDATE delivery_notes SET
-        invoice_id = COALESCE(${data.invoiceId}, invoice_id),
-        company_id = COALESCE(${data.companyId}, company_id),
-        contact_id = COALESCE(${data.contactId}, contact_id),
-        status = COALESCE(${data.status}, status),
-        ship_date = COALESCE(${data.shipDate}, ship_date),
-        delivery_date = COALESCE(${data.deliveryDate}, delivery_date),
-        shipping_address = COALESCE(${data.shippingAddress}, shipping_address),
-        tracking_number = COALESCE(${data.trackingNumber}, tracking_number),
-        carrier = COALESCE(${data.carrier}, carrier),
-        notes = COALESCE(${data.notes}, notes),
+        invoice_id = COALESCE(${data.invoiceId ?? null}, invoice_id),
+        company_id = COALESCE(${data.companyId ?? null}, company_id),
+        contact_id = COALESCE(${data.contactId ?? null}, contact_id),
+        status = COALESCE(${data.status ?? null}, status),
+        ship_date = COALESCE(${data.shipDate ?? null}, ship_date),
+        delivery_date = COALESCE(${data.deliveryDate ?? null}, delivery_date),
+        shipping_address = COALESCE(${data.shippingAddress ?? null}, shipping_address),
+        tracking_number = COALESCE(${data.trackingNumber ?? null}, tracking_number),
+        carrier = COALESCE(${data.carrier ?? null}, carrier),
+        notes = COALESCE(${data.notes ?? null}, notes),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -172,7 +176,7 @@ export const deliveryNoteQueries = {
 
   async count(): Promise<number> {
     const result = await db`SELECT COUNT(*) FROM delivery_notes`;
-    return parseInt(result[0].count, 10);
+    return parseInt(result[0].count as string, 10);
   },
 
   async generateNumber(): Promise<string> {
@@ -180,7 +184,7 @@ export const deliveryNoteQueries = {
     const result = await db`
       SELECT COUNT(*) FROM delivery_notes WHERE EXTRACT(YEAR FROM created_at) = ${year}
     `;
-    const count = parseInt(result[0].count, 10) + 1;
+    const count = parseInt(result[0].count as string, 10) + 1;
     return `DEL-${year}-${String(count).padStart(5, "0")}`;
   },
 
@@ -342,4 +346,3 @@ function mapDeliveryNoteWithRelations(
 }
 
 export default deliveryNoteQueries;
-

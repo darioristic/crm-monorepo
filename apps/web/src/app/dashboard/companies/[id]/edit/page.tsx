@@ -26,7 +26,12 @@ export default function EditCompanyPage() {
         if (response.success && response.data) {
           setCompany(response.data);
         } else {
-          setError(response.error?.message || "Failed to load company");
+          const errorMsg = typeof response.error === 'object' && response.error?.message 
+            ? response.error.message 
+            : typeof response.error === 'string' 
+              ? response.error 
+              : "Failed to load company";
+          setError(errorMsg);
         }
       } catch (e) {
         setError("Failed to load company");

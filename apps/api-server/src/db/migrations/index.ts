@@ -1,4 +1,4 @@
-import db from "../client";
+import { sql as db } from "../client";
 import * as migration001 from "./001_create_companies";
 import * as migration002 from "./002_create_users";
 import * as migration003 from "./003_create_auth";

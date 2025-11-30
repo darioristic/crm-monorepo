@@ -1,5 +1,6 @@
+import { env } from "./config/env";
 import { handleRequest } from "./routes";
-import { db } from "./db/client";
+import { sql, closeConnection } from "./db/client";
 import { redis } from "./cache/redis";
 import { logger, createRequestLogger, logRequest } from "./lib/logger";
 import {
@@ -8,10 +9,14 @@ import {
 	closeQueues,
 	scheduleNotificationCleanup,
 } from "./jobs";
+import {
+	getCorsConfig,
+	buildCorsHeaders,
+	handlePreflight,
+	applyCorsHeaders,
+} from "./middleware/cors";
 
-const PORT = process.env.PORT || 3001;
-const HOST = process.env.HOST || "0.0.0.0";
-const ENABLE_WORKERS = process.env.ENABLE_WORKERS !== "false";
+const { PORT, HOST, ENABLE_WORKERS, NODE_ENV } = env;
 
 // Start background workers if enabled
 if (ENABLE_WORKERS) {
@@ -31,7 +36,7 @@ async function shutdown() {
 			await closeQueues();
 		}
 
-		await db.end();
+		await closeConnection();
 		redis.disconnect();
 		logger.info("Database and cache connections closed");
 		process.exit(0);
@@ -44,6 +49,9 @@ async function shutdown() {
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
 
+// Initialize CORS configuration once at startup
+const corsConfig = getCorsConfig();
+
 // Start server
 const server = Bun.serve({
 	port: PORT,
@@ -54,57 +62,30 @@ const server = Bun.serve({
 		const startTime = performance.now();
 		const reqLogger = createRequestLogger(request);
 
-		// Get origin from request for CORS
-		const origin = request.headers.get("Origin") || "http://localhost:3000";
-		const allowedOrigins = [
-			"http://localhost:3000",
-			"http://127.0.0.1:3000",
-			"https://crm-frontend-crm-dev.apps.ocp-5.datsci.softergee.si",
-			...(process.env.ALLOWED_ORIGINS?.split(",").map((o) => o.trim()) || []),
-		];
-		const allowOrigin = allowedOrigins.includes(origin)
-			? origin
-			: allowedOrigins[0];
-
-		// CORS headers for development - must use specific origin with credentials
-		const corsHeaders = {
-			"Access-Control-Allow-Origin": allowOrigin,
-			"Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
-			"Access-Control-Allow-Headers": "Content-Type, Authorization",
-			"Access-Control-Allow-Credentials": "true",
-		};
+		// Build CORS headers for this request
+		const origin = request.headers.get("Origin");
+		const corsHeaders = buildCorsHeaders(origin, corsConfig);
 
 		// Handle preflight requests
 		if (request.method === "OPTIONS") {
-			return new Response(null, {
-				status: 204,
-				headers: corsHeaders,
-			});
+			return handlePreflight(corsHeaders);
 		}
 
 		try {
 			// Route the request
 			const response = await handleRequest(request, url);
 
-			// Add CORS headers to response
-			const headers = new Headers(response.headers);
-			Object.entries(corsHeaders).forEach(([key, value]) => {
-				headers.set(key, value);
-			});
-
 			// Log request
 			const duration = performance.now() - startTime;
 			logRequest(reqLogger, response.status, duration);
 
-			return new Response(response.body, {
-				status: response.status,
-				headers,
-			});
+			// Apply CORS headers and return
+			return applyCorsHeaders(response, corsHeaders);
 		} catch (error) {
 			const duration = performance.now() - startTime;
 			reqLogger.error({ error, durationMs: duration }, "Server error");
 
-			return new Response(
+			const errorResponse = new Response(
 				JSON.stringify({
 					success: false,
 					error: {
@@ -114,12 +95,11 @@ const server = Bun.serve({
 				}),
 				{
 					status: 500,
-					headers: {
-						"Content-Type": "application/json",
-						...corsHeaders,
-					},
+					headers: { "Content-Type": "application/json" },
 				},
 			);
+
+			return applyCorsHeaders(errorResponse, corsHeaders);
 		}
 	},
 
@@ -145,7 +125,7 @@ logger.info(
 	{
 		host: HOST,
 		port: PORT,
-		env: process.env.NODE_ENV || "development",
+		env: NODE_ENV,
 	},
 	"CRM API Server started",
 );

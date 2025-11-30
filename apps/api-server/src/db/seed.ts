@@ -5,7 +5,7 @@ import { userQueries } from "./queries/users";
 import { authQueries } from "./queries/auth";
 import { projectQueries, taskQueries, milestoneQueries } from "./queries";
 import { quoteQueries, invoiceQueries, deliveryNoteQueries } from "./queries";
-import db from "./client";
+import { sql as db } from "./client";
 
 // Default password for seed users (development only)
 const DEFAULT_SEED_PASSWORD = "changeme123";

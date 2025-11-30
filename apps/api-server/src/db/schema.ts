@@ -1,4 +1,4 @@
-import db from "./client";
+import { sql as db } from "./client";
 
 // SQL schema for CRM database
 // Run this to initialize the database tables

@@ -1,4 +1,4 @@
-import db from "../client";
+import { sql as db } from "../client";
 
 export const name = "001_create_companies";
 

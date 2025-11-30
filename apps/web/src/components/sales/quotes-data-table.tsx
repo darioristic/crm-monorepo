@@ -22,6 +22,7 @@ import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 import { getQuotesColumns, type QuoteWithCompany } from "@/components/sales/quotes/QuotesColumns";
 import { QuotesToolbar } from "@/components/sales/quotes/QuotesToolbar";
 
@@ -96,7 +97,7 @@ export function QuotesDataTable() {
       setSelectedQuote(null);
       refetch();
     } else {
-      toast.error(result.error || "Failed to delete quote");
+      toast.error(getErrorMessage(result.error, "Failed to delete quote"));
     }
   };
 

@@ -58,6 +58,9 @@ export const dbLogger = logger.child({ module: "database" });
 export const cacheLogger = logger.child({ module: "cache" });
 export const authLogger = logger.child({ module: "auth" });
 export const apiLogger = logger.child({ module: "api" });
+export const serviceLogger = logger.child({ module: "service" });
+export const jobLogger = logger.child({ module: "jobs" });
+export const configLogger = logger.child({ module: "config" });
 
 // ============================================
 // Helper Functions

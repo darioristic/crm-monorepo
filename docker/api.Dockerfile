@@ -81,8 +81,8 @@ EXPOSE 3001
 
 # Labels for container metadata
 LABEL org.opencontainers.image.title="CRM API Server" \
-      org.opencontainers.image.description="Backend API for CRM Monorepo" \
-      org.opencontainers.image.vendor="CRM Team"
+    org.opencontainers.image.description="Backend API for CRM Monorepo" \
+    org.opencontainers.image.vendor="CRM Team"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \

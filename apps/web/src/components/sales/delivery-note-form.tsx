@@ -31,6 +31,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -146,7 +147,7 @@ export function DeliveryNoteForm({ deliveryNote, mode }: DeliveryNoteFormProps) 
       router.push("/dashboard/sales/delivery-notes");
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to save delivery note");
+      toast.error(getErrorMessage(result.error, "Failed to save delivery note"));
     }
   };
 

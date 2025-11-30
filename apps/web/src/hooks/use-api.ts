@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ApiResponse, FilterParams, PaginationParams } from "@/lib/api";
+import { getErrorMessage } from "@/lib/utils";
 
 type UseApiOptions<T> = {
   initialData?: T;
@@ -31,25 +32,29 @@ export function useApi<T>(
   const [isLoading, setIsLoading] = useState(autoFetch);
   const [meta, setMeta] = useState<UseApiResult<T>["meta"]>();
 
+  // Store fetchFn in a ref to avoid dependency changes
+  const fetchFnRef = useRef(fetchFn);
+  fetchFnRef.current = fetchFn;
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(undefined);
 
     try {
-      const response = await fetchFn();
+      const response = await fetchFnRef.current();
 
       if (response.success) {
         setData(response.data);
         setMeta(response.meta);
       } else {
-        setError(response.error?.message || "Unknown error");
+        setError(getErrorMessage(response.error, "Unknown error"));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to fetch data");
     } finally {
       setIsLoading(false);
     }
-  }, [fetchFn]);
+  }, []);
 
   useEffect(() => {
     if (autoFetch) {
@@ -90,12 +95,16 @@ export function usePaginatedApi<T>(
   const [totalCount, setTotalCount] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
+  // Store fetchFn in a ref to avoid dependency changes
+  const fetchFnRef = useRef(fetchFn);
+  fetchFnRef.current = fetchFn;
+
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(undefined);
 
     try {
-      const response = await fetchFn({ ...filters, page, pageSize });
+      const response = await fetchFnRef.current({ ...filters, page, pageSize });
 
       if (response.success) {
         setData(response.data || []);
@@ -104,14 +113,14 @@ export function usePaginatedApi<T>(
           setTotalPages(response.meta.totalPages);
         }
       } else {
-        setError(response.error?.message || "Unknown error");
+        setError(getErrorMessage(response.error, "Unknown error"));
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to fetch data");
     } finally {
       setIsLoading(false);
     }
-  }, [fetchFn, filters, page, pageSize]);
+  }, [filters, page, pageSize]);
 
   useEffect(() => {
     fetchData();
@@ -167,7 +176,7 @@ export function useMutation<TData, TVariables>(
           setData(response.data);
           return { success: true, data: response.data };
         } else {
-          const errorMessage = response.error?.message || "Unknown error";
+          const errorMessage = getErrorMessage(response.error, "Unknown error");
           setError(errorMessage);
           return { success: false, error: errorMessage };
         }

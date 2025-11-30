@@ -32,6 +32,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -175,7 +176,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
       router.push("/dashboard/sales/invoices");
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to save invoice");
+      toast.error(getErrorMessage(result.error, "Failed to save invoice"));
     }
   };
 

@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 async function getOrders() {
   const data = await fs.readFile(
-    path.join(process.cwd(), "app/dashboard/(auth)/pages/orders/data.json")
+    path.join(process.cwd(), "src/app/dashboard/sales/orders/data.json")
   );
 
   return JSON.parse(data.toString());

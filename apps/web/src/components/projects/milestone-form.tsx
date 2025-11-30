@@ -30,6 +30,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 const milestoneFormSchema = z.object({
   name: z.string().min(2, "Milestone name must be at least 2 characters"),
@@ -109,7 +110,7 @@ export function MilestoneForm({ milestone, mode, defaultProjectId }: MilestoneFo
       router.push("/dashboard/projects/milestones");
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to save milestone");
+      toast.error(getErrorMessage(result.error, "Failed to save milestone"));
     }
   };
 

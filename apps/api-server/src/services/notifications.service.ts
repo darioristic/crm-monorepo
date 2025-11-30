@@ -227,12 +227,12 @@ class NotificationsService {
 		email: string,
 	): Promise<void> {
 		try {
-			await emailService.sendEmail({
-				to: email,
-				subject: notification.title,
-				text: notification.message,
-				html: this.buildEmailHtml(notification),
-			});
+			await emailService.send(
+				{ to: email },
+				notification.title,
+				this.buildEmailHtml(notification),
+				notification.message,
+			);
 
 			await notificationQueries.markEmailSent(notification.id);
 		} catch (error) {

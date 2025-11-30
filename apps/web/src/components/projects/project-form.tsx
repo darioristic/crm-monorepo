@@ -32,6 +32,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, AlertCircle, X } from "lucide-react";
 import { toast } from "sonner";
+import { getErrorMessage } from "@/lib/utils";
 
 const projectFormSchema = z.object({
   name: z.string().min(2, "Project name must be at least 2 characters"),
@@ -148,7 +149,7 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
       router.push("/dashboard/projects");
       router.refresh();
     } else {
-      toast.error(result.error || "Failed to save project");
+      toast.error(getErrorMessage(result.error, "Failed to save project"));
     }
   };
 

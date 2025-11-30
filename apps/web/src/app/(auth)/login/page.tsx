@@ -68,10 +68,15 @@ function LoginForm() {
       const result = await login(data);
 
       if (result.success) {
-        router.push(returnUrl);
+        router.push(returnUrl as any);
         router.refresh();
       } else {
-        setError(result.error?.message || "Login failed");
+        const errorMsg = typeof result.error === 'object' && result.error?.message 
+          ? result.error.message 
+          : typeof result.error === 'string' 
+            ? result.error 
+            : "Login failed";
+        setError(errorMsg);
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
