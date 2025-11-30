@@ -261,6 +261,16 @@ export const deliveryNoteQueries = {
 };
 
 // ============================================
+// Helper for date conversion
+// ============================================
+
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+// ============================================
 // Mapping Functions
 // ============================================
 
@@ -278,15 +288,15 @@ function mapDeliveryNoteItem(row: Record<string, unknown>): DeliveryNoteItem {
 function mapDeliveryNote(row: Record<string, unknown>, items: unknown[]): DeliveryNote {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     deliveryNumber: row.delivery_number as string,
     invoiceId: row.invoice_id as string | undefined,
     companyId: row.company_id as string,
     contactId: row.contact_id as string | undefined,
     status: row.status as DeliveryNoteStatus,
-    shipDate: row.ship_date ? (row.ship_date as Date).toISOString() : undefined,
-    deliveryDate: row.delivery_date ? (row.delivery_date as Date).toISOString() : undefined,
+    shipDate: row.ship_date ? toISOString(row.ship_date) : undefined,
+    deliveryDate: row.delivery_date ? toISOString(row.delivery_date) : undefined,
     items: (items as Record<string, unknown>[]).map(mapDeliveryNoteItem),
     shippingAddress: row.shipping_address as string,
     trackingNumber: row.tracking_number as string | undefined,

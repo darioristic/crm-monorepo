@@ -104,6 +104,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 			const authenticated = await fetchUser();
 
 			if (!authenticated && !isPublicPath) {
+				// Clear any stale cookies by calling logout
+				// This ensures the middleware won't block access to login page
+				await authLogout();
 				router.push(`/login?returnUrl=${encodeURIComponent(pathname || "/dashboard")}`);
 			}
 

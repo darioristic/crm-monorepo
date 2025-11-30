@@ -97,7 +97,7 @@ export function SalesReportsContent() {
     fetchData();
   }, [fetchData]);
 
-  const dateRangeLabel = `${format(new Date(filters.from), "MMM d, yyyy")} - ${format(new Date(filters.to), "MMM d, yyyy")}`;
+  const dateRangeLabel = `${format(new Date(filters.from), "dd.MM.yyyy")} - ${format(new Date(filters.to), "dd.MM.yyyy")}`;
 
   const exportColumns: ColumnDef<TopCustomer>[] = [
     { key: "companyName", header: "Company" },

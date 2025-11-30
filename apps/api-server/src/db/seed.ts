@@ -1,440 +1,627 @@
-import type { Company, User, Project, Task, Milestone, Quote, Invoice, DeliveryNote } from "@crm/types";
+import type { 
+  Company, 
+  User, 
+  Project, 
+  Task, 
+  Milestone, 
+  Quote, 
+  Invoice, 
+  DeliveryNote,
+  Product,
+  ProductCategory,
+  Payment,
+  Notification,
+  NotificationType,
+} from "@crm/types";
 import { generateUUID, now } from "@crm/utils";
 import { companyQueries } from "./queries/companies";
 import { userQueries } from "./queries/users";
 import { authQueries } from "./queries/auth";
 import { projectQueries, taskQueries, milestoneQueries } from "./queries";
 import { quoteQueries, invoiceQueries, deliveryNoteQueries } from "./queries";
+import { productQueries, productCategoryQueries } from "./queries/products";
+import { paymentQueries } from "./queries/payments";
+import { notificationQueries } from "./queries/notifications";
 import { sql as db } from "./client";
 
 // Default password for seed users (development only)
 const DEFAULT_SEED_PASSWORD = "changeme123";
 
 // ============================================
-// Sample Companies
+// Helper Functions for Data Generation
 // ============================================
 
-const companies: Company[] = [
-  {
-    id: generateUUID(),
-    name: "TechCorp Industries",
-    industry: "Technology",
-    address: "123 Silicon Valley Blvd, San Francisco, CA 94105",
-    createdAt: now(),
-    updatedAt: now(),
-  },
-  {
-    id: generateUUID(),
-    name: "Global Finance Partners",
-    industry: "Finance",
-    address: "456 Wall Street, New York, NY 10005",
-    createdAt: now(),
-    updatedAt: now(),
-  },
-  {
-    id: generateUUID(),
-    name: "HealthFirst Medical",
-    industry: "Healthcare",
-    address: "789 Medical Center Dr, Boston, MA 02115",
-    createdAt: now(),
-    updatedAt: now(),
-  },
+function randomElement<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randomNumber(min: number, max: number): number {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function randomDate(daysAgo: number, daysAhead: number): string {
+  const now = Date.now();
+  const minTime = now - daysAgo * 24 * 60 * 60 * 1000;
+  const maxTime = now + daysAhead * 24 * 60 * 60 * 1000;
+  return new Date(randomNumber(minTime, maxTime)).toISOString();
+}
+
+function pastDate(daysAgo: number): string {
+  return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
+}
+
+function futureDate(daysAhead: number): string {
+  return new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000).toISOString();
+}
+
+// ============================================
+// Data Arrays for Generation
+// ============================================
+
+const INDUSTRIES = [
+  "Technology", "Finance", "Healthcare", "Manufacturing", "Retail",
+  "Education", "Real Estate", "Consulting", "Logistics", "Media",
+  "Energy", "Telecommunications", "Automotive", "Hospitality", "Agriculture"
+];
+
+const COMPANY_PREFIXES = [
+  "Tech", "Global", "Prime", "Digital", "Smart", "Alpha", "Beta", "Omega",
+  "Nova", "Quantum", "Apex", "Zenith", "Summit", "Vertex", "Nexus"
+];
+
+const COMPANY_SUFFIXES = [
+  "Corp", "Industries", "Solutions", "Partners", "Group", "Systems",
+  "Dynamics", "Ventures", "Holdings", "International", "Labs", "Works"
+];
+
+const FIRST_NAMES = [
+  "John", "Sarah", "Michael", "Emily", "James", "Emma", "David", "Olivia",
+  "Daniel", "Sophia", "Matthew", "Isabella", "Andrew", "Mia", "Christopher",
+  "Charlotte", "Joshua", "Amelia", "Ryan", "Harper", "Nathan", "Evelyn",
+  "Brandon", "Abigail", "Kevin", "Elizabeth", "Justin", "Sofia", "Tyler", "Avery",
+  "William", "Ella", "Joseph", "Scarlett", "Benjamin", "Grace", "Samuel", "Chloe",
+  "Jacob", "Victoria", "Anthony", "Riley", "Dylan", "Aria", "Ethan", "Lily",
+  "Alexander", "Aubrey", "Nicholas", "Zoey"
+];
+
+const LAST_NAMES = [
+  "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
+  "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
+  "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson",
+  "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
+  "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen",
+  "Hill", "Flores", "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera",
+  "Campbell", "Mitchell", "Carter", "Roberts"
+];
+
+const PROJECT_PREFIXES = [
+  "CRM", "ERP", "Mobile App", "Web Portal", "API", "Dashboard", "Analytics",
+  "Integration", "Migration", "Automation", "Cloud", "Security", "E-commerce",
+  "Platform", "Infrastructure"
+];
+
+const PROJECT_ACTIONS = [
+  "Development", "Upgrade", "Implementation", "Redesign", "Optimization",
+  "Modernization", "Enhancement", "Deployment", "Integration", "Migration"
+];
+
+const TASK_VERBS = [
+  "Design", "Implement", "Create", "Build", "Develop", "Configure", "Setup",
+  "Write", "Test", "Review", "Optimize", "Debug", "Document", "Deploy", "Migrate"
+];
+
+const TASK_OBJECTS = [
+  "database schema", "API endpoints", "user interface", "authentication system",
+  "dashboard", "reports module", "notification system", "payment gateway",
+  "search functionality", "file upload", "email templates", "admin panel",
+  "mobile views", "analytics tracking", "CI/CD pipeline"
+];
+
+const PRODUCT_NAMES = [
+  "Enterprise License", "Professional License", "Basic License", "Premium Support",
+  "Training Package", "Consulting Hours", "Custom Development", "Data Migration",
+  "System Integration", "Security Audit", "Performance Optimization", "Cloud Hosting",
+  "API Access", "White Label Solution", "Mobile App Add-on", "Analytics Module",
+  "Reporting Suite", "Backup Service", "Disaster Recovery", "Load Balancing",
+  "SSL Certificate", "Domain Registration", "Email Service", "Storage Upgrade",
+  "Bandwidth Upgrade", "User Seats Pack", "Admin Module", "Workflow Automation",
+  "Document Management", "CRM Module", "Inventory Module", "HR Module",
+  "Accounting Module", "Project Management", "Time Tracking", "Invoice Module",
+  "Quote Generator", "Contract Management", "Customer Portal", "Vendor Portal",
+  "Partner Portal", "Knowledge Base", "Help Desk", "Live Chat", "Video Conferencing",
+  "File Sharing", "Team Collaboration", "Task Management", "Calendar Integration", "API Gateway"
+];
+
+const NOTIFICATION_TYPES: NotificationType[] = [
+  "invoice_created", "invoice_paid", "invoice_overdue",
+  "quote_created", "quote_accepted", "quote_rejected",
+  "project_created", "project_completed",
+  "task_assigned", "task_completed", "task_overdue",
+  "lead_assigned", "deal_won", "deal_lost",
+  "info", "warning", "success"
+];
+
+const CITIES = [
+  "New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX", "Phoenix, AZ",
+  "Philadelphia, PA", "San Antonio, TX", "San Diego, CA", "Dallas, TX", "San Jose, CA",
+  "Austin, TX", "Jacksonville, FL", "Fort Worth, TX", "Columbus, OH", "Charlotte, NC",
+  "San Francisco, CA", "Indianapolis, IN", "Seattle, WA", "Denver, CO", "Boston, MA"
 ];
 
 // ============================================
-// Sample Users (will be assigned to companies)
+// Generator Functions
 // ============================================
 
-function createUsers(companyIds: string[]): User[] {
-  return [
-    {
+function generateCompanies(count: number): Company[] {
+  const companies: Company[] = [];
+  const usedNames = new Set<string>();
+
+  for (let i = 0; i < count; i++) {
+    let name: string;
+    do {
+      const prefix = randomElement(COMPANY_PREFIXES);
+      const suffix = randomElement(COMPANY_SUFFIXES);
+      name = `${prefix} ${suffix}`;
+    } while (usedNames.has(name));
+    usedNames.add(name);
+
+    companies.push({
       id: generateUUID(),
-      firstName: "John",
-      lastName: "Admin",
-      email: "admin@crm.local",
-      role: "admin",
-      companyId: companyIds[0], // TechCorp
-      status: "active",
-      createdAt: now(),
+      name,
+      industry: randomElement(INDUSTRIES),
+      address: `${randomNumber(100, 9999)} ${randomElement(["Main St", "Oak Ave", "Park Blvd", "Commerce Dr", "Tech Way"])}, ${randomElement(CITIES)}`,
+      createdAt: pastDate(randomNumber(30, 365)),
       updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      firstName: "Sarah",
-      lastName: "Johnson",
-      email: "sarah.johnson@techcorp.com",
-      role: "user",
-      companyId: companyIds[0], // TechCorp
-      status: "active",
-      phone: "+1-555-0101",
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      firstName: "Michael",
-      lastName: "Chen",
-      email: "michael.chen@globalfinance.com",
-      role: "user",
-      companyId: companyIds[1], // Global Finance
-      status: "active",
-      phone: "+1-555-0102",
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      firstName: "Emily",
-      lastName: "Davis",
-      email: "emily.davis@healthfirst.com",
-      role: "admin",
-      companyId: companyIds[2], // HealthFirst
-      status: "active",
-      phone: "+1-555-0103",
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      firstName: "James",
-      lastName: "Wilson",
-      email: "james.wilson@crm.local",
-      role: "user",
-      companyId: undefined, // No company assigned
-      status: "active",
-      createdAt: now(),
-      updatedAt: now(),
-    },
-  ];
+    });
+  }
+
+  return companies;
 }
 
-// ============================================
-// Sample Projects (will be assigned to users)
-// ============================================
+function generateUsers(count: number, companyIds: string[]): User[] {
+  const users: User[] = [];
+  const usedEmails = new Set<string>();
 
-function createProjects(userIds: string[]): Project[] {
-  return [
-    {
+  // First user is always admin
+  users.push({
+    id: generateUUID(),
+    firstName: "Admin",
+    lastName: "User",
+    email: "admin@crm.local",
+    role: "admin",
+    companyId: companyIds[0],
+    status: "active",
+    createdAt: pastDate(365),
+    updatedAt: now(),
+  });
+  usedEmails.add("admin@crm.local");
+
+  for (let i = 1; i < count; i++) {
+    const firstName = randomElement(FIRST_NAMES);
+    const lastName = randomElement(LAST_NAMES);
+    let email: string;
+    let counter = 0;
+    do {
+      const suffix = counter > 0 ? counter.toString() : "";
+      email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${suffix}@example.com`;
+      counter++;
+    } while (usedEmails.has(email));
+    usedEmails.add(email);
+
+    users.push({
       id: generateUUID(),
-      name: "CRM System Upgrade",
-      description: "Modernize the existing CRM platform with new features",
-      status: "in_progress",
-      startDate: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days ago
-      endDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000).toISOString(), // 60 days from now
-      budget: 50000,
+      firstName,
+      lastName,
+      email,
+      role: i < 5 ? "admin" : "user",
+      companyId: randomElement(companyIds),
+      status: randomElement(["active", "active", "active", "inactive"]),
+      phone: `+1-555-${String(randomNumber(1000, 9999)).padStart(4, "0")}`,
+      createdAt: pastDate(randomNumber(1, 300)),
+      updatedAt: now(),
+    });
+  }
+
+  return users;
+}
+
+function generateProjects(count: number, userIds: string[]): Project[] {
+  const projects: Project[] = [];
+  const statuses: Project["status"][] = ["planning", "in_progress", "on_hold", "completed", "cancelled"];
+
+  for (let i = 0; i < count; i++) {
+    const status = randomElement(statuses);
+    const startDaysAgo = randomNumber(1, 180);
+    const durationDays = randomNumber(30, 180);
+
+    projects.push({
+      id: generateUUID(),
+      name: `${randomElement(PROJECT_PREFIXES)} ${randomElement(PROJECT_ACTIONS)} ${i + 1}`,
+      description: `Project for ${randomElement(PROJECT_ACTIONS).toLowerCase()} of ${randomElement(PROJECT_PREFIXES).toLowerCase()} system.`,
+      status,
+      startDate: pastDate(startDaysAgo),
+      endDate: status === "completed" ? pastDate(startDaysAgo - durationDays) : futureDate(durationDays),
+      budget: randomNumber(10000, 500000),
       currency: "USD",
-      managerId: userIds[0], // Admin
-      teamMembers: [userIds[1], userIds[2]],
-      createdAt: now(),
+      managerId: randomElement(userIds),
+      teamMembers: [randomElement(userIds), randomElement(userIds)].filter((v, i, a) => a.indexOf(v) === i),
+      createdAt: pastDate(startDaysAgo + 10),
       updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      name: "Mobile App Development",
-      description: "Build a cross-platform mobile app for sales team",
-      status: "planning",
-      startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(), // 7 days from now
-      endDate: new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString(), // 120 days from now
-      budget: 100000,
-      currency: "USD",
-      managerId: userIds[1],
-      teamMembers: [userIds[0], userIds[3]],
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      name: "Data Migration Project",
-      description: "Migrate legacy data to the new database system",
-      status: "completed",
-      startDate: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-      endDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-      budget: 25000,
-      currency: "USD",
-      managerId: userIds[2],
-      teamMembers: [userIds[0]],
-      createdAt: now(),
-      updatedAt: now(),
-    },
-  ];
+    });
+  }
+
+  return projects;
 }
 
-function createMilestones(projectIds: string[]): Milestone[] {
-  return [
-    {
+function generateMilestones(count: number, projectIds: string[]): Milestone[] {
+  const milestones: Milestone[] = [];
+  const statuses: Milestone["status"][] = ["pending", "in_progress", "completed"];
+
+  for (let i = 0; i < count; i++) {
+    const status = randomElement(statuses);
+    const milestoneNames = [
+      "Requirements Analysis", "Design Phase", "Development Sprint 1", "Development Sprint 2",
+      "Testing Phase", "User Acceptance Testing", "Deployment", "Go Live", "Post-Launch Support",
+      "Documentation", "Training", "Performance Optimization", "Security Review", "Final Review"
+    ];
+
+    milestones.push({
       id: generateUUID(),
-      name: "Requirements Analysis",
-      description: "Complete all requirement gathering and documentation",
-      projectId: projectIds[0],
-      status: "completed",
-      dueDate: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-      completedDate: new Date(Date.now() - 22 * 24 * 60 * 60 * 1000).toISOString(),
-      order: 1,
-      createdAt: now(),
+      name: `${randomElement(milestoneNames)} - M${i + 1}`,
+      description: `Milestone ${i + 1} description`,
+      projectId: randomElement(projectIds),
+      status,
+      dueDate: randomDate(-30, 90),
+      completedDate: status === "completed" ? pastDate(randomNumber(1, 30)) : undefined,
+      order: (i % 5) + 1,
+      createdAt: pastDate(randomNumber(30, 180)),
       updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      name: "Development Phase 1",
-      description: "Complete core functionality development",
-      projectId: projectIds[0],
-      status: "in_progress",
-      dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-      order: 2,
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      name: "User Testing",
-      description: "Conduct UAT with key stakeholders",
-      projectId: projectIds[0],
-      status: "pending",
-      dueDate: new Date(Date.now() + 45 * 24 * 60 * 60 * 1000).toISOString(),
-      order: 3,
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      name: "Project Kickoff",
-      description: "Initial planning and team assembly",
-      projectId: projectIds[1],
-      status: "pending",
-      dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-      order: 1,
-      createdAt: now(),
-      updatedAt: now(),
-    },
-  ];
+    });
+  }
+
+  return milestones;
 }
 
-function createTasks(projectIds: string[], milestoneIds: string[], userIds: string[]): Task[] {
-  return [
-    {
+function generateTasks(count: number, projectIds: string[], milestoneIds: string[], userIds: string[]): Task[] {
+  const tasks: Task[] = [];
+  const statuses: Task["status"][] = ["todo", "in_progress", "review", "done"];
+  const priorities: Task["priority"][] = ["low", "medium", "high", "urgent"];
+
+  for (let i = 0; i < count; i++) {
+    const status = randomElement(statuses);
+    const estimatedHours = randomNumber(2, 80);
+
+    tasks.push({
       id: generateUUID(),
-      title: "Design database schema",
-      description: "Create ERD and define all tables for the new system",
-      status: "done",
-      priority: "high",
-      projectId: projectIds[0],
-      milestoneId: milestoneIds[0],
-      assignedTo: userIds[1],
-      dueDate: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-      estimatedHours: 16,
-      actualHours: 14,
-      createdAt: now(),
+      title: `${randomElement(TASK_VERBS)} ${randomElement(TASK_OBJECTS)}`,
+      description: `Task ${i + 1}: ${randomElement(TASK_VERBS)} the ${randomElement(TASK_OBJECTS)} for the project.`,
+      status,
+      priority: randomElement(priorities),
+      projectId: randomElement(projectIds),
+      milestoneId: Math.random() > 0.3 ? randomElement(milestoneIds) : undefined,
+      assignedTo: Math.random() > 0.2 ? randomElement(userIds) : undefined,
+      dueDate: randomDate(-14, 60),
+      estimatedHours,
+      actualHours: status === "done" ? randomNumber(Math.floor(estimatedHours * 0.8), Math.floor(estimatedHours * 1.5)) : undefined,
+      createdAt: pastDate(randomNumber(1, 90)),
       updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      title: "Implement user authentication",
-      description: "Set up JWT-based authentication system",
-      status: "in_progress",
-      priority: "high",
-      projectId: projectIds[0],
-      milestoneId: milestoneIds[1],
-      assignedTo: userIds[0],
-      dueDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
-      estimatedHours: 24,
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      title: "Create API endpoints",
-      description: "Build REST API for all CRUD operations",
-      status: "todo",
-      priority: "medium",
-      projectId: projectIds[0],
-      milestoneId: milestoneIds[1],
-      assignedTo: userIds[2],
-      dueDate: new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString(),
-      estimatedHours: 40,
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      title: "Write documentation",
-      description: "Create user and technical documentation",
-      status: "todo",
-      priority: "low",
-      projectId: projectIds[0],
-      dueDate: new Date(Date.now() + 50 * 24 * 60 * 60 * 1000).toISOString(),
-      estimatedHours: 20,
-      createdAt: now(),
-      updatedAt: now(),
-    },
-    {
-      id: generateUUID(),
-      title: "Setup CI/CD pipeline",
-      description: "Configure automated testing and deployment",
-      status: "review",
-      priority: "medium",
-      projectId: projectIds[0],
-      assignedTo: userIds[0],
-      dueDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-      estimatedHours: 8,
-      actualHours: 10,
-      createdAt: now(),
-      updatedAt: now(),
-    },
-  ];
+    });
+  }
+
+  return tasks;
 }
 
-// ============================================
-// Sample Sales Data
-// ============================================
+function generateQuotes(count: number, companyIds: string[], userIds: string[]): { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[] {
+  const quotes: { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[] = [];
+  const statuses: Quote["status"][] = ["draft", "sent", "accepted", "rejected", "expired"];
 
-function createQuotes(companyIds: string[], userIds: string[]): { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[] {
-  return [
-    {
+  for (let i = 0; i < count; i++) {
+    const itemCount = randomNumber(1, 5);
+    const items: Omit<Quote["items"][0], "id" | "quoteId">[] = [];
+    let subtotal = 0;
+
+    for (let j = 0; j < itemCount; j++) {
+      const quantity = randomNumber(1, 20);
+      const unitPrice = randomNumber(100, 10000);
+      const discount = Math.random() > 0.7 ? randomNumber(5, 20) : 0;
+      const total = quantity * unitPrice * (1 - discount / 100);
+      subtotal += total;
+
+      items.push({
+        productName: randomElement(PRODUCT_NAMES),
+        description: `Service/product description for item ${j + 1}`,
+        quantity,
+        unitPrice,
+        discount,
+        total,
+      });
+    }
+
+    const taxRate = 20;
+    const tax = subtotal * (taxRate / 100);
+    const total = subtotal + tax;
+
+    quotes.push({
       quote: {
         id: generateUUID(),
-        quoteNumber: "QUO-2025-00001",
-        companyId: companyIds[0],
-        status: "sent",
-        issueDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        validUntil: new Date(Date.now() + 25 * 24 * 60 * 60 * 1000).toISOString(),
-        subtotal: 15000,
-        taxRate: 20,
-        tax: 3000,
-        total: 18000,
-        notes: "Quote for CRM implementation services",
-        createdBy: userIds[0],
-        createdAt: now(),
+        quoteNumber: `QUO-2025-${String(i + 1).padStart(5, "0")}`,
+        companyId: randomElement(companyIds),
+        status: randomElement(statuses),
+        issueDate: pastDate(randomNumber(1, 60)),
+        validUntil: futureDate(randomNumber(15, 45)),
+        subtotal,
+        taxRate,
+        tax,
+        total,
+        notes: Math.random() > 0.5 ? `Quote notes for customer - reference ${i + 1}` : undefined,
+        createdBy: randomElement(userIds),
+        createdAt: pastDate(randomNumber(1, 60)),
         updatedAt: now(),
       },
-      items: [
-        { productName: "CRM Setup", description: "Initial system configuration", quantity: 1, unitPrice: 5000, discount: 0, total: 5000 },
-        { productName: "Training", description: "User training sessions", quantity: 10, unitPrice: 500, discount: 0, total: 5000 },
-        { productName: "Support Package", description: "6 months premium support", quantity: 1, unitPrice: 5000, discount: 0, total: 5000 },
-      ],
-    },
-    {
-      quote: {
-        id: generateUUID(),
-        quoteNumber: "QUO-2025-00002",
-        companyId: companyIds[1],
-        status: "accepted",
-        issueDate: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-        validUntil: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString(),
-        subtotal: 8500,
-        taxRate: 20,
-        tax: 1700,
-        total: 10200,
-        createdBy: userIds[1],
-        createdAt: now(),
-        updatedAt: now(),
-      },
-      items: [
-        { productName: "Consulting", description: "Business process consulting", quantity: 20, unitPrice: 200, discount: 0, total: 4000 },
-        { productName: "Software License", description: "Annual license", quantity: 1, unitPrice: 4500, discount: 0, total: 4500 },
-      ],
-    },
-  ];
+      items,
+    });
+  }
+
+  return quotes;
 }
 
-function createInvoices(companyIds: string[], quoteIds: string[], userIds: string[]): { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[] {
-  return [
-    {
+function generateInvoices(count: number, companyIds: string[], quoteIds: string[], userIds: string[]): { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[] {
+  const invoices: { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[] = [];
+  const statuses: Invoice["status"][] = ["draft", "sent", "paid", "partially_paid", "overdue", "cancelled"];
+
+  for (let i = 0; i < count; i++) {
+    const itemCount = randomNumber(1, 5);
+    const items: Omit<Invoice["items"][0], "id" | "invoiceId">[] = [];
+    let subtotal = 0;
+
+    for (let j = 0; j < itemCount; j++) {
+      const quantity = randomNumber(1, 20);
+      const unitPrice = randomNumber(100, 10000);
+      const discount = Math.random() > 0.7 ? randomNumber(5, 20) : 0;
+      const total = quantity * unitPrice * (1 - discount / 100);
+      subtotal += total;
+
+      items.push({
+        productName: randomElement(PRODUCT_NAMES),
+        description: `Service/product for invoice item ${j + 1}`,
+        quantity,
+        unitPrice,
+        discount,
+        total,
+      });
+    }
+
+    const taxRate = 20;
+    const tax = subtotal * (taxRate / 100);
+    const total = subtotal + tax;
+    const status = randomElement(statuses);
+    
+    let paidAmount = 0;
+    if (status === "paid") paidAmount = total;
+    else if (status === "partially_paid") paidAmount = total * (randomNumber(20, 80) / 100);
+
+    invoices.push({
       invoice: {
         id: generateUUID(),
-        invoiceNumber: "INV-2025-00001",
-        quoteId: quoteIds[1], // Based on accepted quote
-        companyId: companyIds[1],
-        status: "paid",
-        issueDate: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-        dueDate: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
-        subtotal: 8500,
-        taxRate: 20,
-        tax: 1700,
-        total: 10200,
-        paidAmount: 10200,
-        createdBy: userIds[0],
-        createdAt: now(),
+        invoiceNumber: `INV-2025-${String(i + 1).padStart(5, "0")}`,
+        quoteId: Math.random() > 0.5 && quoteIds.length > 0 ? randomElement(quoteIds) : undefined,
+        companyId: randomElement(companyIds),
+        status,
+        issueDate: pastDate(randomNumber(1, 90)),
+        dueDate: randomDate(-30, 60),
+        subtotal,
+        taxRate,
+        tax,
+        total,
+        paidAmount,
+        notes: Math.random() > 0.6 ? `Invoice notes - reference ${i + 1}` : undefined,
+        createdBy: randomElement(userIds),
+        createdAt: pastDate(randomNumber(1, 90)),
         updatedAt: now(),
       },
-      items: [
-        { productName: "Consulting", description: "Business process consulting", quantity: 20, unitPrice: 200, discount: 0, total: 4000 },
-        { productName: "Software License", description: "Annual license", quantity: 1, unitPrice: 4500, discount: 0, total: 4500 },
-      ],
-    },
-    {
-      invoice: {
-        id: generateUUID(),
-        invoiceNumber: "INV-2025-00002",
-        companyId: companyIds[2],
-        status: "sent",
-        issueDate: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(),
-        dueDate: new Date(Date.now() + 27 * 24 * 60 * 60 * 1000).toISOString(),
-        subtotal: 12000,
-        taxRate: 20,
-        tax: 2400,
-        total: 14400,
-        paidAmount: 0,
-        notes: "Healthcare data integration project",
-        createdBy: userIds[1],
-        createdAt: now(),
-        updatedAt: now(),
-      },
-      items: [
-        { productName: "Data Integration", description: "EHR system integration", quantity: 1, unitPrice: 8000, discount: 0, total: 8000 },
-        { productName: "Custom Development", description: "Additional custom features", quantity: 20, unitPrice: 200, discount: 0, total: 4000 },
-      ],
-    },
-  ];
+      items,
+    });
+  }
+
+  return invoices;
 }
 
-function createDeliveryNotes(companyIds: string[], invoiceIds: string[], userIds: string[]): { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] {
-  return [
-    {
+function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: string[], userIds: string[]): { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] {
+  const notes: { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] = [];
+  const statuses: DeliveryNote["status"][] = ["pending", "shipped", "in_transit", "delivered", "cancelled"];
+  const carriers = ["FedEx", "UPS", "DHL", "USPS", "Local Courier"];
+
+  for (let i = 0; i < count; i++) {
+    const itemCount = randomNumber(1, 4);
+    const items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] = [];
+
+    for (let j = 0; j < itemCount; j++) {
+      items.push({
+        productName: randomElement(PRODUCT_NAMES),
+        description: `Delivery item ${j + 1} description`,
+        quantity: randomNumber(1, 10),
+        unit: randomElement(["pcs", "set", "box", "pack"]),
+      });
+    }
+
+    const status = randomElement(statuses);
+
+    notes.push({
       note: {
         id: generateUUID(),
-        deliveryNumber: "DEL-2025-00001",
-        invoiceId: invoiceIds[0],
-        companyId: companyIds[1],
-        status: "delivered",
-        shipDate: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString(),
-        deliveryDate: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-        shippingAddress: "456 Wall Street, New York, NY 10005",
-        trackingNumber: "TRK123456789",
-        carrier: "FedEx",
-        createdBy: userIds[0],
-        createdAt: now(),
+        deliveryNumber: `DEL-2025-${String(i + 1).padStart(5, "0")}`,
+        invoiceId: Math.random() > 0.3 && invoiceIds.length > 0 ? randomElement(invoiceIds) : undefined,
+        companyId: randomElement(companyIds),
+        status,
+        shipDate: status !== "pending" ? pastDate(randomNumber(1, 30)) : undefined,
+        deliveryDate: status === "delivered" ? pastDate(randomNumber(1, 14)) : undefined,
+        shippingAddress: `${randomNumber(100, 9999)} ${randomElement(["Main St", "Oak Ave", "Park Blvd"])}, ${randomElement(CITIES)}`,
+        trackingNumber: status !== "pending" ? `TRK${randomNumber(100000000, 999999999)}` : undefined,
+        carrier: status !== "pending" ? randomElement(carriers) : undefined,
+        notes: Math.random() > 0.6 ? `Delivery notes - reference ${i + 1}` : undefined,
+        createdBy: randomElement(userIds),
+        createdAt: pastDate(randomNumber(1, 60)),
         updatedAt: now(),
       },
-      items: [
-        { productName: "Software License Key", description: "License activation code", quantity: 1, unit: "pcs" },
-        { productName: "Documentation Package", description: "User manuals and guides", quantity: 1, unit: "set" },
-      ],
-    },
-    {
-      note: {
-        id: generateUUID(),
-        deliveryNumber: "DEL-2025-00002",
-        companyId: companyIds[0],
-        status: "pending",
-        shippingAddress: "123 Silicon Valley Blvd, San Francisco, CA 94105",
-        notes: "Please call before delivery",
-        createdBy: userIds[1],
-        createdAt: now(),
-        updatedAt: now(),
-      },
-      items: [
-        { productName: "Hardware Kit", description: "Server hardware components", quantity: 3, unit: "pcs" },
-        { productName: "Installation Media", description: "USB drives with software", quantity: 5, unit: "pcs" },
-      ],
-    },
+      items,
+    });
+  }
+
+  return notes;
+}
+
+function generateProductCategories(): ProductCategory[] {
+  const categories: ProductCategory[] = [];
+  
+  // Parent categories
+  const parentCategories = [
+    { name: "Software", description: "Software products and licenses" },
+    { name: "Services", description: "Professional services and consulting" },
+    { name: "Hardware", description: "Hardware and equipment" },
+    { name: "Support", description: "Support and maintenance packages" },
+    { name: "Training", description: "Training and education" },
   ];
+
+  const parentIds: string[] = [];
+  
+  parentCategories.forEach((cat, i) => {
+    const id = generateUUID();
+    parentIds.push(id);
+    categories.push({
+      id,
+      name: cat.name,
+      description: cat.description,
+      parentId: undefined,
+      sortOrder: i + 1,
+      isActive: true,
+      createdAt: pastDate(365),
+      updatedAt: now(),
+    });
+  });
+
+  // Child categories
+  const childCategories = [
+    { name: "Enterprise Software", parentIndex: 0 },
+    { name: "SaaS Solutions", parentIndex: 0 },
+    { name: "Consulting", parentIndex: 1 },
+    { name: "Implementation", parentIndex: 1 },
+    { name: "Servers", parentIndex: 2 },
+  ];
+
+  childCategories.forEach((cat, i) => {
+    categories.push({
+      id: generateUUID(),
+      name: cat.name,
+      description: `${cat.name} category`,
+      parentId: parentIds[cat.parentIndex],
+      sortOrder: i + 1,
+      isActive: true,
+      createdAt: pastDate(300),
+      updatedAt: now(),
+    });
+  });
+
+  return categories;
+}
+
+function generateProducts(count: number, categoryIds: string[]): Product[] {
+  const products: Product[] = [];
+  
+  for (let i = 0; i < count; i++) {
+    const basePrice = randomNumber(100, 50000);
+    
+    products.push({
+      id: generateUUID(),
+      sku: `PRD-${String(i + 1).padStart(5, "0")}`,
+      name: PRODUCT_NAMES[i % PRODUCT_NAMES.length],
+      description: `${PRODUCT_NAMES[i % PRODUCT_NAMES.length]} - comprehensive solution for your business needs.`,
+      categoryId: randomElement(categoryIds),
+      unitPrice: basePrice,
+      costPrice: Math.floor(basePrice * 0.6),
+      currency: "USD",
+      stockQuantity: randomNumber(0, 500),
+      minStockLevel: randomNumber(5, 20),
+      unit: randomElement(["pcs", "license", "hour", "month", "year"]),
+      isActive: Math.random() > 0.1,
+      createdAt: pastDate(randomNumber(30, 365)),
+      updatedAt: now(),
+    });
+  }
+
+  return products;
+}
+
+function generatePayments(count: number, invoiceIds: string[], userIds: string[]): Payment[] {
+  const payments: Payment[] = [];
+  const methods: Payment["paymentMethod"][] = ["bank_transfer", "credit_card", "cash", "check", "other"];
+  const statuses: Payment["status"][] = ["completed", "pending", "failed", "refunded"];
+
+  for (let i = 0; i < count; i++) {
+    payments.push({
+      id: generateUUID(),
+      invoiceId: randomElement(invoiceIds),
+      amount: randomNumber(500, 50000),
+      currency: "USD",
+      paymentMethod: randomElement(methods),
+      status: randomElement(statuses),
+      paymentDate: pastDate(randomNumber(1, 90)),
+      reference: `PAY-${randomNumber(100000, 999999)}`,
+      transactionId: Math.random() > 0.3 ? `TXN${randomNumber(10000000, 99999999)}` : undefined,
+      notes: Math.random() > 0.6 ? `Payment note ${i + 1}` : undefined,
+      recordedBy: randomElement(userIds),
+      createdAt: pastDate(randomNumber(1, 90)),
+      updatedAt: now(),
+    });
+  }
+
+  return payments;
+}
+
+function generateNotifications(count: number, userIds: string[]): Notification[] {
+  const notifications: Notification[] = [];
+  const messages = [
+    { type: "invoice_created" as NotificationType, title: "New Invoice Created", message: "Invoice has been created and is ready for review." },
+    { type: "invoice_paid" as NotificationType, title: "Invoice Paid", message: "Payment has been received for your invoice." },
+    { type: "invoice_overdue" as NotificationType, title: "Invoice Overdue", message: "Invoice is overdue. Please follow up with the customer." },
+    { type: "quote_created" as NotificationType, title: "New Quote Created", message: "A new quote has been created for review." },
+    { type: "quote_accepted" as NotificationType, title: "Quote Accepted", message: "Your quote has been accepted by the customer." },
+    { type: "quote_rejected" as NotificationType, title: "Quote Rejected", message: "Unfortunately, your quote was rejected." },
+    { type: "project_created" as NotificationType, title: "New Project Started", message: "A new project has been created and assigned." },
+    { type: "project_completed" as NotificationType, title: "Project Completed", message: "Congratulations! The project has been completed." },
+    { type: "task_assigned" as NotificationType, title: "New Task Assigned", message: "You have been assigned a new task." },
+    { type: "task_completed" as NotificationType, title: "Task Completed", message: "A task has been marked as completed." },
+    { type: "task_overdue" as NotificationType, title: "Task Overdue", message: "A task is overdue and needs attention." },
+    { type: "deal_won" as NotificationType, title: "Deal Won!", message: "Congratulations! A deal has been won." },
+    { type: "info" as NotificationType, title: "System Update", message: "System maintenance scheduled for this weekend." },
+    { type: "warning" as NotificationType, title: "Action Required", message: "Your attention is required on a pending item." },
+    { type: "success" as NotificationType, title: "Success", message: "Operation completed successfully." },
+  ];
+
+  for (let i = 0; i < count; i++) {
+    const template = randomElement(messages);
+    
+    notifications.push({
+      id: generateUUID(),
+      userId: randomElement(userIds),
+      type: template.type,
+      channel: randomElement(["in_app", "email", "both"]) as "in_app" | "email" | "both",
+      title: `${template.title} #${i + 1}`,
+      message: template.message,
+      link: Math.random() > 0.5 ? `/dashboard/${randomElement(["invoices", "quotes", "projects", "tasks"])}` : undefined,
+      isRead: Math.random() > 0.6,
+      readAt: Math.random() > 0.6 ? pastDate(randomNumber(1, 14)) : undefined,
+      createdAt: pastDate(randomNumber(1, 30)),
+    });
+  }
+
+  return notifications;
 }
 
 // ============================================
 // Seed Functions
 // ============================================
 
-async function seedCompanies(): Promise<string[]> {
+async function seedCompanies(companies: Company[]): Promise<string[]> {
   console.log("📦 Seeding companies...");
   const ids: string[] = [];
 
@@ -457,37 +644,37 @@ async function seedCompanies(): Promise<string[]> {
   return ids;
 }
 
-async function seedUsers(companyIds: string[]): Promise<void> {
+async function seedUsers(users: User[]): Promise<string[]> {
   console.log("👥 Seeding users...");
-  const users = createUsers(companyIds);
+  const ids: string[] = [];
 
   for (const user of users) {
     try {
       const existing = await userQueries.findByEmail(user.email);
       if (existing) {
         console.log(`  ⏭️  User "${user.email}" already exists`);
+        ids.push(existing.id);
       } else {
         const created = await userQueries.createWithId(user);
-        console.log(
-          `  ✅ Created user: ${created.firstName} ${created.lastName} (${created.email})`
-        );
+        console.log(`  ✅ Created user: ${created.firstName} ${created.lastName}`);
+        ids.push(created.id);
       }
     } catch (error) {
       console.error(`  ❌ Failed to create user ${user.email}:`, error);
     }
   }
+
+  return ids;
 }
 
 async function seedAuthCredentials(): Promise<void> {
   console.log("🔐 Seeding auth credentials...");
   
-  // Hash the default password using Bun
   const passwordHash = await Bun.password.hash(DEFAULT_SEED_PASSWORD, {
     algorithm: "bcrypt",
     cost: 12,
   });
   
-  // Get all users
   const users = await db`SELECT id, email FROM users`;
   
   for (const user of users) {
@@ -507,41 +694,9 @@ async function seedAuthCredentials(): Promise<void> {
   console.log(`\n  ℹ️  Default password for all seed users: "${DEFAULT_SEED_PASSWORD}"`);
 }
 
-async function clearSeedData(): Promise<void> {
-  console.log("🗑️  Clearing seed data...");
-
-  // Delete users first (due to FK constraints)
-  const users = createUsers(companies.map((c) => c.id));
-  for (const user of users) {
-    try {
-      const existing = await userQueries.findByEmail(user.email);
-      if (existing) {
-        await userQueries.delete(existing.id);
-        console.log(`  ✅ Deleted user: ${user.email}`);
-      }
-    } catch (error) {
-      console.error(`  ❌ Failed to delete user ${user.email}:`, error);
-    }
-  }
-
-  // Delete companies
-  for (const company of companies) {
-    try {
-      const existing = await companyQueries.findByName(company.name);
-      if (existing) {
-        await companyQueries.delete(existing.id);
-        console.log(`  ✅ Deleted company: ${company.name}`);
-      }
-    } catch (error) {
-      console.error(`  ❌ Failed to delete company ${company.name}:`, error);
-    }
-  }
-}
-
-async function seedProjects(userIds: string[]): Promise<string[]> {
+async function seedProjects(projects: Project[]): Promise<string[]> {
   console.log("📁 Seeding projects...");
   const ids: string[] = [];
-  const projects = createProjects(userIds);
 
   for (const project of projects) {
     try {
@@ -556,10 +711,9 @@ async function seedProjects(userIds: string[]): Promise<string[]> {
   return ids;
 }
 
-async function seedMilestones(projectIds: string[]): Promise<string[]> {
+async function seedMilestones(milestones: Milestone[]): Promise<string[]> {
   console.log("🎯 Seeding milestones...");
   const ids: string[] = [];
-  const milestones = createMilestones(projectIds);
 
   for (const milestone of milestones) {
     try {
@@ -574,9 +728,8 @@ async function seedMilestones(projectIds: string[]): Promise<string[]> {
   return ids;
 }
 
-async function seedTasks(projectIds: string[], milestoneIds: string[], userIds: string[]): Promise<void> {
+async function seedTasks(tasks: Task[]): Promise<void> {
   console.log("✅ Seeding tasks...");
-  const tasks = createTasks(projectIds, milestoneIds, userIds);
 
   for (const task of tasks) {
     try {
@@ -588,28 +741,28 @@ async function seedTasks(projectIds: string[], milestoneIds: string[], userIds: 
   }
 }
 
-async function seedQuotes(companyIds: string[], userIds: string[]): Promise<string[]> {
+async function seedQuotes(quotes: { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[]): Promise<string[]> {
   console.log("📝 Seeding quotes...");
   const ids: string[] = [];
-  const quotes = createQuotes(companyIds, userIds);
 
   for (const { quote, items } of quotes) {
     try {
       const created = await quoteQueries.create(quote, items);
       console.log(`  ✅ Created quote: ${created.quoteNumber}`);
       ids.push(created.id);
-    } catch (error) {
-      console.error(`  ❌ Failed to create quote ${quote.quoteNumber}:`, error);
+    } catch (error: any) {
+      console.error(`  ❌ Failed to create quote ${quote.quoteNumber}: ${error?.message || error}`);
+      if (error?.code) console.error(`     Error code: ${error.code}`);
+      if (error?.detail) console.error(`     Detail: ${error.detail}`);
     }
   }
 
   return ids;
 }
 
-async function seedInvoices(companyIds: string[], quoteIds: string[], userIds: string[]): Promise<string[]> {
+async function seedInvoices(invoices: { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[]): Promise<string[]> {
   console.log("💵 Seeding invoices...");
   const ids: string[] = [];
-  const invoices = createInvoices(companyIds, quoteIds, userIds);
 
   for (const { invoice, items } of invoices) {
     try {
@@ -624,9 +777,8 @@ async function seedInvoices(companyIds: string[], quoteIds: string[], userIds: s
   return ids;
 }
 
-async function seedDeliveryNotes(companyIds: string[], invoiceIds: string[], userIds: string[]): Promise<void> {
+async function seedDeliveryNotes(notes: { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[]): Promise<void> {
   console.log("📦 Seeding delivery notes...");
-  const notes = createDeliveryNotes(companyIds, invoiceIds, userIds);
 
   for (const { note, items } of notes) {
     try {
@@ -638,49 +790,218 @@ async function seedDeliveryNotes(companyIds: string[], invoiceIds: string[], use
   }
 }
 
+async function seedProductCategories(categories: ProductCategory[]): Promise<string[]> {
+  console.log("📂 Seeding product categories...");
+  const ids: string[] = [];
+
+  // First seed parent categories (no parentId)
+  const parents = categories.filter(c => !c.parentId);
+  for (const category of parents) {
+    try {
+      const created = await productCategoryQueries.create({
+        name: category.name,
+        description: category.description,
+        parentId: undefined,
+        sortOrder: category.sortOrder,
+        isActive: category.isActive,
+      });
+      console.log(`  ✅ Created category: ${created.name}`);
+      ids.push(created.id);
+    } catch (error) {
+      console.error(`  ❌ Failed to create category ${category.name}:`, error);
+    }
+  }
+
+  // Then seed child categories
+  const children = categories.filter(c => c.parentId);
+  for (const category of children) {
+    try {
+      // Find parent ID from our created categories
+      const parentIndex = parents.findIndex(p => categories.find(c => c.id === category.parentId)?.name === p.name);
+      const parentId = parentIndex >= 0 ? ids[parentIndex] : undefined;
+      
+      const created = await productCategoryQueries.create({
+        name: category.name,
+        description: category.description,
+        parentId,
+        sortOrder: category.sortOrder,
+        isActive: category.isActive,
+      });
+      console.log(`  ✅ Created category: ${created.name}`);
+      ids.push(created.id);
+    } catch (error) {
+      console.error(`  ❌ Failed to create category ${category.name}:`, error);
+    }
+  }
+
+  return ids;
+}
+
+async function seedProducts(products: Product[], categoryIds: string[]): Promise<string[]> {
+  console.log("🛍️  Seeding products...");
+  const ids: string[] = [];
+
+  for (const product of products) {
+    try {
+      // Reassign category from generated data
+      const productData = {
+        ...product,
+        categoryId: randomElement(categoryIds),
+      };
+      
+      const created = await productQueries.create({
+        sku: productData.sku,
+        name: productData.name,
+        description: productData.description,
+        categoryId: productData.categoryId,
+        unitPrice: productData.unitPrice,
+        costPrice: productData.costPrice,
+        currency: productData.currency,
+        stockQuantity: productData.stockQuantity,
+        minStockLevel: productData.minStockLevel,
+        unit: productData.unit,
+        isActive: productData.isActive,
+      });
+      console.log(`  ✅ Created product: ${created.name}`);
+      ids.push(created.id);
+    } catch (error) {
+      console.error(`  ❌ Failed to create product ${product.name}:`, error);
+    }
+  }
+
+  return ids;
+}
+
+async function seedPayments(payments: Payment[]): Promise<void> {
+  console.log("💳 Seeding payments...");
+
+  for (const payment of payments) {
+    try {
+      if (!payment.invoiceId) {
+        console.log(`  ⏭️  Skipping payment ${payment.reference}: No invoice ID`);
+        continue;
+      }
+      if (!payment.recordedBy) {
+        console.log(`  ⏭️  Skipping payment ${payment.reference}: No recorded by user`);
+        continue;
+      }
+      const created = await paymentQueries.create({
+        invoiceId: payment.invoiceId,
+        amount: payment.amount,
+        currency: payment.currency,
+        paymentMethod: payment.paymentMethod,
+        paymentDate: payment.paymentDate,
+        reference: payment.reference,
+        transactionId: payment.transactionId,
+        notes: payment.notes,
+      }, payment.recordedBy);
+      console.log(`  ✅ Created payment: ${created.reference}`);
+    } catch (error: any) {
+      console.error(`  ❌ Failed to create payment ${payment.reference}: ${error?.message || error}`);
+      if (error?.code) console.error(`     Error code: ${error.code}`);
+    }
+  }
+}
+
+async function seedNotifications(notifications: Notification[]): Promise<void> {
+  console.log("🔔 Seeding notifications...");
+
+  for (const notification of notifications) {
+    try {
+      const created = await notificationQueries.create({
+        userId: notification.userId,
+        type: notification.type,
+        channel: notification.channel,
+        title: notification.title,
+        message: notification.message,
+        link: notification.link,
+        entityType: notification.entityType,
+        entityId: notification.entityId,
+      });
+      console.log(`  ✅ Created notification: ${created.title}`);
+    } catch (error) {
+      console.error(`  ❌ Failed to create notification ${notification.title}:`, error);
+    }
+  }
+}
+
+// ============================================
+// Main Seed Function
+// ============================================
+
 export async function seed(): Promise<void> {
-  console.log("\n🌱 Starting database seed...\n");
+  console.log("\n🌱 Starting database seed with 50 objects per module...\n");
 
   try {
+    // Generate all data
+    const companiesData = generateCompanies(50);
+    
     // Seed companies first
-    const companyIds = await seedCompanies();
-    console.log("");
+    const companyIds = await seedCompanies(companiesData);
+    console.log(`\n  📊 Companies seeded: ${companyIds.length}\n`);
 
-    // Then seed users with company references
-    await seedUsers(companyIds);
-    console.log("");
+    // Generate and seed users
+    const usersData = generateUsers(50, companyIds);
+    const userIds = await seedUsers(usersData);
+    console.log(`\n  📊 Users seeded: ${userIds.length}\n`);
 
-    // Seed auth credentials for users
+    // Seed auth credentials
     await seedAuthCredentials();
     console.log("");
 
-    // Get created user IDs
-    const users = await db`SELECT id FROM users ORDER BY created_at ASC`;
-    const userIds = users.map((u) => u.id as string);
+    // Get all user IDs from database
+    const dbUsers = await db`SELECT id FROM users ORDER BY created_at ASC`;
+    const allUserIds = dbUsers.map((u) => u.id as string);
 
-    // Seed projects
-    const projectIds = await seedProjects(userIds);
-    console.log("");
+    // Generate and seed projects
+    const projectsData = generateProjects(50, allUserIds);
+    const projectIds = await seedProjects(projectsData);
+    console.log(`\n  📊 Projects seeded: ${projectIds.length}\n`);
 
-    // Seed milestones
-    const milestoneIds = await seedMilestones(projectIds);
-    console.log("");
+    // Generate and seed milestones
+    const milestonesData = generateMilestones(50, projectIds);
+    const milestoneIds = await seedMilestones(milestonesData);
+    console.log(`\n  📊 Milestones seeded: ${milestoneIds.length}\n`);
 
-    // Seed tasks
-    await seedTasks(projectIds, milestoneIds, userIds);
-    console.log("");
+    // Generate and seed tasks
+    const tasksData = generateTasks(50, projectIds, milestoneIds, allUserIds);
+    await seedTasks(tasksData);
+    console.log(`\n  📊 Tasks seeded: 50\n`);
 
-    // Seed quotes
-    const quoteIds = await seedQuotes(companyIds, userIds);
-    console.log("");
+    // Generate and seed quotes
+    const quotesData = generateQuotes(50, companyIds, allUserIds);
+    const quoteIds = await seedQuotes(quotesData);
+    console.log(`\n  📊 Quotes seeded: ${quoteIds.length}\n`);
 
-    // Seed invoices
-    const invoiceIds = await seedInvoices(companyIds, quoteIds, userIds);
-    console.log("");
+    // Generate and seed invoices
+    const invoicesData = generateInvoices(50, companyIds, quoteIds, allUserIds);
+    const invoiceIds = await seedInvoices(invoicesData);
+    console.log(`\n  📊 Invoices seeded: ${invoiceIds.length}\n`);
 
-    // Seed delivery notes
-    await seedDeliveryNotes(companyIds, invoiceIds, userIds);
-    console.log("");
+    // Generate and seed delivery notes
+    const deliveryNotesData = generateDeliveryNotes(50, companyIds, invoiceIds, allUserIds);
+    await seedDeliveryNotes(deliveryNotesData);
+    console.log(`\n  📊 Delivery Notes seeded: 50\n`);
+
+    // Generate and seed product categories
+    const categoriesData = generateProductCategories();
+    const categoryIds = await seedProductCategories(categoriesData);
+    console.log(`\n  📊 Product Categories seeded: ${categoryIds.length}\n`);
+
+    // Generate and seed products
+    const productsData = generateProducts(50, categoryIds);
+    await seedProducts(productsData, categoryIds);
+    console.log(`\n  📊 Products seeded: 50\n`);
+
+    // Generate and seed payments
+    const paymentsData = generatePayments(50, invoiceIds, allUserIds);
+    await seedPayments(paymentsData);
+    console.log(`\n  📊 Payments seeded: 50\n`);
+
+    // Generate and seed notifications
+    const notificationsData = generateNotifications(50, allUserIds);
+    await seedNotifications(notificationsData);
+    console.log(`\n  📊 Notifications seeded: 50\n`);
 
     // Summary
     const companyCount = await companyQueries.count();
@@ -691,16 +1012,26 @@ export async function seed(): Promise<void> {
     const quoteCount = await quoteQueries.count();
     const invoiceCount = await invoiceQueries.count();
     const deliveryCount = await deliveryNoteQueries.count();
+    const categoryCount = await db`SELECT COUNT(*) FROM product_categories`;
+    const productCount = await db`SELECT COUNT(*) FROM products`;
+    const paymentCount = await db`SELECT COUNT(*) FROM payments`;
+    const notificationCount = await db`SELECT COUNT(*) FROM notifications`;
 
-    console.log("📊 Seed Summary:");
-    console.log(`   Companies: ${companyCount}`);
-    console.log(`   Users: ${userCount}`);
-    console.log(`   Projects: ${parseInt(projectCount[0].count as string, 10)}`);
-    console.log(`   Tasks: ${taskCount}`);
-    console.log(`   Milestones: ${milestoneCount}`);
-    console.log(`   Quotes: ${quoteCount}`);
-    console.log(`   Invoices: ${invoiceCount}`);
-    console.log(`   Delivery Notes: ${deliveryCount}`);
+    console.log("\n📊 Final Seed Summary:");
+    console.log("═".repeat(40));
+    console.log(`   Companies:          ${companyCount}`);
+    console.log(`   Users:              ${userCount}`);
+    console.log(`   Projects:           ${parseInt(projectCount[0].count as string, 10)}`);
+    console.log(`   Tasks:              ${taskCount}`);
+    console.log(`   Milestones:         ${milestoneCount}`);
+    console.log(`   Quotes:             ${quoteCount}`);
+    console.log(`   Invoices:           ${invoiceCount}`);
+    console.log(`   Delivery Notes:     ${deliveryCount}`);
+    console.log(`   Product Categories: ${parseInt(categoryCount[0].count as string, 10)}`);
+    console.log(`   Products:           ${parseInt(productCount[0].count as string, 10)}`);
+    console.log(`   Payments:           ${parseInt(paymentCount[0].count as string, 10)}`);
+    console.log(`   Notifications:      ${parseInt(notificationCount[0].count as string, 10)}`);
+    console.log("═".repeat(40));
     console.log("\n✅ Database seeding completed!\n");
   } catch (error) {
     console.error("\n❌ Seed failed:", error);
@@ -709,11 +1040,42 @@ export async function seed(): Promise<void> {
 }
 
 export async function unseed(): Promise<void> {
-  console.log("\n🧹 Removing seed data...\n");
+  console.log("\n🧹 Clearing all data...\n");
+
+  const safeDelete = async (table: string, name: string) => {
+    try {
+      await db.unsafe(`DELETE FROM ${table}`);
+      console.log(`  ✅ Deleted ${name}`);
+    } catch (error: any) {
+      if (error?.code === "42P01") {
+        console.log(`  ⏭️  Table ${table} does not exist, skipping`);
+      } else {
+        throw error;
+      }
+    }
+  };
 
   try {
-    await clearSeedData();
-    console.log("\n✅ Seed data removed!\n");
+    // Delete in reverse order of dependencies
+    await safeDelete("notifications", "notifications");
+    await safeDelete("payments", "payments");
+    await safeDelete("delivery_note_items", "delivery note items");
+    await safeDelete("delivery_notes", "delivery notes");
+    await safeDelete("invoice_items", "invoice items");
+    await safeDelete("invoices", "invoices");
+    await safeDelete("quote_items", "quote items");
+    await safeDelete("quotes", "quotes");
+    await safeDelete("tasks", "tasks");
+    await safeDelete("milestones", "milestones");
+    await safeDelete("projects", "projects");
+    await safeDelete("products", "products");
+    await safeDelete("product_categories", "product categories");
+    await safeDelete("auth_credentials", "auth credentials");
+    await safeDelete("sessions", "sessions");
+    await safeDelete("users", "users");
+    await safeDelete("companies", "companies");
+
+    console.log("\n✅ All data cleared!\n");
   } catch (error) {
     console.error("\n❌ Unseed failed:", error);
     throw error;
@@ -733,9 +1095,13 @@ if (import.meta.main) {
       case "clear":
         await unseed();
         break;
+      case "reseed":
+        await unseed();
+        await seed();
+        break;
       default:
         console.log(`Unknown command: ${command}`);
-        console.log("Available commands: seed, unseed");
+        console.log("Available commands: seed, unseed, clear, reseed");
         process.exit(1);
     }
     await db.end();

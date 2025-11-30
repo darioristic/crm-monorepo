@@ -121,10 +121,10 @@ export default function CalendarDateRangePicker({
                     {date?.from ? (
                       date.to ? (
                         <>
-                          {format(date.from, "dd MMM yyyy")} - {format(date.to, "dd MMM yyyy")}
+                          {format(date.from, "dd.MM.yyyy")} - {format(date.to, "dd.MM.yyyy")}
                         </>
                       ) : (
-                        format(date.from, "dd MMM yyyy")
+                        format(date.from, "dd.MM.yyyy")
                       )
                     ) : (
                       <span>Select date range</span>
@@ -145,10 +145,10 @@ export default function CalendarDateRangePicker({
               {date?.from ? (
                 date.to ? (
                   <>
-                    {format(date.from, "dd MMM yyyy")} - {format(date.to, "dd MMM yyyy")}
+                    {format(date.from, "dd.MM.yyyy")} - {format(date.to, "dd.MM.yyyy")}
                   </>
                 ) : (
-                  format(date.from, "dd MMM yyyy")
+                  format(date.from, "dd.MM.yyyy")
                 )
               ) : (
                 <span>Select date range</span>

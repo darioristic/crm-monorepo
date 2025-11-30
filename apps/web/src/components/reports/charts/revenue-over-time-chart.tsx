@@ -25,7 +25,7 @@ const chartConfig = {
 export function RevenueOverTimeChart({ data, className }: RevenueOverTimeChartProps) {
   const formattedData = data.map((point) => ({
     ...point,
-    date: new Date(point.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+    date: `${new Date(point.date).getDate().toString().padStart(2, "0")}.${(new Date(point.date).getMonth() + 1).toString().padStart(2, "0")}.${new Date(point.date).getFullYear()}`,
     revenue: point.revenue,
   }));
 

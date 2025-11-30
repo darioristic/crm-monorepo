@@ -60,7 +60,7 @@ export function InvoiceStatusBadge({
   showTooltip = true,
   className,
 }: InvoiceStatusBadgeProps) {
-  const config = statusConfig[status];
+  const config = statusConfig[status] || { variant: "outline" as const, label: status, description: "Unknown status" };
 
   const sizeClasses = {
     sm: "text-xs px-1.5 py-0",

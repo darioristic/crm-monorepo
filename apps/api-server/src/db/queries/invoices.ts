@@ -262,6 +262,16 @@ export const invoiceQueries = {
 };
 
 // ============================================
+// Helper for date conversion
+// ============================================
+
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+// ============================================
 // Mapping Functions
 // ============================================
 
@@ -281,15 +291,15 @@ function mapInvoiceItem(row: Record<string, unknown>): InvoiceItem {
 function mapInvoice(row: Record<string, unknown>, items: unknown[]): Invoice {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     invoiceNumber: row.invoice_number as string,
     quoteId: row.quote_id as string | undefined,
     companyId: row.company_id as string,
     contactId: row.contact_id as string | undefined,
     status: row.status as InvoiceStatus,
-    issueDate: (row.issue_date as Date).toISOString(),
-    dueDate: (row.due_date as Date).toISOString(),
+    issueDate: toISOString(row.issue_date),
+    dueDate: toISOString(row.due_date),
     items: (items as Record<string, unknown>[]).map(mapInvoiceItem),
     subtotal: parseFloat(row.subtotal as string),
     taxRate: parseFloat(row.tax_rate as string),

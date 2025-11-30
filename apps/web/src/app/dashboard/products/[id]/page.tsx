@@ -260,7 +260,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Created</span>
                 <span className="font-medium">
-                  {new Date(product.createdAt).toLocaleDateString("sr-RS")}
+                  {`${new Date(product.createdAt).getDate().toString().padStart(2, "0")}.${(new Date(product.createdAt).getMonth() + 1).toString().padStart(2, "0")}.${new Date(product.createdAt).getFullYear()}`}
                 </span>
               </div>
             </CardContent>

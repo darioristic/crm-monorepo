@@ -205,7 +205,11 @@ export function UsersDataTable() {
       accessorKey: "createdAt",
       header: "Created",
       cell: ({ row }) => {
-        return new Date(row.original.createdAt).toLocaleDateString("sr-RS");
+        const d = new Date(row.original.createdAt);
+        const day = d.getDate().toString().padStart(2, "0");
+        const month = (d.getMonth() + 1).toString().padStart(2, "0");
+        const year = d.getFullYear();
+        return `${day}.${month}.${year}`;
       },
     },
     {

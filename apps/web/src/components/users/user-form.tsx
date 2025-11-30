@@ -92,7 +92,7 @@ export function UserForm({ user, mode }: UserFormProps) {
   const onSubmit = async (values: UserFormValues) => {
     const data = {
       ...values,
-      companyId: values.companyId || undefined,
+      companyId: values.companyId && values.companyId !== "none" ? values.companyId : undefined,
       phone: values.phone || undefined,
     };
 
@@ -240,7 +240,7 @@ export function UserForm({ user, mode }: UserFormProps) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="">No Company</SelectItem>
+                        <SelectItem value="none">No Company</SelectItem>
                         {companies?.map((company) => (
                           <SelectItem key={company.id} value={company.id}>
                             {company.name}

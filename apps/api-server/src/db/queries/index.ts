@@ -532,14 +532,24 @@ export const taskQueries = {
 };
 
 // ============================================
+// Helper for date conversion
+// ============================================
+
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+// ============================================
 // Mapping Functions (snake_case -> camelCase)
 // ============================================
 
 function mapLead(row: Record<string, unknown>): Lead {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     name: row.name as string,
     email: row.email as string,
     phone: row.phone as string | undefined,
@@ -557,8 +567,8 @@ function mapLead(row: Record<string, unknown>): Lead {
 function mapContact(row: Record<string, unknown>): Contact {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     firstName: row.first_name as string,
     lastName: row.last_name as string,
     email: row.email as string,
@@ -580,8 +590,8 @@ function mapContact(row: Record<string, unknown>): Contact {
 function mapDeal(row: Record<string, unknown>): Deal {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     title: row.title as string,
     description: row.description as string | undefined,
     value: parseFloat(row.value as string),
@@ -590,10 +600,10 @@ function mapDeal(row: Record<string, unknown>): Deal {
     priority: row.priority as Deal["priority"],
     probability: row.probability as number,
     expectedCloseDate: row.expected_close_date
-      ? (row.expected_close_date as Date).toISOString()
+      ? toISOString(row.expected_close_date)
       : undefined,
     actualCloseDate: row.actual_close_date
-      ? (row.actual_close_date as Date).toISOString()
+      ? toISOString(row.actual_close_date)
       : undefined,
     contactId: row.contact_id as string | undefined,
     leadId: row.lead_id as string | undefined,
@@ -605,13 +615,13 @@ function mapDeal(row: Record<string, unknown>): Deal {
 function mapProject(row: Record<string, unknown>): Project {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     name: row.name as string,
     description: row.description as string | undefined,
     status: row.status as Project["status"],
-    startDate: row.start_date ? (row.start_date as Date).toISOString() : undefined,
-    endDate: row.end_date ? (row.end_date as Date).toISOString() : undefined,
+    startDate: row.start_date ? toISOString(row.start_date) : undefined,
+    endDate: row.end_date ? toISOString(row.end_date) : undefined,
     budget: row.budget ? parseFloat(row.budget as string) : undefined,
     currency: row.currency as string | undefined,
     clientId: row.client_id as string | undefined,
@@ -625,8 +635,8 @@ function mapProject(row: Record<string, unknown>): Project {
 function mapTask(row: Record<string, unknown>): Task {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     title: row.title as string,
     description: row.description as string | undefined,
     status: row.status as Task["status"],
@@ -634,7 +644,7 @@ function mapTask(row: Record<string, unknown>): Task {
     projectId: row.project_id as string,
     milestoneId: row.milestone_id as string | undefined,
     assignedTo: row.assigned_to as string | undefined,
-    dueDate: row.due_date ? (row.due_date as Date).toISOString() : undefined,
+    dueDate: row.due_date ? toISOString(row.due_date) : undefined,
     estimatedHours: row.estimated_hours ? parseFloat(row.estimated_hours as string) : undefined,
     actualHours: row.actual_hours ? parseFloat(row.actual_hours as string) : undefined,
     parentTaskId: row.parent_task_id as string | undefined,

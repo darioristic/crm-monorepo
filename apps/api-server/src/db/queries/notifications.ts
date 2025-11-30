@@ -238,6 +238,16 @@ export const notificationQueries = {
 };
 
 // ============================================
+// Helper for date conversion
+// ============================================
+
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+// ============================================
 // Mapping Function
 // ============================================
 
@@ -253,12 +263,11 @@ function mapNotification(row: Record<string, unknown>): Notification {
     entityType: row.entityType as string | undefined,
     entityId: row.entityId as string | undefined,
     isRead: row.isRead as boolean,
-    readAt: row.readAt ? (row.readAt as Date).toISOString() : undefined,
+    readAt: row.readAt ? toISOString(row.readAt) : undefined,
     emailSent: row.emailSent as boolean,
-    emailSentAt: row.emailSentAt ? (row.emailSentAt as Date).toISOString() : undefined,
+    emailSentAt: row.emailSentAt ? toISOString(row.emailSentAt) : undefined,
     metadata: row.metadata as Record<string, unknown> | undefined,
-    createdAt:
-      row.createdAt instanceof Date ? row.createdAt.toISOString() : (row.createdAt as string),
+    createdAt: toISOString(row.createdAt),
   };
 }
 

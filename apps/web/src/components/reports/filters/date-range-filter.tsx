@@ -98,11 +98,11 @@ export function DateRangeFilter({
             {dateRange?.from ? (
               dateRange.to ? (
                 <>
-                  {format(dateRange.from, "MMM d, yyyy")} -{" "}
-                  {format(dateRange.to, "MMM d, yyyy")}
+                  {format(dateRange.from, "dd.MM.yyyy")} -{" "}
+                  {format(dateRange.to, "dd.MM.yyyy")}
                 </>
               ) : (
-                format(dateRange.from, "MMM d, yyyy")
+                format(dateRange.from, "dd.MM.yyyy")
               )
             ) : (
               <span>Pick a date range</span>

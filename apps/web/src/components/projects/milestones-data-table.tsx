@@ -6,9 +6,11 @@ import {
   ColumnDef,
   flexRender,
   getCoreRowModel,
-  useReactTable
+  useReactTable,
+  RowSelectionState,
 } from "@tanstack/react-table";
 import { ArrowUpDown, MoreHorizontal, RefreshCwIcon, Pencil, Trash2, Eye, CheckCircle } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import type { Milestone, Project } from "@crm/types";
 
 import { Button } from "@/components/ui/button";
@@ -72,6 +74,9 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [selectedMilestone, setSelectedMilestone] = React.useState<MilestoneWithRelations | null>(null);
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Fetch projects for lookup
   const { data: projects } = useApi<Project[]>(
@@ -170,7 +175,65 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
     }
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    const selectedRows = Object.keys(rowSelection);
+    if (selectedRows.length === 0) return;
+
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const rowIndex of selectedRows) {
+      const milestone = enrichedMilestones[parseInt(rowIndex)];
+      if (milestone) {
+        const result = await deleteMutation.mutate(milestone.id);
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+    }
+
+    setIsBulkDeleting(false);
+    setBulkDeleteDialogOpen(false);
+    setRowSelection({});
+
+    if (successCount > 0) {
+      toast.success(`Successfully deleted ${successCount} milestone(s)`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} milestone(s)`);
+    }
+    refetch();
+  };
+
+  const selectedCount = Object.keys(rowSelection).length;
+
   const columns: ColumnDef<MilestoneWithRelations>[] = [
+    {
+      id: "select",
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && "indeterminate")
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -284,7 +347,11 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
-    pageCount: totalPages
+    pageCount: totalPages,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      rowSelection,
+    },
   });
 
   if (isLoading && !milestones?.length) {
@@ -329,6 +396,16 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
         <Button variant="outline" size="icon" onClick={() => refetch()} disabled={isLoading}>
           <RefreshCwIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
+        {selectedCount > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setBulkDeleteDialogOpen(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete ({selectedCount})
+          </Button>
+        )}
       </div>
 
       <div className="rounded-md border">
@@ -349,7 +426,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -370,7 +447,11 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
 
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
-          Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} milestones
+          {selectedCount > 0 ? (
+            <span>{selectedCount} of {totalCount} row(s) selected</span>
+          ) : (
+            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} milestones</span>
+          )}
         </div>
         <div className="flex items-center space-x-2">
         <Button
@@ -402,6 +483,15 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
         description={`Are you sure you want to delete milestone "${selectedMilestone?.name}"? This action cannot be undone.`}
         onConfirm={handleDelete}
         isLoading={deleteMutation.isLoading}
+      />
+
+      <DeleteDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Milestones"
+        description={`Are you sure you want to delete ${selectedCount} selected milestone(s)? This action cannot be undone.`}
+        onConfirm={handleBulkDelete}
+        isLoading={isBulkDeleting}
       />
     </div>
   );

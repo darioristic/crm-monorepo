@@ -126,7 +126,7 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
     const data = {
       name: values.name,
       description: values.description || undefined,
-      clientId: values.clientId || undefined,
+      clientId: values.clientId && values.clientId !== "none" ? values.clientId : undefined,
       managerId: values.managerId,
       startDate: values.startDate ? new Date(values.startDate).toISOString() : undefined,
       endDate: values.endDate ? new Date(values.endDate).toISOString() : undefined,
@@ -229,7 +229,7 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">No Company</SelectItem>
+                          <SelectItem value="none">No Company</SelectItem>
                           {companies?.map((company) => (
                             <SelectItem key={company.id} value={company.id}>
                               {company.name}

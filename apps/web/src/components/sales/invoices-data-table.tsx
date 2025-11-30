@@ -4,9 +4,11 @@ import * as React from "react";
 import {
   flexRender,
   getCoreRowModel,
-  useReactTable
+  useReactTable,
+  RowSelectionState,
 } from "@tanstack/react-table";
 import type { Invoice, Company } from "@crm/types";
+import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -32,6 +34,9 @@ export function InvoicesDataTable() {
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [selectedInvoice, setSelectedInvoice] = React.useState<InvoiceWithCompany | null>(null);
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Fetch companies for name lookup
   const { data: companies } = useApi<Company[]>(
@@ -117,6 +122,42 @@ export function InvoicesDataTable() {
     }
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    const selectedRows = Object.keys(rowSelection);
+    if (selectedRows.length === 0) return;
+
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const rowIndex of selectedRows) {
+      const invoice = enrichedInvoices[parseInt(rowIndex)];
+      if (invoice) {
+        const result = await deleteMutation.mutate(invoice.id);
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+    }
+
+    setIsBulkDeleting(false);
+    setBulkDeleteDialogOpen(false);
+    setRowSelection({});
+
+    if (successCount > 0) {
+      toast.success(`Successfully deleted ${successCount} invoice(s)`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} invoice(s)`);
+    }
+    refetch();
+  };
+
+  const selectedCount = Object.keys(rowSelection).length;
+
   const columns = React.useMemo(
     () =>
       getInvoicesColumns({
@@ -137,7 +178,11 @@ export function InvoicesDataTable() {
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
-    pageCount: totalPages
+    pageCount: totalPages,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      rowSelection,
+    },
   });
 
   if (isLoading && !invoices?.length) {
@@ -160,14 +205,28 @@ export function InvoicesDataTable() {
 
   return (
     <div className="w-full">
-      <InvoicesToolbar
-        search={searchValue}
-        onSearchChange={setSearchValue}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        onRefresh={refetch}
-        isLoading={isLoading}
-      />
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <InvoicesToolbar
+            search={searchValue}
+            onSearchChange={setSearchValue}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            onRefresh={refetch}
+            isLoading={isLoading}
+          />
+        </div>
+        {selectedCount > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setBulkDeleteDialogOpen(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete ({selectedCount})
+          </Button>
+        )}
+      </div>
 
       <div className="rounded-md border">
         <Table>
@@ -187,7 +246,7 @@ export function InvoicesDataTable() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -208,7 +267,11 @@ export function InvoicesDataTable() {
 
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
-          Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} invoices
+          {selectedCount > 0 ? (
+            <span>{selectedCount} of {totalCount} row(s) selected</span>
+          ) : (
+            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} invoices</span>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -247,6 +310,15 @@ export function InvoicesDataTable() {
         open={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         onSubmit={handleRecordPayment}
+      />
+
+      <DeleteDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Invoices"
+        description={`Are you sure you want to delete ${selectedCount} selected invoice(s)? This action cannot be undone.`}
+        onConfirm={handleBulkDelete}
+        isLoading={isBulkDeleting}
       />
     </div>
   );

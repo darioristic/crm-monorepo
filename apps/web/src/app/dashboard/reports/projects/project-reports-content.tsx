@@ -122,7 +122,7 @@ export function ProjectReportsContent() {
     fetchData();
   }, [fetchData]);
 
-  const dateRangeLabel = `${format(new Date(filters.from), "MMM d, yyyy")} - ${format(new Date(filters.to), "MMM d, yyyy")}`;
+  const dateRangeLabel = `${format(new Date(filters.from), "dd.MM.yyyy")} - ${format(new Date(filters.to), "dd.MM.yyyy")}`;
 
   const exportColumns: ColumnDef<ProjectReport>[] = [
     { key: "name", header: "Project Name" },

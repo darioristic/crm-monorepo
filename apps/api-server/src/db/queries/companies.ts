@@ -140,14 +140,24 @@ export const companyQueries = {
 };
 
 // ============================================
+// Helper for date conversion
+// ============================================
+
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+// ============================================
 // Mapping Function (snake_case -> camelCase)
 // ============================================
 
 function mapCompany(row: Record<string, unknown>): Company {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     name: row.name as string,
     industry: row.industry as string,
     address: row.address as string,

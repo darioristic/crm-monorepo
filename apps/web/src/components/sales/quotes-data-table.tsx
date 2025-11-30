@@ -4,9 +4,11 @@ import * as React from "react";
 import {
   flexRender,
   getCoreRowModel,
-  useReactTable
+  useReactTable,
+  RowSelectionState,
 } from "@tanstack/react-table";
 import type { Quote, Company } from "@crm/types";
+import { Trash2 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -31,6 +33,9 @@ export function QuotesDataTable() {
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [selectedQuote, setSelectedQuote] = React.useState<QuoteWithCompany | null>(null);
+  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
+  const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Fetch companies for name lookup
   const { data: companies } = useApi<Company[]>(
@@ -101,6 +106,42 @@ export function QuotesDataTable() {
     }
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    const selectedRows = Object.keys(rowSelection);
+    if (selectedRows.length === 0) return;
+
+    setIsBulkDeleting(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const rowIndex of selectedRows) {
+      const quote = enrichedQuotes[parseInt(rowIndex)];
+      if (quote) {
+        const result = await deleteMutation.mutate(quote.id);
+        if (result.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      }
+    }
+
+    setIsBulkDeleting(false);
+    setBulkDeleteDialogOpen(false);
+    setRowSelection({});
+
+    if (successCount > 0) {
+      toast.success(`Successfully deleted ${successCount} quote(s)`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to delete ${failCount} quote(s)`);
+    }
+    refetch();
+  };
+
+  const selectedCount = Object.keys(rowSelection).length;
+
   const columns = React.useMemo(
     () =>
       getQuotesColumns({
@@ -117,7 +158,11 @@ export function QuotesDataTable() {
     columns,
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
-    pageCount: totalPages
+    pageCount: totalPages,
+    onRowSelectionChange: setRowSelection,
+    state: {
+      rowSelection,
+    },
   });
 
   if (isLoading && !quotes?.length) {
@@ -140,14 +185,28 @@ export function QuotesDataTable() {
 
   return (
     <div className="w-full">
-      <QuotesToolbar
-        search={searchValue}
-        onSearchChange={setSearchValue}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        onRefresh={refetch}
-        isLoading={isLoading}
-      />
+      <div className="flex items-center gap-4">
+        <div className="flex-1">
+          <QuotesToolbar
+            search={searchValue}
+            onSearchChange={setSearchValue}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            onRefresh={refetch}
+            isLoading={isLoading}
+          />
+        </div>
+        {selectedCount > 0 && (
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={() => setBulkDeleteDialogOpen(true)}
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete ({selectedCount})
+          </Button>
+        )}
+      </div>
 
       <div className="rounded-md border">
         <Table>
@@ -167,7 +226,7 @@ export function QuotesDataTable() {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -188,7 +247,11 @@ export function QuotesDataTable() {
 
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
-          Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} quotes
+          {selectedCount > 0 ? (
+            <span>{selectedCount} of {totalCount} row(s) selected</span>
+          ) : (
+            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} quotes</span>
+          )}
         </div>
         <div className="flex items-center space-x-2">
           <Button
@@ -220,6 +283,15 @@ export function QuotesDataTable() {
         description={`Are you sure you want to delete quote ${selectedQuote?.quoteNumber}? This action cannot be undone.`}
         onConfirm={handleDelete}
         isLoading={deleteMutation.isLoading}
+      />
+
+      <DeleteDialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+        title="Delete Selected Quotes"
+        description={`Are you sure you want to delete ${selectedCount} selected quote(s)? This action cannot be undone.`}
+        onConfirm={handleBulkDelete}
+        isLoading={isBulkDeleting}
       />
     </div>
   );

@@ -178,7 +178,7 @@ export async function exportToPDF(
       pdf.setFontSize(8);
       pdf.setTextColor(150);
       pdf.text(
-        `Generated on ${new Date().toLocaleString()} - Page ${i} of ${totalPages}`,
+        `Generisano: ${new Date().getDate().toString().padStart(2, "0")}.${(new Date().getMonth() + 1).toString().padStart(2, "0")}.${new Date().getFullYear()} ${new Date().getHours().toString().padStart(2, "0")}:${new Date().getMinutes().toString().padStart(2, "0")} - Strana ${i} od ${totalPages}`,
         margin,
         pageHeight - 5
       );
@@ -299,15 +299,14 @@ export function formatCurrency(value: number, currency = "EUR"): string {
 }
 
 /**
- * Format date value
+ * Format date value (DD.MM.YYYY)
  */
 export function formatDate(date: string | Date): string {
   const d = typeof date === "string" ? new Date(date) : date;
-  return d.toLocaleDateString("de-DE", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  });
+  const day = d.getDate().toString().padStart(2, "0");
+  const month = (d.getMonth() + 1).toString().padStart(2, "0");
+  const year = d.getFullYear();
+  return `${day}.${month}.${year}`;
 }
 
 /**

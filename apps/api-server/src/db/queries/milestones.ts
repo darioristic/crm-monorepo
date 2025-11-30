@@ -205,18 +205,24 @@ export const milestoneQueries = {
 // Mapping Functions
 // ============================================
 
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
 function mapMilestone(row: Record<string, unknown>): Milestone {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     name: row.name as string,
     description: row.description as string | undefined,
     projectId: row.project_id as string,
     status: row.status as MilestoneStatus,
-    dueDate: (row.due_date as Date).toISOString(),
+    dueDate: toISOString(row.due_date),
     completedDate: row.completed_date 
-      ? (row.completed_date as Date).toISOString() 
+      ? toISOString(row.completed_date) 
       : undefined,
     order: row.sort_order as number,
   };

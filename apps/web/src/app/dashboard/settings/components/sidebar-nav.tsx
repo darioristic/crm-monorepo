@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 import {
   BellIcon,
+  Building2Icon,
   ContrastIcon,
   CreditCardIcon,
   PaletteIcon,
@@ -17,33 +18,38 @@ import { Card, CardContent } from "@/components/ui/card";
 
 const sidebarNavItems = [
   {
+    title: "Workspace",
+    href: "/dashboard/settings/workspace",
+    icon: Building2Icon
+  },
+  {
     title: "Profile",
-    href: "/dashboard/pages/settings",
+    href: "/dashboard/settings",
     icon: UserIcon
   },
   {
     title: "Account",
-    href: "/dashboard/pages/settings/account",
+    href: "/dashboard/settings/account",
     icon: ShieldIcon
   },
   {
     title: "Billing",
-    href: "/dashboard/pages/settings/billing",
+    href: "/dashboard/settings/billing",
     icon: CreditCardIcon
   },
   {
     title: "Appearance",
-    href: "/dashboard/pages/settings/appearance",
+    href: "/dashboard/settings/appearance",
     icon: PaletteIcon
   },
   {
     title: "Notifications",
-    href: "/dashboard/pages/settings/notifications",
+    href: "/dashboard/settings/notifications",
     icon: BellIcon
   },
   {
     title: "Display",
-    href: "/dashboard/pages/settings/display",
+    href: "/dashboard/settings/display",
     icon: ContrastIcon
   }
 ];

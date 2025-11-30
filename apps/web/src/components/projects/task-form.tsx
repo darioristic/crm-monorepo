@@ -124,7 +124,7 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
       title: values.title,
       description: values.description || undefined,
       projectId: values.projectId,
-      assignedTo: values.assignedTo || undefined,
+      assignedTo: values.assignedTo && values.assignedTo !== "unassigned" ? values.assignedTo : undefined,
       status: values.status,
       priority: values.priority,
       dueDate: values.dueDate ? new Date(values.dueDate).toISOString() : undefined,
@@ -252,7 +252,7 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="">Unassigned</SelectItem>
+                          <SelectItem value="unassigned">Unassigned</SelectItem>
                           {users?.map((user) => (
                             <SelectItem key={user.id} value={user.id}>
                               {user.firstName} {user.lastName}

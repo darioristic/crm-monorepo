@@ -204,6 +204,16 @@ export const quoteQueries = {
 };
 
 // ============================================
+// Helper for date conversion
+// ============================================
+
+function toISOString(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  return String(value);
+}
+
+// ============================================
 // Mapping Functions
 // ============================================
 
@@ -223,14 +233,14 @@ function mapQuoteItem(row: Record<string, unknown>): QuoteItem {
 function mapQuote(row: Record<string, unknown>, items: unknown[]): Quote {
   return {
     id: row.id as string,
-    createdAt: (row.created_at as Date).toISOString(),
-    updatedAt: (row.updated_at as Date).toISOString(),
+    createdAt: toISOString(row.created_at),
+    updatedAt: toISOString(row.updated_at),
     quoteNumber: row.quote_number as string,
     companyId: row.company_id as string,
     contactId: row.contact_id as string | undefined,
     status: row.status as QuoteStatus,
-    issueDate: (row.issue_date as Date).toISOString(),
-    validUntil: (row.valid_until as Date).toISOString(),
+    issueDate: toISOString(row.issue_date),
+    validUntil: toISOString(row.valid_until),
     items: (items as Record<string, unknown>[]).map(mapQuoteItem),
     subtotal: parseFloat(row.subtotal as string),
     taxRate: parseFloat(row.tax_rate as string),
