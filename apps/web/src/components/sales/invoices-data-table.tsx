@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   flexRender,
   getCoreRowModel,
@@ -30,6 +31,8 @@ import { InvoicesToolbar } from "@/components/sales/invoices/InvoicesToolbar";
 import { PaymentDialog } from "@/components/sales/invoices/PaymentDialog";
 
 export function InvoicesDataTable() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [searchValue, setSearchValue] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -37,6 +40,11 @@ export function InvoicesDataTable() {
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
+
+  // Open invoice in sheet
+  const handleOpenSheet = React.useCallback((invoiceId: string) => {
+    router.push(`${pathname}?type=edit&invoiceId=${invoiceId}`);
+  }, [router, pathname]);
 
   // Fetch companies for name lookup
   const { data: companies } = useApi<Company[]>(
@@ -169,8 +177,9 @@ export function InvoicesDataTable() {
           setPaymentInvoice(invoice);
           setPaymentDialogOpen(true);
         },
+        onOpenSheet: handleOpenSheet,
       }),
-    []
+    [handleOpenSheet]
   );
 
   const table = useReactTable({

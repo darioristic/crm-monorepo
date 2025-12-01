@@ -1,25 +1,19 @@
-import { generateMeta } from "@/lib/utils";
-import { InvoiceForm } from "@/components/sales/invoice-form";
+"use client";
 
-export async function generateMetadata() {
-  return generateMeta({
-    title: "New Invoice",
-    description: "Create a new invoice",
-    canonical: "/dashboard/sales/invoices/new",
-  });
-}
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
+// This page redirects to the invoices page with the create sheet open
 export default function NewInvoicePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/dashboard/sales/invoices?type=create");
+  }, [router]);
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Invoice</h1>
-        <p className="text-muted-foreground">
-          Create a new invoice for a customer
-        </p>
-      </div>
-      <InvoiceForm mode="create" />
+    <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="animate-pulse text-muted-foreground">Loading...</div>
     </div>
   );
 }
-

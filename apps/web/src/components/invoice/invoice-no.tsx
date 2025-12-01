@@ -1,0 +1,33 @@
+"use client";
+
+import { useFormContext, Controller } from "react-hook-form";
+import { Input } from "@/components/ui/input";
+import { LabelInput } from "./label-input";
+import type { FormValues } from "./form-context";
+
+export function InvoiceNo() {
+  const { control, formState } = useFormContext<FormValues>();
+  const error = formState.errors.invoiceNumber;
+
+  return (
+    <div className="flex items-center gap-2">
+      <LabelInput
+        name="template.invoiceNoLabel"
+        className="text-[11px] text-[#878787] w-[70px]"
+      />
+      <Controller
+        control={control}
+        name="invoiceNumber"
+        render={({ field }) => (
+          <Input
+            {...field}
+            className={`text-[11px] border-0 p-0 h-auto w-fit min-w-[100px] focus-visible:ring-0 focus-visible:ring-offset-0 font-mono bg-transparent ${
+              error ? "text-red-500" : ""
+            }`}
+            placeholder="INV-001"
+          />
+        )}
+      />
+    </div>
+  );
+}

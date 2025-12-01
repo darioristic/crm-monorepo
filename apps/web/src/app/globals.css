@@ -197,3 +197,28 @@
     @apply bg-black/20! backdrop-blur-sm;
   }
 }
+
+/* Dotted background - from Midday */
+.dark .dotted-bg {
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    #232323 0.5px,
+    transparent 0
+  );
+  background-size: 6px 6px;
+}
+
+.dotted-bg {
+  background-size: 6px 6px;
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    #e0e0e0 0.5px,
+    transparent 0
+  );
+}
+
+/* TipTap editor styles */
+.tiptap {
+  font-size: 11px !important;
+  line-height: 18px !important;
+}

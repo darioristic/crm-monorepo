@@ -1,6 +1,39 @@
-# CRM Monorepo
+# 🚀 CRM Monorepo
 
-Modern CRM system built with Bun workspaces, featuring a Next.js frontend and Bun API server.
+Modern, full-stack CRM system built with cutting-edge technologies.
+
+## 📚 Documentation
+
+**Complete documentation available in [`/docs`](./docs/README.md)**
+
+- **[Setup Guide](./docs/SETUP.md)** - Get started in 5 minutes
+- **[API Documentation](./docs/API.md)** - 80+ API endpoints reference
+- **[Architecture](./docs/ARCHITECTURE.md)** - System design & patterns
+- **[Testing Guide](./docs/TESTING.md)** - 240 tests, 98.8% pass rate
+
+---
+
+## ⚡ Quick Start
+
+```bash
+# 1. Clone and install
+git clone <repo-url> && cd crm-monorepo && bun install
+
+# 2. Start services
+docker-compose up -d
+
+# 3. Setup database
+cd apps/api-server && bun run db:setup
+
+# 4. Start development
+bun run dev
+```
+
+**🎉 Done!** Frontend: <http://localhost:3000> | API: <http://localhost:4000>
+
+**Test credentials**: `admin@crm.com` / `Admin123!`
+
+---
 
 ## Tech Stack
 

@@ -1,0 +1,55 @@
+"use client";
+
+import { cn } from "@/lib/utils";
+import { NumericFormat } from "react-number-format";
+import { useState } from "react";
+import { useController, useFormContext } from "react-hook-form";
+
+type Props = {
+  name: string;
+  className?: string;
+};
+
+export function QuantityInput({ name, className }: Props) {
+  const [isFocused, setIsFocused] = useState(false);
+  const { control } = useFormContext();
+  const {
+    field: { value, onChange, onBlur },
+  } = useController({
+    name,
+    control,
+  });
+
+  const isPlaceholder = !value && !isFocused;
+
+  return (
+    <div className="relative font-mono">
+      <NumericFormat
+        autoComplete="off"
+        value={value}
+        onValueChange={(values) => {
+          onChange(values.floatValue ?? 0);
+        }}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => {
+          setIsFocused(false);
+          onBlur();
+        }}
+        placeholder="0"
+        className={cn(
+          "p-0 border-0 h-6 text-xs !bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full",
+          className,
+          isPlaceholder && "opacity-0"
+        )}
+        decimalScale={0}
+        allowNegative={false}
+      />
+
+      {isPlaceholder && (
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="h-full w-full bg-[repeating-linear-gradient(-60deg,#DBDBDB,#DBDBDB_1px,transparent_1px,transparent_5px)] dark:bg-[repeating-linear-gradient(-60deg,#2C2C2C,#2C2C2C_1px,transparent_1px,transparent_5px)]" />
+        </div>
+      )}
+    </div>
+  );
+}

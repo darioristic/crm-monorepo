@@ -16,6 +16,11 @@
     "build": "bun run --filter '*' build",
     "build:api": "bun run --filter @crm/api-server build",
     "build:web": "bun run --filter @crm/web build",
+    "test": "bun run --filter '*' test",
+    "test:api": "bun run --filter @crm/api-server test",
+    "test:web": "bun run --filter @crm/web test",
+    "test:utils": "bun run --filter @crm/utils test",
+    "test:coverage": "bun run --filter '*' test:coverage",
     "clean": "rm -rf node_modules apps/*/node_modules packages/*/node_modules",
     "db:up": "docker-compose up -d postgres redis",
     "db:down": "docker-compose down",
@@ -29,7 +34,10 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.3.3",
-    "typescript": "^5.7.0"
+    "@types/node": "24.10.1",
+    "@vitest/ui": "4.0.14",
+    "typescript": "^5.7.0",
+    "vitest": "4.0.14"
   },
   "engines": {
     "node": ">=20.0.0"

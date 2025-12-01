@@ -1,8 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Pencil, Trash2, Eye, CreditCard } from "lucide-react";
+import {
+  ArrowUpDown,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Eye,
+  CreditCard,
+} from "lucide-react";
 import type { Invoice } from "@crm/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,7 +20,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import { InvoiceStatusBadge, type InvoiceStatus } from "@/components/sales/status";
+import {
+  InvoiceStatusBadge,
+  type InvoiceStatus,
+} from "@/components/sales/status";
 
 export type InvoiceWithCompany = Invoice & {
   companyName?: string;
@@ -25,6 +34,7 @@ interface InvoicesColumnsOptions {
   onEdit?: (invoice: InvoiceWithCompany) => void;
   onDelete?: (invoice: InvoiceWithCompany) => void;
   onRecordPayment?: (invoice: InvoiceWithCompany) => void;
+  onOpenSheet?: (invoiceId: string) => void;
 }
 
 export function getInvoicesColumns({
@@ -32,6 +42,7 @@ export function getInvoicesColumns({
   onEdit,
   onDelete,
   onRecordPayment,
+  onOpenSheet,
 }: InvoicesColumnsOptions = {}): ColumnDef<InvoiceWithCompany>[] {
   return [
     {
@@ -68,26 +79,39 @@ export function getInvoicesColumns({
         </Button>
       ),
       cell: ({ row }) => (
-        <Link
-          href={`/dashboard/sales/invoices/${row.original.id}`}
-          className="font-medium text-primary hover:underline"
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(
+              `/i/id/${row.original.id}`,
+              "_blank",
+              "noopener,noreferrer"
+            );
+          }}
+          className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
           {row.original.invoiceNumber}
-        </Link>
+        </button>
       ),
     },
     {
       accessorKey: "companyName",
       header: "Company",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.companyName}</span>
+        <span className="text-muted-foreground">
+          {row.original.companyName}
+        </span>
       ),
     },
     {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <InvoiceStatusBadge status={row.original.status as InvoiceStatus} showTooltip={false} />
+        <InvoiceStatusBadge
+          status={row.original.status as InvoiceStatus}
+          showTooltip={false}
+        />
       ),
     },
     {
@@ -102,7 +126,9 @@ export function getInvoicesColumns({
         </Button>
       ),
       cell: ({ row }) => (
-        <span className="font-medium">{formatCurrency(row.original.total)}</span>
+        <span className="font-medium">
+          {formatCurrency(row.original.total)}
+        </span>
       ),
     },
     {
@@ -127,7 +153,8 @@ export function getInvoicesColumns({
       header: "Due Date",
       cell: ({ row }) => {
         const dueDate = new Date(row.original.dueDate);
-        const isOverdue = dueDate < new Date() && row.original.status !== "paid";
+        const isOverdue =
+          dueDate < new Date() && row.original.status !== "paid";
         return (
           <span className={isOverdue ? "text-destructive font-medium" : ""}>
             {formatDate(row.original.dueDate)}
@@ -151,36 +178,21 @@ export function getInvoicesColumns({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
-              onClick={() => onView?.(row.original)}
-              asChild={!onView}
+              onClick={(e) => {
+                e.preventDefault();
+                window.open(
+                  `/i/id/${row.original.id}`,
+                  "_blank",
+                  "noopener,noreferrer"
+                );
+              }}
             >
-              {onView ? (
-                <>
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Details
-                </>
-              ) : (
-                <Link href={`/dashboard/sales/invoices/${row.original.id}`}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Details
-                </Link>
-              )}
+              <Eye className="mr-2 h-4 w-4" />
+              View Invoice
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onEdit?.(row.original)}
-              asChild={!onEdit}
-            >
-              {onEdit ? (
-                <>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Invoice
-                </>
-              ) : (
-                <Link href={`/dashboard/sales/invoices/${row.original.id}`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Invoice
-                </Link>
-              )}
+            <DropdownMenuItem onClick={() => onOpenSheet?.(row.original.id)}>
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit Invoice
             </DropdownMenuItem>
             {row.original.status !== "paid" && onRecordPayment && (
               <DropdownMenuItem onClick={() => onRecordPayment(row.original)}>
@@ -206,4 +218,3 @@ export function getInvoicesColumns({
     },
   ];
 }
-

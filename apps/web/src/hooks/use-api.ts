@@ -203,3 +203,47 @@ export function useMutation<TData, TVariables>(
   };
 }
 
+type UseQueryOptions = {
+  enabled?: boolean;
+};
+
+export function useQuery<T>(
+  queryKey: (string | undefined)[],
+  queryFn: () => Promise<ApiResponse<T> | null>,
+  options: UseQueryOptions = {}
+) {
+  const { enabled = true } = options;
+  const [data, setData] = useState<ApiResponse<T> | null>(null);
+  const [error, setError] = useState<string | undefined>();
+  const [isLoading, setIsLoading] = useState(enabled);
+
+  const fetchData = useCallback(async () => {
+    if (!enabled) return;
+    
+    setIsLoading(true);
+    setError(undefined);
+
+    try {
+      const response = await queryFn();
+      setData(response);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to fetch data");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [enabled, queryFn]);
+
+  useEffect(() => {
+    if (enabled) {
+      fetchData();
+    }
+  }, [enabled, fetchData]);
+
+  return {
+    data,
+    error,
+    isLoading,
+    refetch: fetchData,
+  };
+}
+
