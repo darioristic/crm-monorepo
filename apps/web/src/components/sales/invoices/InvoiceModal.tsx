@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -33,12 +33,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { Loader2, AlertCircle, Plus, Trash2, CheckCircle, ExternalLink, Copy } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { SalesSummary } from "@/components/sales/shared";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -76,6 +77,9 @@ export function InvoiceModal({
   onOpenChange,
   onSuccess,
 }: InvoiceModalProps) {
+  const [createdInvoice, setCreatedInvoice] = useState<Invoice | null>(null);
+  const [, copy] = useCopyToClipboard();
+
   const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
     () => companiesApi.getAll(),
     { autoFetch: true }
@@ -115,6 +119,7 @@ export function InvoiceModal({
 
   useEffect(() => {
     if (invoice && mode === "edit") {
+      setCreatedInvoice(null);
       form.reset({
         companyId: invoice.companyId,
         issueDate: invoice.issueDate?.split("T")[0] || today,
@@ -132,6 +137,7 @@ export function InvoiceModal({
         })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
       });
     } else if (mode === "create") {
+      setCreatedInvoice(null);
       form.reset({
         companyId: "",
         issueDate: today,
@@ -189,11 +195,41 @@ export function InvoiceModal({
     }
 
     if (result.success) {
-      toast.success(mode === "create" ? "Invoice created successfully" : "Invoice updated successfully");
-      onOpenChange(false);
-      onSuccess?.();
+      if (mode === "create" && result.data) {
+        setCreatedInvoice(result.data);
+        toast.success("Invoice created successfully");
+      } else {
+        toast.success("Invoice updated successfully");
+        onOpenChange(false);
+        onSuccess?.();
+      }
     } else {
       toast.error(getErrorMessage(result.error, "Failed to save invoice"));
+    }
+  };
+
+  const handleClose = () => {
+    setCreatedInvoice(null);
+    onOpenChange(false);
+    if (createdInvoice) {
+      onSuccess?.();
+    }
+  };
+
+  const getInvoicePreviewUrl = (inv: Invoice) => {
+    return `${window.location.origin}/i/id/${inv.id}`;
+  };
+
+  const handleCopyLink = () => {
+    if (createdInvoice) {
+      copy(getInvoicePreviewUrl(createdInvoice));
+      toast.success("Link copied to clipboard");
+    }
+  };
+
+  const handleOpenPreview = () => {
+    if (createdInvoice) {
+      window.open(getInvoicePreviewUrl(createdInvoice), "_blank");
     }
   };
 
@@ -201,16 +237,58 @@ export function InvoiceModal({
   const error = createMutation.error || updateMutation.error;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>{mode === "create" ? "Create Invoice" : "Edit Invoice"}</DialogTitle>
-          <DialogDescription>
-            {mode === "create"
-              ? "Create a new invoice for a customer"
-              : `Editing invoice ${invoice?.invoiceNumber}`}
-          </DialogDescription>
-        </DialogHeader>
+        {createdInvoice ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <div className="mb-6">
+              <CheckCircle className="w-16 h-16 text-green-500 mx-auto" />
+            </div>
+
+            <h2 className="text-2xl font-semibold mb-2">Invoice Created!</h2>
+            <p className="text-muted-foreground mb-6">
+              Invoice {createdInvoice.invoiceNumber} has been created successfully.
+            </p>
+
+            <div className="w-full max-w-md space-y-4">
+              <div className="bg-muted rounded-lg p-4">
+                <p className="text-xs text-muted-foreground mb-2">Invoice Preview Link</p>
+                <p className="text-sm font-mono truncate">{getInvoicePreviewUrl(createdInvoice)}</p>
+              </div>
+
+              <div className="flex gap-3">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={handleCopyLink}
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Copy Link
+                </Button>
+                <Button
+                  className="flex-1"
+                  onClick={handleOpenPreview}
+                >
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Open Preview
+                </Button>
+              </div>
+            </div>
+
+            <Button variant="outline" onClick={handleClose} className="mt-8">
+              Close
+            </Button>
+          </div>
+        ) : (
+          <>
+            <DialogHeader>
+              <DialogTitle>{mode === "create" ? "Create Invoice" : "Edit Invoice"}</DialogTitle>
+              <DialogDescription>
+                {mode === "create"
+                  ? "Create a new invoice for a customer"
+                  : `Editing invoice ${invoice?.invoiceNumber}`}
+              </DialogDescription>
+            </DialogHeader>
 
         {error && (
           <Alert variant="destructive">
@@ -458,7 +536,7 @@ export function InvoiceModal({
             </div>
 
             <div className="flex justify-end gap-3 pt-4">
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={handleClose}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
@@ -468,6 +546,8 @@ export function InvoiceModal({
             </div>
           </form>
         </Form>
+          </>
+        )}
       </DialogContent>
     </Dialog>
   );

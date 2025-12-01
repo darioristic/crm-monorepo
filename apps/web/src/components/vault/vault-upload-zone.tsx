@@ -59,14 +59,14 @@ export function VaultUploadZone({ onUpload, children }: Props) {
 					});
 				}
 
-				// Process documents
-				const processPayload = response.data.map((doc) => ({
+				// Process documents for API
+				const apiPayload = response.data.map((doc) => ({
 					filePath: doc.pathTokens,
 					mimetype: doc.metadata?.mimetype || "application/octet-stream",
 					size: doc.metadata?.size || 0,
 				}));
 
-				await documentsApi.process(processPayload);
+				await documentsApi.process(apiPayload);
 
 				// Invalidate queries
 				queryClient.invalidateQueries({ queryKey: ["documents"] });
@@ -78,7 +78,13 @@ export function VaultUploadZone({ onUpload, children }: Props) {
 					description: `${files.length} file(s) uploaded successfully`,
 				});
 
-				onUpload?.(processPayload);
+				// Callback with file_path format
+				const callbackPayload = response.data.map((doc) => ({
+					file_path: doc.pathTokens,
+					mimetype: doc.metadata?.mimetype || "application/octet-stream",
+					size: doc.metadata?.size || 0,
+				}));
+				onUpload?.(callbackPayload);
 			} else {
 				if (id) dismiss(id);
 				toast({
