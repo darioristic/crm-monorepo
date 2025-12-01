@@ -212,7 +212,7 @@ export function ProductAutocomplete({
 
         const response = await productsApi.saveLineItemAsProduct(saveData);
 
-        console.log("Save response:", response);
+        console.log("Save response:", JSON.stringify(response, null, 2));
 
         if (response.success && response.data) {
           const { product, shouldClearProductId } = response.data;
@@ -234,7 +234,7 @@ export function ProductAutocomplete({
           // Refresh products list
           fetchProducts();
         } else if (!response.success) {
-          console.error("Failed to save product:", response.error);
+          console.error("Failed to save product:", JSON.stringify(response, null, 2));
         }
       } catch (error) {
         console.error("Failed to save line item as product:", error);

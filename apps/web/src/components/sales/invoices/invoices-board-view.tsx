@@ -9,6 +9,7 @@ import {
   MoreHorizontal,
 } from "lucide-react";
 import type { Invoice, Company } from "@crm/types";
+import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -348,6 +349,7 @@ export function InvoicesBoardView({ onNewInvoice }: InvoicesBoardViewProps) {
                   unit: "pcs",
                 })) || [{ name: "", quantity: 1, price: 0, unit: "pcs" }],
                 template: {
+                  ...DEFAULT_INVOICE_TEMPLATE,
                   vatRate: editInvoice.taxRate || 0,
                 },
               }
