@@ -4,6 +4,7 @@ import { ThemeProvider } from "next-themes";
 import { ActiveThemeProvider } from "@/components/shared/active-theme";
 import { AuthProvider } from "@/contexts/auth-context";
 import { Toaster } from "@/components/ui/sonner";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -27,7 +28,9 @@ export default function RootLayout({
         >
           <ActiveThemeProvider>
             <AuthProvider>
-              {children}
+              <NuqsAdapter>
+                {children}
+              </NuqsAdapter>
               <Toaster />
             </AuthProvider>
           </ActiveThemeProvider>

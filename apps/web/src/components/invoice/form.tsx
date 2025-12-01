@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { useDebounceValue } from "usehooks-ts";
-import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { invoicesApi } from "@/lib/api";
 import { useMutation } from "@/hooks/use-api";
-import { formatRelativeTime } from "@/lib/utils";
 import type { FormValues } from "./form-context";
 import { Meta } from "./meta";
 import { Logo } from "./logo";
@@ -30,11 +28,7 @@ type FormProps = {
 };
 
 export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
-  const [lastUpdated, setLastUpdated] = useState<Date | undefined>();
-  const [lastEditedText, setLastEditedText] = useState("");
-
   const form = useFormContext<FormValues>();
-  const token = form.watch("token");
   const customerId = form.watch("customerId");
 
   const draftMutation = useMutation((data: any) =>
@@ -76,15 +70,22 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
   // Transform form values to API format
   const transformFormValuesToDraft = useCallback((values: FormValues) => {
+    // Calculate gross total from line items
+    const grossTotal = values.lineItems
+      .filter((item) => item.name && item.name.trim().length > 0)
+      .reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
+
     return {
       companyId: values.customerId || "",
       invoiceNumber: values.invoiceNumber,
       issueDate: values.issueDate,
       dueDate: values.dueDate,
       status: values.status as any,
+      grossTotal: grossTotal,
       subtotal: values.subtotal || 0,
+      discount: values.discount || 0,
       tax: values.tax || 0,
-      taxRate: values.template.taxRate || 0,
+      taxRate: values.template.vatRate || values.template.taxRate || 0,
       total: values.amount,
       notes: values.noteDetails
         ? extractTextFromContent(values.noteDetails)
@@ -114,27 +115,11 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
         .mutate(transformFormValuesToDraft(currentFormValues))
         .then((result) => {
           if (result.success) {
-            setLastUpdated(new Date());
             onDraftSaved?.();
           }
         });
     }
   }, [debouncedValue, isDirty, invoiceNumberValid, customerId]);
-
-  // Update last edited text
-  useEffect(() => {
-    const updateLastEditedText = () => {
-      if (!lastUpdated) {
-        setLastEditedText("");
-        return;
-      }
-      setLastEditedText(`Edited ${formatRelativeTime(lastUpdated)}`);
-    };
-
-    updateLastEditedText();
-    const intervalId = setInterval(updateLastEditedText, 1000);
-    return () => clearInterval(intervalId);
-  }, [lastUpdated]);
 
   // Submit the form
   const handleSubmit = async (values: FormValues) => {
@@ -194,9 +179,12 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       className="relative h-full"
       onKeyDown={handleKeyDown}
     >
-      <ScrollArea className="h-[calc(100vh-200px)] bg-[#fcfcfc] dark:bg-[#121212]">
-        <div className="p-8 pb-4 h-full flex flex-col">
-          <div className="flex justify-between">
+      <ScrollArea className="h-full bg-[#fcfcfc] dark:bg-[#121212]">
+        <div className="p-8 pb-20 h-full flex flex-col relative">
+          <div className="absolute top-0 right-0 z-10">
+            <SettingsMenu />
+          </div>
+          <div className="flex justify-between items-start">
             <Meta />
             <Logo />
           </div>
@@ -221,56 +209,24 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
           </div>
 
           <div className="flex flex-col mt-auto">
-            <div className="grid grid-cols-2 gap-6 mb-4 overflow-hidden">
-              <PaymentDetails />
+            <div className="mb-4">
               <NoteDetails />
             </div>
 
-            <EditBlock name="bottomBlock" />
-
-            {/* Invoice Settings */}
-            <div className="mt-6 pt-6 border-t border-border">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-[#878787]">
-                  Invoice Settings
-                </span>
-                <SettingsMenu />
-              </div>
+            <div className="mb-4">
+              <PaymentDetails />
             </div>
+
+            <EditBlock name="bottomBlock" />
           </div>
         </div>
       </ScrollArea>
 
-      <div className="absolute bottom-14 w-full h-9">
-        <div className="flex justify-between items-center mt-auto px-8">
-          <div className="flex space-x-2 items-center text-xs text-[#808080]">
-            {/* Preview link only shows for saved invoices */}
-            {invoiceId && token && (
-              <>
-                <a
-                  href={`/i/${token}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 hover:text-foreground transition-colors"
-                >
-                  <ExternalLink className="size-3" />
-                  <span>Preview invoice</span>
-                </a>
-
-                {(draftMutation.isLoading || lastEditedText) && <span>-</span>}
-              </>
-            )}
-
-            {(draftMutation.isLoading || lastEditedText) && (
-              <span>{draftMutation.isLoading ? "Saving" : lastEditedText}</span>
-            )}
-          </div>
-
-          <SubmitButton
-            isSubmitting={createMutation.isLoading}
-            disabled={createMutation.isLoading || draftMutation.isLoading}
-          />
-        </div>
+      <div className="absolute bottom-[15px] right-0 px-8">
+        <SubmitButton
+          isSubmitting={createMutation.isLoading}
+          disabled={createMutation.isLoading || draftMutation.isLoading}
+        />
       </div>
     </form>
   );

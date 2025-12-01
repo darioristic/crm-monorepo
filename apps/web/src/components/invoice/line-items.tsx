@@ -1,6 +1,9 @@
 "use client";
 
-import { formatInvoiceAmount, calculateLineItemTotal } from "@/utils/invoice-calculate";
+import {
+  formatInvoiceAmount,
+  calculateLineItemTotal,
+} from "@/utils/invoice-calculate";
 import { Button } from "@/components/ui/button";
 import { Plus, GripVertical, X } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
@@ -10,7 +13,6 @@ import { LabelInput } from "./label-input";
 import { ProductAutocomplete } from "./product-autocomplete";
 import { AmountInput } from "./amount-input";
 import { QuantityInput } from "./quantity-input";
-import { Input } from "@/components/ui/input";
 
 export function LineItems() {
   const { control } = useFormContext<FormValues>();
@@ -25,6 +27,16 @@ export function LineItems() {
   const includeUnits = useWatch({
     control,
     name: "template.includeUnits",
+  });
+
+  const includeDiscount = useWatch({
+    control,
+    name: "template.includeDiscount",
+  });
+
+  const includeVat = useWatch({
+    control,
+    name: "template.includeVat",
   });
 
   const maximumFractionDigits = includeDecimals ? 2 : 0;
@@ -56,26 +68,37 @@ export function LineItems() {
     }
   };
 
+  // Dynamic grid columns based on settings
+  const getGridStyle = () => {
+    let cols = "30px 1fr 55px"; // #, Description, Qty
+    if (includeUnits) cols += " 50px"; // Unit
+    cols += " 80px"; // Price
+    if (includeDiscount) cols += " 55px"; // Disc %
+    if (includeVat) cols += " 55px"; // VAT %
+    cols += " 90px"; // Amount
+    return { gridTemplateColumns: cols };
+  };
+
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div
-        className={`grid ${includeUnits ? "grid-cols-[1.5fr_15%_25%_15%]" : "grid-cols-[1.5fr_15%_15%_15%]"} gap-4 items-end mb-2`}
+        className="grid gap-2 items-end mb-2 text-[11px] text-[#878787]"
+        style={getGridStyle()}
       >
-        <LabelInput
-          name="template.descriptionLabel"
-          className="truncate"
-        />
-
+        <span>#</span>
+        <LabelInput name="template.descriptionLabel" className="truncate" />
         <LabelInput
           name="template.quantityLabel"
-          className="truncate"
+          className="truncate text-center"
         />
-
+        {includeUnits && <span className="text-center">Unit</span>}
         <LabelInput
           name="template.priceLabel"
-          className="truncate"
+          className="truncate text-center"
         />
-
+        {includeDiscount && <span className="text-center">Disc %</span>}
+        {includeVat && <span className="text-center">VAT %</span>}
         <LabelInput
           name="template.totalLabel"
           className="text-right truncate"
@@ -98,7 +121,10 @@ export function LineItems() {
             currency={currency || "EUR"}
             maximumFractionDigits={maximumFractionDigits}
             includeUnits={includeUnits}
+            includeDiscount={includeDiscount}
+            includeVat={includeVat}
             locale={locale || "sr-RS"}
+            gridStyle={getGridStyle()}
           />
         ))}
       </Reorder.Group>
@@ -111,12 +137,14 @@ export function LineItems() {
             quantity: 0,
             price: 0,
             unit: "pcs",
+            discount: 0,
+            vat: 20,
           })
         }
-        className="flex items-center space-x-2 text-xs text-[#878787] font-mono hover:text-foreground transition-colors"
+        className="flex items-center space-x-2 text-[11px] text-[#878787] hover:text-foreground transition-colors"
       >
         <Plus className="size-4" />
-        <span className="text-[11px]">Add item</span>
+        <span>Add item</span>
       </button>
     </div>
   );
@@ -130,7 +158,10 @@ function LineItemRow({
   currency,
   maximumFractionDigits,
   includeUnits,
+  includeDiscount,
+  includeVat,
   locale,
+  gridStyle,
 }: {
   index: number;
   handleRemove: (index: number) => void;
@@ -139,7 +170,10 @@ function LineItemRow({
   currency: string;
   maximumFractionDigits: number;
   includeUnits?: boolean;
+  includeDiscount?: boolean;
+  includeVat?: boolean;
   locale: string;
+  gridStyle: React.CSSProperties;
 }) {
   const controls = useDragControls();
   const { control, watch, setValue, register } = useFormContext<FormValues>();
@@ -154,11 +188,26 @@ function LineItemRow({
     name: `lineItems.${index}.quantity`,
   });
 
+  const discount =
+    useWatch({
+      control,
+      name: `lineItems.${index}.discount`,
+    }) || 0;
+
+  // VAT is handled via input field, watched for future calculations if needed
+  useWatch({ control, name: `lineItems.${index}.vat` });
+
   const lineItemName = watch(`lineItems.${index}.name`);
+
+  // Calculate amount with discount
+  const baseAmount = calculateLineItemTotal({ price, quantity });
+  const discountAmount = includeDiscount ? baseAmount * (discount / 100) : 0;
+  const finalAmount = baseAmount - discountAmount;
 
   return (
     <Reorder.Item
-      className={`grid ${includeUnits ? "grid-cols-[1.5fr_15%_25%_15%]" : "grid-cols-[1.5fr_15%_15%_15%]"} gap-4 items-start relative group mb-2 w-full`}
+      className="grid gap-2 items-center relative group mb-2 w-full"
+      style={gridStyle}
       value={item}
       dragListener={false}
       dragControls={controls}
@@ -176,7 +225,7 @@ function LineItemRow({
       {isReorderable && (
         <Button
           type="button"
-          className="absolute -left-9 -top-[4px] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent cursor-grab"
+          className="absolute -left-7 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent cursor-grab"
           onPointerDown={(e) => controls.start(e)}
           variant="ghost"
           size="icon"
@@ -185,6 +234,10 @@ function LineItemRow({
         </Button>
       )}
 
+      {/* # Row number */}
+      <span className="text-[#878787] text-xs">{index + 1}</span>
+
+      {/* Description */}
       <ProductAutocomplete
         index={index}
         value={lineItemName || ""}
@@ -196,30 +249,49 @@ function LineItemRow({
         }}
       />
 
-      <QuantityInput name={`lineItems.${index}.quantity`} />
+      {/* Qty */}
+      <QuantityInput
+        name={`lineItems.${index}.quantity`}
+        className="text-center"
+      />
 
-      <div className="flex items-center gap-2">
-        <AmountInput
-          name={`lineItems.${index}.price`}
-          className="flex-1"
+      {/* Unit */}
+      {includeUnits && (
+        <input
+          {...register(`lineItems.${index}.unit`)}
+          placeholder="pcs"
+          className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs"
         />
-        {includeUnits && <span className="text-xs text-[#878787]">/</span>}
-        {includeUnits && (
-          <Input
-            {...register(`lineItems.${index}.unit`)}
-            placeholder="pcs"
-            className="w-14 h-6 border-0 border-b border-transparent focus:border-border text-[11px] text-center bg-transparent px-1"
-          />
-        )}
-      </div>
+      )}
 
+      {/* Price */}
+      <AmountInput name={`lineItems.${index}.price`} />
+
+      {/* Disc % */}
+      {includeDiscount && (
+        <input
+          type="number"
+          {...register(`lineItems.${index}.discount`, { valueAsNumber: true })}
+          placeholder="0"
+          className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
+      )}
+
+      {/* VAT % */}
+      {includeVat && (
+        <input
+          type="number"
+          {...register(`lineItems.${index}.vat`, { valueAsNumber: true })}
+          placeholder="20"
+          className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        />
+      )}
+
+      {/* Amount */}
       <div className="text-right">
-        <span className="text-xs text-primary font-mono">
+        <span className="text-primary text-xs">
           {formatInvoiceAmount({
-            amount: calculateLineItemTotal({
-              price,
-              quantity,
-            }),
+            amount: finalAmount,
             currency,
             locale,
             maximumFractionDigits,
@@ -231,7 +303,7 @@ function LineItemRow({
         <Button
           type="button"
           onClick={() => handleRemove(index)}
-          className="absolute -right-9 -top-[4px] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent text-[#878787]"
+          className="absolute -right-7 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent text-[#878787]"
           variant="ghost"
           size="icon"
         >

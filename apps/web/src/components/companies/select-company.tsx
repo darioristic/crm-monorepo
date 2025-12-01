@@ -35,13 +35,13 @@ export function SelectCompany({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  const { data: companiesResponse, isLoading } = useApi(() =>
+  const { data: companies, isLoading } = useApi(() =>
     companiesApi.getAll({ pageSize: 100 })
   );
 
-  const companies = companiesResponse?.data || [];
+  const companiesList = companies || [];
 
-  const formatData = companies.map((item) => ({
+  const formatData = companiesList.map((item) => ({
     value: item.name,
     label: item.name,
     id: item.id,
@@ -56,7 +56,7 @@ export function SelectCompany({
     setOpen(false);
   };
 
-  if (!companies.length && !isLoading) {
+  if (!companiesList.length && !isLoading) {
     return (
       <Button
         type="button"
@@ -70,7 +70,7 @@ export function SelectCompany({
     );
   }
 
-  const selectedCompany = companies.find((c) => c.id === value);
+  const selectedCompany = companiesList.find((c) => c.id === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen} modal>

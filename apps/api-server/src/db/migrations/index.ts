@@ -2,6 +2,7 @@ import { sql as db } from "../client";
 import * as migration001 from "./001_create_companies";
 import * as migration002 from "./002_create_users";
 import * as migration003 from "./003_create_auth";
+import * as migration006 from "./006_add_invoice_discount";
 
 interface Migration {
   name: string;
@@ -10,7 +11,7 @@ interface Migration {
 }
 
 // Register all migrations in order
-const migrations: Migration[] = [migration001, migration002, migration003];
+const migrations: Migration[] = [migration001, migration002, migration003, migration006];
 
 // Migrations tracking table
 async function ensureMigrationsTable(): Promise<void> {

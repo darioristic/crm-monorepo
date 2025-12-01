@@ -107,12 +107,13 @@ export const invoiceQueries = {
     const result = await db`
       INSERT INTO invoices (
         id, invoice_number, quote_id, company_id, contact_id, status, issue_date, due_date,
-        subtotal, tax_rate, tax, total, paid_amount, notes, terms, created_by, created_at, updated_at
+        gross_total, subtotal, discount, tax_rate, tax, total, paid_amount, notes, terms, created_by, created_at, updated_at
       ) VALUES (
         ${invoice.id}, ${invoice.invoiceNumber}, ${invoice.quoteId || null},
         ${invoice.companyId}, ${invoice.contactId || null}, ${invoice.status},
         ${invoice.issueDate}, ${invoice.dueDate},
-        ${invoice.subtotal}, ${invoice.taxRate}, ${invoice.tax}, ${invoice.total},
+        ${invoice.grossTotal ?? invoice.subtotal}, ${invoice.subtotal}, ${invoice.discount ?? 0},
+        ${invoice.taxRate}, ${invoice.tax}, ${invoice.total},
         ${invoice.paidAmount}, ${invoice.notes || null}, ${invoice.terms || null},
         ${invoice.createdBy}, ${invoice.createdAt}, ${invoice.updatedAt}
       )
@@ -145,7 +146,9 @@ export const invoiceQueries = {
         contact_id = COALESCE(${data.contactId ?? null}, contact_id),
         status = COALESCE(${data.status ?? null}, status),
         due_date = COALESCE(${data.dueDate ?? null}, due_date),
+        gross_total = COALESCE(${data.grossTotal ?? null}, gross_total),
         subtotal = COALESCE(${data.subtotal ?? null}, subtotal),
+        discount = COALESCE(${data.discount ?? null}, discount),
         tax_rate = COALESCE(${data.taxRate ?? null}, tax_rate),
         tax = COALESCE(${data.tax ?? null}, tax),
         total = COALESCE(${data.total ?? null}, total),
@@ -301,7 +304,9 @@ function mapInvoice(row: Record<string, unknown>, items: unknown[]): Invoice {
     issueDate: toISOString(row.issue_date),
     dueDate: toISOString(row.due_date),
     items: (items as Record<string, unknown>[]).map(mapInvoiceItem),
+    grossTotal: parseFloat((row.gross_total as string) || "0"),
     subtotal: parseFloat(row.subtotal as string),
+    discount: parseFloat((row.discount as string) || "0"),
     taxRate: parseFloat(row.tax_rate as string),
     tax: parseFloat(row.tax as string),
     total: parseFloat(row.total as string),

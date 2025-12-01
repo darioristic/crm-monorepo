@@ -55,8 +55,8 @@ function LoginForm() {
   } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema) as any,
     defaultValues: {
-      email: "",
-      password: "",
+      email: "admin@crm.local",
+      password: "changeme123",
     },
   });
 

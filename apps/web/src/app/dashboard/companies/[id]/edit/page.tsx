@@ -1,103 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
-import type { Company } from "@crm/types";
-import { companiesApi } from "@/lib/api";
-import { CompanyForm } from "@/components/companies/company-form";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useCompanyParams } from "@/hooks/use-company-params";
 
+// This page redirects to the companies list and opens the edit sheet
+// This matches the midday-main approach where editing happens via sheets
 export default function EditCompanyPage() {
   const params = useParams();
+  const router = useRouter();
   const id = params.id as string;
-  const [company, setCompany] = useState<Company | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { setParams } = useCompanyParams();
 
   useEffect(() => {
-    async function fetchCompany() {
-      setIsLoading(true);
-      try {
-        const response = await companiesApi.getById(id);
-        if (response.success && response.data) {
-          setCompany(response.data);
-        } else {
-          const errorMsg = typeof response.error === 'object' && response.error?.message 
-            ? response.error.message 
-            : typeof response.error === 'string' 
-              ? response.error 
-              : "Failed to load company";
-          setError(errorMsg);
-        }
-      } catch (e) {
-        setError("Failed to load company");
-      } finally {
-        setIsLoading(false);
-      }
-    }
+    // Open the edit company sheet with the company ID
+    setParams({ companyId: id });
+    // Redirect to companies list (sheet will remain open due to URL params)
+    router.replace(`/dashboard/companies?companyId=${id}`);
+  }, [id, router, setParams]);
 
-    fetchCompany();
-  }, [id]);
-
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-10 w-10" />
-          <div className="space-y-2">
-            <Skeleton className="h-8 w-48" />
-            <Skeleton className="h-4 w-64" />
-          </div>
-        </div>
-        <Skeleton className="h-[400px] w-full max-w-2xl" />
-      </div>
-    );
-  }
-
-  if (error || !company) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/dashboard/companies">
-              <ChevronLeft className="h-4 w-4" />
-            </Link>
-          </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Company</h1>
-        </div>
-        <Alert variant="destructive">
-          <AlertDescription>
-            {error || "Company not found"}
-            <Button variant="link" asChild className="ml-2">
-              <Link href="/dashboard/companies">Go back to companies</Link>
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/companies">
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Company</h1>
-          <p className="text-muted-foreground">
-            Update information for {company.name}
-          </p>
-        </div>
-      </div>
-      <CompanyForm mode="edit" company={company} />
-    </div>
-  );
+  return null;
 }
-

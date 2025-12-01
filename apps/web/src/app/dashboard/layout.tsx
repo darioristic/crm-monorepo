@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
 import { SiteHeader } from "@/components/layout/header";
+import { CompanySheets } from "@/components/sheets/company-sheets";
 
 export default async function DashboardLayout({
   children
@@ -33,6 +34,9 @@ export default async function DashboardLayout({
           </div>
         </div>
       </SidebarInset>
+
+      {/* Global Sheets */}
+      <CompanySheets />
     </SidebarProvider>
   );
 }

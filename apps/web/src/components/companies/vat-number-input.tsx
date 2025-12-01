@@ -1,36 +1,27 @@
 "use client";
 
-import * as React from "react";
 import { Input } from "@/components/ui/input";
 
-interface VatNumberInputProps {
+type Props = {
   value: string;
   onChange: (value: string) => void;
-  disabled?: boolean;
-  placeholder?: string;
-}
+};
 
-export function VatNumberInput({
-  value,
-  onChange,
-  disabled = false,
-  placeholder = "Enter VAT number",
-  ...props
-}: VatNumberInputProps & React.InputHTMLAttributes<HTMLInputElement>) {
+export function VatNumberInput({ value, onChange, ...props }: Props) {
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    onChange(newValue);
+    const newValue = e.target.value;
+    onChange?.(newValue);
   };
 
   return (
-    <Input
-      placeholder={placeholder}
-      value={value}
-      onChange={handleChange}
-      disabled={disabled}
-      autoComplete="off"
-      {...props}
-    />
+    <div className="relative">
+      <Input
+        placeholder="Enter VAT number"
+        value={value}
+        onChange={handleChange}
+        autoComplete="off"
+        {...props}
+      />
+    </div>
   );
 }
-

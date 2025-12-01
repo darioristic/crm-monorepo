@@ -42,7 +42,10 @@ export function ProductAutocomplete({
   const currentProductId = watch(`lineItems.${index}.productId`);
   const currency = useWatch({ control, name: "template.currency" });
   const locale = useWatch({ control, name: "template.locale" });
-  const includeDecimals = useWatch({ control, name: "template.includeDecimals" });
+  const includeDecimals = useWatch({
+    control,
+    name: "template.includeDecimals",
+  });
   const maximumFractionDigits = includeDecimals ? 2 : 0;
 
   // Fetch products from API

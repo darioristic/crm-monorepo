@@ -2,18 +2,16 @@
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { InvoiceFormValues, InvoiceDefaultSettings } from "@/types/invoice";
+import type {
+  InvoiceFormValues,
+  InvoiceDefaultSettings,
+} from "@/types/invoice";
 import { invoicesApi } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 
@@ -25,10 +23,10 @@ export function InvoiceSheet({ defaultSettings }: InvoiceSheetProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  
+
   const type = searchParams.get("type") as "create" | "edit" | "success" | null;
   const invoiceId = searchParams.get("invoiceId");
-  
+
   const isOpen = type === "create" || type === "edit" || type === "success";
 
   // Fetch invoice data when editing
@@ -38,30 +36,38 @@ export function InvoiceSheet({ defaultSettings }: InvoiceSheetProps) {
   );
 
   // Transform API invoice to form values
-  const formData = invoiceData ? transformInvoiceToFormValues(invoiceData) : undefined;
+  const formData = invoiceData
+    ? transformInvoiceToFormValues(invoiceData)
+    : undefined;
 
-  const handleOpenChange = useCallback((open: boolean) => {
-    if (!open) {
-      // Remove query params when closing
-      router.push(pathname);
-    }
-  }, [router, pathname]);
+  const handleOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open) {
+        // Remove query params when closing
+        router.push(pathname);
+      }
+    },
+    [router, pathname]
+  );
 
-  const handleSuccess = useCallback((id: string) => {
-    // Show success state
-    const params = new URLSearchParams(searchParams);
-    params.set("type", "success");
-    params.set("invoiceId", id);
-    router.push(`${pathname}?${params.toString()}`);
-  }, [router, pathname, searchParams]);
+  const handleSuccess = useCallback(
+    (id: string) => {
+      // Show success state
+      const params = new URLSearchParams(searchParams);
+      params.set("type", "success");
+      params.set("invoiceId", id);
+      router.push(`${pathname}?${params.toString()}`);
+    },
+    [router, pathname, searchParams]
+  );
 
   if (!isOpen) return null;
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       <FormContext defaultSettings={defaultSettings} data={formData}>
-        <InvoiceSheetContent 
-          type={type!} 
+        <InvoiceSheetContent
+          type={type!}
           invoiceId={invoiceId}
           onSuccess={handleSuccess}
           onClose={() => handleOpenChange(false)}
@@ -80,14 +86,21 @@ type InvoiceSheetContentProps = {
   isLoading?: boolean;
 };
 
-function InvoiceSheetContent({ type, invoiceId, onSuccess, onClose, isLoading }: InvoiceSheetContentProps) {
-  const [size] = useState(650);
+function InvoiceSheetContent({
+  type,
+  invoiceId,
+  onSuccess,
+  onClose,
+  isLoading,
+}: InvoiceSheetContentProps) {
+  const [size] = useState(700);
 
   if (type === "success") {
     return (
-      <SheetContent 
+      <SheetContent
         side="right"
-        className="!w-full !max-w-[650px] bg-background p-0 overflow-y-auto"
+        noPadding
+        className="!w-full !max-w-[700px] bg-background p-0 overflow-y-auto !border-0"
       >
         <VisuallyHidden>
           <SheetTitle>Invoice Created</SheetTitle>
@@ -106,18 +119,17 @@ function InvoiceSheetContent({ type, invoiceId, onSuccess, onClose, isLoading }:
 
   if (isLoading) {
     return (
-      <SheetContent 
+      <SheetContent
         side="right"
         style={{ maxWidth: size }}
-        className="!w-full !max-w-[650px] bg-background p-0 overflow-y-auto"
+        noPadding
+        className="!w-full !max-w-[700px] bg-background p-0 overflow-y-auto !border-0"
         hideCloseButton
       >
-        <SheetHeader className="px-6 py-4 flex justify-between items-center flex-row">
-          <SheetTitle className="text-lg font-semibold">
-            Loading Invoice...
-          </SheetTitle>
-        </SheetHeader>
-        <div className="flex items-center justify-center h-[400px]">
+        <VisuallyHidden>
+          <SheetTitle>Loading Invoice...</SheetTitle>
+        </VisuallyHidden>
+        <div className="flex items-center justify-center h-full">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
       </SheetContent>
@@ -125,19 +137,19 @@ function InvoiceSheetContent({ type, invoiceId, onSuccess, onClose, isLoading }:
   }
 
   return (
-    <SheetContent 
+    <SheetContent
       side="right"
       style={{ maxWidth: size }}
-      className="!w-full !max-w-[650px] bg-background p-0 overflow-y-auto transition-[max-width] duration-300 ease-in-out"
+      noPadding
+      className="!w-full !max-w-[700px] bg-background p-0 overflow-y-auto !border-0 transition-[max-width] duration-300 ease-in-out"
       hideCloseButton
     >
-      <SheetHeader className="px-6 py-4 flex justify-between items-center flex-row">
-        <SheetTitle className="text-lg font-semibold">
+      <VisuallyHidden>
+        <SheetTitle>
           {type === "edit" ? "Edit Invoice" : "New Invoice"}
         </SheetTitle>
-      </SheetHeader>
-
-      <div className="flex-1 overflow-y-auto">
+      </VisuallyHidden>
+      <div className="h-full overflow-y-auto">
         <Form invoiceId={invoiceId || undefined} onSuccess={onSuccess} />
       </div>
     </SheetContent>
@@ -178,7 +190,9 @@ function SuccessContent({
 }
 
 // Transform API invoice to form values
-function transformInvoiceToFormValues(invoice: any): Partial<InvoiceFormValues> {
+function transformInvoiceToFormValues(
+  invoice: any
+): Partial<InvoiceFormValues> {
   return {
     id: invoice.id,
     status: invoice.status,
@@ -192,8 +206,28 @@ function transformInvoiceToFormValues(invoice: any): Partial<InvoiceFormValues> 
     vat: invoice.vat || 0,
     tax: invoice.tax || 0,
     discount: invoice.discount || 0,
-    noteDetails: invoice.notes ? { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: invoice.notes }] }] } : null,
-    paymentDetails: invoice.terms ? { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: invoice.terms }] }] } : null,
+    noteDetails: invoice.notes
+      ? {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: invoice.notes }],
+            },
+          ],
+        }
+      : null,
+    paymentDetails: invoice.terms
+      ? {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: invoice.terms }],
+            },
+          ],
+        }
+      : null,
     lineItems: (invoice.items || []).map((item: any) => ({
       name: item.productName || item.description || "",
       quantity: item.quantity || 1,

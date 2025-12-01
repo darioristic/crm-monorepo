@@ -3,20 +3,9 @@
 import { calculateTotal, formatInvoiceAmount } from "@/utils/invoice-calculate";
 import { useCallback, useEffect } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { AmountInput } from "./amount-input";
-import { LabelInput } from "./label-input";
-import { TaxInput } from "./tax-input";
-import { VatInput } from "./vat-input";
 
 export function Summary() {
   const { control, setValue } = useFormContext();
-
-  const includeDecimals = useWatch({
-    control,
-    name: "template.includeDecimals",
-  });
-
-  const maximumFractionDigits = includeDecimals ? 2 : 0;
 
   const currency = useWatch({
     control,
@@ -48,42 +37,35 @@ export function Summary() {
     name: "template.includeVat",
   });
 
-  const includeDiscount = useWatch({
-    control,
-    name: "template.includeDiscount",
-  });
-
   const lineItems = useWatch({
     control,
     name: "lineItems",
   });
 
-  const discount = useWatch({
-    control,
-    name: "discount",
-  });
-
+  // Calculate all values automatically from line items
   const {
+    grossTotal,
     subTotal,
     total,
     vat: totalVAT,
     tax: totalTax,
+    discountAmount,
   } = calculateTotal({
     lineItems,
     taxRate,
     vatRate,
     includeVat,
     includeTax,
-    discount: discount ?? 0,
   });
 
+  // Update form values when calculations change
   const updateFormValues = useCallback(() => {
     setValue("amount", total, { shouldValidate: true });
     setValue("vat", totalVAT, { shouldValidate: true });
     setValue("tax", totalTax, { shouldValidate: true });
     setValue("subtotal", subTotal, { shouldValidate: true });
-    setValue("discount", discount ?? 0, { shouldValidate: true });
-  }, [total, totalVAT, totalTax, subTotal, discount, setValue]);
+    setValue("discount", discountAmount, { shouldValidate: true });
+  }, [total, totalVAT, totalTax, subTotal, discountAmount, setValue]);
 
   useEffect(() => {
     updateFormValues();
@@ -107,72 +89,69 @@ export function Summary() {
     }
   }, [includeVat, setValue]);
 
-  useEffect(() => {
-    if (!includeDiscount) {
-      setValue("discount", 0, { shouldValidate: true, shouldDirty: true });
-    }
-  }, [includeDiscount, setValue]);
-
   return (
     <div className="w-[320px] flex flex-col">
+      {/* Amount before discount */}
       <div className="flex justify-between items-center py-1">
-        <LabelInput
-          className="flex-shrink-0 min-w-6"
-          name="template.subtotalLabel"
-        />
+        <span className="text-[11px] text-[#878787]">
+          Amount before discount:
+        </span>
         <span className="text-right text-[11px] text-[#878787] font-mono">
           {formatInvoiceAmount({
-            amount: subTotal,
-            maximumFractionDigits,
+            amount: grossTotal,
+            maximumFractionDigits: 2,
             currency: currency || "EUR",
             locale: locale || "sr-RS",
           })}
         </span>
       </div>
 
-      {includeDiscount && (
-        <div className="flex justify-between items-center py-1">
-          <LabelInput name="template.discountLabel" />
+      {/* Discount */}
+      <div className="flex justify-between items-center py-1">
+        <span className="text-[11px] text-[#878787]">Discount:</span>
+        <span className="text-right text-[11px] text-[#878787] font-mono">
+          -
+          {formatInvoiceAmount({
+            amount: discountAmount,
+            maximumFractionDigits: 2,
+            currency: currency || "EUR",
+            locale: locale || "sr-RS",
+          })}
+        </span>
+      </div>
 
-          <AmountInput
-            placeholder="0"
-            name="discount"
-            className="text-right text-[11px] text-[#878787] border-none w-24"
-          />
-        </div>
-      )}
+      {/* Subtotal */}
+      <div className="flex justify-between items-center py-1">
+        <span className="text-[11px] text-[#878787]">Subtotal:</span>
+        <span className="text-right text-[11px] text-[#878787] font-mono">
+          {formatInvoiceAmount({
+            amount: subTotal,
+            maximumFractionDigits: 2,
+            currency: currency || "EUR",
+            locale: locale || "sr-RS",
+          })}
+        </span>
+      </div>
 
-      {includeVat && (
-        <div className="flex justify-between items-center py-1">
-          <div className="flex items-center gap-1">
-            <LabelInput
-              className="flex-shrink-0 min-w-5"
-              name="template.vatLabel"
-            />
-            <VatInput />
-          </div>
+      {/* VAT Amount */}
+      <div className="flex justify-between items-center py-1">
+        <span className="text-[11px] text-[#878787]">
+          VAT Amount ({vatRate || 20}%):
+        </span>
+        <span className="text-right text-[11px] text-[#878787] font-mono">
+          {formatInvoiceAmount({
+            amount: totalVAT,
+            maximumFractionDigits: 2,
+            currency: currency || "EUR",
+            locale: locale || "sr-RS",
+          })}
+        </span>
+      </div>
 
-          <span className="text-right text-[11px] text-[#878787] font-mono">
-            {formatInvoiceAmount({
-              amount: totalVAT,
-              maximumFractionDigits: 2,
-              currency: currency || "EUR",
-              locale: locale || "sr-RS",
-            })}
-          </span>
-        </div>
-      )}
-
+      {/* Tax - only if enabled */}
       {includeTax && (
         <div className="flex justify-between items-center py-1">
-          <div className="flex items-center gap-1">
-            <LabelInput
-              className="flex-shrink-0 min-w-5"
-              name="template.taxLabel"
-            />
-            <TaxInput />
-          </div>
-
+          <span className="text-[11px] text-[#878787]">Tax ({taxRate}%):</span>
           <span className="text-right text-[11px] text-[#878787] font-mono">
             {formatInvoiceAmount({
               amount: totalTax,
@@ -184,13 +163,13 @@ export function Summary() {
         </div>
       )}
 
+      {/* Total */}
       <div className="flex justify-between items-center py-4 mt-2 border-t border-border">
-        <LabelInput name="template.totalSummaryLabel" />
+        <span className="text-[11px] text-[#878787]">Total:</span>
         <span className="text-right font-medium text-[21px] font-mono">
           {formatInvoiceAmount({
             amount: total,
-            maximumFractionDigits:
-              includeTax || includeVat ? 2 : maximumFractionDigits,
+            maximumFractionDigits: 2,
             currency: currency || "EUR",
             locale: locale || "sr-RS",
           })}

@@ -232,12 +232,13 @@ export const productQueries = {
         p.stock_quantity as "stockQuantity",
         p.min_stock_level as "minStockLevel",
         p.is_active as "isActive", p.is_service as "isService",
-        p.metadata, p.created_at as "createdAt", p.updated_at as "updatedAt",
+        p.metadata, p.usage_count as "usageCount", p.last_used_at as "lastUsedAt",
+        p.created_at as "createdAt", p.updated_at as "updatedAt",
         c.name as "categoryName"
       FROM products p
       LEFT JOIN product_categories c ON p.category_id = c.id
       ${whereClause}
-      ORDER BY p.name ASC
+      ORDER BY p.usage_count DESC, p.last_used_at DESC NULLS LAST, p.name ASC
       LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
 
@@ -267,7 +268,8 @@ export const productQueries = {
         p.stock_quantity as "stockQuantity",
         p.min_stock_level as "minStockLevel",
         p.is_active as "isActive", p.is_service as "isService",
-        p.metadata, p.created_at as "createdAt", p.updated_at as "updatedAt",
+        p.metadata, p.usage_count as "usageCount", p.last_used_at as "lastUsedAt",
+        p.created_at as "createdAt", p.updated_at as "updatedAt",
         c.name as "categoryName", c.description as "categoryDescription"
       FROM products p
       LEFT JOIN product_categories c ON p.category_id = c.id
@@ -294,6 +296,8 @@ export const productQueries = {
       isActive: row.isActive as boolean,
       isService: row.isService as boolean,
       metadata: row.metadata as Record<string, unknown> | undefined,
+      usageCount: row.usageCount as number,
+      lastUsedAt: row.lastUsedAt ? (row.lastUsedAt instanceof Date ? row.lastUsedAt.toISOString() : (row.lastUsedAt as string)) : undefined,
       createdAt: row.createdAt instanceof Date ? row.createdAt.toISOString() : (row.createdAt as string),
       updatedAt: row.updatedAt instanceof Date ? row.updatedAt.toISOString() : (row.updatedAt as string),
       category: categoryName
@@ -428,7 +432,8 @@ export const productQueries = {
         stock_quantity as "stockQuantity",
         min_stock_level as "minStockLevel",
         is_active as "isActive", is_service as "isService",
-        metadata, created_at as "createdAt", updated_at as "updatedAt"
+        metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+        created_at as "createdAt", updated_at as "updatedAt"
       FROM products
       WHERE is_active = true 
         AND is_service = false 
@@ -436,6 +441,202 @@ export const productQueries = {
         AND min_stock_level IS NOT NULL
         AND stock_quantity <= min_stock_level
       ORDER BY (stock_quantity / NULLIF(min_stock_level, 0)) ASC
+    `;
+  },
+
+  /**
+   * Find product by name and currency for smart autocomplete
+   */
+  async findByNameAndCurrency(name: string, currency: string): Promise<Product | null> {
+    const result = await db`
+      SELECT 
+        id, name, sku, description,
+        unit_price as "unitPrice", cost_price as "costPrice",
+        currency, unit, tax_rate as "taxRate",
+        category_id as "categoryId",
+        stock_quantity as "stockQuantity",
+        min_stock_level as "minStockLevel",
+        is_active as "isActive", is_service as "isService",
+        metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+        created_at as "createdAt", updated_at as "updatedAt"
+      FROM products
+      WHERE LOWER(name) = LOWER(${name}) 
+        AND currency = ${currency}
+        AND is_active = true
+    `;
+    return (result[0] as Product) || null;
+  },
+
+  /**
+   * Increment usage count when product is selected
+   */
+  async incrementUsage(id: string): Promise<Product | null> {
+    const timestamp = now();
+    const result = await db`
+      UPDATE products SET
+        usage_count = usage_count + 1,
+        last_used_at = ${timestamp},
+        updated_at = ${timestamp}
+      WHERE id = ${id}
+      RETURNING 
+        id, name, sku, description,
+        unit_price as "unitPrice", cost_price as "costPrice",
+        currency, unit, tax_rate as "taxRate",
+        category_id as "categoryId",
+        stock_quantity as "stockQuantity",
+        min_stock_level as "minStockLevel",
+        is_active as "isActive", is_service as "isService",
+        metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+        created_at as "createdAt", updated_at as "updatedAt"
+    `;
+    return (result[0] as Product) || null;
+  },
+
+  /**
+   * Upsert product - creates new or updates existing based on name + currency + price
+   * This is the core logic for smart product learning from invoices
+   */
+  async upsertProduct(data: {
+    name: string;
+    price?: number | null;
+    currency?: string | null;
+    unit?: string | null;
+    productId?: string;
+  }): Promise<{ product: Product | null; shouldClearProductId: boolean }> {
+    // If name is empty, signal to clear productId
+    if (!data.name || data.name.trim().length === 0) {
+      return { product: null, shouldClearProductId: true };
+    }
+
+    const trimmedName = data.name.trim();
+    const timestamp = now();
+    const currency = data.currency || "EUR";
+
+    try {
+      // If productId exists, update that specific product
+      if (data.productId) {
+        const existing = await this.findById(data.productId);
+        if (existing) {
+          const updated = await db`
+            UPDATE products SET
+              name = ${trimmedName},
+              unit_price = ${data.price !== undefined && data.price !== null ? String(data.price) : existing.unitPrice},
+              currency = ${currency},
+              unit = ${data.unit || existing.unit},
+              last_used_at = ${timestamp},
+              updated_at = ${timestamp}
+            WHERE id = ${data.productId}
+            RETURNING 
+              id, name, sku, description,
+              unit_price as "unitPrice", cost_price as "costPrice",
+              currency, unit, tax_rate as "taxRate",
+              category_id as "categoryId",
+              stock_quantity as "stockQuantity",
+              min_stock_level as "minStockLevel",
+              is_active as "isActive", is_service as "isService",
+              metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+              created_at as "createdAt", updated_at as "updatedAt"
+          `;
+          return { product: (updated[0] as Product) || null, shouldClearProductId: false };
+        }
+      }
+
+      // Check if product with same name and currency exists
+      const existingByName = await this.findByNameAndCurrency(trimmedName, currency);
+      
+      if (existingByName) {
+        // Update existing product with new values and increment usage
+        const updated = await db`
+          UPDATE products SET
+            unit_price = COALESCE(${data.price !== undefined && data.price !== null ? String(data.price) : null}, unit_price),
+            unit = COALESCE(${data.unit || null}, unit),
+            usage_count = usage_count + 1,
+            last_used_at = ${timestamp},
+            updated_at = ${timestamp}
+          WHERE id = ${existingByName.id}
+          RETURNING 
+            id, name, sku, description,
+            unit_price as "unitPrice", cost_price as "costPrice",
+            currency, unit, tax_rate as "taxRate",
+            category_id as "categoryId",
+            stock_quantity as "stockQuantity",
+            min_stock_level as "minStockLevel",
+            is_active as "isActive", is_service as "isService",
+            metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+            created_at as "createdAt", updated_at as "updatedAt"
+        `;
+        return { product: (updated[0] as Product) || null, shouldClearProductId: false };
+      }
+
+      // Create new product
+      const id = generateUUID();
+      const result = await db`
+        INSERT INTO products (
+          id, name, unit_price, currency, unit, 
+          usage_count, last_used_at, is_active,
+          created_at, updated_at
+        ) VALUES (
+          ${id}, ${trimmedName}, 
+          ${data.price !== undefined && data.price !== null ? String(data.price) : "0"},
+          ${currency}, ${data.unit || "pcs"},
+          1, ${timestamp}, true,
+          ${timestamp}, ${timestamp}
+        )
+        RETURNING 
+          id, name, sku, description,
+          unit_price as "unitPrice", cost_price as "costPrice",
+          currency, unit, tax_rate as "taxRate",
+          category_id as "categoryId",
+          stock_quantity as "stockQuantity",
+          min_stock_level as "minStockLevel",
+          is_active as "isActive", is_service as "isService",
+          metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+          created_at as "createdAt", updated_at as "updatedAt"
+      `;
+      return { product: (result[0] as Product) || null, shouldClearProductId: false };
+    } catch (error) {
+      console.error(`Failed to upsert product "${trimmedName}":`, error);
+      return { product: null, shouldClearProductId: false };
+    }
+  },
+
+  /**
+   * Get popular products sorted by usage count (for autocomplete suggestions)
+   */
+  async getPopularProducts(limit = 20, currency?: string): Promise<Product[]> {
+    if (currency) {
+      return db<Product[]>`
+        SELECT 
+          id, name, sku, description,
+          unit_price as "unitPrice", cost_price as "costPrice",
+          currency, unit, tax_rate as "taxRate",
+          category_id as "categoryId",
+          stock_quantity as "stockQuantity",
+          min_stock_level as "minStockLevel",
+          is_active as "isActive", is_service as "isService",
+          metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+          created_at as "createdAt", updated_at as "updatedAt"
+        FROM products
+        WHERE is_active = true AND currency = ${currency}
+        ORDER BY usage_count DESC, last_used_at DESC NULLS LAST
+        LIMIT ${limit}
+      `;
+    }
+    return db<Product[]>`
+      SELECT 
+        id, name, sku, description,
+        unit_price as "unitPrice", cost_price as "costPrice",
+        currency, unit, tax_rate as "taxRate",
+        category_id as "categoryId",
+        stock_quantity as "stockQuantity",
+        min_stock_level as "minStockLevel",
+        is_active as "isActive", is_service as "isService",
+        metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+        created_at as "createdAt", updated_at as "updatedAt"
+      FROM products
+      WHERE is_active = true
+      ORDER BY usage_count DESC, last_used_at DESC NULLS LAST
+      LIMIT ${limit}
     `;
   },
 };

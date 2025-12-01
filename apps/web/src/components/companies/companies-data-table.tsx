@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import {
   ColumnDef,
   ColumnFiltersState,
@@ -52,9 +51,10 @@ import { usePaginatedApi, useMutation } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { useCompanyParams } from "@/hooks/use-company-params";
 
 export function CompaniesDataTable() {
-  const router = useRouter();
+  const { setParams } = useCompanyParams();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -84,7 +84,7 @@ export function CompaniesDataTable() {
   );
 
   const handleEdit = (company: Company) => {
-    router.push(`/dashboard/companies/${company.id}/edit`);
+    setParams({ companyId: company.id });
   };
 
   const handleDelete = (company: Company) => {

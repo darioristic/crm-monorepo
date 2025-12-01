@@ -1,17 +1,16 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { NumericFormat, type NumericFormatProps } from "react-number-format";
+import { NumericFormat } from "react-number-format";
 import { useState } from "react";
 import { useController, useFormContext } from "react-hook-form";
 
-export function AmountInput({
-  className,
-  name,
-  ...props
-}: Omit<NumericFormatProps, "value" | "onChange"> & {
+type Props = {
   name: string;
-}) {
+  className?: string;
+};
+
+export function AmountInput({ name, className }: Props) {
   const [isFocused, setIsFocused] = useState(false);
   const { control } = useFormContext();
   const {
@@ -24,13 +23,11 @@ export function AmountInput({
   const isPlaceholder = !value && !isFocused;
 
   return (
-    <div className="relative font-mono">
+    <div className="relative">
       <NumericFormat
         autoComplete="off"
         value={value}
         onValueChange={(values) => {
-          // Preserve the exact floatValue, including 0 and decimals like 1.20
-          // Only use 0 as fallback if floatValue is explicitly undefined/null
           onChange(
             values.floatValue !== undefined && values.floatValue !== null
               ? values.floatValue
@@ -42,14 +39,14 @@ export function AmountInput({
           setIsFocused(false);
           onBlur();
         }}
-        {...props}
+        placeholder="0"
         className={cn(
+          "p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs",
           className,
-          isPlaceholder && "opacity-0",
-          "p-0 border-0 h-6 text-xs !bg-transparent border-b border-transparent focus:border-border outline-none"
+          isPlaceholder && "opacity-0"
         )}
         thousandSeparator={true}
-        decimalScale={props.decimalScale ?? 2}
+        decimalScale={2}
       />
 
       {isPlaceholder && (

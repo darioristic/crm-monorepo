@@ -4,7 +4,6 @@ type Props = {
   includeVat: boolean;
   includeTax: boolean;
   includeDiscount: boolean;
-  discount?: number | null;
   discountLabel: string;
   taxRate: number;
   vatRate: number;
@@ -18,43 +17,58 @@ type Props = {
   subtotalLabel: string;
 };
 
+/**
+ * Calculate total with discount from line items
+ * Discount is calculated automatically from item.discount percentage
+ */
 function calculateTotal({
   lineItems,
   taxRate = 0,
   vatRate = 0,
-  discount = 0,
   includeVat = true,
   includeTax = true,
 }: {
-  lineItems: Array<{ price?: number; quantity?: number }>;
+  lineItems: Array<{ price?: number; quantity?: number; discount?: number }>;
   taxRate?: number;
   vatRate?: number;
-  discount?: number;
   includeVat?: boolean;
   includeTax?: boolean;
 }) {
   const safeLineItems = lineItems || [];
 
-  const subTotal = safeLineItems.reduce((acc, item) => {
-    if (!item) return acc;
+  let grossTotal = 0;
+  let totalDiscount = 0;
+  let subTotal = 0;
+
+  for (const item of safeLineItems) {
+    if (!item) continue;
     const safePrice = item.price ?? 0;
     const safeQuantity = item.quantity ?? 0;
-    return acc + safePrice * safeQuantity;
-  }, 0);
+    const itemDiscountPercent = item.discount ?? 0;
+
+    const lineTotal = safePrice * safeQuantity;
+    grossTotal += lineTotal;
+
+    const lineDiscountAmount = lineTotal * (itemDiscountPercent / 100);
+    totalDiscount += lineDiscountAmount;
+
+    subTotal += lineTotal - lineDiscountAmount;
+  }
 
   const safeTaxRate = taxRate ?? 0;
   const safeVatRate = vatRate ?? 0;
-  const safeDiscount = discount ?? 0;
 
   const totalVAT = includeVat ? (subTotal * safeVatRate) / 100 : 0;
-  const total = subTotal + (includeVat ? totalVAT : 0) - safeDiscount;
   const tax = includeTax ? (subTotal * safeTaxRate) / 100 : 0;
+  const total = subTotal + totalVAT + tax;
 
   return {
+    grossTotal,
     subTotal,
-    total: total + tax,
+    total,
     vat: totalVAT,
     tax,
+    discountAmount: totalDiscount,
   };
 }
 
@@ -64,7 +78,6 @@ export function Summary({
   includeDiscount,
   discountLabel,
   locale,
-  discount,
   taxRate,
   vatRate,
   currency,
@@ -78,24 +91,62 @@ export function Summary({
   const maximumFractionDigits = includeDecimals ? 2 : 0;
 
   const {
+    grossTotal,
     subTotal,
     total,
     vat: totalVAT,
     tax: totalTax,
+    discountAmount,
   } = calculateTotal({
     lineItems,
     taxRate,
     vatRate,
-    discount: discount ?? 0,
     includeVat,
     includeTax,
   });
 
+  const hasDiscount = includeDiscount && discountAmount > 0;
+
   return (
     <div className="w-[320px] flex flex-col">
+      {/* Amount before discount */}
+      {hasDiscount && (
+        <div className="flex justify-between items-center py-1">
+          <span className="text-[11px] text-[#878787] font-mono">
+            Amount before discount:
+          </span>
+          <span className="text-right text-[11px] text-[#878787]">
+            {currency &&
+              new Intl.NumberFormat(locale, {
+                style: "currency",
+                currency: currency,
+                maximumFractionDigits: 2,
+              }).format(grossTotal)}
+          </span>
+        </div>
+      )}
+
+      {/* Discount (calculated from items) */}
+      {hasDiscount && (
+        <div className="flex justify-between items-center py-1">
+          <span className="text-[11px] text-[#878787] font-mono">
+            {discountLabel}:
+          </span>
+          <span className="text-right text-[11px] text-red-500">
+            {currency &&
+              `-${new Intl.NumberFormat(locale, {
+                style: "currency",
+                currency: currency,
+                maximumFractionDigits: 2,
+              }).format(discountAmount)}`}
+          </span>
+        </div>
+      )}
+
+      {/* Subtotal */}
       <div className="flex justify-between items-center py-1">
         <span className="text-[11px] text-[#878787] font-mono">
-          {subtotalLabel}
+          {subtotalLabel}:
         </span>
         <span className="text-right text-[11px] text-[#878787]">
           {currency &&
@@ -106,22 +157,6 @@ export function Summary({
             }).format(subTotal)}
         </span>
       </div>
-
-      {includeDiscount && (
-        <div className="flex justify-between items-center py-1">
-          <span className="text-[11px] text-[#878787] font-mono">
-            {discountLabel}
-          </span>
-          <span className="text-right text-[11px] text-[#878787]">
-            {currency &&
-              new Intl.NumberFormat(locale, {
-                style: "currency",
-                currency: currency,
-                maximumFractionDigits,
-              }).format(discount ?? 0)}
-          </span>
-        </div>
-      )}
 
       {includeVat && (
         <div className="flex justify-between items-center py-1">
@@ -172,4 +207,3 @@ export function Summary({
     </div>
   );
 }
-

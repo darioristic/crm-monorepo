@@ -51,18 +51,7 @@ export async function enhanceCompaniesTable(): Promise<void> {
     ON companies USING gin(fts)
   `;
 
-  // Create company_tags junction table
-  await db`
-    CREATE TABLE IF NOT EXISTS company_tags (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-      tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE(company_id, tag_id)
-    )
-  `;
-
-  // Create tags table if not exists
+  // Create tags table FIRST (before company_tags which references it)
   await db`
     CREATE TABLE IF NOT EXISTS tags (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -70,6 +59,17 @@ export async function enhanceCompaniesTable(): Promise<void> {
       color VARCHAR(50),
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  // Create company_tags junction table (after tags table exists)
+  await db`
+    CREATE TABLE IF NOT EXISTS company_tags (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      tag_id UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(company_id, tag_id)
     )
   `;
 

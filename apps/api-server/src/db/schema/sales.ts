@@ -62,7 +62,12 @@ export const invoices = pgTable(
 		status: varchar("status", { length: 50 }).notNull().default("draft"),
 		issueDate: timestamp("issue_date", { withTimezone: true }).notNull().defaultNow(),
 		dueDate: timestamp("due_date", { withTimezone: true }).notNull(),
+		// grossTotal = sum of all line items (before discount)
+		grossTotal: text("gross_total").notNull().default("0"),
+		// subtotal = grossTotal - discount (after discount)
 		subtotal: text("subtotal").notNull().default("0"),
+		// discount = amount deducted from gross total
+		discount: text("discount").notNull().default("0"),
 		taxRate: text("tax_rate").notNull().default("0"),
 		tax: text("tax").notNull().default("0"),
 		total: text("total").notNull().default("0"),

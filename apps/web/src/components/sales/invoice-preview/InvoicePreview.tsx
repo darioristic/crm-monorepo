@@ -195,19 +195,42 @@ export function InvoicePreview({
       {/* Summary */}
       <div className="flex justify-end mb-8">
         <div className="w-72 space-y-2">
-          {/* Subtotal */}
+          {/* Amount before discount (if discount exists) */}
+          {Number(invoice.discount) > 0 && (
+            <>
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Amount before discount:</span>
+                <span>
+                  {formatCurrency(
+                    Number(invoice.subtotal) + Number(invoice.discount),
+                    config.currency
+                  )}
+                </span>
+              </div>
+
+              {/* Discount */}
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">Discount:</span>
+                <span className="text-red-600">
+                  -{formatCurrency(Number(invoice.discount), config.currency)}
+                </span>
+              </div>
+            </>
+          )}
+
+          {/* Subtotal (after discount) */}
           <div className="flex justify-between text-sm">
-            <span className="text-gray-500">{config.subtotalLabel}</span>
+            <span className="text-gray-500">{config.subtotalLabel}:</span>
             <span>
               {formatCurrency(Number(invoice.subtotal), config.currency)}
             </span>
           </div>
 
-          {/* Tax */}
+          {/* VAT */}
           {Number(invoice.taxRate) > 0 && (
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">
-                {config.taxLabel} ({Number(invoice.taxRate)}%)
+                VAT Amount ({Number(invoice.taxRate)}%):
               </span>
               <span>
                 {formatCurrency(Number(invoice.tax), config.currency)}
@@ -217,7 +240,7 @@ export function InvoicePreview({
 
           {/* Total */}
           <div className="flex justify-between pt-3 border-t-2 border-gray-300">
-            <span className="font-semibold">{config.totalLabel}</span>
+            <span className="font-semibold">{config.totalLabel}:</span>
             <span className="text-xl font-bold">
               {formatCurrency(Number(invoice.total), config.currency)}
             </span>

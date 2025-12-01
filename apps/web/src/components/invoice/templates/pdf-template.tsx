@@ -1,5 +1,3 @@
-"use client";
-
 import {
   Document,
   Page,
@@ -18,20 +16,24 @@ import {
   formatInvoiceAmount,
 } from "@/utils/invoice-calculate";
 
-// Register fonts (optional - you can add custom fonts)
+// Register Inter font - matching Midday's approach with .ttf files
 Font.register({
   family: "Inter",
   fonts: [
     {
-      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff2",
+      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfMZhrib2Bg-4.ttf",
       fontWeight: 400,
     },
     {
-      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYAZ9hiJ-Ek-_EeA.woff2",
+      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fMZhrib2Bg-4.ttf",
+      fontWeight: 500,
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGKYMZhrib2Bg-4.ttf",
       fontWeight: 600,
     },
     {
-      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeA.woff2",
+      src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf",
       fontWeight: 700,
     },
   ],
@@ -40,15 +42,16 @@ Font.register({
 const styles = StyleSheet.create({
   page: {
     fontFamily: "Inter",
+    fontWeight: 400,
     fontSize: 10,
-    padding: 40,
-    backgroundColor: "#ffffff",
-    color: "#1a1a1a",
+    padding: 20,
+    backgroundColor: "#fff",
+    color: "#000",
   },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 40,
+    marginBottom: 20,
   },
   title: {
     fontSize: 24,
@@ -65,36 +68,42 @@ const styles = StyleSheet.create({
   metaLabel: {
     width: 70,
     color: "#666666",
+    fontSize: 9,
   },
   metaValue: {
     fontFamily: "Courier",
+    fontSize: 9,
   },
   logo: {
-    height: 50,
-    maxWidth: 120,
+    height: 75,
+    maxWidth: 300,
     objectFit: "contain",
   },
   addressSection: {
     flexDirection: "row",
-    gap: 60,
-    marginBottom: 40,
+    marginTop: 20,
   },
   addressBlock: {
     flex: 1,
+    marginBottom: 20,
+  },
+  addressBlockLeft: {
+    marginRight: 10,
+  },
+  addressBlockRight: {
+    marginLeft: 10,
   },
   addressLabel: {
-    fontSize: 8,
-    color: "#666666",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    fontSize: 9,
+    fontWeight: 500,
+    marginBottom: 4,
   },
   addressText: {
     fontSize: 9,
     lineHeight: 1.6,
   },
   table: {
-    marginBottom: 30,
+    marginBottom: 20,
   },
   tableHeader: {
     flexDirection: "row",
@@ -143,10 +152,12 @@ const styles = StyleSheet.create({
     textAlign: "right",
   },
   summaryContainer: {
-    alignItems: "flex-end",
-    marginBottom: 40,
+    flex: 1,
+    flexDirection: "column",
+    justifyContent: "flex-end",
   },
   summary: {
+    alignSelf: "flex-end",
     width: 200,
   },
   summaryRow: {
@@ -181,26 +192,25 @@ const styles = StyleSheet.create({
   },
   footer: {
     flexDirection: "row",
-    gap: 60,
-    marginTop: "auto",
+    marginTop: 20,
   },
   footerBlock: {
     flex: 1,
   },
+  footerBlockLeft: {
+    marginRight: 10,
+  },
+  footerBlockRight: {
+    marginLeft: 10,
+  },
   footerLabel: {
-    fontSize: 8,
-    color: "#666666",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 8,
+    fontSize: 9,
+    fontWeight: 500,
+    marginBottom: 4,
   },
   footerText: {
     fontSize: 9,
     lineHeight: 1.6,
-  },
-  qrContainer: {
-    alignItems: "flex-end",
-    marginTop: 20,
   },
 });
 
@@ -208,7 +218,8 @@ type PdfTemplateProps = {
   invoice: Invoice;
 };
 
-export function PdfTemplate({ invoice }: PdfTemplateProps) {
+// Async function matching Midday's approach
+export async function PdfTemplate({ invoice }: PdfTemplateProps) {
   const { template, lineItems } = invoice;
   const locale = template.locale || "sr-RS";
   const currency = template.currency || "EUR";
@@ -226,7 +237,6 @@ export function PdfTemplate({ invoice }: PdfTemplateProps) {
     lineItems: lineItems || [],
     vatRate: template.vatRate,
     taxRate: template.taxRate,
-    discount: invoice.discount ?? 0,
     includeVat: template.includeVat,
     includeTax: template.includeTax,
   });
@@ -250,14 +260,18 @@ export function PdfTemplate({ invoice }: PdfTemplateProps) {
 
   const renderTextContent = (content: EditorDoc | string | null) => {
     const text = extractTextFromEditorDoc(content);
-    return text.split("\n").map((line, i) => (
-      <Text key={i}>{line || " "}</Text>
-    ));
+    return text
+      .split("\n")
+      .map((line, i) => <Text key={i}>{line || " "}</Text>);
   };
 
   return (
     <Document>
-      <Page size={template.size === "letter" ? "LETTER" : "A4"} style={styles.page}>
+      <Page
+        wrap
+        size={template.size === "letter" ? "LETTER" : "A4"}
+        style={styles.page}
+      >
         {/* Header */}
         <View style={styles.header}>
           <View>
@@ -265,32 +279,40 @@ export function PdfTemplate({ invoice }: PdfTemplateProps) {
             <View style={styles.meta}>
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{template.invoiceNoLabel}:</Text>
-                <Text style={styles.metaValue}>{invoice.invoiceNumber || "-"}</Text>
+                <Text style={styles.metaValue}>
+                  {invoice.invoiceNumber || "-"}
+                </Text>
               </View>
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{template.issueDateLabel}:</Text>
-                <Text style={styles.metaValue}>{formatDate(invoice.issueDate)}</Text>
+                <Text style={styles.metaValue}>
+                  {formatDate(invoice.issueDate)}
+                </Text>
               </View>
               <View style={styles.metaRow}>
                 <Text style={styles.metaLabel}>{template.dueDateLabel}:</Text>
-                <Text style={styles.metaValue}>{formatDate(invoice.dueDate)}</Text>
+                <Text style={styles.metaValue}>
+                  {formatDate(invoice.dueDate)}
+                </Text>
               </View>
             </View>
           </View>
           {template.logoUrl && (
-            <Image src={template.logoUrl} style={styles.logo} />
+            <View style={{ maxWidth: 300 }}>
+              <Image src={template.logoUrl} style={styles.logo} />
+            </View>
           )}
         </View>
 
         {/* From / To */}
         <View style={styles.addressSection}>
-          <View style={styles.addressBlock}>
+          <View style={[styles.addressBlock, styles.addressBlockLeft]}>
             <Text style={styles.addressLabel}>{template.fromLabel}</Text>
             <View style={styles.addressText}>
               {renderTextContent(invoice.fromDetails)}
             </View>
           </View>
-          <View style={styles.addressBlock}>
+          <View style={[styles.addressBlock, styles.addressBlockRight]}>
             <Text style={styles.addressLabel}>{template.customerLabel}</Text>
             <View style={styles.addressText}>
               {renderTextContent(invoice.customerDetails)}
@@ -352,7 +374,9 @@ export function PdfTemplate({ invoice }: PdfTemplateProps) {
           <View style={styles.summary}>
             <View style={styles.summaryRow}>
               <Text style={styles.summaryLabel}>{template.subtotalLabel}</Text>
-              <Text style={styles.summaryValue}>{formatAmount(result.subTotal)}</Text>
+              <Text style={styles.summaryValue}>
+                {formatAmount(result.subTotal)}
+              </Text>
             </View>
 
             {template.includeVat && (
@@ -360,7 +384,9 @@ export function PdfTemplate({ invoice }: PdfTemplateProps) {
                 <Text style={styles.summaryLabel}>
                   {template.vatLabel} ({template.vatRate}%)
                 </Text>
-                <Text style={styles.summaryValue}>{formatAmount(result.vat)}</Text>
+                <Text style={styles.summaryValue}>
+                  {formatAmount(result.vat)}
+                </Text>
               </View>
             )}
 
@@ -369,13 +395,17 @@ export function PdfTemplate({ invoice }: PdfTemplateProps) {
                 <Text style={styles.summaryLabel}>
                   {template.taxLabel} ({template.taxRate}%)
                 </Text>
-                <Text style={styles.summaryValue}>{formatAmount(result.tax)}</Text>
+                <Text style={styles.summaryValue}>
+                  {formatAmount(result.tax)}
+                </Text>
               </View>
             )}
 
             {template.includeDiscount && (invoice.discount ?? 0) > 0 && (
               <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>{template.discountLabel}</Text>
+                <Text style={styles.summaryLabel}>
+                  {template.discountLabel}
+                </Text>
                 <Text style={styles.summaryValue}>
                   -{formatAmount(invoice.discount ?? 0)}
                 </Text>
@@ -391,31 +421,34 @@ export function PdfTemplate({ invoice }: PdfTemplateProps) {
               </Text>
             </View>
           </View>
-        </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
-          {invoice.paymentDetails && (
-            <View style={styles.footerBlock}>
-              <Text style={styles.footerLabel}>{template.paymentLabel}</Text>
-              <View style={styles.footerText}>
-                {renderTextContent(invoice.paymentDetails)}
-              </View>
+          {/* Footer */}
+          <View style={styles.footer}>
+            <View style={[styles.footerBlock, styles.footerBlockLeft]}>
+              {invoice.noteDetails && (
+                <>
+                  <Text style={styles.footerLabel}>{template.noteLabel}</Text>
+                  <View style={styles.footerText}>
+                    {renderTextContent(invoice.noteDetails)}
+                  </View>
+                </>
+              )}
             </View>
-          )}
-          {invoice.noteDetails && (
-            <View style={styles.footerBlock}>
-              <Text style={styles.footerLabel}>{template.noteLabel}</Text>
-              <View style={styles.footerText}>
-                {renderTextContent(invoice.noteDetails)}
-              </View>
+            <View style={[styles.footerBlock, styles.footerBlockRight]}>
+              {invoice.paymentDetails && (
+                <>
+                  <Text style={styles.footerLabel}>
+                    {template.paymentLabel}
+                  </Text>
+                  <View style={styles.footerText}>
+                    {renderTextContent(invoice.paymentDetails)}
+                  </View>
+                </>
+              )}
             </View>
-          )}
+          </View>
         </View>
       </Page>
     </Document>
   );
 }
-
-export default PdfTemplate;
-

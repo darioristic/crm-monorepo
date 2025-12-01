@@ -21,6 +21,59 @@ export interface Company extends BaseEntity {
   address: string;
 }
 
+// Enhanced Company type with additional fields (inspired by midday-main)
+export interface EnhancedCompany extends BaseEntity {
+  name: string;
+  email: string | null;
+  billingEmail: string | null;
+  phone: string | null;
+  website: string | null;
+  contact: string | null;
+  industry: string;
+  address: string;
+  addressLine1: string | null;
+  addressLine2: string | null;
+  city: string | null;
+  state: string | null;
+  zip: string | null;
+  country: string | null;
+  countryCode: string | null;
+  vatNumber: string | null;
+  note: string | null;
+  token: string;
+  invoiceCount?: number;
+  projectCount?: number;
+  tags?: CompanyTag[];
+}
+
+export interface CompanyTag {
+  id: UUID;
+  name: string;
+}
+
+// Upsert Company params
+export interface UpsertCompanyParams {
+  id?: string;
+  name: string;
+  email?: string | null;
+  billingEmail?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  contact?: string | null;
+  industry?: string;
+  address?: string;
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  vatNumber?: string | null;
+  note?: string | null;
+  tags?: CompanyTag[];
+}
+
 // ============================================
 // User & Auth Types
 // ============================================
@@ -215,7 +268,12 @@ export interface Invoice extends BaseEntity {
   issueDate: Timestamp;
   dueDate: Timestamp;
   items: InvoiceItem[];
+  /** Gross total before discount (sum of all items) */
+  grossTotal?: number;
+  /** Subtotal after discount is applied */
   subtotal: number;
+  /** Discount amount applied to the invoice */
+  discount?: number;
   taxRate: number;
   tax: number;
   total: number;

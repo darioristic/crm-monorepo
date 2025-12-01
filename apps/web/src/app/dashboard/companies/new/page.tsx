@@ -1,35 +1,21 @@
-import { generateMeta } from "@/lib/utils";
-import { CompanyForm } from "@/components/companies/company-form";
-import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+"use client";
 
-export async function generateMetadata() {
-  return generateMeta({
-    title: "Create Company",
-    description: "Add a new company to your CRM system",
-    canonical: "/dashboard/companies/new",
-  });
-}
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useCompanyParams } from "@/hooks/use-company-params";
 
+// This page redirects to the companies list and opens the create sheet
+// This matches the midday-main approach where creation happens via sheets
 export default function NewCompanyPage() {
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/dashboard/companies">
-            <ChevronLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Create Company</h1>
-          <p className="text-muted-foreground">
-            Add a new company to your CRM system
-          </p>
-        </div>
-      </div>
-      <CompanyForm mode="create" />
-    </div>
-  );
-}
+  const router = useRouter();
+  const { setParams } = useCompanyParams();
 
+  useEffect(() => {
+    // Open the create company sheet
+    setParams({ createCompany: true });
+    // Redirect to companies list (sheet will remain open due to URL params)
+    router.replace("/dashboard/companies?createCompany=true");
+  }, [router, setParams]);
+
+  return null;
+}

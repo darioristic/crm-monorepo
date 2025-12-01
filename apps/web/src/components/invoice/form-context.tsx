@@ -4,8 +4,15 @@ import { useEffect } from "react";
 import { useForm, FormProvider } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { InvoiceFormValues, InvoiceDefaultSettings } from "@/types/invoice";
-import { DEFAULT_INVOICE_TEMPLATE, generateInvoiceToken, generateInvoiceNumber } from "@/types/invoice";
+import type {
+  InvoiceFormValues,
+  InvoiceDefaultSettings,
+} from "@/types/invoice";
+import {
+  DEFAULT_INVOICE_TEMPLATE,
+  generateInvoiceToken,
+  generateInvoiceNumber,
+} from "@/types/invoice";
 
 // Template schema
 export const invoiceTemplateSchema = z.object({
@@ -34,15 +41,19 @@ export const invoiceTemplateSchema = z.object({
   size: z.enum(["a4", "letter"]).default("a4"),
   includeVat: z.boolean().optional().default(true),
   includeTax: z.boolean().optional().default(false),
-  includeDiscount: z.boolean().optional().default(false),
+  includeDiscount: z.boolean().optional().default(true),
   includeDecimals: z.boolean().optional().default(true),
   includePdf: z.boolean().optional().default(true),
   includeUnits: z.boolean().optional().default(false),
   includeQr: z.boolean().optional().default(false),
   taxRate: z.number().min(0).max(100).optional().default(0),
   vatRate: z.number().min(0).max(100).optional().default(20),
-  dateFormat: z.enum(["dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "dd.MM.yyyy"]).default("dd.MM.yyyy"),
-  deliveryType: z.enum(["create", "create_and_send", "scheduled"]).default("create"),
+  dateFormat: z
+    .enum(["dd/MM/yyyy", "MM/dd/yyyy", "yyyy-MM-dd", "dd.MM.yyyy"])
+    .default("dd.MM.yyyy"),
+  deliveryType: z
+    .enum(["create", "create_and_send", "scheduled"])
+    .default("create"),
   locale: z.string().optional().default("sr-RS"),
   timezone: z.string().optional().default("Europe/Belgrade"),
 });
@@ -54,6 +65,10 @@ export const lineItemSchema = z.object({
   unit: z.string().optional().default("pcs"),
   price: z.number().default(0),
   productId: z.string().optional(),
+  /** Discount percentage for this line item (0-100) */
+  discount: z.number().min(0).max(100).optional().default(0),
+  /** VAT percentage for this line item */
+  vat: z.number().min(0).max(100).optional().default(20),
 });
 
 // Main invoice form schema
@@ -114,7 +129,9 @@ const getDefaultValues = (): FormValues => {
     topBlock: null,
     bottomBlock: null,
     amount: 0,
-    lineItems: [{ name: "", quantity: 1, unit: "pcs", price: 0 }],
+    lineItems: [
+      { name: "", quantity: 1, unit: "pcs", price: 0, discount: 0, vat: 20 },
+    ],
     token: generateInvoiceToken(),
     scheduledAt: null,
   };
@@ -139,7 +156,7 @@ export function FormContext({
 
   useEffect(() => {
     const defaults = getDefaultValues();
-    
+
     form.reset({
       ...defaults,
       ...(defaultSettings ?? {}),

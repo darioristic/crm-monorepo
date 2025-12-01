@@ -38,6 +38,9 @@ export const products = pgTable(
 		isActive: boolean("is_active").notNull().default(true),
 		isService: boolean("is_service").notNull().default(false),
 		metadata: text("metadata"), // JSON stored as text
+		// Smart product tracking fields (like midday-main)
+		usageCount: integer("usage_count").notNull().default(0),
+		lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
 		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
@@ -46,6 +49,8 @@ export const products = pgTable(
 		index("idx_products_category_id").on(table.categoryId),
 		index("idx_products_is_active").on(table.isActive),
 		index("idx_products_name").on(table.name),
+		index("idx_products_usage_count").on(table.usageCount),
+		index("idx_products_last_used_at").on(table.lastUsedAt),
 	]
 );
 

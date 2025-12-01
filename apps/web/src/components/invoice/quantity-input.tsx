@@ -23,7 +23,7 @@ export function QuantityInput({ name, className }: Props) {
   const isPlaceholder = !value && !isFocused;
 
   return (
-    <div className="relative font-mono">
+    <div className="relative">
       <NumericFormat
         autoComplete="off"
         value={value}
@@ -37,7 +37,7 @@ export function QuantityInput({ name, className }: Props) {
         }}
         placeholder="0"
         className={cn(
-          "p-0 border-0 h-6 text-xs !bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full",
+          "p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs",
           className,
           isPlaceholder && "opacity-0"
         )}

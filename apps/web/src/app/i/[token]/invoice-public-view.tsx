@@ -72,45 +72,83 @@ function getStoredPaymentDetails(): EditorDoc | null {
   }
 }
 
-// Get stored logo from localStorage
+// Get stored logo from localStorage or use default
 function getStoredLogo(): string | null {
   if (typeof window === "undefined") return null;
   try {
     const stored = localStorage.getItem("invoice_logo_url");
+    // Return stored value or a default placeholder logo
+    // TODO: Replace with actual company logo from settings
     return stored || null;
   } catch {
     return null;
   }
 }
 
-// Build customer details from company data
+// Default logo URL - uses /logo.png from public folder
+// Override by setting: localStorage.setItem('invoice_logo_url', 'https://your-logo-url.com/logo.png')
+const DEFAULT_LOGO_URL: string | null = "/logo.png";
+
+// Build customer details from company data (Bill to)
 function buildCustomerDetails(invoice: any): EditorDoc | null {
   const lines: string[] = [];
-  
-  if (invoice.companyName) {
-    lines.push(invoice.companyName);
+
+  // Get company name from either direct field or nested object
+  const companyName = invoice.companyName || invoice.company?.name;
+  if (companyName) {
+    lines.push(companyName);
   }
-  
+
   // Try to get company details from invoice.company if available
   if (invoice.company) {
     if (invoice.company.address) lines.push(invoice.company.address);
-    const cityLine = [invoice.company.city, invoice.company.postalCode, invoice.company.country]
+    const cityLine = [
+      invoice.company.city,
+      invoice.company.postalCode,
+      invoice.company.country,
+    ]
       .filter(Boolean)
       .join(", ");
     if (cityLine) lines.push(cityLine);
     if (invoice.company.email) lines.push(invoice.company.email);
     if (invoice.company.phone) lines.push(invoice.company.phone);
-    if (invoice.company.vatNumber) lines.push(`VAT: ${invoice.company.vatNumber}`);
+    if (invoice.company.vatNumber)
+      lines.push(`VAT: ${invoice.company.vatNumber}`);
   }
-  
+
   if (lines.length === 0) return null;
-  
+
   return {
     type: "doc",
-    content: lines.map(line => ({
+    content: lines.map((line) => ({
       type: "paragraph",
-      content: [{ type: "text", text: line }]
-    }))
+      content: [{ type: "text", text: line }],
+    })),
+  };
+}
+
+// Build from details (seller info) - uses localStorage or defaults
+function buildFromDetails(
+  storedFromDetails: EditorDoc | null
+): EditorDoc | null {
+  // If stored details exist, use them
+  if (storedFromDetails) return storedFromDetails;
+
+  // Default company info (can be configured in settings)
+  return {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Your Company Name" }],
+      },
+      { type: "paragraph", content: [{ type: "text", text: "Your Address" }] },
+      { type: "paragraph", content: [{ type: "text", text: "City, Country" }] },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "email@company.com" }],
+      },
+    ],
   };
 }
 
@@ -125,8 +163,13 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
   useEffect(() => {
     setFromDetails(getStoredFromDetails());
     setPaymentDetails(getStoredPaymentDetails());
-    setLogoUrl(getStoredLogo());
+    // Use stored logo or default
+    setLogoUrl(getStoredLogo() || DEFAULT_LOGO_URL);
   }, []);
+
+  // Get customer name from company object
+  const customerName =
+    invoice.companyName || invoice.company?.name || "Customer";
 
   // Transform API data to Invoice type
   const invoiceData: Invoice = {
@@ -138,22 +181,39 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
     updatedAt: invoice.updatedAt,
     amount: invoice.total,
     currency: invoice.currency || "EUR",
-    lineItems: invoice.items?.map((item: any) => ({
-      name: item.productName || item.description || "",
-      quantity: item.quantity || 1,
-      price: item.unitPrice || 0,
-      unit: item.unit || "pcs",
-    })) || [],
-    paymentDetails: paymentDetails || (invoice.terms ? { 
-      type: "doc", 
-      content: [{ type: "paragraph", content: [{ type: "text", text: invoice.terms }] }] 
-    } : null),
+    lineItems:
+      invoice.items?.map((item: any) => ({
+        name: item.productName || item.description || "",
+        quantity: item.quantity || 1,
+        price: item.unitPrice || 0,
+        unit: item.unit || "pcs",
+      })) || [],
+    paymentDetails:
+      paymentDetails ||
+      (invoice.terms
+        ? {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: invoice.terms }],
+              },
+            ],
+          }
+        : null),
     customerDetails: buildCustomerDetails(invoice),
-    fromDetails: fromDetails,
-    noteDetails: invoice.notes ? { 
-      type: "doc", 
-      content: [{ type: "paragraph", content: [{ type: "text", text: invoice.notes }] }] 
-    } : null,
+    fromDetails: buildFromDetails(fromDetails),
+    noteDetails: invoice.notes
+      ? {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: invoice.notes }],
+            },
+          ],
+        }
+      : null,
     note: invoice.notes,
     internalNote: null,
     vat: invoice.vat || null,
@@ -181,13 +241,13 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
     topBlock: null,
     bottomBlock: null,
     customerId: invoice.companyId,
-    customerName: invoice.companyName,
-    customer: invoice.companyName ? {
+    customerName: customerName,
+    customer: {
       id: invoice.companyId,
-      name: invoice.companyName,
-      website: null,
-      email: null,
-    } : null,
+      name: customerName,
+      website: invoice.company?.website || null,
+      email: invoice.company?.email || null,
+    },
     team: null,
     scheduledAt: null,
   };
@@ -228,10 +288,10 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
           <div className="flex items-center space-x-2">
             <Avatar className="size-5 object-contain border border-border">
               <AvatarFallback className="text-[9px] font-medium">
-                {invoiceData.customerName?.[0] || "?"}
+                {customerName?.[0] || "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="truncate text-sm">{invoiceData.customerName || "Customer"}</span>
+            <span className="truncate text-sm">{customerName}</span>
           </div>
 
           <InvoiceStatus status={invoiceData.status} />
@@ -240,7 +300,12 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
         {/* Invoice Template */}
         <div className="pb-24 md:pb-0">
           <div className="shadow-[0_24px_48px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
-            <HtmlTemplate data={invoiceData} width={width} height={height} />
+            <HtmlTemplate
+              data={invoiceData}
+              width={width}
+              height={height}
+              disableScroll
+            />
           </div>
         </div>
       </div>
@@ -284,7 +349,11 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
                   className="rounded-full size-8"
                   onClick={handleCopyLink}
                 >
-                  {isCopied ? <Check className="size-4 text-green-500" /> : <Link2 className="size-4" />}
+                  {isCopied ? (
+                    <Check className="size-4 text-green-500" />
+                  ) : (
+                    <Link2 className="size-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent

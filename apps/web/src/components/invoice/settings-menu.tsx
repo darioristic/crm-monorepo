@@ -2,7 +2,7 @@
 
 import { useFormContext, useWatch } from "react-hook-form";
 import {
-  Settings,
+  MoreVertical,
   Calendar,
   Ruler,
   Receipt,
@@ -56,8 +56,14 @@ export function SettingsMenu() {
   const currency = useWatch({ control, name: "template.currency" });
   const includeVat = useWatch({ control, name: "template.includeVat" });
   const includeTax = useWatch({ control, name: "template.includeTax" });
-  const includeDiscount = useWatch({ control, name: "template.includeDiscount" });
-  const includeDecimals = useWatch({ control, name: "template.includeDecimals" });
+  const includeDiscount = useWatch({
+    control,
+    name: "template.includeDiscount",
+  });
+  const includeDecimals = useWatch({
+    control,
+    name: "template.includeDecimals",
+  });
   const includeUnits = useWatch({ control, name: "template.includeUnits" });
   const includeQr = useWatch({ control, name: "template.includeQr" });
   const includePdf = useWatch({ control, name: "template.includePdf" });
@@ -66,7 +72,7 @@ export function SettingsMenu() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon" className="h-8 w-8">
-          <Settings className="h-4 w-4" />
+          <MoreVertical className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-56" align="end">
