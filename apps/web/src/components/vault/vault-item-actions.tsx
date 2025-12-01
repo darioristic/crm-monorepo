@@ -14,7 +14,7 @@ type Props = {
 };
 
 export function VaultItemActions({ id, filePath, hideDelete }: Props) {
-	const { copy, copied } = useCopyToClipboard();
+	const [copiedText, copy] = useCopyToClipboard();
 	const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
 	const downloadUrl = documentsApi.getDownloadUrl(filePath);
@@ -55,7 +55,7 @@ export function VaultItemActions({ id, filePath, hideDelete }: Props) {
 				onClick={handleCopyLink}
 				className="rounded-full h-7 w-7 bg-background"
 			>
-				{copied ? (
+				{copiedText ? (
 					<Check className="h-3.5 w-3.5" />
 				) : (
 					<Copy className="h-3.5 w-3.5" />

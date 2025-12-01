@@ -160,6 +160,19 @@ export async function addEmailJob(
 }
 
 /**
+ * Add document processing job
+ */
+export async function addDocumentProcessingJob(
+	data: DocumentProcessingJobData,
+	options?: { delay?: number; priority?: number },
+): Promise<Job<DocumentProcessingJobData>> {
+	return addJob(QUEUES.DOCUMENT_PROCESSING, data, {
+		...options,
+		jobId: `doc-${data.documentId}`,
+	});
+}
+
+/**
  * Schedule notification cleanup (runs daily)
  */
 export async function scheduleNotificationCleanup(): Promise<void> {
@@ -279,6 +292,7 @@ export default {
 	getQueue,
 	addJob,
 	addEmailJob,
+	addDocumentProcessingJob,
 	scheduleNotificationCleanup,
 	scheduleInvoiceReminderCheck,
 	getQueuesStatus,

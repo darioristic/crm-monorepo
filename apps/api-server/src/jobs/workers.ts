@@ -2,12 +2,15 @@ import { Worker, Job } from "bullmq";
 import { logger } from "../lib/logger";
 import { emailService } from "../integrations/email.service";
 import { notificationQueries } from "../db/queries/notifications";
+import { documentQueries } from "../db/queries/documents";
+import { aiService } from "../services/ai.service";
 import {
 	QUEUES,
 	type EmailJobData,
 	type NotificationCleanupJobData,
 	type InvoiceReminderJobData,
 	type WebhookDeliveryJobData,
+	type DocumentProcessingJobData,
 } from "./queue";
 
 // ============================================
@@ -204,6 +207,114 @@ function createWebhookDeliveryWorker(): Worker {
 }
 
 // ============================================
+// Document Processing Worker
+// ============================================
+
+function createDocumentProcessingWorker(): Worker {
+	const worker = new Worker<DocumentProcessingJobData>(
+		QUEUES.DOCUMENT_PROCESSING,
+		async (job: Job<DocumentProcessingJobData>) => {
+			const { documentId, companyId, filePath, mimetype, processingType } =
+				job.data;
+
+			logger.info(
+				{ jobId: job.id, documentId, processingType },
+				"Processing document job",
+			);
+
+			try {
+				// Update status to processing
+				await documentQueries.update(documentId, companyId, {
+					processingStatus: "processing",
+				});
+
+				// Process based on type
+				let result: {
+					title?: string;
+					summary?: string;
+					tags?: string[];
+					language?: string;
+				} = {};
+
+				if (processingType === "classify" || processingType === "full") {
+					// Use AI to classify and extract metadata
+					try {
+						const classificationResult = await aiService.classifyDocument({
+							documentId,
+							companyId,
+							filePath,
+							mimetype,
+						});
+						result = { ...result, ...classificationResult };
+					} catch (aiError) {
+						logger.warn(
+							{ jobId: job.id, error: aiError },
+							"AI classification failed, continuing with basic processing",
+						);
+					}
+				}
+
+				// Update document with extracted data
+				await documentQueries.update(documentId, companyId, {
+					title: result.title || undefined,
+					summary: result.summary || undefined,
+					language: result.language || undefined,
+					processingStatus: "completed",
+				});
+
+				logger.info(
+					{ jobId: job.id, documentId },
+					"Document processing completed",
+				);
+
+				return {
+					success: true,
+					documentId,
+					processedAt: new Date().toISOString(),
+					...result,
+				};
+			} catch (error) {
+				logger.error(
+					{ jobId: job.id, documentId, error },
+					"Failed to process document",
+				);
+
+				// Update status to failed
+				await documentQueries.update(documentId, companyId, {
+					processingStatus: "failed",
+				});
+
+				throw error;
+			}
+		},
+		{
+			connection: REDIS_CONNECTION,
+			concurrency: 3,
+			limiter: {
+				max: 10,
+				duration: 60000, // 10 documents per minute
+			},
+		},
+	);
+
+	worker.on("completed", (job) => {
+		logger.debug(
+			{ jobId: job.id, queue: QUEUES.DOCUMENT_PROCESSING },
+			"Job completed",
+		);
+	});
+
+	worker.on("failed", (job, err) => {
+		logger.error(
+			{ jobId: job?.id, queue: QUEUES.DOCUMENT_PROCESSING, error: err },
+			"Job failed",
+		);
+	});
+
+	return worker;
+}
+
+// ============================================
 // Worker Management
 // ============================================
 
@@ -217,6 +328,7 @@ export function startWorkers(): void {
 		createEmailWorker(),
 		createNotificationCleanupWorker(),
 		createWebhookDeliveryWorker(),
+		createDocumentProcessingWorker(),
 	);
 
 	logger.info({ workerCount: workers.length }, "Background workers started");

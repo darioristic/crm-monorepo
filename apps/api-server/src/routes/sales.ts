@@ -101,12 +101,12 @@ router.get("/api/v1/invoices/:id", async (request, _url, params) => {
 router.post("/api/v1/invoices", async (request) => {
   return withAuth(
     request,
-    async () => {
+    async (auth) => {
       const body = await parseBody<CreateInvoiceRequest>(request);
       if (!body) {
         return errorResponse("VALIDATION_ERROR", "Invalid request body");
       }
-      return salesService.createInvoice(body);
+      return salesService.createInvoice({ ...body, createdBy: auth.userId });
     },
     201
   );
