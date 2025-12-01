@@ -47,6 +47,7 @@ export function InvoiceSheet({
         notes: typeof values.noteDetails === "string" ? values.noteDetails : undefined,
         terms: typeof values.paymentDetails === "string" ? values.paymentDetails : undefined,
         items: values.lineItems.map((item) => ({
+          id: crypto.randomUUID(),
           productName: item.name,
           description: "",
           quantity: item.quantity ?? 1,
