@@ -672,8 +672,14 @@ export const productQueries = {
 
 	/**
 	 * Get popular products sorted by usage count (for autocomplete suggestions)
+	 * Returns all active products, prioritizing:
+	 * 1. Products with actual content (name length > 3)
+	 * 2. Products with higher usage
+	 * 3. Recently used products
 	 */
 	async getPopularProducts(limit = 20, currency?: string): Promise<Product[]> {
+		// Always return all products, filter out garbage data (names < 3 chars)
+		// Prioritize meaningful products over test data
 		if (currency) {
 			return db<Product[]>`
         SELECT 
@@ -684,11 +690,17 @@ export const productQueries = {
           stock_quantity as "stockQuantity",
           min_stock_level as "minStockLevel",
           is_active as "isActive", is_service as "isService",
-          metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+          metadata, COALESCE(usage_count, 0) as "usageCount", last_used_at as "lastUsedAt",
           created_at as "createdAt", updated_at as "updatedAt"
         FROM products
-        WHERE is_active = true AND currency = ${currency}
-        ORDER BY usage_count DESC, last_used_at DESC NULLS LAST
+        WHERE is_active = true 
+          AND (currency = ${currency} OR currency IS NULL)
+          AND LENGTH(TRIM(name)) >= 3
+        ORDER BY 
+          CASE WHEN CAST(unit_price AS DECIMAL) > 0 THEN 1 ELSE 2 END,
+          COALESCE(usage_count, 0) DESC, 
+          last_used_at DESC NULLS LAST, 
+          name ASC
         LIMIT ${limit}
       `;
 		}
@@ -701,11 +713,16 @@ export const productQueries = {
         stock_quantity as "stockQuantity",
         min_stock_level as "minStockLevel",
         is_active as "isActive", is_service as "isService",
-        metadata, usage_count as "usageCount", last_used_at as "lastUsedAt",
+        metadata, COALESCE(usage_count, 0) as "usageCount", last_used_at as "lastUsedAt",
         created_at as "createdAt", updated_at as "updatedAt"
       FROM products
       WHERE is_active = true
-      ORDER BY usage_count DESC, last_used_at DESC NULLS LAST
+        AND LENGTH(TRIM(name)) >= 3
+      ORDER BY 
+        CASE WHEN CAST(unit_price AS DECIMAL) > 0 THEN 1 ELSE 2 END,
+        COALESCE(usage_count, 0) DESC, 
+        last_used_at DESC NULLS LAST, 
+        name ASC
       LIMIT ${limit}
     `;
 	},

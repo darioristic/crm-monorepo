@@ -124,8 +124,7 @@ export function InvoicePreview({
             {config.fromLabel}
           </p>
           <div className="text-sm leading-relaxed">
-            <p className="font-medium">{invoice.company?.name || "Your Company"}</p>
-            {invoice.company?.address && <p>{invoice.company.address}</p>}
+            <p className="font-medium">{invoice.team?.name || "Your Company"}</p>
           </div>
         </div>
 
@@ -135,8 +134,7 @@ export function InvoicePreview({
             {config.customerLabel}
           </p>
           <div className="text-sm leading-relaxed">
-            <p className="font-medium">{invoice.customer?.name || "Customer"}</p>
-            {invoice.customer?.address && <p>{invoice.customer.address}</p>}
+            <p className="font-medium">{invoice.customer?.name || invoice.customerName || "Customer"}</p>
           </div>
         </div>
       </div>

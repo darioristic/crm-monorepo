@@ -1,11 +1,13 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
+import { ProductEditProvider } from "./product-edit-context";
+import { ProductEditSheet } from "./product-edit-sheet";
 import { Check, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type {

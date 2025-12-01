@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils";
 import { productsApi } from "@/lib/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { useRouter } from "next/navigation";
 import type { FormValues } from "./form-context";
 import { formatInvoiceAmount } from "@/utils/invoice-calculate";
+import { useProductEdit } from "./product-edit-context";
 
 type Product = {
   id: string;
@@ -41,7 +41,7 @@ export function ProductAutocomplete({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
-  const router = useRouter();
+  const { openProductEdit, setOnProductUpdated } = useProductEdit();
   const { setValue, watch, control } = useFormContext<FormValues>();
 
   const currentProductId = watch(`lineItems.${index}.productId`);
@@ -56,13 +56,17 @@ export function ProductAutocomplete({
   const maximumFractionDigits = includeDecimals ? 2 : 0;
 
   // Fetch products when component mounts or currency changes
+  // Don't filter by currency to show all products
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Fetch without currency filter to show all products
       const response = await productsApi.getPopular({
-        limit: 50,
-        currency: currency || undefined,
+        limit: 100,
       });
+
+      console.log("Fetched products:", response);
+
       if (response.success && response.data) {
         const transformedProducts: Product[] = response.data.map((p) => ({
           id: p.id,
@@ -76,6 +80,8 @@ export function ProductAutocomplete({
           description: p.description ?? undefined,
         }));
         setProducts(transformedProducts);
+      } else {
+        console.error("Failed to fetch products:", response.error);
       }
     } catch (error) {
       console.error("Failed to fetch products:", error);
@@ -89,13 +95,13 @@ export function ProductAutocomplete({
     fetchProducts();
   }, [fetchProducts]);
 
-  // Filter products based on input
+  // Filter products based on input - show more products for better UX
   const filteredProducts =
-    value.trim().length >= 2
+    value.trim().length >= 1
       ? products.filter((product) =>
           product.name.toLowerCase().includes(value.toLowerCase())
         )
-      : products.slice(0, 5); // Show top 5 when not searching
+      : products.slice(0, 10); // Show top 10 when not searching
 
   const handleInputChange = useCallback(
     (newValue: string) => {
@@ -173,26 +179,37 @@ export function ProductAutocomplete({
   /**
    * Save line item as product on blur (smart learning like midday)
    * This creates/updates products automatically from invoice line items
+   * Only saves if name has minimum 3 characters to avoid garbage data
    */
   const handleBlur = useCallback(async () => {
     setIsFocused(false);
     // Delay hiding suggestions to allow for clicks
     setTimeout(() => setShowSuggestions(false), 200);
 
-    // Only save if there's content OR if we need to clear a productId
-    const hasContent = value && value.trim().length > 0;
-    const needsToClearProductId = !hasContent && currentProductId;
+    const trimmedValue = (value || "").trim();
+    // Only save if name has at least 3 characters (to avoid garbage like "re", "da")
+    const hasValidContent = trimmedValue.length >= 3;
+    const needsToClearProductId = trimmedValue.length === 0 && currentProductId;
 
-    if (hasContent || needsToClearProductId) {
+    if (hasValidContent || needsToClearProductId) {
       setIsSaving(true);
       try {
-        const response = await productsApi.saveLineItemAsProduct({
-          name: value || "",
-          price: currentPrice !== undefined ? currentPrice : null,
+        const saveData = {
+          name: trimmedValue,
+          price:
+            currentPrice !== undefined && currentPrice !== 0
+              ? currentPrice
+              : null,
           unit: currentUnit || null,
           productId: currentProductId || undefined,
-          currency: currency || null,
-        });
+          currency: currency || "EUR",
+        };
+
+        console.log("Saving product:", saveData);
+
+        const response = await productsApi.saveLineItemAsProduct(saveData);
+
+        console.log("Save response:", response);
 
         if (response.success && response.data) {
           const { product, shouldClearProductId } = response.data;
@@ -213,6 +230,8 @@ export function ProductAutocomplete({
 
           // Refresh products list
           fetchProducts();
+        } else if (!response.success) {
+          console.error("Failed to save product:", response.error);
         }
       } catch (error) {
         console.error("Failed to save line item as product:", error);
@@ -418,7 +437,8 @@ export function ProductAutocomplete({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          router.push(`/dashboard/products/${product.id}/edit`);
+                          setOnProductUpdated(() => fetchProducts);
+                          openProductEdit(product.id);
                           setShowSuggestions(false);
                         }}
                         onMouseEnter={() => {
