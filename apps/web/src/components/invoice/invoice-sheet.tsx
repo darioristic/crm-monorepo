@@ -12,6 +12,7 @@ import type {
   InvoiceFormValues,
   InvoiceDefaultSettings,
 } from "@/types/invoice";
+import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 import { invoicesApi } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 
@@ -235,6 +236,7 @@ function transformInvoiceToFormValues(
       unit: item.unit || "pcs",
     })),
     template: {
+      ...DEFAULT_INVOICE_TEMPLATE,
       currency: invoice.currency || "EUR",
       taxRate: invoice.taxRate || 0,
     },

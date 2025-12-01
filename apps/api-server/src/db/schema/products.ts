@@ -1,4 +1,13 @@
-import { pgTable, uuid, varchar, text, timestamp, integer, boolean, index } from "drizzle-orm/pg-core";
+import {
+	pgTable,
+	uuid,
+	varchar,
+	text,
+	timestamp,
+	integer,
+	boolean,
+	index,
+} from "drizzle-orm/pg-core";
 
 // Product Categories table
 export const productCategories = pgTable(
@@ -10,13 +19,17 @@ export const productCategories = pgTable(
 		parentId: uuid("parent_id"),
 		sortOrder: integer("sort_order").notNull().default(0),
 		isActive: boolean("is_active").notNull().default(true),
-		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
 	},
 	(table) => [
 		index("idx_product_categories_parent_id").on(table.parentId),
 		index("idx_product_categories_is_active").on(table.isActive),
-	]
+	],
 );
 
 // Products table
@@ -32,7 +45,9 @@ export const products = pgTable(
 		currency: varchar("currency", { length: 3 }).notNull().default("EUR"),
 		unit: varchar("unit", { length: 50 }).notNull().default("pcs"),
 		taxRate: text("tax_rate").notNull().default("0"),
-		categoryId: uuid("category_id").references(() => productCategories.id, { onDelete: "set null" }),
+		categoryId: uuid("category_id").references(() => productCategories.id, {
+			onDelete: "set null",
+		}),
 		stockQuantity: text("stock_quantity"),
 		minStockLevel: text("min_stock_level"),
 		isActive: boolean("is_active").notNull().default(true),
@@ -41,8 +56,12 @@ export const products = pgTable(
 		// Smart product tracking fields (like midday-main)
 		usageCount: integer("usage_count").notNull().default(0),
 		lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
-		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
 	},
 	(table) => [
 		index("idx_products_sku").on(table.sku),
@@ -51,11 +70,10 @@ export const products = pgTable(
 		index("idx_products_name").on(table.name),
 		index("idx_products_usage_count").on(table.usageCount),
 		index("idx_products_last_used_at").on(table.lastUsedAt),
-	]
+	],
 );
 
 export type ProductCategory = typeof productCategories.$inferSelect;
 export type NewProductCategory = typeof productCategories.$inferInsert;
 export type Product = typeof products.$inferSelect;
 export type NewProduct = typeof products.$inferInsert;
-

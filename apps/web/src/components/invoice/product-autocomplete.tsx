@@ -36,10 +36,13 @@ export function ProductAutocomplete({
   const [isFocused, setIsFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [hoveredIndex, setHoveredIndex] = useState(-1);
+  const [isSaving, setIsSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const { setValue, watch, control } = useFormContext<FormValues>();
 
   const currentProductId = watch(`lineItems.${index}.productId`);
+  const currentPrice = watch(`lineItems.${index}.price`);
+  const currentUnit = watch(`lineItems.${index}.unit`);
   const currency = useWatch({ control, name: "template.currency" });
   const locale = useWatch({ control, name: "template.locale" });
   const includeDecimals = useWatch({
@@ -48,9 +51,14 @@ export function ProductAutocomplete({
   });
   const maximumFractionDigits = includeDecimals ? 2 : 0;
 
-  // Fetch products from API
-  const { data: productsData, isLoading } = useApi(
-    () => productsApi.getAll({ pageSize: 100 }),
+  // Fetch products from API - use popular products sorted by usage
+  const {
+    data: productsData,
+    isLoading,
+    refetch,
+  } = useApi(
+    () =>
+      productsApi.getPopular({ limit: 50, currency: currency || undefined }),
     { autoFetch: true }
   );
 
@@ -58,9 +66,10 @@ export function ProductAutocomplete({
   const products: Product[] = (productsData || []).map((p) => ({
     id: p.id,
     name: p.name,
-    price: p.price ?? undefined,
+    price:
+      typeof p.unitPrice === "string" ? parseFloat(p.unitPrice) : p.unitPrice,
     unit: p.unit ?? undefined,
-    currency: currency || "EUR",
+    currency: p.currency || currency || "EUR",
     description: p.description ?? undefined,
   }));
 
@@ -93,7 +102,7 @@ export function ProductAutocomplete({
   );
 
   const handleProductSelect = useCallback(
-    (product: Product) => {
+    async (product: Product) => {
       // Fill in the line item with product data
       setValue(`lineItems.${index}.name`, product.name, {
         shouldValidate: true,
@@ -120,10 +129,18 @@ export function ProductAutocomplete({
         shouldDirty: true,
       });
 
+      // Increment usage count since user actively selected this product
+      try {
+        await productsApi.incrementUsage(product.id);
+        refetch(); // Refresh products to get updated usage counts
+      } catch (error) {
+        console.error("Failed to increment product usage:", error);
+      }
+
       setShowSuggestions(false);
       onProductSelect?.(product);
     },
-    [setValue, index, onProductSelect]
+    [setValue, index, onProductSelect, refetch]
   );
 
   const handleFocus = useCallback(() => {
@@ -136,11 +153,66 @@ export function ProductAutocomplete({
     }
   }, [currentProductId]);
 
-  const handleBlur = useCallback(() => {
+  /**
+   * Save line item as product on blur (smart learning like midday-main)
+   * This creates/updates products automatically from invoice line items
+   */
+  const handleBlur = useCallback(async () => {
     setIsFocused(false);
     // Delay hiding suggestions to allow for clicks
     setTimeout(() => setShowSuggestions(false), 200);
-  }, []);
+
+    // Only save if there's content OR if we need to clear a productId
+    const hasContent = value && value.trim().length > 0;
+    const needsToClearProductId = !hasContent && currentProductId;
+
+    if (hasContent || needsToClearProductId) {
+      setIsSaving(true);
+      try {
+        const response = await productsApi.saveLineItemAsProduct({
+          name: value || "",
+          price: currentPrice !== undefined ? currentPrice : null,
+          unit: currentUnit || null,
+          productId: currentProductId || undefined,
+          currency: currency || null,
+        });
+
+        if (response.success && response.data) {
+          const { product, shouldClearProductId } = response.data;
+
+          if (shouldClearProductId) {
+            // Clear the old product reference
+            setValue(`lineItems.${index}.productId`, undefined, {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
+          } else if (product && !currentProductId) {
+            // Set the new product reference if we created/found a product
+            setValue(`lineItems.${index}.productId`, product.id, {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
+          }
+
+          // Refresh products list
+          refetch();
+        }
+      } catch (error) {
+        console.error("Failed to save line item as product:", error);
+      } finally {
+        setIsSaving(false);
+      }
+    }
+  }, [
+    value,
+    currentPrice,
+    currentUnit,
+    currentProductId,
+    currency,
+    setValue,
+    index,
+    refetch,
+  ]);
 
   // Reset selection when suggestions change
   useEffect(() => {

@@ -23,7 +23,10 @@ class ProductCategoryService {
 		filters: { search?: string; parentId?: string; isActive?: boolean } = {},
 	): Promise<ApiResponse<ProductCategoryWithChildren[]>> {
 		try {
-			const { categories, total } = await productCategoryQueries.findAll(pagination, filters);
+			const { categories, total } = await productCategoryQueries.findAll(
+				pagination,
+				filters,
+			);
 			return paginatedResponse(categories, total, pagination);
 		} catch (error) {
 			console.error("Error fetching categories:", error);
@@ -31,7 +34,9 @@ class ProductCategoryService {
 		}
 	}
 
-	async getCategoryById(id: string): Promise<ApiResponse<ProductCategoryWithChildren>> {
+	async getCategoryById(
+		id: string,
+	): Promise<ApiResponse<ProductCategoryWithChildren>> {
 		try {
 			const category = await productCategoryQueries.findById(id);
 			if (!category) {
@@ -107,7 +112,10 @@ class ProductService {
 		} = {},
 	): Promise<ApiResponse<ProductWithCategory[]>> {
 		try {
-			const { products, total } = await productQueries.findAll(pagination, filters);
+			const { products, total } = await productQueries.findAll(
+				pagination,
+				filters,
+			);
 			return paginatedResponse(products, total, pagination);
 		} catch (error) {
 			console.error("Error fetching products:", error);
@@ -141,7 +149,9 @@ class ProductService {
 		}
 	}
 
-	async createProduct(data: CreateProductRequest): Promise<ApiResponse<Product>> {
+	async createProduct(
+		data: CreateProductRequest,
+	): Promise<ApiResponse<Product>> {
 		try {
 			// Validation
 			if (!data.name || data.name.trim().length === 0) {
@@ -149,14 +159,20 @@ class ProductService {
 			}
 
 			if (data.unitPrice === undefined || data.unitPrice < 0) {
-				return errorResponse("VALIDATION_ERROR", "Valid unit price is required");
+				return errorResponse(
+					"VALIDATION_ERROR",
+					"Valid unit price is required",
+				);
 			}
 
 			// Check for duplicate SKU
 			if (data.sku) {
 				const existing = await productQueries.findBySku(data.sku);
 				if (existing) {
-					return errorResponse("CONFLICT", "A product with this SKU already exists");
+					return errorResponse(
+						"CONFLICT",
+						"A product with this SKU already exists",
+					);
 				}
 			}
 
@@ -177,7 +193,10 @@ class ProductService {
 			if (data.sku) {
 				const existing = await productQueries.findBySku(data.sku);
 				if (existing && existing.id !== id) {
-					return errorResponse("CONFLICT", "A product with this SKU already exists");
+					return errorResponse(
+						"CONFLICT",
+						"A product with this SKU already exists",
+					);
 				}
 			}
 
@@ -211,7 +230,10 @@ class ProductService {
 	): Promise<ApiResponse<Product>> {
 		try {
 			if (quantity < 0) {
-				return errorResponse("VALIDATION_ERROR", "Stock quantity cannot be negative");
+				return errorResponse(
+					"VALIDATION_ERROR",
+					"Stock quantity cannot be negative",
+				);
 			}
 
 			const product = await productQueries.updateStock(id, quantity);
@@ -231,11 +253,73 @@ class ProductService {
 			return successResponse(products);
 		} catch (error) {
 			console.error("Error fetching low stock products:", error);
-			return errorResponse("SERVER_ERROR", "Failed to fetch low stock products");
+			return errorResponse(
+				"SERVER_ERROR",
+				"Failed to fetch low stock products",
+			);
+		}
+	}
+
+	/**
+	 * Get popular products sorted by usage count
+	 * Used for smart autocomplete suggestions
+	 */
+	async getPopularProducts(
+		limit = 20,
+		currency?: string,
+	): Promise<ApiResponse<Product[]>> {
+		try {
+			const products = await productQueries.getPopularProducts(limit, currency);
+			return successResponse(products);
+		} catch (error) {
+			console.error("Error fetching popular products:", error);
+			return errorResponse("SERVER_ERROR", "Failed to fetch popular products");
+		}
+	}
+
+	/**
+	 * Increment usage count when product is selected
+	 * Called when user selects a product from autocomplete
+	 */
+	async incrementUsage(id: string): Promise<ApiResponse<Product>> {
+		try {
+			const product = await productQueries.incrementUsage(id);
+			if (!product) {
+				return errorResponse("NOT_FOUND", "Product not found");
+			}
+			return successResponse(product);
+		} catch (error) {
+			console.error("Error incrementing product usage:", error);
+			return errorResponse("SERVER_ERROR", "Failed to increment product usage");
+		}
+	}
+
+	/**
+	 * Save line item as product (smart learning)
+	 * Creates a new product or updates existing based on name/currency/price
+	 * Called on blur of product name field in invoice
+	 */
+	async saveLineItemAsProduct(data: {
+		name: string;
+		price?: number | null;
+		currency?: string | null;
+		unit?: string | null;
+		productId?: string;
+	}): Promise<
+		ApiResponse<{ product: Product | null; shouldClearProductId: boolean }>
+	> {
+		try {
+			const result = await productQueries.upsertProduct(data);
+			return successResponse(result);
+		} catch (error) {
+			console.error("Error saving line item as product:", error);
+			return errorResponse(
+				"SERVER_ERROR",
+				"Failed to save line item as product",
+			);
 		}
 	}
 }
 
 export const productCategoryService = new ProductCategoryService();
 export const productsService = new ProductService();
-

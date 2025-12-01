@@ -44,6 +44,10 @@ const envSchema = z.object({
   // Legacy - kept for backwards compatibility, use CORS_ORIGINS instead
   ALLOWED_ORIGINS: z.string().optional(),
 
+  // File storage configuration
+  UPLOAD_DIR: z.string().default("./uploads"),
+  MAX_FILE_SIZE: z.coerce.number().default(5 * 1024 * 1024), // 5MB default
+
   // Optional configurations
   LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
 });
