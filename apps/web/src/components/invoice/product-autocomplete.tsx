@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils";
 import { productsApi } from "@/lib/api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+import { useRouter } from "next/navigation";
 import type { FormValues } from "./form-context";
 import { formatInvoiceAmount } from "@/utils/invoice-calculate";
 
@@ -40,6 +41,7 @@ export function ProductAutocomplete({
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
   const { setValue, watch, control } = useFormContext<FormValues>();
 
   const currentProductId = watch(`lineItems.${index}.productId`);
@@ -229,10 +231,14 @@ export function ProductAutocomplete({
     fetchProducts,
   ]);
 
-  // Reset selection when suggestions change
+  // Reset selection when filtered products change
+  const prevProductsLengthRef = useRef(filteredProducts.length);
   useEffect(() => {
-    setSelectedIndex(-1);
-  }, [filteredProducts.length]);
+    if (prevProductsLengthRef.current !== filteredProducts.length) {
+      setSelectedIndex(-1);
+      prevProductsLengthRef.current = filteredProducts.length;
+    }
+  });
 
   // Close suggestions when clicking outside
   useEffect(() => {
@@ -266,8 +272,8 @@ export function ProductAutocomplete({
                 prev === -1
                   ? 0
                   : prev < filteredProducts.length - 1
-                    ? prev + 1
-                    : 0;
+                  ? prev + 1
+                  : 0;
               return newIndex;
             });
             return;
@@ -279,8 +285,8 @@ export function ProductAutocomplete({
                 prev === -1
                   ? filteredProducts.length - 1
                   : prev > 0
-                    ? prev - 1
-                    : filteredProducts.length - 1;
+                  ? prev - 1
+                  : filteredProducts.length - 1;
               return newIndex;
             });
             return;
@@ -327,10 +333,6 @@ export function ProductAutocomplete({
         aria-expanded={showSuggestions}
         aria-haspopup="listbox"
         aria-autocomplete="list"
-        aria-controls="product-suggestions-listbox"
-        aria-activedescendant={
-          selectedIndex >= 0 ? `product-option-${selectedIndex}` : undefined
-        }
         className={cn(
           "border-0 p-0 min-h-6 border-b border-transparent focus:border-border text-xs pt-1",
           "transition-colors duration-200 bg-transparent outline-none resize-none w-full",
@@ -342,50 +344,60 @@ export function ProductAutocomplete({
       />
 
       {showSuggestions && !currentProductId && (
-        <div
-          id="product-suggestions-listbox"
-          className="absolute z-50 mt-1 bg-background border shadow-md max-h-64 overflow-y-auto right-0 left-0"
-        >
+        <div className="absolute z-50 mt-1 bg-background border shadow-md max-h-64 overflow-y-auto right-0 left-0">
           {isLoading ? (
             <div className="px-3 py-2 text-xs text-muted-foreground">
               Loading products...
             </div>
           ) : filteredProducts.length > 0 ? (
-            filteredProducts.map((product, suggestionIndex) => (
-              <div
-                key={product.id}
-                id={`product-option-${suggestionIndex}`}
-                aria-selected={selectedIndex === suggestionIndex}
-                className={cn(
-                  "w-full cursor-pointer px-3 py-2 transition-colors",
-                  selectedIndex === suggestionIndex &&
-                    "bg-accent text-accent-foreground",
-                  hoveredIndex === suggestionIndex &&
-                    "bg-accent text-accent-foreground"
-                )}
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  handleProductSelect(product);
-                }}
-                onMouseEnter={() => {
-                  setSelectedIndex(suggestionIndex);
-                  setHoveredIndex(suggestionIndex);
-                }}
-                onMouseLeave={() => setHoveredIndex(-1)}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className="flex flex-col">
-                    <div className="text-xs">{product.name}</div>
+            filteredProducts.map((product, suggestionIndex) => {
+              const isSelected = selectedIndex === suggestionIndex;
+              const isHovered = hoveredIndex === suggestionIndex;
+              return (
+                <div
+                  key={product.id}
+                  className={cn(
+                    "w-full px-3 py-2 transition-colors flex items-center justify-between",
+                    (isSelected || isHovered) &&
+                      "bg-accent text-accent-foreground"
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="flex flex-col flex-1 text-left cursor-pointer"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      handleProductSelect(product);
+                    }}
+                    onMouseEnter={() => {
+                      setSelectedIndex(suggestionIndex);
+                      setHoveredIndex(suggestionIndex);
+                    }}
+                    onMouseLeave={() => setHoveredIndex(-1)}
+                  >
+                    <span className="text-xs">{product.name}</span>
                     {product.description && (
-                      <div className="text-xs text-muted-foreground line-clamp-1">
+                      <span className="text-xs text-muted-foreground line-clamp-1">
                         {product.description}
-                      </div>
+                      </span>
                     )}
-                  </div>
+                  </button>
 
                   <div className="flex items-center gap-2">
                     {product.price !== undefined && (
-                      <div className="text-xs text-muted-foreground">
+                      <button
+                        type="button"
+                        className="text-xs text-muted-foreground cursor-pointer"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          handleProductSelect(product);
+                        }}
+                        onMouseEnter={() => {
+                          setSelectedIndex(suggestionIndex);
+                          setHoveredIndex(suggestionIndex);
+                        }}
+                        onMouseLeave={() => setHoveredIndex(-1)}
+                      >
                         {formatInvoiceAmount({
                           amount: product.price,
                           currency: product.currency || currency || "EUR",
@@ -393,12 +405,40 @@ export function ProductAutocomplete({
                           maximumFractionDigits,
                         })}
                         {product.unit && `/${product.unit}`}
-                      </div>
+                      </button>
                     )}
+                    <div
+                      className={cn(
+                        "flex justify-end transition-all duration-150 ease-out overflow-hidden",
+                        isHovered ? "w-8" : "w-0"
+                      )}
+                    >
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          router.push(`/dashboard/products/${product.id}/edit`);
+                          setShowSuggestions(false);
+                        }}
+                        onMouseEnter={() => {
+                          setSelectedIndex(suggestionIndex);
+                          setHoveredIndex(suggestionIndex);
+                        }}
+                        className={cn(
+                          "text-xs px-1 transition-all duration-150 ease-out",
+                          isHovered
+                            ? "opacity-50 hover:opacity-100"
+                            : "opacity-0 pointer-events-none"
+                        )}
+                      >
+                        Edit
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           ) : value.trim().length >= 2 ? (
             <div className="px-3 py-2 text-xs text-muted-foreground">
               No products found - will be created on save

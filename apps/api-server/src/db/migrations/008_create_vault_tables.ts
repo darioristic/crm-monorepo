@@ -14,6 +14,9 @@ export const name = "008_create_vault_tables";
 export async function up(): Promise<void> {
 	console.log(`⬆️  Running ${name}...`);
 
+	// Enable pg_trgm extension for trigram search
+	await db`CREATE EXTENSION IF NOT EXISTS pg_trgm`;
+
 	// Create processing status enum
 	await db`
     DO $$ BEGIN

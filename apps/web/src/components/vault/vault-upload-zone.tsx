@@ -33,7 +33,6 @@ export function VaultUploadZone({ onUpload, children }: Props) {
 
     // Set default progress
     uploadProgress.current = files.map(() => 0);
-    setShowProgress(true);
     startUpload(files.length);
 
     toast({

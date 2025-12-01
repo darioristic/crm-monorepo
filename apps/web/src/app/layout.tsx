@@ -3,6 +3,7 @@ import { fontVariables } from "@/lib/fonts";
 import { ThemeProvider } from "next-themes";
 import { ActiveThemeProvider } from "@/components/shared/active-theme";
 import { AuthProvider } from "@/contexts/auth-context";
+import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 import "./globals.css";
@@ -27,12 +28,14 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <ActiveThemeProvider>
-            <AuthProvider>
-              <NuqsAdapter>
-                {children}
-              </NuqsAdapter>
-              <Toaster />
-            </AuthProvider>
+            <QueryProvider>
+              <AuthProvider>
+                <NuqsAdapter>
+                  {children}
+                </NuqsAdapter>
+                <Toaster />
+              </AuthProvider>
+            </QueryProvider>
           </ActiveThemeProvider>
         </ThemeProvider>
       </body>
