@@ -73,7 +73,9 @@ export function InvoicePreview({
 
   return (
     <div
-      className={`bg-white text-black font-['Inter',sans-serif] ${className || ""}`}
+      className={`bg-white text-black font-['Inter',sans-serif] ${
+        className || ""
+      }`}
       style={{
         width: "210mm",
         minHeight: "297mm",
@@ -134,7 +136,7 @@ export function InvoicePreview({
             {config.customerLabel}
           </p>
           <div className="text-sm leading-relaxed">
-            <p className="font-medium">{invoice.customer?.name || invoice.customerName || "Customer"}</p>
+            <p className="font-medium">Customer</p>
           </div>
         </div>
       </div>
@@ -178,9 +180,7 @@ export function InvoicePreview({
             </div>
             {config.includeDiscount && (
               <div className="text-right">
-                {Number(item.discount) > 0
-                  ? `${Number(item.discount)}%`
-                  : "-"}
+                {Number(item.discount) > 0 ? `${Number(item.discount)}%` : "-"}
               </div>
             )}
             <div className="text-right font-medium">
@@ -300,4 +300,3 @@ export function InvoicePreview({
 }
 
 export default InvoicePreview;
-

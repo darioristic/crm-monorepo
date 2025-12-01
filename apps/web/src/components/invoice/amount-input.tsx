@@ -23,11 +23,12 @@ export function AmountInput<T extends FieldValues>({ name, className }: Props<T>
   const isPlaceholder = !value && !isFocused;
 
   return (
-    <div className="relative">
+    <div className="relative font-mono">
       <NumericFormat
         autoComplete="off"
         value={value}
         onValueChange={(values) => {
+          // Preserve the exact floatValue, including 0 and decimals like 1.20
           onChange(
             values.floatValue !== undefined && values.floatValue !== null
               ? values.floatValue
@@ -41,7 +42,7 @@ export function AmountInput<T extends FieldValues>({ name, className }: Props<T>
         }}
         placeholder="0"
         className={cn(
-          "p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs",
+          "p-0 border-0 h-6 !bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs",
           className,
           isPlaceholder && "opacity-0"
         )}

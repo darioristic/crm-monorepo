@@ -170,11 +170,14 @@ export function ProductAutocomplete({
     setIsFocused(true);
     setSelectedIndex(-1);
 
+    // Refetch products on focus to get latest data (including newly saved products)
+    fetchProducts();
+
     // Only show suggestions if no product is selected
     if (!currentProductId) {
       setShowSuggestions(true);
     }
-  }, [currentProductId]);
+  }, [currentProductId, fetchProducts]);
 
   /**
    * Save line item as product on blur (smart learning like midday)
@@ -431,7 +434,7 @@ export function ProductAutocomplete({
                           openProductEdit(product.id);
                           setShowSuggestions(false);
                         }}
-                        className="text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors"
+                        className="text-xs px-1 opacity-50 hover:opacity-100 transition-opacity"
                       >
                         Edit
                       </button>
