@@ -1,9 +1,8 @@
 "use client";
 
-import {
-  formatInvoiceAmount,
-  calculateLineItemTotal,
-} from "@/utils/invoice-calculate";
+import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { formatInvoiceAmount, calculateLineItemTotal } from "@/utils/invoice-calculate";
 import { Button } from "@/components/ui/button";
 import { Plus, GripVertical, X } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
@@ -15,301 +14,266 @@ import { AmountInput } from "./amount-input";
 import { QuantityInput } from "./quantity-input";
 
 export function LineItems() {
-  const { control } = useFormContext<FormValues>();
-  const currency = useWatch({ control, name: "template.currency" });
-  const locale = useWatch({ control, name: "template.locale" });
+	const { control } = useFormContext<FormValues>();
+	const currency = useWatch({ control, name: "template.currency" });
+	const locale = useWatch({ control, name: "template.locale" });
 
-  const includeDecimals = useWatch({
-    control,
-    name: "template.includeDecimals",
-  });
+	const includeDecimals = useWatch({
+		control,
+		name: "template.includeDecimals",
+	});
 
-  const includeUnits = useWatch({
-    control,
-    name: "template.includeUnits",
-  });
+	const includeUnits = useWatch({
+		control,
+		name: "template.includeUnits",
+	});
 
-  const includeDiscount = useWatch({
-    control,
-    name: "template.includeDiscount",
-  });
+	const maximumFractionDigits = includeDecimals ? 2 : 0;
 
-  const includeVat = useWatch({
-    control,
-    name: "template.includeVat",
-  });
+	const { fields, append, remove, swap } = useFieldArray({
+		control,
+		name: "lineItems",
+	});
 
-  const maximumFractionDigits = includeDecimals ? 2 : 0;
+	const reorderList = (newFields: typeof fields) => {
+		const firstDiffIndex = fields.findIndex(
+			(field, index) => field.id !== newFields[index]?.id
+		);
 
-  const { fields, append, remove, swap } = useFieldArray({
-    control,
-    name: "lineItems",
-  });
+		if (firstDiffIndex !== -1) {
+			const newIndex = newFields.findIndex(
+				(field) => field.id === fields[firstDiffIndex]?.id
+			);
 
-  const reorderList = (newFields: typeof fields) => {
-    const firstDiffIndex = fields.findIndex(
-      (field, index) => field.id !== newFields[index]?.id
-    );
+			if (newIndex !== -1) {
+				swap(firstDiffIndex, newIndex);
+			}
+		}
+	};
 
-    if (firstDiffIndex !== -1) {
-      const newIndex = newFields.findIndex(
-        (field) => field.id === fields[firstDiffIndex]?.id
-      );
+	const handleRemove = (index: number) => {
+		if (fields.length > 1) {
+			remove(index);
+		}
+	};
 
-      if (newIndex !== -1) {
-        swap(firstDiffIndex, newIndex);
-      }
-    }
-  };
+	return (
+		<div className="space-y-4">
+			{/* Header - Exact layout from midday-main */}
+			<div
+				className={`grid ${includeUnits ? "grid-cols-[1.5fr_15%_25%_15%]" : "grid-cols-[1.5fr_15%_15%_15%]"} gap-4 items-end mb-2`}
+			>
+				<LabelInput
+					name="template.descriptionLabel"
+					className="truncate"
+				/>
 
-  const handleRemove = (index: number) => {
-    if (fields.length > 1) {
-      remove(index);
-    }
-  };
+				<LabelInput
+					name="template.quantityLabel"
+					className="truncate"
+				/>
 
-  // Dynamic grid columns based on settings
-  const getGridStyle = () => {
-    let cols = "30px 1fr 55px"; // #, Description, Qty
-    if (includeUnits) cols += " 50px"; // Unit
-    cols += " 80px"; // Price
-    if (includeDiscount) cols += " 55px"; // Disc %
-    if (includeVat) cols += " 55px"; // VAT %
-    cols += " 90px"; // Amount
-    return { gridTemplateColumns: cols };
-  };
+				<LabelInput
+					name="template.priceLabel"
+					className="truncate"
+				/>
 
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div
-        className="grid gap-2 items-end mb-2 text-[11px] text-[#878787]"
-        style={getGridStyle()}
-      >
-        <span>#</span>
-        <LabelInput name="template.descriptionLabel" className="truncate" />
-        <LabelInput
-          name="template.quantityLabel"
-          className="truncate text-center"
-        />
-        {includeUnits && <span className="text-center">Unit</span>}
-        <LabelInput
-          name="template.priceLabel"
-          className="truncate text-center"
-        />
-        {includeDiscount && <span className="text-center">Disc %</span>}
-        {includeVat && <span className="text-center">VAT %</span>}
-        <LabelInput
-          name="template.totalLabel"
-          className="text-right truncate"
-        />
-      </div>
+				<LabelInput
+					name="template.totalLabel"
+					className="text-right truncate"
+				/>
+			</div>
 
-      <Reorder.Group
-        axis="y"
-        values={fields}
-        onReorder={reorderList}
-        className="!m-0"
-      >
-        {fields.map((field, index) => (
-          <LineItemRow
-            key={field.id}
-            item={field}
-            index={index}
-            handleRemove={handleRemove}
-            isReorderable={fields.length > 1}
-            currency={currency || "EUR"}
-            maximumFractionDigits={maximumFractionDigits}
-            includeUnits={includeUnits}
-            includeDiscount={includeDiscount}
-            includeVat={includeVat}
-            locale={locale || "sr-RS"}
-            gridStyle={getGridStyle()}
-          />
-        ))}
-      </Reorder.Group>
+			<Reorder.Group
+				axis="y"
+				values={fields}
+				onReorder={reorderList}
+				className="!m-0"
+				transition={{ duration: 0 }}
+			>
+				{fields.map((field, index) => (
+					<LineItemRow
+						key={field.id}
+						item={field}
+						index={index}
+						handleRemove={handleRemove}
+						isReorderable={fields.length > 1}
+						currency={currency || "EUR"}
+						maximumFractionDigits={maximumFractionDigits}
+						includeUnits={includeUnits}
+						locale={locale || "sr-RS"}
+					/>
+				))}
+			</Reorder.Group>
 
-      <button
-        type="button"
-        onClick={() =>
-          append({
-            name: "",
-            quantity: 0,
-            price: 0,
-            unit: "pcs",
-            discount: 0,
-            vat: 20,
-          })
-        }
-        className="flex items-center space-x-2 text-[11px] text-[#878787] hover:text-foreground transition-colors"
-      >
-        <Plus className="size-4" />
-        <span>Add item</span>
-      </button>
-    </div>
-  );
+			<button
+				type="button"
+				onClick={() =>
+					append({
+						name: "",
+						quantity: 0,
+						price: 0,
+						unit: "pcs",
+						discount: 0,
+						vat: 20,
+					})
+				}
+				className="flex items-center space-x-2 text-xs text-[#878787] font-mono"
+			>
+				<Plus className="size-4" />
+				<span className="text-[11px]">Add item</span>
+			</button>
+		</div>
+	);
 }
 
 function LineItemRow({
-  index,
-  handleRemove,
-  isReorderable,
-  item,
-  currency,
-  maximumFractionDigits,
-  includeUnits,
-  includeDiscount,
-  includeVat,
-  locale,
-  gridStyle,
+	index,
+	handleRemove,
+	isReorderable,
+	item,
+	currency,
+	maximumFractionDigits,
+	includeUnits,
+	locale,
 }: {
-  index: number;
-  handleRemove: (index: number) => void;
-  isReorderable: boolean;
-  item: any;
-  currency: string;
-  maximumFractionDigits: number;
-  includeUnits?: boolean;
-  includeDiscount?: boolean;
-  includeVat?: boolean;
-  locale: string;
-  gridStyle: React.CSSProperties;
+	index: number;
+	handleRemove: (index: number) => void;
+	isReorderable: boolean;
+	item: FormValues["lineItems"][number];
+	currency: string;
+	maximumFractionDigits: number;
+	includeUnits?: boolean;
+	locale: string;
 }) {
-  const controls = useDragControls();
-  const { control, watch, setValue, register } = useFormContext<FormValues>();
+	const controls = useDragControls();
+	const { control, watch, setValue } = useFormContext<FormValues>();
 
-  const price = useWatch({
-    control,
-    name: `lineItems.${index}.price`,
-  });
+	const price = useWatch({
+		control,
+		name: `lineItems.${index}.price`,
+	});
 
-  const quantity = useWatch({
-    control,
-    name: `lineItems.${index}.quantity`,
-  });
+	const quantity = useWatch({
+		control,
+		name: `lineItems.${index}.quantity`,
+	});
 
-  const discount =
-    useWatch({
-      control,
-      name: `lineItems.${index}.discount`,
-    }) || 0;
+	const lineItemName = watch(`lineItems.${index}.name`);
 
-  // VAT is handled via input field, watched for future calculations if needed
-  useWatch({ control, name: `lineItems.${index}.vat` });
+	return (
+		<Reorder.Item
+			className={`grid ${includeUnits ? "grid-cols-[1.5fr_15%_25%_15%]" : "grid-cols-[1.5fr_15%_15%_15%]"} gap-4 items-start relative group mb-2 w-full`}
+			value={item}
+			dragListener={false}
+			dragControls={controls}
+			transition={{ duration: 0 }}
+			onKeyDown={(e: React.KeyboardEvent<HTMLLIElement>) => {
+				if (
+					e.key === "ArrowDown" ||
+					e.key === "ArrowUp" ||
+					e.key === "Enter" ||
+					e.key === "Escape"
+				) {
+					e.stopPropagation();
+				}
+			}}
+		>
+			{isReorderable && (
+				<Button
+					type="button"
+					className="absolute -left-9 -top-[4px] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent cursor-grab"
+					onPointerDown={(e) => controls.start(e)}
+					variant="ghost"
+				>
+					<GripVertical className="size-4 text-[#878787]" />
+				</Button>
+			)}
 
-  const lineItemName = watch(`lineItems.${index}.name`);
+			{/* Description - ProductAutocomplete */}
+			<ProductAutocomplete
+				index={index}
+				value={lineItemName || ""}
+				onChange={(value: string) => {
+					setValue(`lineItems.${index}.name`, value, {
+						shouldValidate: true,
+						shouldDirty: true,
+					});
+				}}
+			/>
 
-  // Calculate amount with discount
-  const baseAmount = calculateLineItemTotal({ price, quantity });
-  const discountAmount = includeDiscount ? baseAmount * (discount / 100) : 0;
-  const finalAmount = baseAmount - discountAmount;
+			{/* Quantity */}
+			<QuantityInput name={`lineItems.${index}.quantity`} />
 
-  return (
-    <Reorder.Item
-      className="grid gap-2 items-center relative group mb-2 w-full"
-      style={gridStyle}
-      value={item}
-      dragListener={false}
-      dragControls={controls}
-      onKeyDown={(e: React.KeyboardEvent<HTMLLIElement>) => {
-        if (
-          e.key === "ArrowDown" ||
-          e.key === "ArrowUp" ||
-          e.key === "Enter" ||
-          e.key === "Escape"
-        ) {
-          e.stopPropagation();
-        }
-      }}
-    >
-      {isReorderable && (
-        <Button
-          type="button"
-          className="absolute -left-7 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent cursor-grab"
-          onPointerDown={(e) => controls.start(e)}
-          variant="ghost"
-          size="icon"
-        >
-          <GripVertical className="size-4 text-[#878787]" />
-        </Button>
-      )}
+			{/* Price + Unit */}
+			<div className="flex items-center gap-2">
+				<AmountInput
+					name={`lineItems.${index}.price`}
+					lineItemIndex={index}
+				/>
+				{includeUnits && <span className="text-xs text-[#878787]">/</span>}
+				{includeUnits && (
+					<UnitInput
+						name={`lineItems.${index}.unit`}
+					/>
+				)}
+			</div>
 
-      {/* # Row number */}
-      <span className="text-[#878787] text-xs">{index + 1}</span>
+			{/* Total */}
+			<div className="text-right">
+				<span className="text-xs text-primary font-mono">
+					{formatInvoiceAmount({
+						amount: calculateLineItemTotal({ price, quantity }),
+						currency,
+						locale,
+						maximumFractionDigits,
+					})}
+				</span>
+			</div>
 
-      {/* Description */}
-      <ProductAutocomplete
-        index={index}
-        value={lineItemName || ""}
-        onChange={(value: string) => {
-          setValue(`lineItems.${index}.name`, value, {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
-        }}
-      />
+			{index !== 0 && (
+				<Button
+					type="button"
+					onClick={() => handleRemove(index)}
+					className="absolute -right-9 -top-[4px] opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent text-[#878787]"
+					variant="ghost"
+				>
+					<X className="size-4" />
+				</Button>
+			)}
+		</Reorder.Item>
+	);
+}
 
-      {/* Qty */}
-      <QuantityInput
-        name={`lineItems.${index}.quantity`}
-        className="text-center"
-      />
+// Unit Input with striped placeholder (like midday-main)
+function UnitInput({
+	name,
+}: {
+	name: `lineItems.${number}.unit`;
+}) {
+	const { register, watch } = useFormContext<FormValues>();
+	const [isFocused, setIsFocused] = useState(false);
+	const value = watch(name);
 
-      {/* Unit */}
-      {includeUnits && (
-        <input
-          {...register(`lineItems.${index}.unit`)}
-          placeholder="pcs"
-          className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs"
-        />
-      )}
+	const isPlaceholder = !value && !isFocused;
 
-      {/* Price */}
-      <AmountInput name={`lineItems.${index}.price`} />
-
-      {/* Disc % */}
-      {includeDiscount && (
-        <input
-          type="number"
-          {...register(`lineItems.${index}.discount`, { valueAsNumber: true })}
-          placeholder="0"
-          className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
-      )}
-
-      {/* VAT % */}
-      {includeVat && (
-        <input
-          type="number"
-          {...register(`lineItems.${index}.vat`, { valueAsNumber: true })}
-          placeholder="20"
-          className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
-      )}
-
-      {/* Amount */}
-      <div className="text-right">
-        <span className="text-primary text-xs">
-          {formatInvoiceAmount({
-            amount: finalAmount,
-            currency,
-            locale,
-            maximumFractionDigits,
-          })}
-        </span>
-      </div>
-
-      {index !== 0 && (
-        <Button
-          type="button"
-          onClick={() => handleRemove(index)}
-          className="absolute -right-7 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-transparent text-[#878787]"
-          variant="ghost"
-          size="icon"
-        >
-          <X className="size-4" />
-        </Button>
-      )}
-    </Reorder.Item>
-  );
+	return (
+		<div className="relative w-12">
+			<input
+				{...register(name)}
+				onFocus={() => setIsFocused(true)}
+				onBlur={() => setIsFocused(false)}
+				placeholder="pcs"
+				className={cn(
+					"p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none w-full text-xs font-mono",
+					isPlaceholder && "opacity-0"
+				)}
+			/>
+			{isPlaceholder && (
+				<div className="absolute inset-0 pointer-events-none">
+					<div className="h-full w-full bg-[repeating-linear-gradient(-60deg,#DBDBDB,#DBDBDB_1px,transparent_1px,transparent_5px)] dark:bg-[repeating-linear-gradient(-60deg,#2C2C2C,#2C2C2C_1px,transparent_1px,transparent_5px)]" />
+				</div>
+			)}
+		</div>
+	);
 }

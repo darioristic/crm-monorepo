@@ -653,4 +653,167 @@ export const paymentsApi = {
 		}),
 };
 
+// ============================================
+// Documents API (Vault)
+// ============================================
+
+export type DocumentMetadata = {
+	size?: number;
+	mimetype?: string;
+	originalName?: string;
+	[key: string]: unknown;
+};
+
+export type DocumentProcessingStatus = "pending" | "processing" | "completed" | "failed";
+
+export type Document = {
+	id: string;
+	name: string | null;
+	title: string | null;
+	summary: string | null;
+	pathTokens: string[];
+	metadata: DocumentMetadata;
+	processingStatus: DocumentProcessingStatus;
+	companyId: string;
+	ownerId: string | null;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type DocumentTag = {
+	id: string;
+	name: string;
+	slug: string;
+	companyId: string;
+	createdAt: string;
+};
+
+export type DocumentWithTags = Document & {
+	documentTagAssignments?: Array<{
+		documentTag: DocumentTag;
+	}>;
+};
+
+export type DocumentsListResult = {
+	data: DocumentWithTags[];
+	meta: {
+		cursor: string | undefined;
+		hasPreviousPage: boolean;
+		hasNextPage: boolean;
+	};
+};
+
+export type DocumentsFilterParams = {
+	q?: string;
+	tags?: string[];
+	start?: string;
+	end?: string;
+	cursor?: string;
+	pageSize?: number;
+};
+
+export const documentsApi = {
+	getAll: (params: DocumentsFilterParams = {}) => {
+		const queryParams = new URLSearchParams();
+		if (params.q) queryParams.append("q", params.q);
+		if (params.tags) {
+			for (const tag of params.tags) {
+				queryParams.append("tags", tag);
+			}
+		}
+		if (params.start) queryParams.append("start", params.start);
+		if (params.end) queryParams.append("end", params.end);
+		if (params.cursor) queryParams.append("cursor", params.cursor);
+		if (params.pageSize) queryParams.append("pageSize", params.pageSize.toString());
+		const query = queryParams.toString();
+		return request<DocumentsListResult>(`/api/v1/documents${query ? `?${query}` : ""}`);
+	},
+
+	getById: (id: string) => request<DocumentWithTags>(`/api/v1/documents/${id}`),
+
+	getRecent: (limit: number = 5) =>
+		request<Document[]>(`/api/v1/documents/recent?limit=${limit}`),
+
+	getCount: () => request<{ count: number }>(`/api/v1/documents/count`),
+
+	upload: async (files: File[]) => {
+		const formData = new FormData();
+		for (const file of files) {
+			formData.append("files", file);
+		}
+
+		const url = `${typeof window === "undefined" ? (process.env.API_URL || "http://localhost:3001") : ""}/api/v1/documents/upload`;
+
+		const response = await fetch(url, {
+			method: "POST",
+			credentials: "include",
+			body: formData,
+		});
+
+		return response.json() as Promise<ApiResponse<Document[]>>;
+	},
+
+	process: (
+		documents: Array<{ filePath: string[]; mimetype: string; size: number }>,
+	) =>
+		request<void>("/api/v1/documents/process", {
+			method: "POST",
+			body: JSON.stringify(documents),
+		}),
+
+	update: (id: string, data: { title?: string; summary?: string }) =>
+		request<Document>(`/api/v1/documents/${id}`, {
+			method: "PATCH",
+			body: JSON.stringify(data),
+		}),
+
+	delete: (id: string) =>
+		request<{ id: string }>(`/api/v1/documents/${id}`, {
+			method: "DELETE",
+		}),
+
+	getDownloadUrl: (pathTokens: string[]) =>
+		`/api/v1/documents/download/${pathTokens.join("/")}`,
+
+	getSignedUrl: (filePath: string, expireIn?: number) =>
+		request<{ signedUrl: string }>("/api/v1/documents/signed-url", {
+			method: "POST",
+			body: JSON.stringify({ filePath, expireIn }),
+		}),
+};
+
+// Document Tags API
+export const documentTagsApi = {
+	getAll: () => request<DocumentTag[]>("/api/v1/document-tags"),
+
+	create: (data: { name: string }) =>
+		request<DocumentTag>("/api/v1/document-tags", {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
+	delete: (id: string) =>
+		request<{ id: string }>(`/api/v1/document-tags/${id}`, {
+			method: "DELETE",
+		}),
+};
+
+// Document Tag Assignments API
+export const documentTagAssignmentsApi = {
+	assign: (data: { documentId: string; tagId: string }) =>
+		request<{ documentId: string; tagId: string }>(
+			"/api/v1/document-tag-assignments",
+			{
+				method: "POST",
+				body: JSON.stringify(data),
+			},
+		),
+
+	remove: (data: { documentId: string; tagId: string }) =>
+		request<{ success: boolean }>("/api/v1/document-tag-assignments", {
+			method: "DELETE",
+			body: JSON.stringify(data),
+		}),
+};
+
 export { request, buildQueryString };

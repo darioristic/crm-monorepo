@@ -18,6 +18,7 @@ import { productRoutes } from "./products-routes";
 import { notificationRoutes } from "./notifications-routes";
 import { paymentRoutes } from "./payments-routes";
 import { reportRoutes } from "./reports";
+import { documentRoutes } from "./documents";
 
 // Auth routes
 import {
@@ -78,6 +79,9 @@ const routes: Route[] = [
 
   // Reports
   ...reportRoutes,
+
+  // Documents (Vault)
+  ...documentRoutes,
 ];
 
 // ============================================

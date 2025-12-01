@@ -30,7 +30,6 @@ export function HtmlTemplate({ data, width, height, disableScroll = false }: Pro
     paymentDetails,
     noteDetails,
     currency,
-    discount,
     customerName,
     topBlock,
     bottomBlock,
@@ -102,7 +101,6 @@ export function HtmlTemplate({ data, width, height, disableScroll = false }: Pro
             lineItems={lineItems}
             includeDiscount={template.includeDiscount}
             discountLabel={template.discountLabel}
-            discount={discount}
             locale={template.locale}
             includeDecimals={template.includeDecimals}
             subtotalLabel={template.subtotalLabel}

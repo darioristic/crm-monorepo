@@ -696,3 +696,13 @@ export { notificationQueries } from "./notifications";
 // ============================================
 
 export { paymentQueries } from "./payments";
+
+// ============================================
+// Re-export Document/Vault Queries
+// ============================================
+
+export {
+	documentQueries,
+	documentTagQueries,
+	documentTagAssignmentQueries,
+} from "./documents";
