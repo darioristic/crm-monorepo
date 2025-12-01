@@ -3,7 +3,7 @@
 import { cn } from "@/lib/utils";
 import { productsApi } from "@/lib/api";
 import { NumericFormat } from "react-number-format";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   useController,
   useFormContext,
@@ -12,6 +12,10 @@ import {
   type FieldValues,
 } from "react-hook-form";
 import type { FormValues } from "./form-context";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+// Same query key as ProductAutocomplete
+const PRODUCTS_QUERY_KEY = ["invoice-products"];
 
 type Props<T extends FieldValues> = {
   name: FieldPath<T>;
@@ -25,8 +29,8 @@ export function ProductAwareAmountInput<T extends FieldValues>({
   className,
 }: Props<T>) {
   const [isFocused, setIsFocused] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const { control, watch } = useFormContext<FormValues>();
+  const queryClient = useQueryClient();
 
   const {
     field: { value, onChange, onBlur },
@@ -41,37 +45,43 @@ export function ProductAwareAmountInput<T extends FieldValues>({
   const currentProductId = watch(`lineItems.${lineItemIndex}.productId`);
   const currency = useWatch({ control, name: "template.currency" });
 
-  /**
-   * Save line item as product on blur (when price changes)
-   * Only saves if we have a productId (meaning this line item references an existing product)
-   */
-  const handleAmountBlur = useCallback(async () => {
+  // Mutation for saving product with React Query
+  const saveProductMutation = useMutation({
+    mutationFn: async (data: {
+      name: string;
+      price?: number | null;
+      unit?: string | null;
+      productId?: string;
+      currency?: string | null;
+    }) => {
+      return productsApi.saveLineItemAsProduct(data);
+    },
+    onSuccess: () => {
+      // Invalidate products query to refresh ALL ProductAutocomplete instances
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+    },
+  });
+
+  const handleAmountBlur = () => {
     setIsFocused(false);
     onBlur();
 
     // Only save if we have a productId and a valid name
     if (currentProductId && lineItemName && lineItemName.trim().length > 0) {
-      setIsSaving(true);
-      try {
-        await productsApi.saveLineItemAsProduct({
-          name: lineItemName.trim(),
-          price: value !== undefined ? value : null,
-          unit: currentUnit || null,
-          productId: currentProductId,
-          currency: currency || null,
-        });
-      } catch (error) {
-        console.error("Failed to update product price:", error);
-      } finally {
-        setIsSaving(false);
-      }
+      saveProductMutation.mutate({
+        name: lineItemName.trim(),
+        price: value !== undefined ? value : null,
+        unit: currentUnit || null,
+        productId: currentProductId,
+        currency: currency || null,
+      });
     }
-  }, [currentProductId, lineItemName, value, currentUnit, currency, onBlur]);
+  };
 
   const isPlaceholder = !value && !isFocused;
 
   return (
-    <div className="relative">
+    <div className="relative font-mono">
       <NumericFormat
         autoComplete="off"
         value={value}
@@ -86,7 +96,7 @@ export function ProductAwareAmountInput<T extends FieldValues>({
         onBlur={handleAmountBlur}
         placeholder="0"
         className={cn(
-          "p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs",
+          "p-0 border-0 h-6 !bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs",
           className,
           isPlaceholder && "opacity-0"
         )}
@@ -102,4 +112,3 @@ export function ProductAwareAmountInput<T extends FieldValues>({
     </div>
   );
 }
-

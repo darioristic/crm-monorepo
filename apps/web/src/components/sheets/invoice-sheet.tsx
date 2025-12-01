@@ -49,10 +49,10 @@ export function InvoiceSheet({
         items: values.lineItems.map((item) => ({
           productName: item.name,
           description: "",
-          quantity: item.quantity,
-          unitPrice: item.price,
+          quantity: item.quantity ?? 1,
+          unitPrice: item.price ?? 0,
           discount: 0,
-          total: item.price * item.quantity,
+          total: (item.price ?? 0) * (item.quantity ?? 1),
         })),
         createdBy: "current-user",
       };

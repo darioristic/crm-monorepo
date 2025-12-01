@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { productsApi } from "@/lib/api";
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import {
   useFormContext,
   useWatch,
@@ -10,6 +10,10 @@ import {
   type FieldValues,
 } from "react-hook-form";
 import type { FormValues } from "./form-context";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+
+// Same query key as ProductAutocomplete
+const PRODUCTS_QUERY_KEY = ["invoice-products"];
 
 type Props<T extends FieldValues> = {
   name: FieldPath<T>;
@@ -25,8 +29,8 @@ export function ProductAwareUnitInput<T extends FieldValues>({
   placeholder = "pcs",
 }: Props<T>) {
   const [isFocused, setIsFocused] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const { control, watch, register } = useFormContext<FormValues>();
+  const queryClient = useQueryClient();
 
   // Get current line item data for saving product
   const lineItemName = watch(`lineItems.${lineItemIndex}.name`);
@@ -37,31 +41,38 @@ export function ProductAwareUnitInput<T extends FieldValues>({
 
   const { ref, ...registerProps } = register(name as any);
 
-  /**
-   * Save line item as product on blur (when unit changes)
-   * Only saves if we have a productId (meaning this line item references an existing product)
-   */
-  const handleUnitBlur = useCallback(async () => {
+  // Mutation for saving product with React Query
+  const saveProductMutation = useMutation({
+    mutationFn: async (data: {
+      name: string;
+      price?: number | null;
+      unit?: string | null;
+      productId?: string;
+      currency?: string | null;
+    }) => {
+      return productsApi.saveLineItemAsProduct(data);
+    },
+    onSuccess: () => {
+      // Invalidate products query to refresh ALL ProductAutocomplete instances
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+    },
+  });
+
+  const handleUnitBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     setIsFocused(false);
+    registerProps.onBlur(e);
 
     // Only save if we have a productId and a valid name
     if (currentProductId && lineItemName && lineItemName.trim().length > 0) {
-      setIsSaving(true);
-      try {
-        await productsApi.saveLineItemAsProduct({
-          name: lineItemName.trim(),
-          price: currentPrice !== undefined ? currentPrice : null,
-          unit: currentUnit || null,
-          productId: currentProductId,
-          currency: currency || null,
-        });
-      } catch (error) {
-        console.error("Failed to update product unit:", error);
-      } finally {
-        setIsSaving(false);
-      }
+      saveProductMutation.mutate({
+        name: lineItemName.trim(),
+        price: currentPrice !== undefined ? currentPrice : null,
+        unit: currentUnit || null,
+        productId: currentProductId,
+        currency: currency || null,
+      });
     }
-  }, [currentProductId, lineItemName, currentPrice, currentUnit, currency]);
+  };
 
   const isPlaceholder = !currentUnit && !isFocused;
 
@@ -72,10 +83,7 @@ export function ProductAwareUnitInput<T extends FieldValues>({
         ref={ref}
         placeholder={placeholder}
         onFocus={() => setIsFocused(true)}
-        onBlur={(e) => {
-          registerProps.onBlur(e);
-          handleUnitBlur();
-        }}
+        onBlur={handleUnitBlur}
         className={cn(
           "p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs",
           className,
@@ -91,4 +99,3 @@ export function ProductAwareUnitInput<T extends FieldValues>({
     </div>
   );
 }
-

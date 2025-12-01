@@ -7,6 +7,7 @@ import { useFormContext, useWatch } from "react-hook-form";
 import type { FormValues } from "./form-context";
 import { formatInvoiceAmount } from "@/utils/invoice-calculate";
 import { useProductEdit } from "./product-edit-context";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 type Product = {
   id: string;
@@ -25,6 +26,9 @@ type Props = {
   disabled?: boolean;
 };
 
+// Query key for products - shared across all ProductAutocomplete instances
+const PRODUCTS_QUERY_KEY = ["invoice-products"];
+
 export function ProductAutocomplete({
   index,
   value,
@@ -36,13 +40,11 @@ export function ProductAutocomplete({
   const [isFocused, setIsFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [hoveredIndex, setHoveredIndex] = useState(-1);
-  const [, setIsSaving] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const { openProductEdit, setOnProductUpdated } = useProductEdit();
   const { setValue, watch, control } = useFormContext<FormValues>();
+  const queryClient = useQueryClient();
 
   const currentProductId = watch(`lineItems.${index}.productId`);
   const currentPrice = watch(`lineItems.${index}.price`);
@@ -55,20 +57,13 @@ export function ProductAutocomplete({
   });
   const maximumFractionDigits = includeDecimals ? 2 : 0;
 
-  // Fetch products when component mounts or currency changes
-  // Don't filter by currency to show all products
-  const fetchProducts = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      // Fetch without currency filter to show all products
-      const response = await productsApi.getPopular({
-        limit: 100,
-      });
-
-      console.log("Fetched products:", response);
-
+  // Fetch products using React Query - shared across ALL ProductAutocomplete instances
+  const { data: products = [], isLoading } = useQuery({
+    queryKey: PRODUCTS_QUERY_KEY,
+    queryFn: async () => {
+      const response = await productsApi.getPopular({ limit: 100 });
       if (response.success && response.data) {
-        const transformedProducts: Product[] = response.data.map((p) => ({
+        return response.data.map((p) => ({
           id: p.id,
           name: p.name,
           price:
@@ -78,37 +73,71 @@ export function ProductAutocomplete({
           unit: p.unit ?? undefined,
           currency: p.currency || currency || "EUR",
           description: p.description ?? undefined,
-        }));
-        setProducts(transformedProducts);
-      } else {
-        console.error("Failed to fetch products:", response.error);
+        })) as Product[];
       }
-    } catch (error) {
-      console.error("Failed to fetch products:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [currency]);
+      return [];
+    },
+    staleTime: 30000, // 30 seconds - shorter to get fresher data
+    refetchOnWindowFocus: true,
+  });
 
-  // Fetch products on mount and when currency changes
-  useEffect(() => {
-    fetchProducts();
-  }, [fetchProducts]);
+  // Mutation for saving line item as product
+  const saveProductMutation = useMutation({
+    mutationFn: async (data: {
+      name: string;
+      price?: number | null;
+      unit?: string | null;
+      productId?: string;
+      currency?: string | null;
+    }) => {
+      return productsApi.saveLineItemAsProduct(data);
+    },
+    onSuccess: (response) => {
+      if (response.success && response.data) {
+        const { product, shouldClearProductId } = response.data;
 
-  // Filter products based on input - show more products for better UX
+        if (shouldClearProductId) {
+          setValue(`lineItems.${index}.productId`, undefined, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        } else if (product && !currentProductId) {
+          setValue(`lineItems.${index}.productId`, product.id, {
+            shouldValidate: true,
+            shouldDirty: true,
+          });
+        }
+
+        // Invalidate products query to refresh ALL ProductAutocomplete instances
+        queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+      }
+    },
+  });
+
+  // Mutation for incrementing usage count
+  const incrementUsageMutation = useMutation({
+    mutationFn: async (productId: string) => {
+      return productsApi.incrementUsage(productId);
+    },
+    onSuccess: () => {
+      // Invalidate products query to get fresh usage counts
+      queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+    },
+  });
+
+  // Filter products based on input
   const filteredProducts =
     value.trim().length >= 1
       ? products.filter((product) =>
           product.name.toLowerCase().includes(value.toLowerCase())
         )
-      : products.slice(0, 10); // Show top 10 when not searching
+      : products.slice(0, 10);
 
   const handleInputChange = useCallback(
     (newValue: string) => {
       onChange(newValue);
       setSelectedIndex(-1);
 
-      // If the input is cleared and we have a productId, remove it
       if (newValue.trim() === "" && currentProductId) {
         setValue(`lineItems.${index}.productId`, undefined, {
           shouldValidate: true,
@@ -116,7 +145,6 @@ export function ProductAutocomplete({
         });
       }
 
-      // Show suggestions when typing
       if (isFocused) {
         setShowSuggestions(true);
       }
@@ -125,8 +153,7 @@ export function ProductAutocomplete({
   );
 
   const handleProductSelect = useCallback(
-    async (product: Product) => {
-      // Fill in the line item with product data
+    (product: Product) => {
       setValue(`lineItems.${index}.name`, product.name, {
         shouldValidate: true,
         shouldDirty: true,
@@ -146,101 +173,51 @@ export function ProductAutocomplete({
         });
       }
 
-      // Set product reference
       setValue(`lineItems.${index}.productId`, product.id, {
         shouldValidate: true,
         shouldDirty: true,
       });
 
-      // Increment usage count since user actively selected this product
-      try {
-        await productsApi.incrementUsage(product.id);
-        fetchProducts(); // Refresh products to get updated usage counts
-      } catch (error) {
-        console.error("Failed to increment product usage:", error);
-      }
+      // Increment usage count
+      incrementUsageMutation.mutate(product.id);
 
       setShowSuggestions(false);
       onProductSelect?.(product);
     },
-    [setValue, index, onProductSelect, fetchProducts]
+    [setValue, index, onProductSelect, incrementUsageMutation]
   );
 
   const handleFocus = useCallback(() => {
     setIsFocused(true);
     setSelectedIndex(-1);
 
-    // Refetch products on focus to get latest data (including newly saved products)
-    fetchProducts();
+    // Refetch products on focus to ensure fresh data
+    queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
 
-    // Only show suggestions if no product is selected
     if (!currentProductId) {
       setShowSuggestions(true);
     }
-  }, [currentProductId, fetchProducts]);
+  }, [currentProductId, queryClient]);
 
-  /**
-   * Save line item as product on blur (smart learning like midday)
-   * This creates/updates products automatically from invoice line items
-   * Only saves if name has minimum 3 characters to avoid garbage data
-   */
-  const handleBlur = useCallback(async () => {
+  const handleBlur = useCallback(() => {
     setIsFocused(false);
-    // Delay hiding suggestions to allow for clicks
     setTimeout(() => setShowSuggestions(false), 200);
 
     const trimmedValue = (value || "").trim();
-    // Only save if name has at least 3 characters (to avoid garbage like "re", "da")
     const hasValidContent = trimmedValue.length >= 3;
     const needsToClearProductId = trimmedValue.length === 0 && currentProductId;
 
     if (hasValidContent || needsToClearProductId) {
-      setIsSaving(true);
-      try {
-        const saveData = {
-          name: trimmedValue,
-          price:
-            currentPrice !== undefined && currentPrice !== 0
-              ? currentPrice
-              : null,
-          unit: currentUnit || null,
-          productId: currentProductId || undefined,
-          currency: currency || "EUR",
-        };
-
-        console.log("Saving product:", saveData);
-
-        const response = await productsApi.saveLineItemAsProduct(saveData);
-
-        console.log("Save response:", JSON.stringify(response, null, 2));
-
-        if (response.success && response.data) {
-          const { product, shouldClearProductId } = response.data;
-
-          if (shouldClearProductId) {
-            // Clear the old product reference
-            setValue(`lineItems.${index}.productId`, undefined, {
-              shouldValidate: true,
-              shouldDirty: true,
-            });
-          } else if (product && !currentProductId) {
-            // Set the new product reference if we created/found a product
-            setValue(`lineItems.${index}.productId`, product.id, {
-              shouldValidate: true,
-              shouldDirty: true,
-            });
-          }
-
-          // Refresh products list
-          fetchProducts();
-        } else if (!response.success) {
-          console.error("Failed to save product:", JSON.stringify(response, null, 2));
-        }
-      } catch (error) {
-        console.error("Failed to save line item as product:", error);
-      } finally {
-        setIsSaving(false);
-      }
+      saveProductMutation.mutate({
+        name: trimmedValue,
+        price:
+          currentPrice !== undefined && currentPrice !== 0
+            ? currentPrice
+            : null,
+        unit: currentUnit || null,
+        productId: currentProductId || undefined,
+        currency: currency || "EUR",
+      });
     }
   }, [
     value,
@@ -248,9 +225,7 @@ export function ProductAutocomplete({
     currentUnit,
     currentProductId,
     currency,
-    setValue,
-    index,
-    fetchProducts,
+    saveProductMutation,
   ]);
 
   // Reset selection when filtered products change
@@ -339,6 +314,11 @@ export function ProductAutocomplete({
 
   const showPlaceholder = !value && !isFocused;
 
+  // Callback for when product is updated in edit sheet
+  const handleProductUpdated = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: PRODUCTS_QUERY_KEY });
+  }, [queryClient]);
+
   return (
     <div ref={containerRef}>
       <input
@@ -392,7 +372,6 @@ export function ProductAutocomplete({
                   }}
                   onMouseLeave={() => setHoveredIndex(-1)}
                   onMouseDown={(e) => {
-                    // Only select product if clicking on the row itself, not the Edit button
                     if (
                       (e.target as HTMLElement).closest("[data-edit-button]")
                     ) {
@@ -430,7 +409,7 @@ export function ProductAutocomplete({
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          setOnProductUpdated(() => fetchProducts);
+                          setOnProductUpdated(() => handleProductUpdated);
                           openProductEdit(product.id);
                           setShowSuggestions(false);
                         }}
