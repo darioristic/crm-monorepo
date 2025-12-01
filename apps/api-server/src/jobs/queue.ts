@@ -50,12 +50,21 @@ export interface WebhookDeliveryJobData {
 	retryCount?: number;
 }
 
+export interface DocumentProcessingJobData {
+	documentId: string;
+	companyId: string;
+	filePath: string[];
+	mimetype: string;
+	processingType: "classify" | "extract" | "full";
+}
+
 export type JobData =
 	| EmailJobData
 	| NotificationCleanupJobData
 	| InvoiceReminderJobData
 	| ReportGenerationJobData
-	| WebhookDeliveryJobData;
+	| WebhookDeliveryJobData
+	| DocumentProcessingJobData;
 
 // ============================================
 // Queue Definitions
@@ -67,6 +76,7 @@ export const QUEUES = {
 	INVOICE_REMINDER: "invoice-reminder",
 	REPORT_GENERATION: "report-generation",
 	WEBHOOK_DELIVERY: "webhook-delivery",
+	DOCUMENT_PROCESSING: "document-processing",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];

@@ -282,6 +282,30 @@ export const documentsService = {
 			);
 		}
 	},
+
+	/**
+	 * Get related/similar documents
+	 */
+	async getRelatedDocuments(
+		documentId: string,
+		companyId: string,
+		options: { threshold?: number; limit?: number } = {},
+	): Promise<ApiResponse<Array<Document & { similarityScore: number }>>> {
+		try {
+			const documents = await documentQueries.findRelated(
+				documentId,
+				companyId,
+				options,
+			);
+			return successResponse(documents);
+		} catch (error) {
+			console.error("Error fetching related documents:", error);
+			return errorResponse(
+				"INTERNAL_ERROR",
+				"Failed to fetch related documents",
+			);
+		}
+	},
 };
 
 // ============================================

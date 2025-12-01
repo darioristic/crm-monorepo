@@ -5,6 +5,7 @@ import * as migration003 from "./003_create_auth";
 import * as migration006 from "./006_add_invoice_discount";
 import * as migration007 from "./007_add_product_usage_tracking";
 import * as migration008 from "./008_create_vault_tables";
+import * as migration009 from "./009_add_related_documents_function";
 
 interface Migration {
 	name: string;
@@ -20,6 +21,7 @@ const migrations: Migration[] = [
 	migration006,
 	migration007,
 	migration008,
+	migration009,
 ];
 
 // Migrations tracking table

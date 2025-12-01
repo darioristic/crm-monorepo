@@ -95,6 +95,30 @@ router.get("/api/v1/documents/:id", async (request, _url, params) => {
 });
 
 /**
+ * GET /api/v1/documents/:id/related - Get related documents
+ */
+router.get("/api/v1/documents/:id/related", async (request, url, params) => {
+	return withAuth(request, async (auth) => {
+		const companyId = auth.companyId;
+		if (!companyId) {
+			return errorResponse("VALIDATION_ERROR", "Company ID required");
+		}
+
+		const threshold = url.searchParams.get("threshold")
+			? parseFloat(url.searchParams.get("threshold")!)
+			: 0.3;
+		const limit = url.searchParams.get("limit")
+			? parseInt(url.searchParams.get("limit")!, 10)
+			: 5;
+
+		return documentsService.getRelatedDocuments(params.id, companyId, {
+			threshold,
+			limit,
+		});
+	});
+});
+
+/**
  * POST /api/v1/documents/upload - Upload files
  */
 router.post("/api/v1/documents/upload", async (request) => {

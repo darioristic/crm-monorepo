@@ -464,6 +464,55 @@ export const documentQueries = {
 
 		return result.map(mapDocument);
 	},
+
+	/**
+	 * Find related/similar documents based on title similarity
+	 */
+	async findRelated(
+		documentId: string,
+		companyId: string,
+		options: { threshold?: number; limit?: number } = {},
+	): Promise<Array<Document & { similarityScore: number }>> {
+		const { threshold = 0.3, limit = 5 } = options;
+
+		try {
+			const result = await db`
+				SELECT * FROM match_similar_documents_by_title(
+					${documentId}::uuid,
+					${companyId}::uuid,
+					${threshold}::float,
+					${limit}::int
+				)
+			`;
+
+			return result.map((row) => ({
+				...mapDocument(row),
+				similarityScore: row.similarity_score as number,
+			}));
+		} catch (error) {
+			// If the function doesn't exist yet, fall back to simple query
+			console.warn(
+				"match_similar_documents_by_title function not found, using fallback:",
+				error,
+			);
+
+			// Fallback: get recent documents excluding current one
+			const fallbackResult = await db`
+				SELECT * FROM documents
+				WHERE company_id = ${companyId}
+				  AND id != ${documentId}
+				  AND processing_status = 'completed'
+				  AND (name IS NULL OR name NOT LIKE '%.folderPlaceholder')
+				ORDER BY created_at DESC
+				LIMIT ${limit}
+			`;
+
+			return fallbackResult.map((row) => ({
+				...mapDocument(row),
+				similarityScore: 0,
+			}));
+		}
+	},
 };
 
 // ============================================

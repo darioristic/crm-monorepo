@@ -2,20 +2,18 @@
 
 import { useDocumentFilterParams } from "@/hooks/use-document-filter-params";
 import { Button } from "@/components/ui/button";
-import { SearchX } from "lucide-react";
+import { Transactions2Icon } from "@/components/icons/custom-icons";
 
 export function NoResults() {
 	const { setFilter } = useDocumentFilterParams();
 
 	return (
-		<div className="h-[calc(100vh-300px)] w-full flex items-center justify-center flex-col">
+		<div className="h-screen w-full flex items-center justify-center flex-col -mt-[160px]">
 			<div className="flex flex-col items-center">
-				<div className="mb-4 p-3 rounded-full bg-muted">
-					<SearchX className="h-8 w-8 text-muted-foreground" />
-				</div>
+				<Transactions2Icon className="h-12 w-12 text-[#606060] mb-4" />
 				<div className="text-center mb-6 space-y-2">
-					<h2 className="font-medium text-lg">No results</h2>
-					<p className="text-muted-foreground text-sm">
+					<h2 className="font-medium text-lg text-[#606060]">No results</h2>
+					<p className="text-[#606060] text-sm">
 						Try another search term or adjust your filters
 					</p>
 				</div>

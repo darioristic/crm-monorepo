@@ -222,3 +222,15 @@
   font-size: 11px !important;
   line-height: 18px !important;
 }
+
+/* Custom breakpoints */
+@media (min-width: 1920px) {
+  .ultra\:grid-cols-6 {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* FilePreview fallback */
+.preview-fallback .hidden {
+  display: flex !important;
+}
