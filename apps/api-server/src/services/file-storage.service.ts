@@ -5,7 +5,14 @@
  * Files are stored in: {UPLOAD_DIR}/vault/{company_id}/{filename}
  */
 
-import { createReadStream, createWriteStream, existsSync, mkdirSync, unlinkSync, statSync } from "node:fs";
+import {
+	createReadStream,
+	createWriteStream,
+	existsSync,
+	mkdirSync,
+	unlinkSync,
+	statSync,
+} from "node:fs";
 import { readdir, rm } from "node:fs/promises";
 import { join, dirname, extname } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -75,7 +82,7 @@ export function getFullPath(pathTokens: string[]): string {
 export async function uploadFile(
 	companyId: string,
 	file: File | Blob,
-	originalName: string
+	originalName: string,
 ): Promise<UploadResult> {
 	const companyDir = getCompanyVaultDir(companyId);
 	ensureDirectoryExists(companyDir);
@@ -115,7 +122,7 @@ export async function uploadFileFromStream(
 	companyId: string,
 	stream: NodeJS.ReadableStream,
 	originalName: string,
-	mimetype: string
+	mimetype: string,
 ): Promise<UploadResult> {
 	const companyDir = getCompanyVaultDir(companyId);
 	ensureDirectoryExists(companyDir);
@@ -182,7 +189,9 @@ export function getFileInfo(pathTokens: string[]): FileInfo {
 /**
  * Create a readable stream for a file
  */
-export function createFileReadStream(pathTokens: string[]): NodeJS.ReadableStream | null {
+export function createFileReadStream(
+	pathTokens: string[],
+): NodeJS.ReadableStream | null {
 	const filePath = getFullPath(pathTokens);
 
 	if (!existsSync(filePath)) {
@@ -195,7 +204,9 @@ export function createFileReadStream(pathTokens: string[]): NodeJS.ReadableStrea
 /**
  * Read file as buffer
  */
-export async function readFileAsBuffer(pathTokens: string[]): Promise<Buffer | null> {
+export async function readFileAsBuffer(
+	pathTokens: string[],
+): Promise<Buffer | null> {
 	const filePath = getFullPath(pathTokens);
 
 	if (!existsSync(filePath)) {
@@ -262,13 +273,16 @@ export function getMimeType(filename: string): string {
 		// Documents
 		".pdf": "application/pdf",
 		".doc": "application/msword",
-		".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+		".docx":
+			"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		".odt": "application/vnd.oasis.opendocument.text",
 		".xls": "application/vnd.ms-excel",
-		".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+		".xlsx":
+			"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 		".ods": "application/vnd.oasis.opendocument.spreadsheet",
 		".ppt": "application/vnd.ms-powerpoint",
-		".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+		".pptx":
+			"application/vnd.openxmlformats-officedocument.presentationml.presentation",
 		".odp": "application/vnd.oasis.opendocument.presentation",
 		// Text
 		".txt": "text/plain",
@@ -330,7 +344,10 @@ export function isValidFileSize(size: number): boolean {
 /**
  * Get a signed/temporary URL for a file (for local dev, just returns the API download path)
  */
-export function getSignedUrl(pathTokens: string[], expiresIn: number = 3600): string {
+export function getSignedUrl(
+	pathTokens: string[],
+	expiresIn: number = 3600,
+): string {
 	// For local filesystem, we'll use the API download endpoint
 	// In production with cloud storage, this would generate a pre-signed URL
 	const filePath = pathTokens.join("/");
@@ -345,4 +362,3 @@ export function initializeVaultStorage(): void {
 	ensureDirectoryExists(vaultDir);
 	console.log(`✅ Vault storage initialized at: ${vaultDir}`);
 }
-

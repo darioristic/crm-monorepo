@@ -42,7 +42,11 @@ export interface DocumentMetadata {
 	[key: string]: unknown;
 }
 
-export type DocumentProcessingStatus = "pending" | "processing" | "completed" | "failed";
+export type DocumentProcessingStatus =
+	| "pending"
+	| "processing"
+	| "completed"
+	| "failed";
 
 export interface DocumentTag {
 	id: string;
@@ -138,7 +142,7 @@ export const documentQueries = {
 	async findAll(
 		companyId: string,
 		pagination: DocumentsPaginationParams,
-		filters: DocumentsFilterParams
+		filters: DocumentsFilterParams,
 	): Promise<DocumentsListResult> {
 		const { pageSize = 20, cursor } = pagination;
 		const { q, tags, start, end } = filters;
@@ -170,7 +174,7 @@ export const documentQueries = {
 		// Text search
 		if (q) {
 			conditions.push(
-				`(title ILIKE $${paramIndex} OR name ILIKE $${paramIndex} OR summary ILIKE $${paramIndex})`
+				`(title ILIKE $${paramIndex} OR name ILIKE $${paramIndex} OR summary ILIKE $${paramIndex})`,
 			);
 			values.push(`%${q}%`);
 			paramIndex++;
@@ -179,14 +183,19 @@ export const documentQueries = {
 		// Tag filtering
 		if (tags && tags.length > 0) {
 			// Get document IDs that have the specified tags
-			const tagPlaceholders = tags.map((_, i) => `$${paramIndex + i}`).join(", ");
+			const tagPlaceholders = tags
+				.map((_, i) => `$${paramIndex + i}`)
+				.join(", ");
 			const tagConditionQuery = `
 				SELECT DISTINCT document_id
 				FROM document_tag_assignments
 				WHERE company_id = $1 AND tag_id IN (${tagPlaceholders})
 			`;
 
-			const docIdsResult = await db.unsafe(tagConditionQuery, [companyId, ...tags] as QueryParam[]);
+			const docIdsResult = await db.unsafe(tagConditionQuery, [
+				companyId,
+				...tags,
+			] as QueryParam[]);
 			const documentIds = docIdsResult.map((row) => row.document_id as string);
 
 			if (documentIds.length === 0) {
@@ -200,13 +209,16 @@ export const documentQueries = {
 				};
 			}
 
-			const idPlaceholders = documentIds.map((_, i) => `$${paramIndex + i}`).join(", ");
+			const idPlaceholders = documentIds
+				.map((_, i) => `$${paramIndex + i}`)
+				.join(", ");
 			conditions.push(`id IN (${idPlaceholders})`);
 			values.push(...documentIds);
 			paramIndex += documentIds.length;
 		}
 
-		const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+		const whereClause =
+			conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
 		// Execute query
 		const selectQuery = `
@@ -218,7 +230,11 @@ export const documentQueries = {
 			LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
 		`;
 
-		const data = await db.unsafe(selectQuery, [...values, safePageSize, offset] as QueryParam[]);
+		const data = await db.unsafe(selectQuery, [
+			...values,
+			safePageSize,
+			offset,
+		] as QueryParam[]);
 
 		// Fetch tag assignments for each document
 		const documentsWithTags: DocumentWithTags[] = await Promise.all(
@@ -244,11 +260,14 @@ export const documentQueries = {
 						},
 					})),
 				};
-			})
+			}),
 		);
 
 		// Generate next cursor
-		const nextCursor = data.length === safePageSize ? (offset + safePageSize).toString() : undefined;
+		const nextCursor =
+			data.length === safePageSize
+				? (offset + safePageSize).toString()
+				: undefined;
 
 		return {
 			data: documentsWithTags,
@@ -263,7 +282,10 @@ export const documentQueries = {
 	/**
 	 * Get a single document by ID
 	 */
-	async findById(id: string, companyId: string): Promise<DocumentWithTags | null> {
+	async findById(
+		id: string,
+		companyId: string,
+	): Promise<DocumentWithTags | null> {
 		const result = await db`
 			SELECT * FROM documents WHERE id = ${id} AND company_id = ${companyId}
 		`;
@@ -298,7 +320,10 @@ export const documentQueries = {
 	/**
 	 * Get a document by file path
 	 */
-	async findByPath(pathTokens: string[], companyId: string): Promise<Document | null> {
+	async findByPath(
+		pathTokens: string[],
+		companyId: string,
+	): Promise<Document | null> {
 		const name = pathTokens.join("/");
 		const result = await db`
 			SELECT * FROM documents WHERE name = ${name} AND company_id = ${companyId}
@@ -353,7 +378,7 @@ export const documentQueries = {
 			language: string;
 			processingStatus: DocumentProcessingStatus;
 			metadata: DocumentMetadata;
-		}>
+		}>,
 	): Promise<Document | null> {
 		const result = await db`
 			UPDATE documents SET
@@ -381,7 +406,7 @@ export const documentQueries = {
 	async updateProcessingStatus(
 		names: string[],
 		companyId: string,
-		status: DocumentProcessingStatus
+		status: DocumentProcessingStatus,
 	): Promise<Document[]> {
 		if (names.length === 0) return [];
 
@@ -398,7 +423,10 @@ export const documentQueries = {
 	/**
 	 * Delete a document
 	 */
-	async delete(id: string, companyId: string): Promise<{ id: string; pathTokens: string[] } | null> {
+	async delete(
+		id: string,
+		companyId: string,
+	): Promise<{ id: string; pathTokens: string[] } | null> {
 		const result = await db`
 			DELETE FROM documents
 			WHERE id = ${id} AND company_id = ${companyId}
@@ -471,7 +499,10 @@ export const documentTagQueries = {
 	/**
 	 * Get a tag by slug
 	 */
-	async findBySlug(slug: string, companyId: string): Promise<DocumentTag | null> {
+	async findBySlug(
+		slug: string,
+		companyId: string,
+	): Promise<DocumentTag | null> {
 		const result = await db`
 			SELECT * FROM document_tags WHERE slug = ${slug} AND company_id = ${companyId}
 		`;
@@ -483,7 +514,11 @@ export const documentTagQueries = {
 	/**
 	 * Create a new tag
 	 */
-	async create(data: { name: string; slug: string; companyId: string }): Promise<DocumentTag> {
+	async create(data: {
+		name: string;
+		slug: string;
+		companyId: string;
+	}): Promise<DocumentTag> {
 		const result = await db`
 			INSERT INTO document_tags (name, slug, company_id, created_at)
 			VALUES (${data.name}, ${data.slug}, ${data.companyId}, NOW())
@@ -497,7 +532,7 @@ export const documentTagQueries = {
 	 * Upsert tags (insert or update on conflict)
 	 */
 	async upsert(
-		tags: Array<{ name: string; slug: string; companyId: string }>
+		tags: Array<{ name: string; slug: string; companyId: string }>,
 	): Promise<Array<{ id: string; slug: string }>> {
 		if (tags.length === 0) return [];
 
@@ -580,7 +615,11 @@ export const documentTagAssignmentQueries = {
 	 * Bulk create tag assignments
 	 */
 	async createMany(
-		assignments: Array<{ documentId: string; tagId: string; companyId: string }>
+		assignments: Array<{
+			documentId: string;
+			tagId: string;
+			companyId: string;
+		}>,
 	): Promise<DocumentTagAssignment[]> {
 		if (assignments.length === 0) return [];
 
@@ -636,4 +675,3 @@ export const documentTagAssignmentQueries = {
 		}));
 	},
 };
-

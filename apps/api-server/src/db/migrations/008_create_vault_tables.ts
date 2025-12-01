@@ -122,4 +122,3 @@ export async function down(): Promise<void> {
 
 	console.log(`✅ ${name} rolled back`);
 }
-

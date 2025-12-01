@@ -10,12 +10,7 @@ import {
 	documentTagsService,
 	documentTagAssignmentsService,
 } from "../services/documents.service";
-import {
-	RouteBuilder,
-	withAuth,
-	parseBody,
-	json,
-} from "./helpers";
+import { RouteBuilder, withAuth, parseBody, json } from "./helpers";
 import * as fileStorage from "../services/file-storage.service";
 import { createReadStream } from "node:fs";
 
@@ -113,7 +108,11 @@ router.post("/api/v1/documents/upload", async (request) => {
 
 			try {
 				const formData = await request.formData();
-				const files: Array<{ file: File | Blob; originalName: string; mimetype: string }> = [];
+				const files: Array<{
+					file: File | Blob;
+					originalName: string;
+					mimetype: string;
+				}> = [];
 
 				// Process uploaded files
 				for (const [key, value] of formData.entries()) {
@@ -136,7 +135,7 @@ router.post("/api/v1/documents/upload", async (request) => {
 				return errorResponse("INTERNAL_ERROR", "Failed to process upload");
 			}
 		},
-		201
+		201,
 	);
 });
 
@@ -150,7 +149,10 @@ router.post("/api/v1/documents/process", async (request) => {
 			return errorResponse("VALIDATION_ERROR", "Company ID required");
 		}
 
-		const body = await parseBody<Array<{ filePath: string[]; mimetype: string; size: number }>>(request);
+		const body =
+			await parseBody<
+				Array<{ filePath: string[]; mimetype: string; size: number }>
+			>(request);
 		if (!body || !Array.isArray(body)) {
 			return errorResponse("VALIDATION_ERROR", "Invalid request body");
 		}
@@ -196,51 +198,57 @@ router.delete("/api/v1/documents/:id", async (request, _url, params) => {
  * GET /api/v1/documents/download/* - Download file (wildcard path)
  * This handles paths like /api/v1/documents/download/companyId/filename.pdf
  */
-router.get("/api/v1/documents/download/:companyId/:filename", async (request, _url, params) => {
-	return withAuth(request, async (auth) => {
-		const companyId = auth.companyId;
-		if (!companyId) {
-			return json(errorResponse("VALIDATION_ERROR", "Company ID required"), 400);
-		}
+router.get(
+	"/api/v1/documents/download/:companyId/:filename",
+	async (request, _url, params) => {
+		return withAuth(request, async (auth) => {
+			const companyId = auth.companyId;
+			if (!companyId) {
+				return json(
+					errorResponse("VALIDATION_ERROR", "Company ID required"),
+					400,
+				);
+			}
 
-		// Ensure user can only download from their company
-		if (params.companyId !== companyId) {
-			return json(errorResponse("FORBIDDEN", "Access denied"), 403);
-		}
+			// Ensure user can only download from their company
+			if (params.companyId !== companyId) {
+				return json(errorResponse("FORBIDDEN", "Access denied"), 403);
+			}
 
-		const pathTokens = [params.companyId, params.filename];
-		const fileInfo = fileStorage.getFileInfo(pathTokens);
+			const pathTokens = [params.companyId, params.filename];
+			const fileInfo = fileStorage.getFileInfo(pathTokens);
 
-		if (!fileInfo.exists || !fileInfo.path) {
-			return json(errorResponse("NOT_FOUND", "File not found"), 404);
-		}
+			if (!fileInfo.exists || !fileInfo.path) {
+				return json(errorResponse("NOT_FOUND", "File not found"), 404);
+			}
 
-		const mimetype = fileStorage.getMimeType(params.filename);
-		const stream = fileStorage.createFileReadStream(pathTokens);
+			const mimetype = fileStorage.getMimeType(params.filename);
+			const stream = fileStorage.createFileReadStream(pathTokens);
 
-		if (!stream) {
-			return json(errorResponse("NOT_FOUND", "File not found"), 404);
-		}
+			if (!stream) {
+				return json(errorResponse("NOT_FOUND", "File not found"), 404);
+			}
 
-		// Convert Node.js stream to Web ReadableStream
-		const webStream = new ReadableStream({
-			start(controller) {
-				stream.on("data", (chunk) => controller.enqueue(chunk));
-				stream.on("end", () => controller.close());
-				stream.on("error", (err) => controller.error(err));
-			},
+			// Convert Node.js stream to Web ReadableStream
+			const webStream = new ReadableStream({
+				start(controller) {
+					stream.on("data", (chunk) => controller.enqueue(chunk));
+					stream.on("end", () => controller.close());
+					stream.on("error", (err) => controller.error(err));
+				},
+			});
+
+			return new Response(webStream, {
+				status: 200,
+				headers: {
+					"Content-Type": mimetype,
+					"Content-Disposition": `attachment; filename="${params.filename}"`,
+					"Content-Length": fileInfo.size?.toString() || "",
+				},
+			});
 		});
-
-		return new Response(webStream, {
-			status: 200,
-			headers: {
-				"Content-Type": mimetype,
-				"Content-Disposition": `attachment; filename="${params.filename}"`,
-				"Content-Length": fileInfo.size?.toString() || "",
-			},
-		});
-	});
-});
+	},
+);
 
 /**
  * POST /api/v1/documents/signed-url - Get signed URL for a file
@@ -252,7 +260,9 @@ router.post("/api/v1/documents/signed-url", async (request) => {
 			return errorResponse("VALIDATION_ERROR", "Company ID required");
 		}
 
-		const body = await parseBody<{ filePath: string; expireIn?: number }>(request);
+		const body = await parseBody<{ filePath: string; expireIn?: number }>(
+			request,
+		);
 		if (!body?.filePath) {
 			return errorResponse("VALIDATION_ERROR", "File path required");
 		}
@@ -298,7 +308,7 @@ router.post("/api/v1/document-tags", async (request) => {
 
 			return documentTagsService.createTag(companyId, body);
 		},
-		201
+		201,
 	);
 });
 
@@ -332,14 +342,19 @@ router.post("/api/v1/document-tag-assignments", async (request) => {
 				return errorResponse("VALIDATION_ERROR", "Company ID required");
 			}
 
-			const body = await parseBody<{ documentId: string; tagId: string }>(request);
+			const body = await parseBody<{ documentId: string; tagId: string }>(
+				request,
+			);
 			if (!body?.documentId || !body?.tagId) {
-				return errorResponse("VALIDATION_ERROR", "Document ID and Tag ID required");
+				return errorResponse(
+					"VALIDATION_ERROR",
+					"Document ID and Tag ID required",
+				);
 			}
 
 			return documentTagAssignmentsService.assignTag(companyId, body);
 		},
-		201
+		201,
 	);
 });
 
@@ -353,9 +368,14 @@ router.delete("/api/v1/document-tag-assignments", async (request) => {
 			return errorResponse("VALIDATION_ERROR", "Company ID required");
 		}
 
-		const body = await parseBody<{ documentId: string; tagId: string }>(request);
+		const body = await parseBody<{ documentId: string; tagId: string }>(
+			request,
+		);
 		if (!body?.documentId || !body?.tagId) {
-			return errorResponse("VALIDATION_ERROR", "Document ID and Tag ID required");
+			return errorResponse(
+				"VALIDATION_ERROR",
+				"Document ID and Tag ID required",
+			);
 		}
 
 		return documentTagAssignmentsService.removeTag(companyId, body);
@@ -363,4 +383,3 @@ router.delete("/api/v1/document-tag-assignments", async (request) => {
 });
 
 export const documentRoutes = router.getRoutes();
-

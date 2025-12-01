@@ -5,12 +5,11 @@ import { VaultGrid } from "./vault-grid";
 import { VaultUploadZone } from "./vault-upload-zone";
 
 export function VaultView() {
-	const { params } = useDocumentParams();
+  const { params } = useDocumentParams();
 
-	return (
-		<VaultUploadZone>
-			{params.view === "grid" ? <VaultGrid /> : <VaultGrid />}
-		</VaultUploadZone>
-	);
+  return (
+    <VaultUploadZone>
+      {params.view === "grid" ? <VaultGrid /> : <VaultGrid />}
+    </VaultUploadZone>
+  );
 }
-

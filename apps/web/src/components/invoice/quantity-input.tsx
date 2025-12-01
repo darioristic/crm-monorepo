@@ -3,16 +3,16 @@
 import { cn } from "@/lib/utils";
 import { NumericFormat } from "react-number-format";
 import { useState } from "react";
-import { useController, useFormContext } from "react-hook-form";
+import { useController, useFormContext, type FieldPath, type FieldValues } from "react-hook-form";
 
-type Props = {
-  name: string;
+type Props<T extends FieldValues> = {
+  name: FieldPath<T>;
   className?: string;
 };
 
-export function QuantityInput({ name, className }: Props) {
+export function QuantityInput<T extends FieldValues>({ name, className }: Props<T>) {
   const [isFocused, setIsFocused] = useState(false);
-  const { control } = useFormContext();
+  const { control } = useFormContext<T>();
   const {
     field: { value, onChange, onBlur },
   } = useController({

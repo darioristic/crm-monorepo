@@ -97,4 +97,3 @@ export const useUploadProgressStore = create<UploadProgressState>((set) => ({
 			fileCount: 0,
 		}),
 }));
-

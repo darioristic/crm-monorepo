@@ -33,10 +33,14 @@ export const documentsService = {
 	async getDocuments(
 		companyId: string,
 		pagination: DocumentsPaginationParams,
-		filters: DocumentsFilterParams
+		filters: DocumentsFilterParams,
 	): Promise<ApiResponse<DocumentsListResult>> {
 		try {
-			const result = await documentQueries.findAll(companyId, pagination, filters);
+			const result = await documentQueries.findAll(
+				companyId,
+				pagination,
+				filters,
+			);
 			return successResponse(result);
 		} catch (error) {
 			console.error("Error fetching documents:", error);
@@ -49,7 +53,7 @@ export const documentsService = {
 	 */
 	async getDocumentById(
 		id: string,
-		companyId: string
+		companyId: string,
 	): Promise<ApiResponse<DocumentWithTags | null>> {
 		try {
 			const document = await documentQueries.findById(id, companyId);
@@ -69,24 +73,39 @@ export const documentsService = {
 	async uploadFiles(
 		companyId: string,
 		ownerId: string,
-		files: Array<{ file: File | Blob; originalName: string; mimetype: string }>
+		files: Array<{ file: File | Blob; originalName: string; mimetype: string }>,
 	): Promise<ApiResponse<Document[]>> {
 		try {
 			const uploadedDocuments: Document[] = [];
 
 			for (const { file, originalName, mimetype } of files) {
 				// Validate file size
-				if (file.size > (process.env.MAX_FILE_SIZE ? parseInt(process.env.MAX_FILE_SIZE) : 5 * 1024 * 1024)) {
-					return errorResponse("VALIDATION_ERROR", `File "${originalName}" exceeds maximum size`);
+				if (
+					file.size >
+					(process.env.MAX_FILE_SIZE
+						? parseInt(process.env.MAX_FILE_SIZE)
+						: 5 * 1024 * 1024)
+				) {
+					return errorResponse(
+						"VALIDATION_ERROR",
+						`File "${originalName}" exceeds maximum size`,
+					);
 				}
 
 				// Validate mime type
 				if (!fileStorage.isSupportedMimeType(mimetype)) {
-					return errorResponse("VALIDATION_ERROR", `File type "${mimetype}" is not supported`);
+					return errorResponse(
+						"VALIDATION_ERROR",
+						`File type "${mimetype}" is not supported`,
+					);
 				}
 
 				// Upload file to storage
-				const uploadResult = await fileStorage.uploadFile(companyId, file, originalName);
+				const uploadResult = await fileStorage.uploadFile(
+					companyId,
+					file,
+					originalName,
+				);
 
 				// Create document record in database
 				const document = await documentQueries.create({
@@ -116,13 +135,17 @@ export const documentsService = {
 	 */
 	async processDocuments(
 		companyId: string,
-		documents: Array<{ filePath: string[]; mimetype: string; size: number }>
+		documents: Array<{ filePath: string[]; mimetype: string; size: number }>,
 	): Promise<ApiResponse<void>> {
 		try {
 			// For now, just mark documents as completed
 			// In a real implementation, this would trigger background jobs for processing
 			const names = documents.map((doc) => doc.filePath.join("/"));
-			await documentQueries.updateProcessingStatus(names, companyId, "completed");
+			await documentQueries.updateProcessingStatus(
+				names,
+				companyId,
+				"completed",
+			);
 			return successResponse(undefined);
 		} catch (error) {
 			console.error("Error processing documents:", error);
@@ -140,7 +163,7 @@ export const documentsService = {
 			title: string;
 			summary: string;
 			processingStatus: DocumentProcessingStatus;
-		}>
+		}>,
 	): Promise<ApiResponse<Document | null>> {
 		try {
 			const document = await documentQueries.update(id, companyId, data);
@@ -157,7 +180,10 @@ export const documentsService = {
 	/**
 	 * Delete a document
 	 */
-	async deleteDocument(id: string, companyId: string): Promise<ApiResponse<{ id: string }>> {
+	async deleteDocument(
+		id: string,
+		companyId: string,
+	): Promise<ApiResponse<{ id: string }>> {
 		try {
 			const result = await documentQueries.delete(id, companyId);
 			if (!result) {
@@ -181,8 +207,10 @@ export const documentsService = {
 	 */
 	async getDownloadInfo(
 		pathTokens: string[],
-		companyId: string
-	): Promise<ApiResponse<{ filePath: string; exists: boolean; mimetype: string }>> {
+		companyId: string,
+	): Promise<
+		ApiResponse<{ filePath: string; exists: boolean; mimetype: string }>
+	> {
 		try {
 			const fileInfo = fileStorage.getFileInfo(pathTokens);
 
@@ -209,7 +237,7 @@ export const documentsService = {
 	 */
 	async getSignedUrl(
 		filePath: string,
-		expireIn: number = 3600
+		expireIn: number = 3600,
 	): Promise<ApiResponse<{ signedUrl: string }>> {
 		try {
 			const pathTokens = filePath.split("/");
@@ -224,7 +252,9 @@ export const documentsService = {
 	/**
 	 * Get document count for a company
 	 */
-	async getDocumentCount(companyId: string): Promise<ApiResponse<{ count: number }>> {
+	async getDocumentCount(
+		companyId: string,
+	): Promise<ApiResponse<{ count: number }>> {
 		try {
 			const count = await documentQueries.count(companyId);
 			return successResponse({ count });
@@ -239,14 +269,17 @@ export const documentsService = {
 	 */
 	async getRecentDocuments(
 		companyId: string,
-		limit: number = 5
+		limit: number = 5,
 	): Promise<ApiResponse<Document[]>> {
 		try {
 			const documents = await documentQueries.findRecent(companyId, limit);
 			return successResponse(documents);
 		} catch (error) {
 			console.error("Error fetching recent documents:", error);
-			return errorResponse("INTERNAL_ERROR", "Failed to fetch recent documents");
+			return errorResponse(
+				"INTERNAL_ERROR",
+				"Failed to fetch recent documents",
+			);
 		}
 	},
 };
@@ -274,7 +307,7 @@ export const documentTagsService = {
 	 */
 	async createTag(
 		companyId: string,
-		data: { name: string }
+		data: { name: string },
 	): Promise<ApiResponse<DocumentTag>> {
 		try {
 			// Generate slug from name
@@ -305,7 +338,10 @@ export const documentTagsService = {
 	/**
 	 * Delete a tag
 	 */
-	async deleteTag(id: string, companyId: string): Promise<ApiResponse<{ id: string }>> {
+	async deleteTag(
+		id: string,
+		companyId: string,
+	): Promise<ApiResponse<{ id: string }>> {
 		try {
 			const result = await documentTagQueries.delete(id, companyId);
 			if (!result) {
@@ -329,7 +365,7 @@ export const documentTagAssignmentsService = {
 	 */
 	async assignTag(
 		companyId: string,
-		data: { documentId: string; tagId: string }
+		data: { documentId: string; tagId: string },
 	): Promise<ApiResponse<DocumentTagAssignment>> {
 		try {
 			const assignment = await documentTagAssignmentQueries.create({
@@ -349,7 +385,7 @@ export const documentTagAssignmentsService = {
 	 */
 	async removeTag(
 		companyId: string,
-		data: { documentId: string; tagId: string }
+		data: { documentId: string; tagId: string },
 	): Promise<ApiResponse<{ success: boolean }>> {
 		try {
 			const result = await documentTagAssignmentQueries.delete({
@@ -369,4 +405,3 @@ export const documentTagAssignmentsService = {
 		}
 	},
 };
-
