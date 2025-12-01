@@ -1,7 +1,7 @@
 "use client";
 
 import { useFormContext, useWatch } from "react-hook-form";
-import { Loader2, ChevronDown, Send, Calendar, Plus } from "lucide-react";
+import { Loader2, ChevronDown, Send, Calendar, Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,17 +14,24 @@ import type { FormValues } from "./form-context";
 type SubmitButtonProps = {
   isSubmitting?: boolean;
   disabled?: boolean;
+  isEditMode?: boolean;
 };
 
-export function SubmitButton({ isSubmitting, disabled }: SubmitButtonProps) {
+export function SubmitButton({ isSubmitting, disabled, isEditMode }: SubmitButtonProps) {
   const { control, setValue } = useFormContext<FormValues>();
   const deliveryType = useWatch({ control, name: "template.deliveryType" });
 
-  const options = [
-    { value: "create", label: "Create invoice", icon: Plus },
-    { value: "create_and_send", label: "Create & send", icon: Send },
-    { value: "scheduled", label: "Schedule", icon: Calendar },
-  ];
+  const options = isEditMode
+    ? [
+        { value: "create", label: "Update", icon: Save },
+        { value: "create_and_send", label: "Update & send", icon: Send },
+        { value: "scheduled", label: "Schedule", icon: Calendar },
+      ]
+    : [
+        { value: "create", label: "Create", icon: Plus },
+        { value: "create_and_send", label: "Create & send", icon: Send },
+        { value: "scheduled", label: "Schedule", icon: Calendar },
+      ];
 
   const currentOption = options.find((opt) => opt.value === deliveryType) || options[0];
   const Icon = currentOption.icon;

@@ -1,41 +1,66 @@
 import { Text, View } from "@react-pdf/renderer";
-import { formatInvoiceDate } from "../../../utils/format";
-import type { InvoiceTemplate } from "../../../types";
+import { format, parseISO } from "date-fns";
 
 interface MetaProps {
-  invoiceNumber: string;
-  issueDate: string;
-  dueDate: string;
-  template: InvoiceTemplate;
+  invoiceNo?: string | null;
+  issueDate?: string | null;
+  dueDate?: string | null;
+  invoiceNoLabel: string;
+  issueDateLabel: string;
+  dueDateLabel: string;
+  dateFormat?: string;
+  timezone: string;
+  title: string;
 }
 
-export function Meta({ invoiceNumber, issueDate, dueDate, template }: MetaProps) {
+export function Meta({
+  invoiceNo,
+  issueDate,
+  dueDate,
+  invoiceNoLabel,
+  issueDateLabel,
+  dueDateLabel,
+  dateFormat = "MM/dd/yyyy",
+  timezone,
+  title,
+}: MetaProps) {
+  const formatDate = (dateStr: string | null | undefined): string => {
+    if (!dateStr) return "";
+    try {
+      // Parse the ISO date and format it
+      const date = parseISO(dateStr);
+      return format(date, dateFormat);
+    } catch {
+      return dateStr;
+    }
+  };
+
   return (
     <View>
       <Text style={{ fontSize: 21, fontWeight: 500, marginBottom: 8 }}>
-        {template.title}
+        {title}
       </Text>
       <View style={{ flexDirection: "column", gap: 4 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
-            {template.invoiceNoLabel}:
+            {invoiceNoLabel ? `${invoiceNoLabel}:` : ""}
           </Text>
-          <Text style={{ fontSize: 9 }}>{invoiceNumber}</Text>
+          <Text style={{ fontSize: 9 }}>{invoiceNo}</Text>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
-            {template.issueDateLabel}:
+            {issueDateLabel ? `${issueDateLabel}:` : ""}
           </Text>
           <Text style={{ fontSize: 9 }}>
-            {formatInvoiceDate(issueDate, template.dateFormat)}
+            {formatDate(issueDate)}
           </Text>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
-            {template.dueDateLabel}:
+            {dueDateLabel ? `${dueDateLabel}:` : ""}
           </Text>
           <Text style={{ fontSize: 9 }}>
-            {formatInvoiceDate(dueDate, template.dateFormat)}
+            {formatDate(dueDate)}
           </Text>
         </View>
       </View>

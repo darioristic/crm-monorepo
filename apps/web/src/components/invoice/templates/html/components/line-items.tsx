@@ -11,6 +11,8 @@ type Props = {
   includeDecimals?: boolean;
   locale: string;
   includeUnits?: boolean;
+  includeDiscount?: boolean;
+  includeVat?: boolean;
 };
 
 function formatAmount({
@@ -34,11 +36,15 @@ function formatAmount({
 function calculateLineItemTotal({
   price = 0,
   quantity = 0,
+  discount = 0,
 }: {
   price?: number;
   quantity?: number;
+  discount?: number;
 }): number {
-  return (price ?? 0) * (quantity ?? 0);
+  const baseAmount = (price ?? 0) * (quantity ?? 0);
+  const discountAmount = baseAmount * ((discount ?? 0) / 100);
+  return baseAmount - discountAmount;
 }
 
 export function LineItems({
@@ -50,31 +56,55 @@ export function LineItems({
   totalLabel,
   includeDecimals = false,
   includeUnits = false,
+  includeDiscount = true,
+  includeVat = true,
   locale,
 }: Props) {
   const maximumFractionDigits = includeDecimals ? 2 : 0;
 
+  // Dynamic grid columns based on settings
+  const getGridStyle = () => {
+    let cols = "1.5fr 10%"; // Description, Qty
+    cols += " 12%"; // Price
+    if (includeDiscount) cols += " 10%"; // Disc %
+    if (includeVat) cols += " 10%"; // VAT %
+    cols += " 15%"; // Total
+    return { gridTemplateColumns: cols };
+  };
+
   return (
-    <div className="mt-5 font-mono">
-      <div className="grid grid-cols-[1.5fr_15%_15%_15%] gap-4 items-end relative group mb-2 w-full pb-1 border-b border-border">
+    <div className="mt-5">
+      <div
+        className="grid gap-2 items-end relative group mb-2 w-full pb-1 border-b border-border"
+        style={getGridStyle()}
+      >
         <div className="text-[11px] text-[#878787]">{descriptionLabel}</div>
-        <div className="text-[11px] text-[#878787]">{quantityLabel}</div>
-        <div className="text-[11px] text-[#878787]">{priceLabel}</div>
-        <div className="text-[11px] text-[#878787] text-right">
-          {totalLabel}
+        <div className="text-[11px] text-[#878787] text-center">Qty</div>
+        <div className="text-[11px] text-[#878787] text-center">
+          {priceLabel}
         </div>
+        {includeDiscount && (
+          <div className="text-[11px] text-[#878787] text-center">Disc %</div>
+        )}
+        {includeVat && (
+          <div className="text-[11px] text-[#878787] text-center">VAT %</div>
+        )}
+        <div className="text-[11px] text-[#878787] text-right">{totalLabel}</div>
       </div>
 
       {lineItems.map((item, index) => (
         <div
           key={`line-item-${index.toString()}`}
-          className="grid grid-cols-[1.5fr_15%_15%_15%] gap-4 items-start relative group mb-1 w-full py-1"
+          className="grid gap-2 items-start relative group mb-1 w-full py-1"
+          style={getGridStyle()}
         >
           <div className="self-start">
             <Description content={item.name} />
           </div>
-          <div className="text-[11px] self-start">{item.quantity ?? 0}</div>
-          <div className="text-[11px] self-start">
+          <div className="text-[11px] self-start text-center">
+            {item.quantity ?? 0}
+          </div>
+          <div className="text-[11px] self-start text-center">
             {currency && includeUnits && item.unit
               ? `${formatAmount({
                   currency,
@@ -90,6 +120,16 @@ export function LineItems({
                   locale,
                 })}
           </div>
+          {includeDiscount && (
+            <div className="text-[11px] self-start text-center">
+              {item.discount ?? 0}%
+            </div>
+          )}
+          {includeVat && (
+            <div className="text-[11px] self-start text-center">
+              {item.vat ?? 20}%
+            </div>
+          )}
           <div className="text-[11px] text-right self-start">
             {currency &&
               formatAmount({
@@ -98,6 +138,7 @@ export function LineItems({
                 amount: calculateLineItemTotal({
                   price: item.price,
                   quantity: item.quantity,
+                  discount: item.discount,
                 }),
                 locale,
               })}

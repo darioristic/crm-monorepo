@@ -1,83 +1,143 @@
+// Invoice Types - Based on Midday Invoice System
+
 export type LineItem = {
-  id?: string;
-  productName: string;
-  description?: string | null;
-  quantity: number;
-  unitPrice: number;
-  discount?: number;
-  total: number;
+  name: string;
+  quantity?: number;
+  price?: number;
+  unit?: string;
+  // Optional product reference for smart autocomplete
+  productId?: string;
 };
 
-export type InvoiceStatus = "draft" | "sent" | "paid" | "partial" | "overdue" | "cancelled";
+export type InvoiceProduct = {
+  id: string;
+  createdAt: string;
+  updatedAt: string | null;
+  teamId: string;
+  createdBy: string | null;
+  name: string;
+  description: string | null;
+  price: number | null;
+  currency: string | null;
+  unit: string | null;
+  isActive: boolean;
+  usageCount: number;
+  lastUsedAt: string | null;
+};
 
 export type Invoice = {
   id: string;
-  invoiceNumber: string;
-  companyId: string;
-  companyName?: string;
-  companyAddress?: string;
-  companyEmail?: string;
-  companyPhone?: string;
-  companyLogo?: string | null;
-  contactId?: string | null;
-  contactName?: string | null;
-  status: InvoiceStatus;
-  issueDate: string;
-  dueDate: string;
-  subtotal: number;
-  taxRate: number;
-  tax: number;
-  total: number;
-  paidAmount: number;
-  currency: string;
-  notes?: string | null;
-  terms?: string | null;
-  items: LineItem[];
+  dueDate: string | null;
+  invoiceNumber: string | null;
   createdAt: string;
-  updatedAt?: string;
+  amount: number | null;
+  currency: string | null;
+  lineItems: LineItem[];
+  paymentDetails: EditorDoc | null;
+  customerDetails: EditorDoc | null;
+  reminderSentAt: string | null;
+  updatedAt: string | null;
+  note: string | null;
+  internalNote: string | null;
+  paidAt: string | null;
+  vat: number | null;
+  tax: number | null;
+  filePath: string[] | null;
+  status: "draft" | "overdue" | "paid" | "unpaid" | "canceled" | "scheduled";
+  viewedAt: string | null;
+  fromDetails: EditorDoc | null;
+  issueDate: string | null;
+  sentAt: string | null;
+  template: Template;
+  noteDetails: EditorDoc | null;
+  customerName: string | null;
+  token: string;
+  sentTo: string | null;
+  discount: number | null;
+  topBlock: EditorDoc | null;
+  bottomBlock: EditorDoc | null;
+  customer: {
+    name: string | null;
+    website: string | null;
+    email: string | null;
+  } | null;
+  customerId: string | null;
+  team: {
+    name: string | null;
+  } | null;
 };
 
-export type InvoiceTemplate = {
-  id?: string;
-  companyId?: string;
-  logoUrl?: string | null;
+export type Template = {
+  customerLabel: string;
   title: string;
   fromLabel: string;
-  customerLabel: string;
   invoiceNoLabel: string;
   issueDateLabel: string;
   dueDateLabel: string;
   descriptionLabel: string;
-  quantityLabel: string;
   priceLabel: string;
+  quantityLabel: string;
   totalLabel: string;
+  totalSummaryLabel: string;
+  vatLabel: string;
   subtotalLabel: string;
   taxLabel: string;
-  totalSummaryLabel: string;
+  discountLabel: string;
+  timezone: string;
   paymentLabel: string;
   noteLabel: string;
+  logoUrl: string | null;
   currency: string;
+  paymentDetails: EditorDoc | null;
+  fromDetails: EditorDoc | null;
+  noteDetails: EditorDoc | null;
   dateFormat: string;
   includeVat: boolean;
-  vatRate: number;
   includeTax: boolean;
-  taxRate: number;
+  includeDiscount: boolean;
+  includeDecimals: boolean;
+  includeUnits: boolean;
   includeQr: boolean;
+  taxRate: number;
+  vatRate: number;
   size: "a4" | "letter";
+  deliveryType: "create" | "create_and_send" | "scheduled";
   locale: string;
-  timezone: string;
-  paymentDetails?: string | null;
-  noteDetails?: string | null;
-  fromDetails?: string | null;
 };
 
-export type InvoiceForPdf = Invoice & {
-  template: InvoiceTemplate;
-  fromDetails?: string | null;
-  customerDetails?: string | null;
-};
+export interface EditorDoc {
+  type: "doc";
+  content: EditorNode[];
+}
 
-export const defaultTemplate: InvoiceTemplate = {
+export interface EditorNode {
+  type: string;
+  content?: InlineContent[];
+}
+
+export interface InlineContent {
+  type: string;
+  text?: string;
+  marks?: Mark[];
+}
+
+export interface Mark {
+  type: string;
+  attrs?: {
+    href?: string;
+  };
+}
+
+export interface TextStyle {
+  fontSize: number;
+  fontWeight?: number;
+  fontStyle?: "normal" | "italic" | "oblique";
+  color?: string;
+  textDecoration?: string;
+}
+
+// Default template values
+export const defaultTemplate: Template = {
   title: "RAČUN",
   fromLabel: "Od",
   customerLabel: "Za",
@@ -85,26 +145,32 @@ export const defaultTemplate: InvoiceTemplate = {
   issueDateLabel: "Datum izdavanja",
   dueDateLabel: "Rok plaćanja",
   descriptionLabel: "Opis",
-  quantityLabel: "Količina",
+  quantityLabel: "Kol.",
   priceLabel: "Cena",
   totalLabel: "Ukupno",
   subtotalLabel: "Međuzbir",
-  taxLabel: "PDV",
+  vatLabel: "PDV",
+  taxLabel: "Porez",
+  discountLabel: "Pop.",
   totalSummaryLabel: "Ukupno za plaćanje",
   paymentLabel: "Podaci za plaćanje",
   noteLabel: "Napomena",
   currency: "EUR",
   dateFormat: "dd.MM.yyyy",
+  timezone: "Europe/Belgrade",
   includeVat: true,
   vatRate: 20,
   includeTax: false,
   taxRate: 0,
+  includeDiscount: true,
+  includeDecimals: true,
+  includeUnits: true,
   includeQr: false,
   size: "a4",
+  deliveryType: "create",
   locale: "sr-RS",
-  timezone: "Europe/Belgrade",
+  logoUrl: null,
   paymentDetails: null,
-  noteDetails: null,
   fromDetails: null,
+  noteDetails: null,
 };
-

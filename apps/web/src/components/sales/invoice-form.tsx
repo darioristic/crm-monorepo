@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Invoice, Company, CreateInvoiceRequest, UpdateInvoiceRequest } from "@crm/types";
-import { invoicesApi, companiesApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
+import type { Invoice, CreateInvoiceRequest, UpdateInvoiceRequest } from "@crm/types";
+import { invoicesApi } from "@/lib/api";
+import { useMutation } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { SelectCompany } from "@/components/companies/select-company";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
@@ -62,11 +63,6 @@ interface InvoiceFormProps {
 
 export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   const router = useRouter();
-
-  const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
-    () => companiesApi.getAll(),
-    { autoFetch: true }
-  );
 
   const createMutation = useMutation<Invoice, CreateInvoiceRequest>((data) =>
     invoicesApi.create(data)
@@ -221,25 +217,14 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                   name="companyId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Company *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={companiesLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a company" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {companies?.map((company) => (
-                            <SelectItem key={company.id} value={company.id}>
-                              {company.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormLabel>Bill To (Company) *</FormLabel>
+                      <FormControl>
+                        <SelectCompany
+                          value={field.value}
+                          onSelect={field.onChange}
+                          placeholder="Select or search company..."
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}

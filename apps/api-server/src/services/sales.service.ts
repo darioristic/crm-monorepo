@@ -443,19 +443,24 @@ class SalesService {
       }
 
       // Calculate totals
-      const items: Omit<InvoiceItem, "id" | "invoiceId">[] = data.items.map((item) => ({
+      const extData = data as any;
+      const items: Omit<InvoiceItem, "id" | "invoiceId">[] = data.items.map((item: any) => ({
         productName: item.productName,
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discount: item.discount || 0,
+        unit: item.unit || "pcs",
+        vatRate: item.vatRate ?? extData.vatRate ?? 20,
         total: item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100),
       }));
 
       const subtotal = items.reduce((sum, item) => sum + item.total, 0);
       const taxRate = data.taxRate || 0;
+      const vatRate = extData.vatRate || 20;
       const tax = subtotal * (taxRate / 100);
-      const total = subtotal + tax;
+      const vat = subtotal * (vatRate / 100);
+      const total = subtotal + tax + vat;
 
       const invoiceNumber = await invoiceQueries.generateNumber();
 
@@ -478,7 +483,14 @@ class SalesService {
         notes: data.notes,
         terms: data.terms,
         createdBy: data.createdBy,
-      };
+        // New fields for PDF generation
+        fromDetails: extData.fromDetails || null,
+        customerDetails: extData.customerDetails || null,
+        logoUrl: extData.logoUrl || null,
+        vatRate: vatRate,
+        currency: extData.currency || "EUR",
+        templateSettings: extData.templateSettings || null,
+      } as any;
 
       const created = await invoiceQueries.create(invoice, items);
 
@@ -499,25 +511,30 @@ class SalesService {
         return Errors.NotFound("Invoice").toResponse();
       }
 
+      const extData = data as any;
       let items: Omit<InvoiceItem, "invoiceId">[] | undefined;
       let subtotal = existing.subtotal;
       let tax = existing.tax;
       let total = existing.total;
 
       if (data.items) {
-        items = data.items.map((item) => ({
+        items = data.items.map((item: any) => ({
           id: item.id || generateUUID(),
           productName: item.productName,
           description: item.description,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           discount: item.discount || 0,
+          unit: item.unit || "pcs",
+          vatRate: item.vatRate ?? extData.vatRate ?? 20,
           total: item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100),
         }));
         subtotal = items.reduce((sum, item) => sum + item.total, 0);
-        const taxRate = data.taxRate ?? existing.taxRate;
+        const taxRate = data.taxRate ?? existing.taxRate ?? 0;
+        const vatRate = extData.vatRate ?? (existing as any).vatRate ?? 20;
         tax = subtotal * (taxRate / 100);
-        total = subtotal + tax;
+        const vat = subtotal * (vatRate / 100);
+        total = subtotal + tax + vat;
       }
 
       const updated = await invoiceQueries.update(id, {
@@ -525,6 +542,13 @@ class SalesService {
         subtotal,
         tax,
         total,
+        // Ensure new fields are passed
+        fromDetails: extData.fromDetails,
+        customerDetails: extData.customerDetails,
+        logoUrl: extData.logoUrl,
+        vatRate: extData.vatRate,
+        currency: extData.currency,
+        templateSettings: extData.templateSettings,
       }, items);
 
       // Invalidate cache

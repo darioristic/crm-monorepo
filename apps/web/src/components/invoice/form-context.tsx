@@ -157,16 +157,33 @@ export function FormContext({
   useEffect(() => {
     const defaults = getDefaultValues();
 
+    // Only apply specific fields from defaultSettings (fromDetails, paymentDetails, template)
+    // Do NOT apply: lineItems, customerDetails, customerId, customerName, amount, etc.
+    const safeDefaultSettings = defaultSettings ? {
+      fromDetails: defaultSettings.fromDetails,
+      paymentDetails: defaultSettings.paymentDetails,
+      template: defaultSettings.template,
+    } : {};
+
     form.reset({
       ...defaults,
-      ...(defaultSettings ?? {}),
-      ...(data ?? {}),
+      // Apply only safe default settings (fromDetails, paymentDetails, template)
+      fromDetails: safeDefaultSettings.fromDetails ?? defaults.fromDetails,
+      paymentDetails: safeDefaultSettings.paymentDetails ?? defaults.paymentDetails,
       template: {
         ...defaults.template,
-        ...(defaultSettings?.template ?? {}),
+        ...(safeDefaultSettings.template ?? {}),
         ...(data?.template ?? {}),
       },
-      customerId: data?.customerId ?? defaultSettings?.customerId ?? undefined,
+      // Apply full data if editing existing invoice
+      ...(data ? {
+        ...data,
+        template: {
+          ...defaults.template,
+          ...(safeDefaultSettings.template ?? {}),
+          ...(data.template ?? {}),
+        },
+      } : {}),
     } as FormValues);
   }, [data, defaultSettings, form]);
 

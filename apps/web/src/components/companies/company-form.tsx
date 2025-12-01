@@ -107,11 +107,21 @@ export function CompanyForm({ data }: Props) {
   });
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
-    // API only accepts name, industry, address for now
     const formattedData = {
       name: values.name,
       industry: values.industry || "Other",
       address: values.address,
+      email: values.email || null,
+      phone: values.phone || null,
+      website: values.website || null,
+      contact: values.contact || null,
+      city: values.city || null,
+      zip: values.zip || null,
+      country: values.country || null,
+      countryCode: values.countryCode || null,
+      vatNumber: values.vatNumber || null,
+      companyNumber: values.companyNumber || null,
+      note: values.note || null,
     };
 
     let result;

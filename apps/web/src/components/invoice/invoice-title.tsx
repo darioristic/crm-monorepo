@@ -16,7 +16,7 @@ export function InvoiceTitle() {
           {...field}
           value={field.value || "Invoice"}
           onChange={(e) => field.onChange(e.target.value)}
-          className="text-[21px] font-semibold border-0 p-0 h-auto w-fit min-w-[100px] focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+          className="!text-[29px] !font-semibold border-0 p-0 h-auto w-fit min-w-[120px] focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
           placeholder="Invoice"
         />
       )}

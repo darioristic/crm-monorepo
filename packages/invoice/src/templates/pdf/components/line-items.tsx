@@ -1,18 +1,36 @@
 import { Text, View } from "@react-pdf/renderer";
-import type { LineItem, InvoiceTemplate } from "../../../types";
-import { formatCurrencyForPDF } from "../../../utils/format";
+import type { LineItem } from "../../../types";
+import { calculateLineItemTotal } from "../../../utils/calculate";
+import { formatCurrencyForPDF } from "../../../utils/pdf-format";
+import { Description } from "./description";
 
-interface LineItemsProps {
-  items: LineItem[];
-  template: InvoiceTemplate;
-}
+type Props = {
+  lineItems: LineItem[];
+  currency: string | null;
+  descriptionLabel: string;
+  quantityLabel: string;
+  priceLabel: string;
+  totalLabel: string;
+  locale: string;
+  includeDecimals?: boolean;
+  includeUnits?: boolean;
+};
 
-export function LineItems({ items, template }: LineItemsProps) {
-  const maximumFractionDigits = template.includeDecimals ? 2 : 0;
+export function LineItems({
+  lineItems,
+  currency,
+  descriptionLabel,
+  quantityLabel,
+  priceLabel,
+  totalLabel,
+  locale,
+  includeDecimals,
+  includeUnits,
+}: Props) {
+  const maximumFractionDigits = includeDecimals ? 2 : 0;
 
   return (
     <View style={{ marginTop: 20 }}>
-      {/* Header */}
       <View
         style={{
           flexDirection: "row",
@@ -23,19 +41,14 @@ export function LineItems({ items, template }: LineItemsProps) {
         }}
       >
         <Text style={{ flex: 3, fontSize: 9, fontWeight: 500 }}>
-          {template.descriptionLabel}
+          {descriptionLabel}
         </Text>
-        <Text style={{ flex: 1, fontSize: 9, fontWeight: 500 }}>
-          {template.quantityLabel}
+        <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
+          {quantityLabel}
         </Text>
-        <Text style={{ flex: 1, fontSize: 9, fontWeight: 500 }}>
-          {template.priceLabel}
+        <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
+          {priceLabel}
         </Text>
-        {template.includeDiscount && (
-          <Text style={{ flex: 1, fontSize: 9, fontWeight: 500 }}>
-            {template.discountLabel}
-          </Text>
-        )}
         <Text
           style={{
             flex: 1,
@@ -44,53 +57,48 @@ export function LineItems({ items, template }: LineItemsProps) {
             textAlign: "right",
           }}
         >
-          {template.totalLabel}
+          {totalLabel}
         </Text>
       </View>
-
-      {/* Line Items */}
-      {items.map((item, index) => (
+      {lineItems.map((item, index) => (
         <View
-          key={item.id || index}
+          key={`line-item-${index.toString()}`}
           style={{
             flexDirection: "row",
             paddingVertical: 5,
             alignItems: "flex-start",
+            borderBottomWidth: 0.5,
+            borderBottomColor: "#e5e5e5",
           }}
         >
           <View style={{ flex: 3 }}>
-            <Text style={{ fontSize: 9 }}>{item.productName}</Text>
-            {item.description && (
-              <Text style={{ fontSize: 8, color: "#666", marginTop: 2 }}>
-                {item.description}
-              </Text>
-            )}
+            <Description content={item.name} />
           </View>
 
-          <Text style={{ flex: 1, fontSize: 9 }}>{item.quantity}</Text>
+          <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>{item.quantity ?? 0}</Text>
 
-          <Text style={{ flex: 1, fontSize: 9 }}>
-            {formatCurrencyForPDF({
-              amount: item.unitPrice,
-              currency: template.currency,
-              locale: template.locale,
-              maximumFractionDigits,
-            })}
+          <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
+            {currency &&
+              formatCurrencyForPDF({
+                amount: item.price ?? 0,
+                currency,
+                locale,
+                maximumFractionDigits,
+              })}
+            {includeUnits && item.unit ? ` / ${item.unit}` : null}
           </Text>
 
-          {template.includeDiscount && (
-            <Text style={{ flex: 1, fontSize: 9 }}>
-              {item.discount > 0 ? `${item.discount}%` : "-"}
-            </Text>
-          )}
-
           <Text style={{ flex: 1, fontSize: 9, textAlign: "right" }}>
-            {formatCurrencyForPDF({
-              amount: item.total,
-              currency: template.currency,
-              locale: template.locale,
-              maximumFractionDigits,
-            })}
+            {currency &&
+              formatCurrencyForPDF({
+                amount: calculateLineItemTotal({
+                  price: item.price,
+                  quantity: item.quantity,
+                }),
+                currency,
+                locale,
+                maximumFractionDigits,
+              })}
           </Text>
         </View>
       ))}

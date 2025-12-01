@@ -4,15 +4,14 @@ import {
   View,
   Text,
   Image,
-  StyleSheet,
   Font,
 } from "@react-pdf/renderer";
 import { format, parseISO } from "date-fns";
-import type { Invoice, LineItem, EditorDoc } from "@/types/invoice";
+import QRCodeUtil from "qrcode";
+import type { Invoice, EditorDoc } from "@/types/invoice";
 import { extractTextFromEditorDoc } from "@/types/invoice";
 import {
   calculateTotal,
-  calculateLineItemTotal,
   formatInvoiceAmount,
 } from "@/utils/invoice-calculate";
 
@@ -36,187 +35,64 @@ Font.register({
       src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf",
       fontWeight: 700,
     },
+    // Italic fonts
+    {
+      src: "https://fonts.gstatic.com/s/inter/v19/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc2dthjQ.ttf",
+      fontWeight: 400,
+      fontStyle: "italic",
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v19/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc69thjQ.ttf",
+      fontWeight: 500,
+      fontStyle: "italic",
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v19/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTcB9xhjQ.ttf",
+      fontWeight: 600,
+      fontStyle: "italic",
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v19/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTcPtxhjQ.ttf",
+      fontWeight: 700,
+      fontStyle: "italic",
+    },
   ],
-});
-
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: "Inter",
-    fontWeight: 400,
-    fontSize: 10,
-    padding: 20,
-    backgroundColor: "#fff",
-    color: "#000",
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 700,
-    marginBottom: 16,
-  },
-  meta: {
-    gap: 4,
-  },
-  metaRow: {
-    flexDirection: "row",
-    gap: 4,
-  },
-  metaLabel: {
-    width: 70,
-    color: "#666666",
-    fontSize: 9,
-  },
-  metaValue: {
-    fontFamily: "Courier",
-    fontSize: 9,
-  },
-  logo: {
-    height: 75,
-    maxWidth: 300,
-    objectFit: "contain",
-  },
-  addressSection: {
-    flexDirection: "row",
-    marginTop: 20,
-  },
-  addressBlock: {
-    flex: 1,
-    marginBottom: 20,
-  },
-  addressBlockLeft: {
-    marginRight: 10,
-  },
-  addressBlockRight: {
-    marginLeft: 10,
-  },
-  addressLabel: {
-    fontSize: 9,
-    fontWeight: 500,
-    marginBottom: 4,
-  },
-  addressText: {
-    fontSize: 9,
-    lineHeight: 1.6,
-  },
-  table: {
-    marginBottom: 20,
-  },
-  tableHeader: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#e5e5e5",
-    paddingBottom: 8,
-    marginBottom: 8,
-  },
-  tableHeaderCell: {
-    fontSize: 8,
-    color: "#666666",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-    fontWeight: 600,
-  },
-  tableRow: {
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
-    paddingVertical: 8,
-  },
-  tableCell: {
-    fontSize: 9,
-  },
-  tableCellMono: {
-    fontSize: 9,
-    fontFamily: "Courier",
-  },
-  descriptionCol: {
-    flex: 1,
-  },
-  qtyCol: {
-    width: 50,
-    textAlign: "center",
-  },
-  unitCol: {
-    width: 40,
-    textAlign: "center",
-  },
-  priceCol: {
-    width: 70,
-    textAlign: "right",
-  },
-  totalCol: {
-    width: 80,
-    textAlign: "right",
-  },
-  summaryContainer: {
-    flex: 1,
-    flexDirection: "column",
-    justifyContent: "flex-end",
-  },
-  summary: {
-    alignSelf: "flex-end",
-    width: 200,
-  },
-  summaryRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: "#f5f5f5",
-  },
-  summaryRowTotal: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingVertical: 8,
-    marginTop: 4,
-  },
-  summaryLabel: {
-    fontSize: 9,
-    color: "#666666",
-  },
-  summaryValue: {
-    fontSize: 9,
-    fontFamily: "Courier",
-  },
-  summaryTotalLabel: {
-    fontSize: 11,
-    fontWeight: 600,
-  },
-  summaryTotalValue: {
-    fontSize: 11,
-    fontWeight: 600,
-    fontFamily: "Courier",
-  },
-  footer: {
-    flexDirection: "row",
-    marginTop: 20,
-  },
-  footerBlock: {
-    flex: 1,
-  },
-  footerBlockLeft: {
-    marginRight: 10,
-  },
-  footerBlockRight: {
-    marginLeft: 10,
-  },
-  footerLabel: {
-    fontSize: 9,
-    fontWeight: 500,
-    marginBottom: 4,
-  },
-  footerText: {
-    fontSize: 9,
-    lineHeight: 1.6,
-  },
 });
 
 type PdfTemplateProps = {
   invoice: Invoice;
 };
+
+/**
+ * Calculate line item total with discount
+ */
+function calculateLineItemTotalWithDiscount({
+  price = 0,
+  quantity = 0,
+  discount = 0,
+}: {
+  price?: number;
+  quantity?: number;
+  discount?: number;
+}): number {
+  const baseAmount = (price ?? 0) * (quantity ?? 0);
+  const discountAmount = baseAmount * ((discount ?? 0) / 100);
+  return baseAmount - discountAmount;
+}
+
+/**
+ * Render EditorDoc content for PDF
+ */
+function renderEditorContent(content: EditorDoc | string | null) {
+  const text = extractTextFromEditorDoc(content);
+  return text
+    .split("\n")
+    .map((line, i) => (
+      <Text key={i} style={{ fontSize: 9, lineHeight: 1.6 }}>
+        {line || " "}
+      </Text>
+    ));
+}
 
 // Async function matching Midday's approach
 export async function PdfTemplate({ invoice }: PdfTemplateProps) {
@@ -258,40 +134,63 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
       maximumFractionDigits,
     });
 
-  const renderTextContent = (content: EditorDoc | string | null) => {
-    const text = extractTextFromEditorDoc(content);
-    return text
-      .split("\n")
-      .map((line, i) => <Text key={i}>{line || " "}</Text>);
-  };
+  // Generate QR code if enabled
+  let qrCode = null;
+  if (template.includeQr && invoice.token) {
+    qrCode = await QRCodeUtil.toDataURL(
+      `${process.env.NEXT_PUBLIC_APP_URL || "https://app.example.com"}/i/${invoice.token}`,
+      { margin: 0, width: 40 * 3 }
+    );
+  }
 
   return (
     <Document>
       <Page
         wrap
         size={template.size === "letter" ? "LETTER" : "A4"}
-        style={styles.page}
+        style={{
+          fontFamily: "Inter",
+          fontWeight: 400,
+          fontSize: 10,
+          padding: 20,
+          backgroundColor: "#fff",
+          color: "#000",
+        }}
       >
         {/* Header */}
-        <View style={styles.header}>
+        <View
+          style={{
+            flexDirection: "row",
+            justifyContent: "space-between",
+            marginBottom: 20,
+          }}
+        >
           <View>
-            <Text style={styles.title}>{template.title || "Invoice"}</Text>
-            <View style={styles.meta}>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{template.invoiceNoLabel}:</Text>
-                <Text style={styles.metaValue}>
+            <Text style={{ fontSize: 21, fontWeight: 500, marginBottom: 8 }}>
+              {template.title || "Invoice"}
+            </Text>
+            <View style={{ flexDirection: "column", gap: 4 }}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
+                  {template.invoiceNoLabel}:
+                </Text>
+                <Text style={{ fontSize: 9 }}>
                   {invoice.invoiceNumber || "-"}
                 </Text>
               </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{template.issueDateLabel}:</Text>
-                <Text style={styles.metaValue}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
+                  {template.issueDateLabel}:
+                </Text>
+                <Text style={{ fontSize: 9 }}>
                   {formatDate(invoice.issueDate)}
                 </Text>
               </View>
-              <View style={styles.metaRow}>
-                <Text style={styles.metaLabel}>{template.dueDateLabel}:</Text>
-                <Text style={styles.metaValue}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
+                  {template.dueDateLabel}:
+                </Text>
+                <Text style={{ fontSize: 9 }}>
                   {formatDate(invoice.dueDate)}
                 </Text>
               </View>
@@ -299,69 +198,110 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
           </View>
           {template.logoUrl && (
             <View style={{ maxWidth: 300 }}>
-              <Image src={template.logoUrl} style={styles.logo} />
+              <Image
+                src={template.logoUrl}
+                style={{ height: 75, objectFit: "contain" }}
+              />
             </View>
           )}
         </View>
 
         {/* From / To */}
-        <View style={styles.addressSection}>
-          <View style={[styles.addressBlock, styles.addressBlockLeft]}>
-            <Text style={styles.addressLabel}>{template.fromLabel}</Text>
-            <View style={styles.addressText}>
-              {renderTextContent(invoice.fromDetails)}
+        <View style={{ flexDirection: "row", marginTop: 20 }}>
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <Text style={{ fontSize: 9, fontWeight: 500, marginBottom: 4 }}>
+              {template.fromLabel}
+            </Text>
+            <View style={{ marginTop: 10 }}>
+              {renderEditorContent(invoice.fromDetails)}
             </View>
           </View>
-          <View style={[styles.addressBlock, styles.addressBlockRight]}>
-            <Text style={styles.addressLabel}>{template.customerLabel}</Text>
-            <View style={styles.addressText}>
-              {renderTextContent(invoice.customerDetails)}
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={{ fontSize: 9, fontWeight: 500, marginBottom: 4 }}>
+              {template.customerLabel}
+            </Text>
+            <View style={{ marginTop: 10 }}>
+              {renderEditorContent(invoice.customerDetails)}
             </View>
           </View>
         </View>
 
         {/* Line Items Table */}
-        <View style={styles.table}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableHeaderCell, styles.descriptionCol]}>
+        <View style={{ marginTop: 20 }}>
+          <View
+            style={{
+              flexDirection: "row",
+              borderBottomWidth: 0.5,
+              borderBottomColor: "#000",
+              paddingBottom: 5,
+              marginBottom: 5,
+            }}
+          >
+            <Text style={{ flex: 3, fontSize: 9, fontWeight: 500 }}>
               {template.descriptionLabel}
             </Text>
-            <Text style={[styles.tableHeaderCell, styles.qtyCol]}>
+            <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
               {template.quantityLabel}
             </Text>
-            {template.includeUnits && (
-              <Text style={[styles.tableHeaderCell, styles.unitCol]}>Unit</Text>
-            )}
-            <Text style={[styles.tableHeaderCell, styles.priceCol]}>
+            <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
               {template.priceLabel}
             </Text>
-            <Text style={[styles.tableHeaderCell, styles.totalCol]}>
+            {template.includeDiscount && (
+              <Text
+                style={{ flex: 0.7, fontSize: 9, fontWeight: 500, textAlign: "center" }}
+              >
+                {template.discountLabel || "Pop."}
+              </Text>
+            )}
+            {template.includeVat && (
+              <Text
+                style={{ flex: 0.7, fontSize: 9, fontWeight: 500, textAlign: "center" }}
+              >
+                {template.vatLabel || "PDV"}
+              </Text>
+            )}
+            <Text
+              style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "right" }}
+            >
               {template.totalLabel}
             </Text>
           </View>
 
-          {(lineItems || []).map((item: LineItem, index: number) => {
-            const itemTotal = calculateLineItemTotal({
+          {(lineItems || []).map((item, index) => {
+            const itemTotal = calculateLineItemTotalWithDiscount({
               price: item.price,
               quantity: item.quantity,
+              discount: item.discount,
             });
             return (
-              <View key={index} style={styles.tableRow}>
-                <Text style={[styles.tableCell, styles.descriptionCol]}>
-                  {item.name}
+              <View
+                key={index}
+                style={{
+                  flexDirection: "row",
+                  paddingVertical: 5,
+                  alignItems: "flex-start",
+                  borderBottomWidth: 0.5,
+                  borderBottomColor: "#e5e5e5",
+                }}
+                wrap={false}
+              >
+                <Text style={{ flex: 3, fontSize: 9 }}>{item.name}</Text>
+                <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>{item.quantity ?? 0}</Text>
+                <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
+                  {formatAmount(item.price ?? 0)}
+                  {template.includeUnits && item.unit ? ` / ${item.unit}` : ""}
                 </Text>
-                <Text style={[styles.tableCellMono, styles.qtyCol]}>
-                  {item.quantity ?? 0}
-                </Text>
-                {template.includeUnits && (
-                  <Text style={[styles.tableCell, styles.unitCol]}>
-                    {item.unit || "-"}
+                {template.includeDiscount && (
+                  <Text style={{ flex: 0.7, fontSize: 9, textAlign: "center" }}>
+                    {item.discount ?? 0}%
                   </Text>
                 )}
-                <Text style={[styles.tableCellMono, styles.priceCol]}>
-                  {formatAmount(item.price ?? 0)}
-                </Text>
-                <Text style={[styles.tableCellMono, styles.totalCol]}>
+                {template.includeVat && (
+                  <Text style={{ flex: 0.7, fontSize: 9, textAlign: "center" }}>
+                    {item.vat ?? template.vatRate ?? 20}%
+                  </Text>
+                )}
+                <Text style={{ flex: 1, fontSize: 9, textAlign: "right" }}>
                   {formatAmount(itemTotal)}
                 </Text>
               </View>
@@ -370,84 +310,146 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
         </View>
 
         {/* Summary */}
-        <View style={styles.summaryContainer}>
-          <View style={styles.summary}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>{template.subtotalLabel}</Text>
-              <Text style={styles.summaryValue}>
-                {formatAmount(result.subTotal)}
-              </Text>
-            </View>
-
-            {template.includeVat && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>
-                  {template.vatLabel} ({template.vatRate}%)
-                </Text>
-                <Text style={styles.summaryValue}>
-                  {formatAmount(result.vat)}
-                </Text>
-              </View>
-            )}
-
-            {template.includeTax && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>
-                  {template.taxLabel} ({template.taxRate}%)
-                </Text>
-                <Text style={styles.summaryValue}>
-                  {formatAmount(result.tax)}
-                </Text>
-              </View>
-            )}
-
-            {template.includeDiscount && (invoice.discount ?? 0) > 0 && (
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>
-                  {template.discountLabel}
-                </Text>
-                <Text style={styles.summaryValue}>
-                  -{formatAmount(invoice.discount ?? 0)}
-                </Text>
-              </View>
-            )}
-
-            <View style={styles.summaryRowTotal}>
-              <Text style={styles.summaryTotalLabel}>
-                {template.totalSummaryLabel}
-              </Text>
-              <Text style={styles.summaryTotalValue}>
-                {formatAmount(result.total)}
-              </Text>
-            </View>
+        <View
+          style={{
+            marginTop: 60,
+            marginBottom: 40,
+            alignItems: "flex-end",
+            marginLeft: "auto",
+            width: 250,
+          }}
+          wrap={false}
+          minPresenceAhead={100}
+        >
+          {/* Subtotal */}
+          <View
+            style={{
+              flexDirection: "row",
+              paddingVertical: 4,
+              width: "100%",
+              borderBottomWidth: 0.5,
+              borderBottomColor: "#e5e5e5",
+            }}
+          >
+            <Text style={{ fontSize: 9, flex: 1 }}>{template.subtotalLabel}:</Text>
+            <Text style={{ fontSize: 9, textAlign: "right" }}>
+              {formatAmount(result.subTotal)}
+            </Text>
           </View>
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <View style={[styles.footerBlock, styles.footerBlockLeft]}>
-              {invoice.noteDetails && (
-                <>
-                  <Text style={styles.footerLabel}>{template.noteLabel}</Text>
-                  <View style={styles.footerText}>
-                    {renderTextContent(invoice.noteDetails)}
-                  </View>
-                </>
-              )}
+          {/* Discount */}
+          {template.includeDiscount && result.discountAmount > 0 && (
+            <View
+              style={{
+                flexDirection: "row",
+                paddingVertical: 4,
+                width: "100%",
+                borderBottomWidth: 0.5,
+                borderBottomColor: "#e5e5e5",
+              }}
+            >
+              <Text style={{ fontSize: 9, flex: 1 }}>
+                {template.discountLabel}:
+              </Text>
+              <Text style={{ fontSize: 9, textAlign: "right" }}>
+                -{formatAmount(result.discountAmount)}
+              </Text>
             </View>
-            <View style={[styles.footerBlock, styles.footerBlockRight]}>
-              {invoice.paymentDetails && (
-                <>
-                  <Text style={styles.footerLabel}>
-                    {template.paymentLabel}
-                  </Text>
-                  <View style={styles.footerText}>
-                    {renderTextContent(invoice.paymentDetails)}
-                  </View>
-                </>
-              )}
+          )}
+
+          {/* VAT Amount */}
+          {template.includeVat && (
+            <View
+              style={{
+                flexDirection: "row",
+                paddingVertical: 4,
+                width: "100%",
+                borderBottomWidth: 0.5,
+                borderBottomColor: "#e5e5e5",
+              }}
+            >
+              <Text style={{ fontSize: 9, flex: 1 }}>
+                {template.vatLabel} ({template.vatRate}%):
+              </Text>
+              <Text style={{ fontSize: 9, textAlign: "right" }}>
+                {formatAmount(result.vat)}
+              </Text>
             </View>
+          )}
+
+          {/* Tax (if enabled) */}
+          {template.includeTax && (
+            <View
+              style={{
+                flexDirection: "row",
+                paddingVertical: 4,
+                width: "100%",
+                borderBottomWidth: 0.5,
+                borderBottomColor: "#e5e5e5",
+              }}
+            >
+              <Text style={{ fontSize: 9, flex: 1 }}>
+                {template.taxLabel} ({template.taxRate}%):
+              </Text>
+              <Text style={{ fontSize: 9, textAlign: "right" }}>
+                {formatAmount(result.tax)}
+              </Text>
+            </View>
+          )}
+
+          {/* Total */}
+          <View
+            style={{
+              flexDirection: "row",
+              marginTop: 5,
+              borderTopWidth: 0.5,
+              borderTopColor: "#000",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingTop: 5,
+              width: "100%",
+            }}
+          >
+            <Text style={{ fontSize: 9, marginRight: 10 }}>
+              {template.totalSummaryLabel}:
+            </Text>
+            <Text style={{ fontSize: 21 }}>{formatAmount(result.total)}</Text>
           </View>
         </View>
+
+        {/* Note - Full width above payment */}
+        {invoice.noteDetails && (
+          <View style={{ marginTop: 20 }} wrap={false}>
+            <Text style={{ fontSize: 9, fontWeight: 500 }}>
+              {template.noteLabel}
+            </Text>
+            <View style={{ marginTop: 6 }}>
+              {renderEditorContent(invoice.noteDetails)}
+            </View>
+          </View>
+        )}
+
+        {/* Payment Details - Single row at bottom */}
+        {invoice.paymentDetails && (
+          <View
+            style={{ marginTop: 20, flexDirection: "row", alignItems: "flex-start" }}
+            wrap={false}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 9, fontWeight: 500 }}>
+                {template.paymentLabel}
+              </Text>
+              <View style={{ marginTop: 6 }}>
+                {renderEditorContent(invoice.paymentDetails)}
+              </View>
+            </View>
+            {qrCode && (
+              <View style={{ marginLeft: 20 }}>
+                <Image src={qrCode} style={{ width: 40, height: 40 }} />
+              </View>
+            )}
+          </View>
+        )}
       </Page>
     </Document>
   );

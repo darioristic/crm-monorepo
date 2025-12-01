@@ -1,8 +1,8 @@
-export { Meta } from "./meta";
+export { Description } from "./description";
+export { EditorContent } from "./editor-content";
 export { LineItems } from "./line-items";
-export { Summary } from "./summary";
-export { CompanyDetailsBlock } from "./company-details";
+export { Meta } from "./meta";
+export { Note } from "./note";
 export { PaymentDetails } from "./payment-details";
-export { Notes } from "./notes";
 export { QRCode } from "./qr-code";
-
+export { Summary } from "./summary";

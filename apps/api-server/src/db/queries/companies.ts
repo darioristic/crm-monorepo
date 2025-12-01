@@ -17,7 +17,6 @@ export const companyQueries = {
     filters: FilterParams
   ): Promise<{ data: Company[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
-    const offset = (page - 1) * pageSize;
 
     // Sanitizuj paginaciju
     const safePage = Math.max(1, Math.floor(page));
@@ -26,7 +25,7 @@ export const companyQueries = {
 
     // Gradi uslove sa query builder-om
     const qb = createQueryBuilder("companies");
-    qb.addSearchCondition(["name", "industry"], filters.search);
+    qb.addSearchCondition(["name", "industry", "city", "country"], filters.search);
 
     const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
@@ -64,8 +63,28 @@ export const companyQueries = {
 
   async create(company: Omit<Company, "id" | "createdAt" | "updatedAt">): Promise<Company> {
     const result = await db`
-      INSERT INTO companies (name, industry, address)
-      VALUES (${company.name}, ${company.industry}, ${company.address})
+      INSERT INTO companies (
+        name, industry, address,
+        email, phone, website, contact,
+        city, zip, country, country_code,
+        vat_number, company_number, note
+      )
+      VALUES (
+        ${company.name}, 
+        ${company.industry}, 
+        ${company.address},
+        ${company.email ?? null},
+        ${company.phone ?? null},
+        ${company.website ?? null},
+        ${company.contact ?? null},
+        ${company.city ?? null},
+        ${company.zip ?? null},
+        ${company.country ?? null},
+        ${company.countryCode ?? null},
+        ${company.vatNumber ?? null},
+        ${company.companyNumber ?? null},
+        ${company.note ?? null}
+      )
       RETURNING *
     `;
     return mapCompany(result[0]);
@@ -73,12 +92,29 @@ export const companyQueries = {
 
   async createWithId(company: Company): Promise<Company> {
     const result = await db`
-      INSERT INTO companies (id, name, industry, address, created_at, updated_at)
+      INSERT INTO companies (
+        id, name, industry, address,
+        email, phone, website, contact,
+        city, zip, country, country_code,
+        vat_number, company_number, note,
+        created_at, updated_at
+      )
       VALUES (
         ${company.id},
         ${company.name},
         ${company.industry},
         ${company.address},
+        ${company.email ?? null},
+        ${company.phone ?? null},
+        ${company.website ?? null},
+        ${company.contact ?? null},
+        ${company.city ?? null},
+        ${company.zip ?? null},
+        ${company.country ?? null},
+        ${company.countryCode ?? null},
+        ${company.vatNumber ?? null},
+        ${company.companyNumber ?? null},
+        ${company.note ?? null},
         ${company.createdAt},
         ${company.updatedAt}
       )
@@ -93,6 +129,17 @@ export const companyQueries = {
         name = COALESCE(${data.name ?? null}, name),
         industry = COALESCE(${data.industry ?? null}, industry),
         address = COALESCE(${data.address ?? null}, address),
+        email = COALESCE(${data.email ?? null}, email),
+        phone = COALESCE(${data.phone ?? null}, phone),
+        website = COALESCE(${data.website ?? null}, website),
+        contact = COALESCE(${data.contact ?? null}, contact),
+        city = COALESCE(${data.city ?? null}, city),
+        zip = COALESCE(${data.zip ?? null}, zip),
+        country = COALESCE(${data.country ?? null}, country),
+        country_code = COALESCE(${data.countryCode ?? null}, country_code),
+        vat_number = COALESCE(${data.vatNumber ?? null}, vat_number),
+        company_number = COALESCE(${data.companyNumber ?? null}, company_number),
+        note = COALESCE(${data.note ?? null}, note),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -118,11 +165,27 @@ export const companyQueries = {
     return result.map(mapCompany);
   },
 
+  async findByCountry(country: string): Promise<Company[]> {
+    const result = await db`
+      SELECT * FROM companies 
+      WHERE country = ${country}
+      ORDER BY name ASC
+    `;
+    return result.map(mapCompany);
+  },
+
   async getIndustries(): Promise<string[]> {
     const result = await db`
       SELECT DISTINCT industry FROM companies ORDER BY industry ASC
     `;
     return result.map((row) => row.industry as string);
+  },
+
+  async getCountries(): Promise<string[]> {
+    const result = await db`
+      SELECT DISTINCT country FROM companies WHERE country IS NOT NULL ORDER BY country ASC
+    `;
+    return result.map((row) => row.country as string);
   },
 
   async nameExists(name: string, excludeId?: string): Promise<boolean> {
@@ -161,6 +224,17 @@ function mapCompany(row: Record<string, unknown>): Company {
     name: row.name as string,
     industry: row.industry as string,
     address: row.address as string,
+    email: row.email as string | null,
+    phone: row.phone as string | null,
+    website: row.website as string | null,
+    contact: row.contact as string | null,
+    city: row.city as string | null,
+    zip: row.zip as string | null,
+    country: row.country as string | null,
+    countryCode: row.country_code as string | null,
+    vatNumber: row.vat_number as string | null,
+    companyNumber: row.company_number as string | null,
+    note: row.note as string | null,
   };
 }
 

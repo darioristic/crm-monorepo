@@ -69,6 +69,9 @@ export const invoiceQueries = {
     const result = await db`
       SELECT i.*,
         c.id as company_id_join, c.name as company_name, c.industry as company_industry, c.address as company_address,
+        c.city as company_city, c.zip as company_zip, c.state as company_state, c.country as company_country,
+        c.phone as company_phone, c.email as company_email, c.billing_email as company_billing_email,
+        c.vat_number as company_vat_number, c.website as company_website,
         ct.id as contact_id_join, ct.first_name as contact_first_name, ct.last_name as contact_last_name, ct.email as contact_email,
         q.id as quote_id_join, q.quote_number
       FROM invoices i
@@ -100,21 +103,68 @@ export const invoiceQueries = {
     return mapInvoice(result[0], items);
   },
 
+  async findByToken(token: string): Promise<InvoiceWithRelations | null> {
+    const result = await db`
+      SELECT i.*,
+        c.id as company_id_join, c.name as company_name, c.industry as company_industry, c.address as company_address,
+        c.city as company_city, c.zip as company_zip, c.state as company_state, c.country as company_country,
+        c.phone as company_phone, c.email as company_email, c.billing_email as company_billing_email,
+        c.vat_number as company_vat_number, c.website as company_website,
+        ct.id as contact_id_join, ct.first_name as contact_first_name, ct.last_name as contact_last_name, ct.email as contact_email,
+        q.id as quote_id_join, q.quote_number
+      FROM invoices i
+      LEFT JOIN companies c ON i.company_id = c.id
+      LEFT JOIN contacts ct ON i.contact_id = ct.id
+      LEFT JOIN quotes q ON i.quote_id = q.id
+      WHERE i.token = ${token}
+    `;
+
+    if (result.length === 0) return null;
+
+    const items = await db`
+      SELECT * FROM invoice_items WHERE invoice_id = ${result[0].id}
+    `;
+
+    return mapInvoiceWithRelations(result[0], items);
+  },
+
+  async updateViewedAt(id: string): Promise<void> {
+    await db`
+      UPDATE invoices SET viewed_at = NOW() WHERE id = ${id} AND viewed_at IS NULL
+    `;
+  },
+
+  async updateSentAt(id: string): Promise<void> {
+    await db`
+      UPDATE invoices SET sent_at = NOW(), status = 'sent' WHERE id = ${id}
+    `;
+  },
+
   async create(
     invoice: Omit<Invoice, "items">,
     items: Omit<InvoiceItem, "id" | "invoiceId">[]
   ): Promise<Invoice> {
+    // Generate token if not provided
+    const token = (invoice as any).token || `inv_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
+    
     const result = await db`
       INSERT INTO invoices (
-        id, invoice_number, quote_id, company_id, contact_id, status, issue_date, due_date,
-        gross_total, subtotal, discount, tax_rate, tax, total, paid_amount, notes, terms, created_by, created_at, updated_at
+        id, invoice_number, token, quote_id, company_id, contact_id, status, issue_date, due_date,
+        gross_total, subtotal, discount, tax_rate, vat_rate, tax, total, paid_amount, currency,
+        notes, terms, from_details, customer_details, logo_url, template_settings,
+        created_by, created_at, updated_at
       ) VALUES (
-        ${invoice.id}, ${invoice.invoiceNumber}, ${invoice.quoteId || null},
+        ${invoice.id}, ${invoice.invoiceNumber}, ${token}, ${invoice.quoteId || null},
         ${invoice.companyId}, ${invoice.contactId || null}, ${invoice.status},
         ${invoice.issueDate}, ${invoice.dueDate},
         ${invoice.grossTotal ?? invoice.subtotal}, ${invoice.subtotal}, ${invoice.discount ?? 0},
-        ${invoice.taxRate}, ${invoice.tax}, ${invoice.total},
-        ${invoice.paidAmount}, ${invoice.notes || null}, ${invoice.terms || null},
+        ${invoice.taxRate}, ${(invoice as any).vatRate ?? 20}, ${invoice.tax}, ${invoice.total},
+        ${invoice.paidAmount}, ${(invoice as any).currency || "EUR"},
+        ${invoice.notes || null}, ${invoice.terms || null},
+        ${(invoice as any).fromDetails ? JSON.stringify((invoice as any).fromDetails) : null},
+        ${(invoice as any).customerDetails ? JSON.stringify((invoice as any).customerDetails) : null},
+        ${(invoice as any).logoUrl || null},
+        ${(invoice as any).templateSettings ? JSON.stringify((invoice as any).templateSettings) : null},
         ${invoice.createdBy}, ${invoice.createdAt}, ${invoice.updatedAt}
       )
       RETURNING *
@@ -124,8 +174,8 @@ export const invoiceQueries = {
     const insertedItems: InvoiceItem[] = [];
     for (const item of items) {
       const itemResult = await db`
-        INSERT INTO invoice_items (invoice_id, product_name, description, quantity, unit_price, discount, total)
-        VALUES (${invoice.id}, ${item.productName}, ${item.description || null}, ${item.quantity}, ${item.unitPrice}, ${item.discount}, ${item.total})
+        INSERT INTO invoice_items (invoice_id, product_name, description, quantity, unit, unit_price, discount, vat_rate, total)
+        VALUES (${invoice.id}, ${item.productName}, ${item.description || null}, ${item.quantity}, ${(item as any).unit || "pcs"}, ${item.unitPrice}, ${item.discount}, ${(item as any).vatRate ?? 20}, ${item.total})
         RETURNING *
       `;
       insertedItems.push(mapInvoiceItem(itemResult[0]));
@@ -139,6 +189,7 @@ export const invoiceQueries = {
     data: Partial<Invoice>,
     items?: Omit<InvoiceItem, "invoiceId">[]
   ): Promise<Invoice> {
+    const extData = data as any;
     const result = await db`
       UPDATE invoices SET
         quote_id = COALESCE(${data.quoteId ?? null}, quote_id),
@@ -150,11 +201,17 @@ export const invoiceQueries = {
         subtotal = COALESCE(${data.subtotal ?? null}, subtotal),
         discount = COALESCE(${data.discount ?? null}, discount),
         tax_rate = COALESCE(${data.taxRate ?? null}, tax_rate),
+        vat_rate = COALESCE(${extData.vatRate ?? null}, vat_rate),
         tax = COALESCE(${data.tax ?? null}, tax),
         total = COALESCE(${data.total ?? null}, total),
         paid_amount = COALESCE(${data.paidAmount ?? null}, paid_amount),
+        currency = COALESCE(${extData.currency ?? null}, currency),
         notes = COALESCE(${data.notes ?? null}, notes),
         terms = COALESCE(${data.terms ?? null}, terms),
+        from_details = COALESCE(${extData.fromDetails ? JSON.stringify(extData.fromDetails) : null}, from_details),
+        customer_details = COALESCE(${extData.customerDetails ? JSON.stringify(extData.customerDetails) : null}, customer_details),
+        logo_url = COALESCE(${extData.logoUrl ?? null}, logo_url),
+        template_settings = COALESCE(${extData.templateSettings ? JSON.stringify(extData.templateSettings) : null}, template_settings),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -164,9 +221,10 @@ export const invoiceQueries = {
     if (items) {
       await db`DELETE FROM invoice_items WHERE invoice_id = ${id}`;
       for (const item of items) {
+        const extItem = item as any;
         await db`
-          INSERT INTO invoice_items (id, invoice_id, product_name, description, quantity, unit_price, discount, total)
-          VALUES (${item.id || db`gen_random_uuid()`}, ${id}, ${item.productName}, ${item.description || null}, ${item.quantity}, ${item.unitPrice}, ${item.discount}, ${item.total})
+          INSERT INTO invoice_items (id, invoice_id, product_name, description, quantity, unit, unit_price, discount, vat_rate, total)
+          VALUES (${item.id || db`gen_random_uuid()`}, ${id}, ${item.productName}, ${item.description || null}, ${item.quantity}, ${extItem.unit || "pcs"}, ${item.unitPrice}, ${item.discount}, ${extItem.vatRate ?? 20}, ${item.total})
         `;
       }
     }
@@ -285,18 +343,50 @@ function mapInvoiceItem(row: Record<string, unknown>): InvoiceItem {
     productName: row.product_name as string,
     description: row.description as string | undefined,
     quantity: parseFloat(row.quantity as string),
+    unit: (row.unit as string) || "pcs",
     unitPrice: parseFloat(row.unit_price as string),
     discount: parseFloat(row.discount as string),
+    vatRate: parseFloat((row.vat_rate as string) || "20"),
     total: parseFloat(row.total as string),
   };
 }
 
 function mapInvoice(row: Record<string, unknown>, items: unknown[]): Invoice {
+  // Parse JSON fields safely
+  let fromDetails = null;
+  let customerDetails = null;
+  let templateSettings = null;
+  
+  try {
+    if (row.from_details) {
+      fromDetails = typeof row.from_details === 'string' 
+        ? JSON.parse(row.from_details as string) 
+        : row.from_details;
+    }
+  } catch { /* ignore parse errors */ }
+  
+  try {
+    if (row.customer_details) {
+      customerDetails = typeof row.customer_details === 'string'
+        ? JSON.parse(row.customer_details as string)
+        : row.customer_details;
+    }
+  } catch { /* ignore parse errors */ }
+  
+  try {
+    if (row.template_settings) {
+      templateSettings = typeof row.template_settings === 'string'
+        ? JSON.parse(row.template_settings as string)
+        : row.template_settings;
+    }
+  } catch { /* ignore parse errors */ }
+
   return {
     id: row.id as string,
     createdAt: toISOString(row.created_at),
     updatedAt: toISOString(row.updated_at),
     invoiceNumber: row.invoice_number as string,
+    token: row.token as string | undefined,
     quoteId: row.quote_id as string | undefined,
     companyId: row.company_id as string,
     contactId: row.contact_id as string | undefined,
@@ -308,13 +398,22 @@ function mapInvoice(row: Record<string, unknown>, items: unknown[]): Invoice {
     subtotal: parseFloat(row.subtotal as string),
     discount: parseFloat((row.discount as string) || "0"),
     taxRate: parseFloat(row.tax_rate as string),
+    vatRate: parseFloat((row.vat_rate as string) || "20"),
     tax: parseFloat(row.tax as string),
     total: parseFloat(row.total as string),
     paidAmount: parseFloat(row.paid_amount as string),
+    currency: (row.currency as string) || "EUR",
     notes: row.notes as string | undefined,
     terms: row.terms as string | undefined,
+    fromDetails,
+    customerDetails,
+    logoUrl: row.logo_url as string | undefined,
+    templateSettings,
+    viewedAt: row.viewed_at ? toISOString(row.viewed_at) : undefined,
+    sentAt: row.sent_at ? toISOString(row.sent_at) : undefined,
+    paidAt: row.paid_at ? toISOString(row.paid_at) : undefined,
     createdBy: row.created_by as string,
-  };
+  } as Invoice;
 }
 
 function mapInvoiceWithRelations(
@@ -332,6 +431,15 @@ function mapInvoiceWithRelations(
           name: row.company_name as string,
           industry: row.company_industry as string,
           address: row.company_address as string,
+          city: row.company_city as string | undefined,
+          state: row.company_state as string | undefined,
+          zip: row.company_zip as string | undefined,
+          country: row.company_country as string | undefined,
+          phone: row.company_phone as string | undefined,
+          email: (row.company_email || row.company_billing_email) as string | undefined,
+          billingEmail: row.company_billing_email as string | undefined,
+          vatNumber: row.company_vat_number as string | undefined,
+          website: row.company_website as string | undefined,
         }
       : undefined,
     contact: row.contact_id_join

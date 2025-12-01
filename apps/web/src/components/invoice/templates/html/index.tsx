@@ -96,6 +96,8 @@ export function HtmlTemplate({
         includeDecimals={template.includeDecimals}
         locale={template.locale}
         includeUnits={template.includeUnits}
+        includeDiscount={template.includeDiscount}
+        includeVat={template.includeVat}
       />
 
       <div className="mt-10 md:mt-12 flex justify-end mb-6 md:mb-8">

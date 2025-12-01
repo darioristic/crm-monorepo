@@ -2,9 +2,10 @@
  * Sales Routes - Quotes, Invoices, Delivery Notes
  */
 
-import { errorResponse } from "@crm/utils";
+import { errorResponse, successResponse } from "@crm/utils";
 import { salesService } from "../services/sales.service";
-import { RouteBuilder, withAuth, parseBody, parsePagination, parseFilters } from "./helpers";
+import { RouteBuilder, withAuth, parseBody, parsePagination, parseFilters, json } from "./helpers";
+import { invoiceQueries } from "../db/queries";
 import type {
   CreateQuoteRequest,
   UpdateQuoteRequest,
@@ -15,6 +16,39 @@ import type {
 } from "@crm/types";
 
 const router = new RouteBuilder();
+
+// ============================================
+// PUBLIC INVOICE ROUTES (no auth required)
+// ============================================
+
+// Get invoice by public token (no auth required)
+router.get("/api/invoices/token/:token", async (_request, _url, params) => {
+  try {
+    const invoice = await invoiceQueries.findByToken(params.token);
+    if (!invoice) {
+      return json(errorResponse("NOT_FOUND", "Invoice not found"), 404);
+    }
+    return json(successResponse(invoice));
+  } catch (error) {
+    console.error("Error fetching invoice by token:", error);
+    return json(errorResponse("DATABASE_ERROR", "Failed to fetch invoice"), 500);
+  }
+});
+
+// Mark invoice as viewed (no auth required)
+router.post("/api/invoices/token/:token/viewed", async (_request, _url, params) => {
+  try {
+    const invoice = await invoiceQueries.findByToken(params.token);
+    if (!invoice) {
+      return json(errorResponse("NOT_FOUND", "Invoice not found"), 404);
+    }
+    await invoiceQueries.updateViewedAt(invoice.id);
+    return json(successResponse({ success: true }));
+  } catch (error) {
+    console.error("Error updating viewed_at:", error);
+    return json(errorResponse("DATABASE_ERROR", "Failed to update invoice"), 500);
+  }
+});
 
 // ============================================
 // QUOTES

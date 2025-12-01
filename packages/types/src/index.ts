@@ -19,28 +19,30 @@ export interface Company extends BaseEntity {
 	name: string;
 	industry: string;
 	address: string;
+	// Contact information
+	email?: string | null;
+	phone?: string | null;
+	website?: string | null;
+	contact?: string | null;
+	// Address details
+	city?: string | null;
+	zip?: string | null;
+	country?: string | null;
+	countryCode?: string | null;
+	// Business identifiers
+	vatNumber?: string | null;
+	companyNumber?: string | null;
+	// Additional
+	note?: string | null;
 }
 
 // Enhanced Company type with additional fields (inspired by midday-main)
-export interface EnhancedCompany extends BaseEntity {
-	name: string;
-	email: string | null;
-	billingEmail: string | null;
-	phone: string | null;
-	website: string | null;
-	contact: string | null;
-	industry: string;
-	address: string;
-	addressLine1: string | null;
-	addressLine2: string | null;
-	city: string | null;
-	state: string | null;
-	zip: string | null;
-	country: string | null;
-	countryCode: string | null;
-	vatNumber: string | null;
-	note: string | null;
-	token: string;
+export interface EnhancedCompany extends Company {
+	billingEmail?: string | null;
+	addressLine1?: string | null;
+	addressLine2?: string | null;
+	state?: string | null;
+	token?: string;
 	invoiceCount?: number;
 	projectCount?: number;
 	tags?: CompanyTag[];
@@ -265,8 +267,10 @@ export interface InvoiceItem {
 	productName: string;
 	description?: string;
 	quantity: number;
+	unit?: string;
 	unitPrice: number;
 	discount: number;
+	vatRate?: number;
 	total: number;
 }
 
@@ -286,11 +290,21 @@ export interface Invoice extends BaseEntity {
 	/** Discount amount applied to the invoice */
 	discount?: number;
 	taxRate: number;
+	vatRate?: number;
 	tax: number;
 	total: number;
 	paidAmount: number;
+	currency?: string;
 	notes?: string;
 	terms?: string;
+	/** Seller/From details as JSON object */
+	fromDetails?: unknown;
+	/** Customer/Bill to details as JSON object */
+	customerDetails?: unknown;
+	/** Logo URL or base64 data */
+	logoUrl?: string;
+	/** Template settings as JSON object */
+	templateSettings?: unknown;
 	createdBy: UUID;
 }
 

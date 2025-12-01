@@ -62,7 +62,7 @@ export function InvoiceContent({
         </div>
 
         {/* Form */}
-        <div className="flex-1 overflow-hidden">
+        <div className="flex-1 overflow-visible">
           <Form invoiceId={invoiceId} onSuccess={handleSuccess} />
         </div>
       </div>

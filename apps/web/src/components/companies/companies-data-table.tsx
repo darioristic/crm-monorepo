@@ -142,14 +142,18 @@ export function CompaniesDataTable() {
       },
       cell: ({ row }) => {
         return (
-          <div className="flex items-center gap-4">
+          <button
+            type="button"
+            className="flex items-center gap-4 hover:opacity-80 transition-opacity cursor-pointer text-left"
+            onClick={() => handleEdit(row.original)}
+          >
             <Avatar>
               <AvatarFallback>
                 <Building2Icon className="h-4 w-4" />
               </AvatarFallback>
             </Avatar>
-            <div className="font-medium">{row.original.name}</div>
-          </div>
+            <div className="font-medium hover:underline">{row.original.name}</div>
+          </button>
         );
       },
     },

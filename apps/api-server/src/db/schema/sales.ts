@@ -56,6 +56,7 @@ export const invoices = pgTable(
 	{
 		id: uuid("id").primaryKey().defaultRandom(),
 		invoiceNumber: varchar("invoice_number", { length: 50 }).notNull().unique(),
+		token: varchar("token", { length: 100 }).unique(), // Public access token
 		quoteId: uuid("quote_id").references(() => quotes.id, { onDelete: "set null" }),
 		companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
 		contactId: uuid("contact_id").references(() => contacts.id, { onDelete: "set null" }),
@@ -69,11 +70,22 @@ export const invoices = pgTable(
 		// discount = amount deducted from gross total
 		discount: text("discount").notNull().default("0"),
 		taxRate: text("tax_rate").notNull().default("0"),
+		vatRate: text("vat_rate").notNull().default("20"),
 		tax: text("tax").notNull().default("0"),
 		total: text("total").notNull().default("0"),
 		paidAmount: text("paid_amount").notNull().default("0"),
+		currency: varchar("currency", { length: 10 }).notNull().default("EUR"),
 		notes: text("notes"),
 		terms: text("terms"),
+		// Template data stored as JSON
+		fromDetails: text("from_details"), // JSON string of seller details
+		customerDetails: text("customer_details"), // JSON string of customer details
+		logoUrl: text("logo_url"), // URL or base64 of logo
+		templateSettings: text("template_settings"), // JSON string of template settings
+		// Tracking timestamps
+		viewedAt: timestamp("viewed_at", { withTimezone: true }),
+		sentAt: timestamp("sent_at", { withTimezone: true }),
+		paidAt: timestamp("paid_at", { withTimezone: true }),
 		createdBy: uuid("created_by").notNull().references(() => users.id),
 		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
@@ -83,6 +95,7 @@ export const invoices = pgTable(
 		index("idx_invoices_quote_id").on(table.quoteId),
 		index("idx_invoices_status").on(table.status),
 		index("idx_invoices_created_by").on(table.createdBy),
+		index("idx_invoices_token").on(table.token),
 	]
 );
 
@@ -95,8 +108,10 @@ export const invoiceItems = pgTable(
 		productName: varchar("product_name", { length: 255 }).notNull(),
 		description: text("description"),
 		quantity: text("quantity").notNull().default("1"),
+		unit: varchar("unit", { length: 50 }).notNull().default("pcs"),
 		unitPrice: text("unit_price").notNull(),
 		discount: text("discount").notNull().default("0"),
+		vatRate: text("vat_rate").notNull().default("20"),
 		total: text("total").notNull(),
 		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

@@ -15,16 +15,21 @@
     "./types": "./src/types.ts",
     "./templates/html": "./src/templates/html/index.tsx",
     "./templates/pdf": "./src/templates/pdf/index.tsx",
+    "./templates/pdf/format": "./src/templates/pdf/format.tsx",
     "./calculate": "./src/utils/calculate.ts",
     "./format": "./src/utils/format.ts",
+    "./pdf-format": "./src/utils/pdf-format.ts",
+    "./content": "./src/utils/content.ts",
     "./utils": "./src/utils/transform.ts"
   },
   "dependencies": {
+    "@date-fns/tz": "^1.2.0",
     "@react-pdf/renderer": "^4.3.1",
     "date-fns": "^4.1.0",
     "qrcode": "^1.5.4"
   },
   "devDependencies": {
+    "@react-pdf/types": "^2.8.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^18.2.0",
     "react": "^18.2.0",

@@ -1,19 +1,19 @@
 import { Text, View } from "@react-pdf/renderer";
+import type { EditorDoc } from "../../../types";
+import { EditorContent } from "./editor-content";
 
-interface PaymentDetailsProps {
-  label: string;
-  content: string | null;
-}
+type Props = {
+  content?: EditorDoc | null;
+  paymentLabel?: string;
+};
 
-export function PaymentDetails({ label, content }: PaymentDetailsProps) {
+export function PaymentDetails({ content, paymentLabel }: Props) {
   if (!content) return null;
 
   return (
     <View style={{ marginTop: 20 }}>
-      <Text style={{ fontSize: 9, fontWeight: 500, marginBottom: 4 }}>{label}</Text>
-      <Text style={{ fontSize: 9, lineHeight: 1.4, whiteSpace: "pre-wrap" }}>
-        {content}
-      </Text>
+      <Text style={{ fontSize: 9, fontWeight: 500 }}>{paymentLabel}</Text>
+      <EditorContent content={content} />
     </View>
   );
 }

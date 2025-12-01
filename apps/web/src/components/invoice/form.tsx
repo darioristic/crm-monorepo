@@ -31,13 +31,15 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
   const form = useFormContext<FormValues>();
   const customerId = form.watch("customerId");
 
-  const draftMutation = useMutation((data: any) =>
-    invoiceId ? invoicesApi.update(invoiceId, data) : invoicesApi.create(data)
+  // Stable mutation function that handles both create and update
+  const mutationFn = useCallback(
+    (data: any) =>
+      invoiceId ? invoicesApi.update(invoiceId, data) : invoicesApi.create(data),
+    [invoiceId]
   );
 
-  const createMutation = useMutation((data: any) =>
-    invoiceId ? invoicesApi.update(invoiceId, data) : invoicesApi.create(data)
-  );
+  const draftMutation = useMutation(mutationFn);
+  const createMutation = useMutation(mutationFn);
 
   // Only watch the fields that are used in the draft action
   const formValues = useWatch({
@@ -70,7 +72,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
   // Transform form values to API format
   const transformFormValuesToDraft = useCallback((values: FormValues) => {
-    // Calculate gross total from line items
+    // Calculate gross total from line items (before discount)
     const grossTotal = values.lineItems
       .filter((item) => item.name && item.name.trim().length > 0)
       .reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
@@ -85,7 +87,9 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       subtotal: values.subtotal || 0,
       discount: values.discount || 0,
       tax: values.tax || 0,
-      taxRate: values.template.vatRate || values.template.taxRate || 0,
+      taxRate: values.template.taxRate || 0,
+      vatRate: values.template.vatRate || 20,
+      currency: values.template.currency || "EUR",
       total: values.amount,
       notes: values.noteDetails
         ? extractTextFromContent(values.noteDetails)
@@ -93,16 +97,57 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       terms: values.paymentDetails
         ? extractTextFromContent(values.paymentDetails)
         : undefined,
+      // Store fromDetails, customerDetails and logo for PDF generation
+      fromDetails: values.fromDetails || null,
+      customerDetails: values.customerDetails || null,
+      logoUrl: values.template.logoUrl || null,
+      templateSettings: {
+        title: values.template.title,
+        fromLabel: values.template.fromLabel,
+        customerLabel: values.template.customerLabel,
+        invoiceNoLabel: values.template.invoiceNoLabel,
+        issueDateLabel: values.template.issueDateLabel,
+        dueDateLabel: values.template.dueDateLabel,
+        descriptionLabel: values.template.descriptionLabel,
+        quantityLabel: values.template.quantityLabel,
+        priceLabel: values.template.priceLabel,
+        totalLabel: values.template.totalLabel,
+        subtotalLabel: values.template.subtotalLabel,
+        vatLabel: values.template.vatLabel,
+        taxLabel: values.template.taxLabel,
+        discountLabel: values.template.discountLabel,
+        totalSummaryLabel: values.template.totalSummaryLabel,
+        paymentLabel: values.template.paymentLabel,
+        noteLabel: values.template.noteLabel,
+        currency: values.template.currency,
+        dateFormat: values.template.dateFormat,
+        size: values.template.size,
+        includeVat: values.template.includeVat,
+        includeTax: values.template.includeTax,
+        includeDiscount: values.template.includeDiscount,
+        includeDecimals: values.template.includeDecimals,
+        includeUnits: values.template.includeUnits,
+        includeQr: values.template.includeQr,
+        locale: values.template.locale,
+        timezone: values.template.timezone,
+      },
       items: values.lineItems
         .filter((item) => item.name && item.name.trim().length > 0)
-        .map((item) => ({
-          productName: item.name,
-          description: "",
-          quantity: item.quantity || 1,
-          unitPrice: item.price || 0,
-          discount: 0,
-          total: (item.price || 0) * (item.quantity || 1),
-        })),
+        .map((item) => {
+          const baseAmount = (item.price || 0) * (item.quantity || 1);
+          const discountAmount = baseAmount * ((item.discount || 0) / 100);
+          const total = baseAmount - discountAmount;
+          return {
+            productName: item.name,
+            description: "",
+            quantity: item.quantity || 1,
+            unit: item.unit || "pcs",
+            unitPrice: item.price || 0,
+            discount: item.discount || 0,
+            vatRate: item.vat || values.template.vatRate || 20,
+            total: total,
+          };
+        }),
     };
   }, []);
 
@@ -144,23 +189,48 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     });
 
     if (result.success && result.data) {
+      const isUpdate = !!invoiceId;
       toast.success(
         values.template.deliveryType === "create_and_send"
-          ? "Invoice created and sent"
-          : "Invoice created successfully"
+          ? isUpdate ? "Invoice updated and sent" : "Invoice created and sent"
+          : isUpdate ? "Invoice updated successfully" : "Invoice created successfully"
       );
       onSuccess?.(result.data.id);
     } else {
-      toast.error(result.error || "Failed to create invoice");
+      toast.error(result.error || (invoiceId ? "Failed to update invoice" : "Failed to create invoice"));
     }
   };
 
   // Handle form errors
   const handleError = (errors: any) => {
+    // Skip if no actual errors
+    if (!errors) return;
+    
+    // Deep check for actual error messages
+    const hasActualError = (obj: any): boolean => {
+      if (!obj || typeof obj !== 'object') return false;
+      if (obj.message && typeof obj.message === 'string') return true;
+      return Object.values(obj).some(val => hasActualError(val));
+    };
+    
+    if (!hasActualError(errors)) return;
+    
     console.error("Form validation errors:", errors);
-    const firstError = Object.values(errors)[0] as any;
-    if (firstError?.message) {
-      toast.error(firstError.message);
+    
+    // Get nested errors (react-hook-form can have nested error objects)
+    const getFirstErrorMessage = (errorObj: any): string | undefined => {
+      if (!errorObj) return undefined;
+      if (errorObj.message) return errorObj.message;
+      for (const key of Object.keys(errorObj)) {
+        const nested = getFirstErrorMessage(errorObj[key]);
+        if (nested) return nested;
+      }
+      return undefined;
+    };
+    
+    const errorMessage = getFirstErrorMessage(errors);
+    if (errorMessage) {
+      toast.error(errorMessage);
     } else {
       toast.error("Please check the form for errors");
     }
@@ -226,6 +296,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
         <SubmitButton
           isSubmitting={createMutation.isLoading}
           disabled={createMutation.isLoading || draftMutation.isLoading}
+          isEditMode={!!invoiceId}
         />
       </div>
     </form>

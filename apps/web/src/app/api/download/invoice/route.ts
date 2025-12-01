@@ -72,58 +72,99 @@ export async function GET(request: NextRequest) {
 		const apiInvoice = data.data;
 
 		// Build customer details (Bill to)
-		const customerLines: string[] = [];
-		const companyName = apiInvoice.companyName || apiInvoice.company?.name;
-		if (companyName) customerLines.push(companyName);
-		if (apiInvoice.company?.address)
-			customerLines.push(apiInvoice.company.address);
-		const cityLine = [
-			apiInvoice.company?.city,
-			apiInvoice.company?.postalCode,
-			apiInvoice.company?.country,
-		]
-			.filter(Boolean)
-			.join(", ");
-		if (cityLine) customerLines.push(cityLine);
-		if (apiInvoice.company?.email) customerLines.push(apiInvoice.company.email);
-		if (apiInvoice.company?.phone) customerLines.push(apiInvoice.company.phone);
-		if (apiInvoice.company?.vatNumber)
-			customerLines.push(`VAT: ${apiInvoice.company.vatNumber}`);
+		let customerDetails = null;
+		
+		// First check if customerDetails is already stored on the invoice (from database)
+		if (apiInvoice.customerDetails) {
+			customerDetails = typeof apiInvoice.customerDetails === 'string' 
+				? JSON.parse(apiInvoice.customerDetails)
+				: apiInvoice.customerDetails;
+		} else {
+			// Build from company data as fallback
+			const customerLines: string[] = [];
+			const companyName = apiInvoice.companyName || apiInvoice.company?.name;
+			if (companyName) customerLines.push(companyName);
+			
+			// Address
+			if (apiInvoice.company?.addressLine1) customerLines.push(apiInvoice.company.addressLine1);
+			else if (apiInvoice.company?.address) customerLines.push(apiInvoice.company.address);
+			if (apiInvoice.company?.addressLine2) customerLines.push(apiInvoice.company.addressLine2);
+			
+			// City, Postal Code, Country
+			const cityLine = [
+				apiInvoice.company?.city,
+				apiInvoice.company?.zip || apiInvoice.company?.postalCode,
+				apiInvoice.company?.country,
+			]
+				.filter(Boolean)
+				.join(", ");
+			if (cityLine) customerLines.push(cityLine);
+			
+			// Contact info
+			if (apiInvoice.company?.billingEmail) customerLines.push(apiInvoice.company.billingEmail);
+			else if (apiInvoice.company?.email) customerLines.push(apiInvoice.company.email);
+			if (apiInvoice.company?.phone) customerLines.push(apiInvoice.company.phone);
+			
+			// VAT Number
+			if (apiInvoice.company?.vatNumber) customerLines.push(`PIB: ${apiInvoice.company.vatNumber}`);
+			if (apiInvoice.company?.registrationNumber) customerLines.push(`MB: ${apiInvoice.company.registrationNumber}`);
 
-		const customerDetails =
-			customerLines.length > 0
+			customerDetails =
+				customerLines.length > 0
+					? {
+							type: "doc" as const,
+							content: customerLines.map((line) => ({
+								type: "paragraph" as const,
+								content: [{ type: "text" as const, text: line }],
+							})),
+						}
+					: null;
+		}
+
+		// Build from details (seller info)
+		let fromDetails = null;
+		
+		// First check if fromDetails is already stored on the invoice (from database)
+		if (apiInvoice.fromDetails) {
+			fromDetails = typeof apiInvoice.fromDetails === 'string'
+				? JSON.parse(apiInvoice.fromDetails)
+				: apiInvoice.fromDetails;
+		} else if (apiInvoice.seller || apiInvoice.team) {
+			// Build from seller/team data as fallback
+			const seller = apiInvoice.seller || apiInvoice.team;
+			const fromLines: string[] = [];
+			
+			if (seller.name) fromLines.push(seller.name);
+			if (seller.addressLine1) fromLines.push(seller.addressLine1);
+			else if (seller.address) fromLines.push(seller.address);
+			if (seller.addressLine2) fromLines.push(seller.addressLine2);
+			
+			const sellerCityLine = [seller.city, seller.zip || seller.postalCode, seller.country]
+				.filter(Boolean)
+				.join(", ");
+			if (sellerCityLine) fromLines.push(sellerCityLine);
+			
+			if (seller.email) fromLines.push(seller.email);
+			if (seller.phone) fromLines.push(seller.phone);
+			if (seller.vatNumber) fromLines.push(`PIB: ${seller.vatNumber}`);
+			if (seller.registrationNumber) fromLines.push(`MB: ${seller.registrationNumber}`);
+			if (seller.bankAccount) fromLines.push(`Račun: ${seller.bankAccount}`);
+			
+			fromDetails = fromLines.length > 0
 				? {
 						type: "doc" as const,
-						content: customerLines.map((line) => ({
+						content: fromLines.map((line) => ({
 							type: "paragraph" as const,
 							content: [{ type: "text" as const, text: line }],
 						})),
 					}
 				: null;
+		}
+		
+		// Get logo from invoice or use default
+		const logoUrl = apiInvoice.logoUrl || getLogoDataUrl();
 
-		// Build from details (seller info) - default values for now
-		// TODO: Get from settings/team configuration
-		const fromDetails = {
-			type: "doc" as const,
-			content: [
-				{
-					type: "paragraph" as const,
-					content: [{ type: "text" as const, text: "Your Company Name" }],
-				},
-				{
-					type: "paragraph" as const,
-					content: [{ type: "text" as const, text: "Your Address" }],
-				},
-				{
-					type: "paragraph" as const,
-					content: [{ type: "text" as const, text: "City, Country" }],
-				},
-				{
-					type: "paragraph" as const,
-					content: [{ type: "text" as const, text: "email@company.com" }],
-				},
-			],
-		};
+		const companyName = apiInvoice.companyName || apiInvoice.company?.name;
 
 		// Transform API data to Invoice type
 		const invoice: Invoice = {
@@ -141,6 +182,8 @@ export async function GET(request: NextRequest) {
 					quantity: item.quantity || 1,
 					price: item.unitPrice || 0,
 					unit: item.unit || "pcs",
+					discount: item.discount || 0,
+					vat: item.vat ?? item.vatRate ?? apiInvoice.vatRate ?? 20,
 				})) || [],
 			paymentDetails: apiInvoice.terms
 				? {
@@ -175,13 +218,15 @@ export async function GET(request: NextRequest) {
 			status: apiInvoice.status,
 			template: {
 				...DEFAULT_INVOICE_TEMPLATE,
-				logoUrl: getLogoDataUrl(),
+				...(apiInvoice.templateSettings || {}),
+				logoUrl: logoUrl,
 				taxRate: apiInvoice.taxRate || 0,
 				vatRate: apiInvoice.vatRate || 20,
 				currency: apiInvoice.currency || "EUR",
-				includeVat: Boolean(apiInvoice.vat),
+				includeVat: true,
 				includeTax: Boolean(apiInvoice.tax),
-				includeDiscount: Boolean(apiInvoice.discount),
+				includeDiscount: true,
+				includeDecimals: true,
 			},
 			token: token || apiInvoice.token || "",
 			filePath: null,

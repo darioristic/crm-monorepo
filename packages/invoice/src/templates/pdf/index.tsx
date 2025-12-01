@@ -1,18 +1,14 @@
-import { Document, Font, Image, Page, View } from "@react-pdf/renderer";
+import { Document, Font, Image, Page, Text, View } from "@react-pdf/renderer";
 import QRCodeUtil from "qrcode";
-import type { Invoice, InvoiceTemplate } from "../../types";
-import { defaultTemplate } from "../../types";
-import {
-  Meta,
-  LineItems,
-  Summary,
-  CompanyDetailsBlock,
-  PaymentDetails,
-  Notes,
-  QRCode,
-} from "./components";
+import type { Invoice } from "../../types";
+import { EditorContent } from "./components/editor-content";
+import { LineItems } from "./components/line-items";
+import { Meta } from "./components/meta";
+import { Note } from "./components/note";
+import { PaymentDetails } from "./components/payment-details";
+import { QRCode } from "./components/qr-code";
+import { Summary } from "./components/summary";
 
-// Register Inter font
 Font.register({
   family: "Inter",
   fonts: [
@@ -32,30 +28,55 @@ Font.register({
       src: "https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYMZhrib2Bg-4.ttf",
       fontWeight: 700,
     },
+    // Italic fonts
+    {
+      src: "https://fonts.gstatic.com/s/inter/v19/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc2dthjQ.ttf",
+      fontWeight: 400,
+      fontStyle: "italic",
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v19/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTc69thjQ.ttf",
+      fontWeight: 500,
+      fontStyle: "italic",
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v19/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTcB9xhjQ.ttf",
+      fontWeight: 600,
+      fontStyle: "italic",
+    },
+    {
+      src: "https://fonts.gstatic.com/s/inter/v19/UcCM3FwrK3iLTcvneQg7Ca725JhhKnNqk4j1ebLhAm8SrXTcPtxhjQ.ttf",
+      fontWeight: 700,
+      fontStyle: "italic",
+    },
   ],
 });
 
-interface PdfTemplateProps {
-  invoice: Invoice;
-  customTemplate?: Partial<InvoiceTemplate>;
-}
+export async function PdfTemplate({
+  invoiceNumber,
+  issueDate,
+  dueDate,
+  template,
+  lineItems,
+  customerDetails,
+  fromDetails,
+  discount,
+  paymentDetails,
+  noteDetails,
+  currency,
+  vat,
+  tax,
+  amount,
+  topBlock,
+  bottomBlock,
+  token,
+}: Invoice) {
+  let qrCode = null;
 
-export async function PdfTemplate({ invoice, customTemplate }: PdfTemplateProps) {
-  // Merge default template with custom settings
-  const template: InvoiceTemplate = {
-    ...defaultTemplate,
-    ...invoice.template,
-    ...customTemplate,
-  };
-
-  // Generate QR code if enabled
-  let qrCodeData: string | null = null;
   if (template.includeQr) {
-    // Generate payment QR code data
-    const qrContent = `Invoice: ${invoice.invoiceNumber}\nAmount: ${invoice.total} ${template.currency}`;
-    qrCodeData = await QRCodeUtil.toDataURL(qrContent, {
-          margin: 0,
-          width: 60 * 3,
+    qrCode = await QRCodeUtil.toDataURL(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.example.com'}/i/${token}`, {
+      margin: 0,
+      width: 40 * 3,
     });
   }
 
@@ -65,14 +86,13 @@ export async function PdfTemplate({ invoice, customTemplate }: PdfTemplateProps)
         wrap
         size={template.size.toUpperCase() as "LETTER" | "A4"}
         style={{
-          padding: 40,
+          padding: 20,
           backgroundColor: "#fff",
           color: "#000",
           fontFamily: "Inter",
           fontWeight: 400,
         }}
       >
-        {/* Header with Meta and Logo */}
         <View
           style={{
             marginBottom: 20,
@@ -81,18 +101,23 @@ export async function PdfTemplate({ invoice, customTemplate }: PdfTemplateProps)
           }}
         >
           <Meta
-            invoiceNumber={invoice.invoiceNumber}
-            issueDate={invoice.issueDate}
-            dueDate={invoice.dueDate}
-            template={template}
+            invoiceNoLabel={template.invoiceNoLabel}
+            issueDateLabel={template.issueDateLabel}
+            dueDateLabel={template.dueDateLabel}
+            invoiceNo={invoiceNumber}
+            issueDate={issueDate}
+            dueDate={dueDate}
+            timezone={template.timezone}
+            dateFormat={template.dateFormat}
+            title={template.title}
           />
 
-          {template.logoUrl && (
-            <View style={{ maxWidth: 200 }}>
+          {template?.logoUrl && (
+            <View style={{ maxWidth: 300 }}>
               <Image
                 src={template.logoUrl}
                 style={{
-                  height: 60,
+                  height: 75,
                   objectFit: "contain",
                 }}
               />
@@ -100,27 +125,40 @@ export async function PdfTemplate({ invoice, customTemplate }: PdfTemplateProps)
           )}
         </View>
 
-        {/* Company and Customer Details */}
         <View style={{ flexDirection: "row", marginTop: 20 }}>
-          <View style={{ flex: 1, marginRight: 20 }}>
-            <CompanyDetailsBlock
-              label={template.fromLabel}
-              company={invoice.company}
-            />
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 9, fontWeight: 500 }}>
+                {template.fromLabel}
+              </Text>
+              <EditorContent content={fromDetails} />
+            </View>
           </View>
 
-          <View style={{ flex: 1, marginLeft: 20 }}>
-            <CompanyDetailsBlock
-              label={template.customerLabel}
-              company={invoice.customer}
-            />
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <View style={{ marginBottom: 20 }}>
+              <Text style={{ fontSize: 9, fontWeight: 500 }}>
+                {template.customerLabel}
+              </Text>
+              <EditorContent content={customerDetails} />
+            </View>
           </View>
         </View>
 
-        {/* Line Items */}
-        <LineItems items={invoice.items} template={template} />
+        <EditorContent content={topBlock} />
 
-        {/* Summary */}
+        <LineItems
+          lineItems={lineItems}
+          currency={currency}
+          descriptionLabel={template.descriptionLabel}
+          quantityLabel={template.quantityLabel}
+          priceLabel={template.priceLabel}
+          totalLabel={template.totalLabel}
+          locale={template.locale}
+          includeDecimals={template.includeDecimals}
+          includeUnits={template.includeUnits}
+        />
+
         <View
           style={{
             flex: 1,
@@ -129,32 +167,45 @@ export async function PdfTemplate({ invoice, customTemplate }: PdfTemplateProps)
           }}
         >
           <Summary
-            subtotal={invoice.subtotal}
-            tax={invoice.tax}
-            taxRate={invoice.taxRate}
-            total={invoice.total}
-            paidAmount={invoice.paidAmount}
-            template={template}
+            amount={amount}
+            tax={tax}
+            vat={vat}
+            currency={currency}
+            totalLabel={template.totalSummaryLabel}
+            taxLabel={template.taxLabel}
+            vatLabel={template.vatLabel}
+            taxRate={template.taxRate}
+            vatRate={template.vatRate}
+            locale={template.locale}
+            discount={discount}
+            discountLabel={template.discountLabel}
+            includeDiscount={template.includeDiscount}
+            includeVat={template.includeVat}
+            includeTax={template.includeTax}
+            includeDecimals={template.includeDecimals}
+            subtotalLabel={template.subtotalLabel}
+            lineItems={lineItems}
           />
 
-          {/* Payment Details and Notes */}
-          <View style={{ flexDirection: "row", marginTop: 20 }}>
-            <View style={{ flex: 1, marginRight: 20 }}>
+          {/* Note - Full width above payment */}
+          <Note content={noteDetails} noteLabel={template.noteLabel} />
+
+          {/* Payment Details - Single row at bottom */}
+          <View style={{ flexDirection: "row", marginTop: 20, alignItems: "flex-start" }}>
+            <View style={{ flex: 1 }}>
               <PaymentDetails
-                label={template.paymentLabel}
-                content={template.paymentDetails || invoice.terms || null}
-              />
-
-              {qrCodeData && <QRCode data={qrCodeData} />}
-            </View>
-
-            <View style={{ flex: 1, marginLeft: 20 }}>
-              <Notes
-                label={template.noteLabel}
-                content={template.noteDetails || invoice.notes || null}
+                content={paymentDetails}
+                paymentLabel={template.paymentLabel}
               />
             </View>
+            {qrCode && (
+              <View style={{ marginLeft: 20 }}>
+                <QRCode data={qrCode} />
+              </View>
+            )}
           </View>
+
+          <EditorContent content={bottomBlock} />
         </View>
       </Page>
     </Document>

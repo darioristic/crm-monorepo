@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Download, Link2, Check } from "lucide-react";
+import { Download, Link2, Check, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { toast } from "sonner";
@@ -15,6 +15,7 @@ import {
 import { HtmlTemplate } from "@/components/invoice/templates/html";
 import type { Invoice, EditorDoc } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
+import { useAuth } from "@/contexts/auth-context";
 
 type InvoicePublicViewProps = {
   invoice: any;
@@ -101,19 +102,40 @@ function buildCustomerDetails(invoice: any): EditorDoc | null {
 
   // Try to get company details from invoice.company if available
   if (invoice.company) {
-    if (invoice.company.address) lines.push(invoice.company.address);
+    // Address line 1
+    if (invoice.company.addressLine1) {
+      lines.push(invoice.company.addressLine1);
+    } else if (invoice.company.address) {
+      lines.push(invoice.company.address);
+    }
+
+    // Address line 2
+    if (invoice.company.addressLine2) {
+      lines.push(invoice.company.addressLine2);
+    }
+
+    // City, Zip/PostalCode, Country
     const cityLine = [
       invoice.company.city,
-      invoice.company.postalCode,
+      invoice.company.zip || invoice.company.postalCode,
       invoice.company.country,
     ]
       .filter(Boolean)
       .join(", ");
     if (cityLine) lines.push(cityLine);
-    if (invoice.company.email) lines.push(invoice.company.email);
+
+    // Email
+    if (invoice.company.email || invoice.company.billingEmail) {
+      lines.push(invoice.company.billingEmail || invoice.company.email);
+    }
+
+    // Phone
     if (invoice.company.phone) lines.push(invoice.company.phone);
-    if (invoice.company.vatNumber)
+
+    // VAT Number
+    if (invoice.company.vatNumber) {
       lines.push(`VAT: ${invoice.company.vatNumber}`);
+    }
   }
 
   if (lines.length === 0) return null;
@@ -153,6 +175,7 @@ function buildFromDetails(
 }
 
 export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
+  const { isAuthenticated } = useAuth();
   const [isCopied, setIsCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [fromDetails, setFromDetails] = useState<EditorDoc | null>(null);
@@ -187,6 +210,8 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
         quantity: item.quantity || 1,
         price: item.unitPrice || 0,
         unit: item.unit || "pcs",
+        discount: item.discount ?? 0,
+        vat: item.vat ?? item.vatRate ?? invoice.vatRate ?? 20,
       })) || [],
     paymentDetails:
       paymentDetails ||
@@ -227,9 +252,10 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
       taxRate: invoice.taxRate || 0,
       vatRate: invoice.vatRate || 20,
       currency: invoice.currency || "EUR",
-      includeVat: Boolean(invoice.vat),
+      includeVat: true,
       includeTax: Boolean(invoice.tax),
-      includeDiscount: Boolean(invoice.discount),
+      includeDiscount: true,
+      includeDecimals: true,
     },
     token: token,
     filePath: null,
@@ -274,7 +300,7 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
     }
   };
 
-  const width = invoiceData.template?.size === "letter" ? 750 : 595;
+  const width = invoiceData.template?.size === "letter" ? 780 : 625;
   const height = invoiceData.template?.size === "letter" ? 1056 : 842;
 
   return (
@@ -364,6 +390,31 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {isAuthenticated && (
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="rounded-full size-8"
+                    onClick={() => {
+                      window.location.href = `/dashboard/sales/invoices?type=edit&invoiceId=${invoice.id}`;
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent
+                  sideOffset={15}
+                  className="text-[10px] px-2 py-1 rounded-sm font-medium"
+                >
+                  <p>Edit invoice</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
         </div>
       </motion.div>
 

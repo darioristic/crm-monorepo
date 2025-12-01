@@ -3,18 +3,27 @@ import { persist } from "zustand/middleware";
 import type { InvoiceTemplate, InvoiceDefaultSettings } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
+// Only these fields should be persisted across invoices
+interface PersistedInvoiceSettings {
+  template: InvoiceTemplate;
+  fromDetails?: any;
+  paymentDetails?: any;
+}
+
 interface InvoiceSettingsState {
   defaultSettings: InvoiceDefaultSettings;
   recentCustomers: string[];
   setDefaultSettings: (settings: Partial<InvoiceDefaultSettings>) => void;
   setTemplate: (template: Partial<InvoiceTemplate>) => void;
+  setFromDetails: (fromDetails: any) => void;
+  setPaymentDetails: (paymentDetails: any) => void;
   addRecentCustomer: (customerId: string) => void;
   reset: () => void;
 }
 
 const initialState: Omit<
   InvoiceSettingsState,
-  "setDefaultSettings" | "setTemplate" | "addRecentCustomer" | "reset"
+  "setDefaultSettings" | "setTemplate" | "setFromDetails" | "setPaymentDetails" | "addRecentCustomer" | "reset"
 > = {
   defaultSettings: {
     template: DEFAULT_INVOICE_TEMPLATE,
@@ -28,16 +37,28 @@ export const useInvoiceSettingsStore = create<InvoiceSettingsState>()(
       ...initialState,
 
       setDefaultSettings: (settings) =>
-        set((state) => ({
-          defaultSettings: {
-            ...state.defaultSettings,
-            ...settings,
-            template: {
-              ...state.defaultSettings.template,
-              ...(settings.template || {}),
+        set((state) => {
+          // Only allow persisting specific fields: template, fromDetails, paymentDetails
+          const allowedKeys = ['template', 'fromDetails', 'paymentDetails'];
+          const filteredSettings: Partial<InvoiceDefaultSettings> = {};
+          
+          for (const key of allowedKeys) {
+            if (key in settings) {
+              (filteredSettings as any)[key] = (settings as any)[key];
+            }
+          }
+          
+          return {
+            defaultSettings: {
+              ...state.defaultSettings,
+              ...filteredSettings,
+              template: {
+                ...state.defaultSettings.template,
+                ...(settings.template || {}),
+              },
             },
-          },
-        })),
+          };
+        }),
 
       setTemplate: (template) =>
         set((state) => ({
@@ -47,6 +68,22 @@ export const useInvoiceSettingsStore = create<InvoiceSettingsState>()(
               ...state.defaultSettings.template,
               ...template,
             },
+          },
+        })),
+
+      setFromDetails: (fromDetails) =>
+        set((state) => ({
+          defaultSettings: {
+            ...state.defaultSettings,
+            fromDetails,
+          },
+        })),
+
+      setPaymentDetails: (paymentDetails) =>
+        set((state) => ({
+          defaultSettings: {
+            ...state.defaultSettings,
+            paymentDetails,
           },
         })),
 
@@ -64,8 +101,13 @@ export const useInvoiceSettingsStore = create<InvoiceSettingsState>()(
     }),
     {
       name: "invoice-settings",
+      // Only persist template, fromDetails, and paymentDetails - NOT line items, customer, etc.
       partialize: (state) => ({
-        defaultSettings: state.defaultSettings,
+        defaultSettings: {
+          template: state.defaultSettings.template,
+          fromDetails: state.defaultSettings.fromDetails,
+          paymentDetails: state.defaultSettings.paymentDetails,
+        },
         recentCustomers: state.recentCustomers,
       }),
     }
