@@ -124,7 +124,7 @@ export function InvoicePreview({
             {config.fromLabel}
           </p>
           <div className="text-sm leading-relaxed">
-            <p className="font-medium">{invoice.team?.name || "Your Company"}</p>
+            <p className="font-medium">Your Company</p>
           </div>
         </div>
 

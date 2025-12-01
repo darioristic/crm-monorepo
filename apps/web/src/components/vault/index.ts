@@ -14,4 +14,7 @@ export { VaultGetStarted } from "./vault-get-started";
 export { NoResults } from "./empty-states";
 export { DeleteVaultFileDialog } from "./delete-vault-file-dialog";
 export { VaultSkeleton, VaultGridSkeleton, VaultItemSkeleton } from "./vault-skeleton";
+export { VaultSelectTags } from "./vault-select-tags";
+export { VaultRelatedFiles } from "./vault-related-files";
+export { VaultRelatedFilesSkeleton } from "./vault-related-files-skeleton";
 

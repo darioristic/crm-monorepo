@@ -64,20 +64,23 @@ export function InvoiceSheet({ defaultSettings }: InvoiceSheetProps) {
     [router, pathname, searchParams]
   );
 
-  if (!isOpen) return null;
-
   return (
-    <Sheet open={isOpen} onOpenChange={handleOpenChange}>
-      <FormContext defaultSettings={defaultSettings} data={formData}>
-        <InvoiceSheetContent
-          type={type!}
-          invoiceId={invoiceId}
-          onSuccess={handleSuccess}
-          onClose={() => handleOpenChange(false)}
-          isLoading={isLoadingInvoice && type === "edit"}
-        />
-      </FormContext>
-    </Sheet>
+    <ProductEditProvider>
+      <Sheet open={isOpen} onOpenChange={handleOpenChange}>
+        {isOpen && (
+          <FormContext defaultSettings={defaultSettings} data={formData}>
+            <InvoiceSheetContent
+              type={type!}
+              invoiceId={invoiceId}
+              onSuccess={handleSuccess}
+              onClose={() => handleOpenChange(false)}
+              isLoading={isLoadingInvoice && type === "edit"}
+            />
+          </FormContext>
+        )}
+      </Sheet>
+      <ProductEditSheet />
+    </ProductEditProvider>
   );
 }
 

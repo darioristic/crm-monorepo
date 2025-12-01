@@ -375,48 +375,42 @@ export function ProductAutocomplete({
               return (
                 <div
                   key={product.id}
+                  role="option"
+                  aria-selected={isSelected}
+                  tabIndex={0}
                   className={cn(
-                    "w-full px-3 py-2 transition-colors flex items-center justify-between",
+                    "w-full px-3 py-2 transition-colors flex items-center justify-between cursor-pointer",
                     (isSelected || isHovered) &&
                       "bg-accent text-accent-foreground"
                   )}
+                  onMouseEnter={() => {
+                    setSelectedIndex(suggestionIndex);
+                    setHoveredIndex(suggestionIndex);
+                  }}
+                  onMouseLeave={() => setHoveredIndex(-1)}
+                  onMouseDown={(e) => {
+                    // Only select product if clicking on the row itself, not the Edit button
+                    if (
+                      (e.target as HTMLElement).closest("[data-edit-button]")
+                    ) {
+                      return;
+                    }
+                    e.preventDefault();
+                    handleProductSelect(product);
+                  }}
                 >
-                  <button
-                    type="button"
-                    className="flex flex-col flex-1 text-left cursor-pointer"
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                      handleProductSelect(product);
-                    }}
-                    onMouseEnter={() => {
-                      setSelectedIndex(suggestionIndex);
-                      setHoveredIndex(suggestionIndex);
-                    }}
-                    onMouseLeave={() => setHoveredIndex(-1)}
-                  >
+                  <div className="flex flex-col flex-1 text-left">
                     <span className="text-xs">{product.name}</span>
                     {product.description && (
                       <span className="text-xs text-muted-foreground line-clamp-1">
                         {product.description}
                       </span>
                     )}
-                  </button>
+                  </div>
 
                   <div className="flex items-center gap-2">
                     {product.price !== undefined && (
-                      <button
-                        type="button"
-                        className="text-xs text-muted-foreground cursor-pointer"
-                        onMouseDown={(e) => {
-                          e.preventDefault();
-                          handleProductSelect(product);
-                        }}
-                        onMouseEnter={() => {
-                          setSelectedIndex(suggestionIndex);
-                          setHoveredIndex(suggestionIndex);
-                        }}
-                        onMouseLeave={() => setHoveredIndex(-1)}
-                      >
+                      <span className="text-xs text-muted-foreground">
                         {formatInvoiceAmount({
                           amount: product.price,
                           currency: product.currency || currency || "EUR",
@@ -424,16 +418,12 @@ export function ProductAutocomplete({
                           maximumFractionDigits,
                         })}
                         {product.unit && `/${product.unit}`}
-                      </button>
+                      </span>
                     )}
-                    <div
-                      className={cn(
-                        "flex justify-end transition-all duration-150 ease-out overflow-hidden",
-                        isHovered ? "w-8" : "w-0"
-                      )}
-                    >
+                    {isHovered && (
                       <button
                         type="button"
+                        data-edit-button
                         onMouseDown={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -441,20 +431,11 @@ export function ProductAutocomplete({
                           openProductEdit(product.id);
                           setShowSuggestions(false);
                         }}
-                        onMouseEnter={() => {
-                          setSelectedIndex(suggestionIndex);
-                          setHoveredIndex(suggestionIndex);
-                        }}
-                        className={cn(
-                          "text-xs px-1 transition-all duration-150 ease-out",
-                          isHovered
-                            ? "opacity-50 hover:opacity-100"
-                            : "opacity-0 pointer-events-none"
-                        )}
+                        className="text-xs px-2 py-1 rounded bg-secondary hover:bg-secondary/80 transition-colors"
                       >
                         Edit
                       </button>
-                    </div>
+                    )}
                   </div>
                 </div>
               );

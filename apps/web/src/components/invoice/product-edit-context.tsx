@@ -45,9 +45,18 @@ export function ProductEditProvider({ children }: { children: ReactNode }) {
 
 export function useProductEdit() {
   const context = useContext(ProductEditContext);
+  
+  // Return safe defaults if used outside provider (prevents crashes)
   if (!context) {
-    throw new Error("useProductEdit must be used within ProductEditProvider");
+    return {
+      editProductId: null,
+      openProductEdit: () => {},
+      closeProductEdit: () => {},
+      onProductUpdated: undefined,
+      setOnProductUpdated: () => {},
+    };
   }
+  
   return context;
 }
 
