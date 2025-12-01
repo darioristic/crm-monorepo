@@ -2,7 +2,6 @@
 
 import { cn } from "@/lib/utils";
 import { productsApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import type { FormValues } from "./form-context";
@@ -36,8 +35,11 @@ export function ProductAutocomplete({
   const [isFocused, setIsFocused] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [hoveredIndex, setHoveredIndex] = useState(-1);
-  const [isSaving, setIsSaving] = useState(false);
+  const [, setIsSaving] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const { setValue, watch, control } = useFormContext<FormValues>();
 
   const currentProductId = watch(`lineItems.${index}.productId`);
@@ -51,27 +53,39 @@ export function ProductAutocomplete({
   });
   const maximumFractionDigits = includeDecimals ? 2 : 0;
 
-  // Fetch products from API - use popular products sorted by usage
-  const {
-    data: productsData,
-    isLoading,
-    refetch,
-  } = useApi(
-    () =>
-      productsApi.getPopular({ limit: 50, currency: currency || undefined }),
-    { autoFetch: true }
-  );
+  // Fetch products when component mounts or currency changes
+  const fetchProducts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await productsApi.getPopular({
+        limit: 50,
+        currency: currency || undefined,
+      });
+      if (response.success && response.data) {
+        const transformedProducts: Product[] = response.data.map((p) => ({
+          id: p.id,
+          name: p.name,
+          price:
+            typeof p.unitPrice === "string"
+              ? parseFloat(p.unitPrice)
+              : p.unitPrice,
+          unit: p.unit ?? undefined,
+          currency: p.currency || currency || "EUR",
+          description: p.description ?? undefined,
+        }));
+        setProducts(transformedProducts);
+      }
+    } catch (error) {
+      console.error("Failed to fetch products:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currency]);
 
-  // Transform API products to local format
-  const products: Product[] = (productsData || []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    price:
-      typeof p.unitPrice === "string" ? parseFloat(p.unitPrice) : p.unitPrice,
-    unit: p.unit ?? undefined,
-    currency: p.currency || currency || "EUR",
-    description: p.description ?? undefined,
-  }));
+  // Fetch products on mount and when currency changes
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
 
   // Filter products based on input
   const filteredProducts =
@@ -79,7 +93,7 @@ export function ProductAutocomplete({
       ? products.filter((product) =>
           product.name.toLowerCase().includes(value.toLowerCase())
         )
-      : products.slice(0, 5);
+      : products.slice(0, 5); // Show top 5 when not searching
 
   const handleInputChange = useCallback(
     (newValue: string) => {
@@ -94,6 +108,7 @@ export function ProductAutocomplete({
         });
       }
 
+      // Show suggestions when typing
       if (isFocused) {
         setShowSuggestions(true);
       }
@@ -132,7 +147,7 @@ export function ProductAutocomplete({
       // Increment usage count since user actively selected this product
       try {
         await productsApi.incrementUsage(product.id);
-        refetch(); // Refresh products to get updated usage counts
+        fetchProducts(); // Refresh products to get updated usage counts
       } catch (error) {
         console.error("Failed to increment product usage:", error);
       }
@@ -140,7 +155,7 @@ export function ProductAutocomplete({
       setShowSuggestions(false);
       onProductSelect?.(product);
     },
-    [setValue, index, onProductSelect, refetch]
+    [setValue, index, onProductSelect, fetchProducts]
   );
 
   const handleFocus = useCallback(() => {
@@ -154,7 +169,7 @@ export function ProductAutocomplete({
   }, [currentProductId]);
 
   /**
-   * Save line item as product on blur (smart learning like midday-main)
+   * Save line item as product on blur (smart learning like midday)
    * This creates/updates products automatically from invoice line items
    */
   const handleBlur = useCallback(async () => {
@@ -195,7 +210,7 @@ export function ProductAutocomplete({
           }
 
           // Refresh products list
-          refetch();
+          fetchProducts();
         }
       } catch (error) {
         console.error("Failed to save line item as product:", error);
@@ -211,7 +226,7 @@ export function ProductAutocomplete({
     currency,
     setValue,
     index,
-    refetch,
+    fetchProducts,
   ]);
 
   // Reset selection when suggestions change
@@ -223,8 +238,8 @@ export function ProductAutocomplete({
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
-        inputRef.current &&
-        !inputRef.current.contains(event.target as Node)
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
       ) {
         setShowSuggestions(false);
         setSelectedIndex(-1);
@@ -246,16 +261,28 @@ export function ProductAutocomplete({
           case "ArrowDown":
             e.preventDefault();
             e.stopPropagation();
-            setSelectedIndex((prev) =>
-              prev < filteredProducts.length - 1 ? prev + 1 : 0
-            );
+            setSelectedIndex((prev) => {
+              const newIndex =
+                prev === -1
+                  ? 0
+                  : prev < filteredProducts.length - 1
+                    ? prev + 1
+                    : 0;
+              return newIndex;
+            });
             return;
           case "ArrowUp":
             e.preventDefault();
             e.stopPropagation();
-            setSelectedIndex((prev) =>
-              prev > 0 ? prev - 1 : filteredProducts.length - 1
-            );
+            setSelectedIndex((prev) => {
+              const newIndex =
+                prev === -1
+                  ? filteredProducts.length - 1
+                  : prev > 0
+                    ? prev - 1
+                    : filteredProducts.length - 1;
+              return newIndex;
+            });
             return;
           case "Enter":
             e.preventDefault();
@@ -285,7 +312,7 @@ export function ProductAutocomplete({
   const showPlaceholder = !value && !isFocused;
 
   return (
-    <div className="relative">
+    <div ref={containerRef}>
       <input
         ref={inputRef}
         type="text"
@@ -300,6 +327,10 @@ export function ProductAutocomplete({
         aria-expanded={showSuggestions}
         aria-haspopup="listbox"
         aria-autocomplete="list"
+        aria-controls="product-suggestions-listbox"
+        aria-activedescendant={
+          selectedIndex >= 0 ? `product-option-${selectedIndex}` : undefined
+        }
         className={cn(
           "border-0 p-0 min-h-6 border-b border-transparent focus:border-border text-xs pt-1",
           "transition-colors duration-200 bg-transparent outline-none resize-none w-full",
@@ -311,7 +342,10 @@ export function ProductAutocomplete({
       />
 
       {showSuggestions && !currentProductId && (
-        <div className="absolute z-50 mt-1 bg-background border shadow-md max-h-64 overflow-y-auto right-0 left-0 rounded-md">
+        <div
+          id="product-suggestions-listbox"
+          className="absolute z-50 mt-1 bg-background border shadow-md max-h-64 overflow-y-auto right-0 left-0"
+        >
           {isLoading ? (
             <div className="px-3 py-2 text-xs text-muted-foreground">
               Loading products...
@@ -320,6 +354,8 @@ export function ProductAutocomplete({
             filteredProducts.map((product, suggestionIndex) => (
               <div
                 key={product.id}
+                id={`product-option-${suggestionIndex}`}
+                aria-selected={selectedIndex === suggestionIndex}
                 className={cn(
                   "w-full cursor-pointer px-3 py-2 transition-colors",
                   selectedIndex === suggestionIndex &&
@@ -339,7 +375,7 @@ export function ProductAutocomplete({
               >
                 <div className="flex items-center justify-between w-full">
                   <div className="flex flex-col">
-                    <div className="text-xs font-medium">{product.name}</div>
+                    <div className="text-xs">{product.name}</div>
                     {product.description && (
                       <div className="text-xs text-muted-foreground line-clamp-1">
                         {product.description}
@@ -347,23 +383,29 @@ export function ProductAutocomplete({
                     )}
                   </div>
 
-                  {product.price !== undefined && (
-                    <div className="text-xs text-muted-foreground font-mono">
-                      {formatInvoiceAmount({
-                        amount: product.price,
-                        currency: product.currency || currency || "EUR",
-                        locale: locale || "sr-RS",
-                        maximumFractionDigits,
-                      })}
-                      {product.unit && `/${product.unit}`}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {product.price !== undefined && (
+                      <div className="text-xs text-muted-foreground">
+                        {formatInvoiceAmount({
+                          amount: product.price,
+                          currency: product.currency || currency || "EUR",
+                          locale: locale || "sr-RS",
+                          maximumFractionDigits,
+                        })}
+                        {product.unit && `/${product.unit}`}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             ))
           ) : value.trim().length >= 2 ? (
             <div className="px-3 py-2 text-xs text-muted-foreground">
-              No products found
+              No products found - will be created on save
+            </div>
+          ) : products.length === 0 ? (
+            <div className="px-3 py-2 text-xs text-muted-foreground">
+              No products yet - type to create one
             </div>
           ) : (
             <div className="px-3 py-2 text-xs text-muted-foreground">

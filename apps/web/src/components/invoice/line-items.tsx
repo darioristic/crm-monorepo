@@ -11,7 +11,8 @@ import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
 import type { FormValues } from "./form-context";
 import { LabelInput } from "./label-input";
 import { ProductAutocomplete } from "./product-autocomplete";
-import { AmountInput } from "./amount-input";
+import { ProductAwareAmountInput } from "./product-aware-amount-input";
+import { ProductAwareUnitInput } from "./product-aware-unit-input";
 import { QuantityInput } from "./quantity-input";
 
 export function LineItems() {
@@ -257,15 +258,18 @@ function LineItemRow({
 
       {/* Unit */}
       {includeUnits && (
-        <input
-          {...register(`lineItems.${index}.unit`)}
+        <ProductAwareUnitInput
+          name={`lineItems.${index}.unit`}
+          lineItemIndex={index}
           placeholder="pcs"
-          className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs"
         />
       )}
 
       {/* Price */}
-      <AmountInput name={`lineItems.${index}.price`} />
+      <ProductAwareAmountInput
+        name={`lineItems.${index}.price`}
+        lineItemIndex={index}
+      />
 
       {/* Disc % */}
       {includeDiscount && (

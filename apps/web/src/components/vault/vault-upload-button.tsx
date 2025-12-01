@@ -9,7 +9,7 @@ export function VaultUploadButton() {
       variant="outline"
       size="icon"
       className="h-9 w-9"
-      onClick={() => document.getElementById("upload-files")?.click()}
+      onClick={() => document.getElementById("vault-upload-input")?.click()}
     >
       <Plus className="h-4 w-4" />
     </Button>

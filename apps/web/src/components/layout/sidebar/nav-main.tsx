@@ -22,6 +22,7 @@ import {
   ClipboardCheckIcon,
   CreditCardIcon,
   FileTextIcon,
+  FolderArchive,
   FolderDotIcon,
   LayoutDashboardIcon,
   MilestoneIcon,
@@ -76,6 +77,11 @@ export const navItems: NavGroup[] = [
         title: "Calendar",
         href: "/dashboard/calendar",
         icon: CalendarIcon,
+      },
+      {
+        title: "Vault",
+        href: "/dashboard/vault",
+        icon: FolderArchive,
       },
       {
         title: "Notifications",

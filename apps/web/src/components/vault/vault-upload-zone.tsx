@@ -24,7 +24,7 @@ export function VaultUploadZone({ onUpload, children }: Props) {
   const queryClient = useQueryClient();
   const uploadProgress = useRef<number[]>([]);
   const { startUpload, finishUpload } = useUploadProgressStore();
-	const uploadInputId = "vault-upload-input";
+  const uploadInputId = "vault-upload-input";
 
   const onDrop = async (files: File[]) => {
     if (!files.length) {
@@ -140,7 +140,7 @@ export function VaultUploadZone({ onUpload, children }: Props) {
             "transition-all duration-200"
           )}
         >
-				<input {...getInputProps()} id={uploadInputId} />
+          <input {...getInputProps()} id={uploadInputId} />
 
           <div className="flex flex-col items-center justify-center gap-2">
             <p className="text-sm">

@@ -210,7 +210,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
                 className="h-8 w-8 border-2 border-background"
                 style={{ zIndex: visibleMembers.length - index }}
               >
-                <AvatarImage src={member.avatar || undefined} alt={`${member.firstName} ${member.lastName}`} />
+                <AvatarImage src={member.avatarUrl || undefined} alt={`${member.firstName} ${member.lastName}`} />
                 <AvatarFallback className="text-xs bg-gradient-to-br from-primary/80 to-primary text-primary-foreground">
                   {getInitials(`${member.firstName} ${member.lastName}`)}
                 </AvatarFallback>

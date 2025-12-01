@@ -24,7 +24,7 @@ export function VaultGetStarted() {
 
 					<Button
 						variant="outline"
-						onClick={() => document.getElementById("upload-files")?.click()}
+						onClick={() => document.getElementById("vault-upload-input")?.click()}
 						className="gap-2"
 					>
 						<Upload className="h-4 w-4" />
