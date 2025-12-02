@@ -11,6 +11,7 @@ import {
 	RATE_LIMITS,
 	rateLimitExceededResponse,
 } from "../middleware/rate-limit";
+import { logger } from "../lib/logger";
 
 // ============================================
 // Response Helper
@@ -152,7 +153,20 @@ export async function loginHandler(
 		);
 	}
 
-	const result = await authService.login(body.email, body.password);
+	let result;
+	try {
+		result = await authService.login(body.email, body.password);
+	} catch (error) {
+		// Log the actual error for debugging
+		logger.error(
+			{ error, email: body.email },
+			"Error in loginHandler before authService.login",
+		);
+		return json(
+			errorResponse("SERVER_ERROR", "Login failed due to server error"),
+			500,
+		);
+	}
 
 	if (!result.success) {
 		// Log failed login attempt
@@ -298,11 +312,47 @@ export async function meHandler(request: Request, url: URL): Promise<Response> {
 
 	const result = await authService.getCurrentUser(auth.userId);
 
-	if (!result.success) {
-		return json(result, 404);
+	if (!result.success || !result.data) {
+		return json(result, result.success ? 200 : 404);
 	}
 
-	return json(result);
+	// Map User to AuthUser format (only include fields that frontend expects)
+	const userData = {
+		id: result.data.id,
+		firstName: result.data.firstName,
+		lastName: result.data.lastName,
+		email: result.data.email,
+		role: result.data.role,
+		companyId: result.data.companyId,
+		avatarUrl: result.data.avatarUrl,
+	};
+
+	// Add company information if user has an active company
+	if (result.data.companyId) {
+		try {
+			const { getCompanyById } = await import("../db/queries/companies-members");
+			const company = await getCompanyById(result.data.companyId);
+			if (company) {
+				// Return user with company info
+				return json({
+					success: true,
+					data: {
+						...userData,
+						company,
+					},
+				});
+			}
+		} catch (error) {
+			// If company fetch fails, just return user without company
+			logger.error({ error, userId: auth.userId }, "Failed to fetch company in meHandler");
+		}
+	}
+
+	// Return user without company
+	return json({
+		success: true,
+		data: userData,
+	});
 }
 
 /**

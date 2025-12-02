@@ -3,8 +3,13 @@ import postgres from "postgres";
 import * as schema from "./schema";
 import { dbLogger } from "../lib/logger";
 
-const DATABASE_URL =
-  process.env.DATABASE_URL || "postgres://crm_user:crm_password@localhost:5432/crm_db";
+const DATABASE_URL = process.env.DATABASE_URL;
+if (!DATABASE_URL) {
+  throw new Error(
+    "FATAL: DATABASE_URL environment variable is required. " +
+    "Example: postgresql://username:password@localhost:5432/crm_db"
+  );
+}
 
 // Create PostgreSQL client with connection pooling
 const queryClient = postgres(DATABASE_URL, {

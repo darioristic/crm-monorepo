@@ -6,7 +6,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import { useCallback, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 type Props = {
   initialContent?: JSONContent;
@@ -40,6 +40,7 @@ export function Editor({
         code: false,
         blockquote: false,
         horizontalRule: false,
+        link: false, // Disable link from StarterKit to avoid duplicate
       }),
       Link.configure({
         openOnClick: false,
@@ -107,11 +108,13 @@ export function Editor({
 }
 
 // Helper to extract text from editor content
-export function extractTextFromContent(content: JSONContent | null | undefined): string {
+export function extractTextFromContent(
+  content: JSONContent | null | undefined
+): string {
   if (!content) return "";
-  
-  const extractText = (node: any): string => {
-    if (node.type === "text") return node.text || "";
+
+  const extractText = (node: JSONContent): string => {
+    if (node.type === "text") return (node as { text?: string }).text || "";
     if (node.content) {
       return node.content.map(extractText).join("");
     }

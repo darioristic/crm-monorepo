@@ -98,11 +98,17 @@ export function getInvoicesColumns({
     {
       accessorKey: "companyName",
       header: "Company",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.companyName}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const companyName = row.original.companyName;
+        if (!companyName || companyName === "Unknown Company") {
+          return <span className="text-muted-foreground">-</span>;
+        }
+        return (
+          <span className="text-muted-foreground">
+            {companyName}
+          </span>
+        );
+      },
     },
     {
       accessorKey: "status",

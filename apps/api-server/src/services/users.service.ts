@@ -159,9 +159,10 @@ class UsersService {
       }
 
       // Validate company if changing
-      if (data.companyId !== undefined && data.companyId !== null) {
+      if (data.companyId !== undefined && data.companyId !== null && data.companyId !== "") {
         const company = await companyQueries.findById(data.companyId);
         if (!company) {
+          console.error(`Company not found: ${data.companyId}`);
           return errorResponse("VALIDATION_ERROR", "Invalid company ID - company not found");
         }
       }
@@ -171,24 +172,40 @@ class UsersService {
         return errorResponse("VALIDATION_ERROR", "Role must be 'admin' or 'user'");
       }
 
-      const updated = await userQueries.update(id, {
-        firstName: data.firstName?.trim(),
-        lastName: data.lastName?.trim(),
-        email: data.email?.toLowerCase().trim(),
-        role: data.role,
-        companyId: data.companyId,
-        avatarUrl: data.avatarUrl,
-        phone: data.phone,
-      });
+      const updateData: Partial<User> = {};
+      if (data.firstName !== undefined) updateData.firstName = data.firstName.trim();
+      if (data.lastName !== undefined) updateData.lastName = data.lastName.trim();
+      if (data.email !== undefined) updateData.email = data.email.toLowerCase().trim();
+      if (data.role !== undefined) updateData.role = data.role;
+      if (data.companyId !== undefined) {
+        // Explicitly set companyId - use null if empty string, otherwise use the value
+        updateData.companyId = data.companyId === "" ? undefined : data.companyId;
+      }
+      if (data.avatarUrl !== undefined) updateData.avatarUrl = data.avatarUrl;
+      if (data.phone !== undefined) updateData.phone = data.phone;
+
+      const updated = await userQueries.update(id, updateData);
 
       // Invalidate caches
       await cache.del(`${CACHE_PREFIX}:${id}`);
       await cache.invalidatePattern(`${CACHE_PREFIX}:list:*`);
+      
+      // If companyId was updated, also invalidate company-related caches
+      if (data.companyId !== undefined) {
+        await cache.del(`user:${id}:company`);
+        // Invalidate company cache if companyId changed
+        if (data.companyId) {
+          await cache.del(`${CACHE_PREFIX}:company:${data.companyId}`);
+        }
+      }
 
       return successResponse(updated);
     } catch (error) {
       console.error("Error updating user:", error);
-      return errorResponse("DATABASE_ERROR", "Failed to update user");
+      if (error instanceof Error) {
+        console.error("Error details:", error.message, error.stack);
+      }
+      return errorResponse("DATABASE_ERROR", `Failed to update user: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
 

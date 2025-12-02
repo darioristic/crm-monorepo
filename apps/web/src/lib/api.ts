@@ -1,8 +1,11 @@
 import type {
 	User,
 	Company,
+	Contact,
 	CreateUserRequest,
 	UpdateUserRequest,
+	CreateContactRequest,
+	UpdateContactRequest,
 	CreateCompanyRequest,
 	UpdateCompanyRequest,
 	Quote,
@@ -193,6 +196,31 @@ export const usersApi = {
 
 	delete: (id: string) =>
 		request<void>(`/api/v1/users/${id}`, {
+			method: "DELETE",
+		}),
+};
+
+// Contacts API
+export const contactsApi = {
+	getAll: (params: FilterParams & PaginationParams = {}) =>
+		request<Contact[]>(`/api/v1/contacts${buildQueryString(params)}`),
+
+	getById: (id: string) => request<Contact>(`/api/v1/contacts/${id}`),
+
+	create: (data: CreateContactRequest) =>
+		request<Contact>("/api/v1/contacts", {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
+	update: (id: string, data: UpdateContactRequest) =>
+		request<Contact>(`/api/v1/contacts/${id}`, {
+			method: "PUT",
+			body: JSON.stringify(data),
+		}),
+
+	delete: (id: string) =>
+		request<void>(`/api/v1/contacts/${id}`, {
 			method: "DELETE",
 		}),
 };

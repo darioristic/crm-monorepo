@@ -20,9 +20,10 @@ export async function withTransaction<T>(
   callback: (tx: TransactionClient) => Promise<T>
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    // The tx object from drizzle-orm works similarly to sql
-    // For raw queries, we still use sql but within the transaction context
-    return callback(sql);
+    // The tx object from drizzle-orm is the transaction context
+    // For raw SQL queries, we use the tx.execute() method or template literals
+    // Since TransactionClient is typeof sql, we can use tx directly as sql template
+    return callback(tx as TransactionClient);
   });
 }
 

@@ -23,7 +23,7 @@ import {
   Trash2,
   AlertCircle,
 } from "lucide-react";
-import type { User } from "@crm/types";
+import type { Contact } from "@crm/types";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -44,10 +44,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { generateAvatarFallback } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
-import { usersApi } from "@/lib/api";
+import { contactsApi } from "@/lib/api";
 import { usePaginatedApi, useMutation } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -63,7 +62,7 @@ export function UsersDataTable() {
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [userToDelete, setUserToDelete] = React.useState<User | null>(null);
+  const [contactToDelete, setContactToDelete] = React.useState<Contact | null>(null);
 
   const {
     data,
@@ -75,31 +74,31 @@ export function UsersDataTable() {
     totalCount,
     totalPages,
     setPage,
-  } = usePaginatedApi<User>((params) => usersApi.getAll(params));
+  } = usePaginatedApi<Contact>((params) => contactsApi.getAll(params));
 
-  const deleteMutation = useMutation<void, string>((id) => usersApi.delete(id));
+  const deleteMutation = useMutation<void, string>((id) => contactsApi.delete(id));
 
-  const handleEdit = (user: User) => {
-    router.push(`/dashboard/users/${user.id}/edit`);
+  const handleEdit = (contact: Contact) => {
+    router.push(`/dashboard/users/${contact.id}/edit`);
   };
 
-  const handleDelete = (user: User) => {
-    setUserToDelete(user);
+  const handleDelete = (contact: Contact) => {
+    setContactToDelete(contact);
     setDeleteDialogOpen(true);
   };
 
   const confirmDelete = async () => {
-    if (!userToDelete) return;
+    if (!contactToDelete) return;
 
-    const result = await deleteMutation.mutate(userToDelete.id);
+    const result = await deleteMutation.mutate(contactToDelete.id);
     if (result.success) {
       setDeleteDialogOpen(false);
-      setUserToDelete(null);
+      setContactToDelete(null);
       refetch();
     }
   };
 
-  const columns: ColumnDef<User>[] = [
+  const columns: ColumnDef<Contact>[] = [
     {
       id: "select",
       header: ({ table }) => (
@@ -156,7 +155,7 @@ export function UsersDataTable() {
       cell: ({ row }) => row.original.email,
     },
     {
-      accessorKey: "role",
+      accessorKey: "company",
       header: ({ column }) => {
         return (
           <Button
@@ -164,42 +163,28 @@ export function UsersDataTable() {
             variant="ghost"
             onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
           >
-            Role
+            Company
             <ArrowUpDown className="ml-2 h-4 w-4" />
           </Button>
         );
       },
-      cell: ({ row }) => {
-        const role = row.original.role;
-        return (
-          <Badge
-            variant={role === "admin" ? "default" : "secondary"}
-            className="capitalize"
-          >
-            {role}
-          </Badge>
-        );
-      },
+      cell: ({ row }) => row.original.company || "-",
     },
     {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => {
-        const status = row.original.status || "active";
-        const variantMap: Record<
-          string,
-          "default" | "success" | "warning" | "destructive"
-        > = {
-          active: "success",
-          inactive: "destructive",
-          pending: "warning",
-        };
+      accessorKey: "position",
+      header: ({ column }) => {
         return (
-          <Badge variant={variantMap[status] || "default"} className="capitalize">
-            {status}
-          </Badge>
+          <Button
+            className="-ml-3"
+            variant="ghost"
+            onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          >
+            Position
+            <ArrowUpDown className="ml-2 h-4 w-4" />
+          </Button>
         );
       },
+      cell: ({ row }) => row.original.position || "-",
     },
     {
       accessorKey: "createdAt",
@@ -216,7 +201,7 @@ export function UsersDataTable() {
       id: "actions",
       enableHiding: false,
       cell: ({ row }) => {
-        const user = row.original;
+        const contact = row.original;
         return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -226,14 +211,14 @@ export function UsersDataTable() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => handleEdit(user)}>
+              <DropdownMenuItem onClick={() => handleEdit(contact)}>
                 <Pencil className="mr-2 h-4 w-4" />
-                Edit User
+                Edit Contact
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive"
-                onClick={() => handleDelete(user)}
+                onClick={() => handleDelete(contact)}
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
@@ -283,7 +268,7 @@ export function UsersDataTable() {
       <Alert variant="destructive">
         <AlertCircle className="h-4 w-4" />
         <AlertDescription>
-          Failed to load users: {error}
+          Failed to load contacts: {error}
           <Button variant="link" onClick={refetch} className="ml-2">
             Try again
           </Button>
@@ -296,7 +281,7 @@ export function UsersDataTable() {
     <div className="w-full">
       <div className="flex items-center gap-4 py-4">
         <Input
-          placeholder="Search users..."
+          placeholder="Search contacts..."
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
             table.getColumn("name")?.setFilterValue(event.target.value)
@@ -375,7 +360,7 @@ export function UsersDataTable() {
                   colSpan={columns.length}
                   className="h-24 text-center"
                 >
-                  No users found.
+                  No contacts found.
                 </TableCell>
               </TableRow>
             )}
@@ -388,7 +373,7 @@ export function UsersDataTable() {
           {table.getFilteredRowModel().rows.length} row(s) selected.
           {totalCount > 0 && (
             <span className="ml-2">
-              (Total: {totalCount} users, Page {page} of {totalPages})
+              (Total: {totalCount} contacts, Page {page} of {totalPages})
             </span>
           )}
         </div>
@@ -415,8 +400,8 @@ export function UsersDataTable() {
       <DeleteDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="Delete User"
-        description={`Are you sure you want to delete ${userToDelete?.firstName} ${userToDelete?.lastName}? This action cannot be undone.`}
+        title="Delete Contact"
+        description={`Are you sure you want to delete ${contactToDelete?.firstName} ${contactToDelete?.lastName}? This action cannot be undone.`}
         onConfirm={confirmDelete}
         isLoading={deleteMutation.isLoading}
       />

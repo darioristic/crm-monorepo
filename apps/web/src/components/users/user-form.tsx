@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { User, Company, CreateUserRequest, UpdateUserRequest } from "@crm/types";
-import { usersApi, companiesApi } from "@/lib/api";
+import type { Contact, CreateContactRequest, UpdateContactRequest } from "@crm/types";
+import { contactsApi } from "@/lib/api";
 import { useMutation, useApi } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,79 +28,104 @@ import {
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2, AlertCircle } from "lucide-react";
 
-const userFormSchema = z.object({
+const contactFormSchema = z.object({
   firstName: z.string().min(2, "First name must be at least 2 characters"),
   lastName: z.string().min(2, "Last name must be at least 2 characters"),
   email: z.string().email("Invalid email address"),
-  role: z.enum(["admin", "user"], {
-    message: "Please select a role",
-  }),
-  companyId: z.string().optional(),
   phone: z.string().optional(),
+  company: z.string().optional(),
+  position: z.string().optional(),
+  street: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  postalCode: z.string().optional(),
+  country: z.string().optional(),
+  notes: z.string().optional(),
 });
 
-type UserFormValues = z.infer<typeof userFormSchema>;
+type ContactFormValues = z.infer<typeof contactFormSchema>;
 
 interface UserFormProps {
-  user?: User;
+  contact?: Contact;
   mode: "create" | "edit";
 }
 
-export function UserForm({ user, mode }: UserFormProps) {
+export function UserForm({ contact, mode }: UserFormProps) {
   const router = useRouter();
 
-  const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
-    () => companiesApi.getAll(),
-    { autoFetch: true }
+  const createMutation = useMutation<Contact, CreateContactRequest>((data) =>
+    contactsApi.create(data)
   );
 
-  const createMutation = useMutation<User, CreateUserRequest>((data) =>
-    usersApi.create(data)
+  const updateMutation = useMutation<Contact, UpdateContactRequest>((data) =>
+    contactsApi.update(contact?.id || "", data)
   );
 
-  const updateMutation = useMutation<User, UpdateUserRequest>((data) =>
-    usersApi.update(user?.id || "", data)
-  );
-
-  const form = useForm<UserFormValues>({
-    resolver: zodResolver(userFormSchema) as any,
+  const form = useForm<ContactFormValues>({
+    resolver: zodResolver(contactFormSchema) as any,
     defaultValues: {
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
-      email: user?.email || "",
-      role: user?.role || "user",
-      companyId: user?.companyId || "",
-      phone: user?.phone || "",
+      firstName: contact?.firstName || "",
+      lastName: contact?.lastName || "",
+      email: contact?.email || "",
+      phone: contact?.phone || "",
+      company: contact?.company || "",
+      position: contact?.position || "",
+      street: contact?.address?.street || "",
+      city: contact?.address?.city || "",
+      state: contact?.address?.state || "",
+      postalCode: contact?.address?.postalCode || "",
+      country: contact?.address?.country || "",
+      notes: contact?.notes || "",
     },
   });
 
   useEffect(() => {
-    if (user) {
+    if (contact) {
       form.reset({
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        role: user.role,
-        companyId: user.companyId || "",
-        phone: user.phone || "",
+        firstName: contact.firstName,
+        lastName: contact.lastName,
+        email: contact.email,
+        phone: contact.phone || "",
+        company: contact.company || "",
+        position: contact.position || "",
+        street: contact.address?.street || "",
+        city: contact.address?.city || "",
+        state: contact.address?.state || "",
+        postalCode: contact.address?.postalCode || "",
+        country: contact.address?.country || "",
+        notes: contact.notes || "",
       });
     }
-  }, [user, form]);
+  }, [contact, form]);
 
-  const onSubmit = async (values: UserFormValues) => {
-    const data = {
-      ...values,
-      companyId: values.companyId && values.companyId !== "none" ? values.companyId : undefined,
+  const onSubmit = async (values: ContactFormValues) => {
+    const data: CreateContactRequest | UpdateContactRequest = {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      email: values.email,
       phone: values.phone || undefined,
+      company: values.company || undefined,
+      position: values.position || undefined,
+      address: values.street || values.city || values.state || values.postalCode || values.country
+        ? {
+            street: values.street || undefined,
+            city: values.city || undefined,
+            state: values.state || undefined,
+            postalCode: values.postalCode || undefined,
+            country: values.country || undefined,
+          }
+        : undefined,
+      notes: values.notes || undefined,
     };
 
     let result;
     if (mode === "create") {
-      result = await createMutation.mutate(data as CreateUserRequest);
+      result = await createMutation.mutate(data as CreateContactRequest);
     } else {
-      result = await updateMutation.mutate(data as UpdateUserRequest);
+      result = await updateMutation.mutate(data as UpdateContactRequest);
     }
 
     if (result.success) {
@@ -115,11 +140,11 @@ export function UserForm({ user, mode }: UserFormProps) {
   return (
     <Card className="max-w-2xl">
       <CardHeader>
-        <CardTitle>{mode === "create" ? "Create User" : "Edit User"}</CardTitle>
+        <CardTitle>{mode === "create" ? "Create Contact" : "Edit Contact"}</CardTitle>
         <CardDescription>
           {mode === "create"
-            ? "Add a new user to your CRM system"
-            : "Update user information"}
+            ? "Add a new contact (customer or employee)"
+            : "Update contact information"}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -180,44 +205,16 @@ export function UserForm({ user, mode }: UserFormProps) {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="+1 (555) 123-4567" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 control={form.control}
-                name="role"
+                name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Role</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a role" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="user">User</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Admins have full access to all features
-                    </FormDescription>
+                    <FormLabel>Phone (Optional)</FormLabel>
+                    <FormControl>
+                      <Input placeholder="+1 (555) 123-4567" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -225,39 +222,128 @@ export function UserForm({ user, mode }: UserFormProps) {
 
               <FormField
                 control={form.control}
-                name="companyId"
+                name="company"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Company (Optional)</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                      disabled={companiesLoading}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a company" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">No Company</SelectItem>
-                        {companies?.map((company) => (
-                          <SelectItem key={company.id} value={company.id}>
-                            {company.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <FormControl>
+                      <Input placeholder="Company name" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
 
+            <FormField
+              control={form.control}
+              name="position"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Position (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Job title or position" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="space-y-4">
+              <h3 className="text-sm font-medium">Address (Optional)</h3>
+              <FormField
+                control={form.control}
+                name="street"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Street</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Street address" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="city"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>City</FormLabel>
+                      <FormControl>
+                        <Input placeholder="City" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="state"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>State/Province</FormLabel>
+                      <FormControl>
+                        <Input placeholder="State or Province" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="postalCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Postal Code</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Postal code" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="country"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Country</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Country" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="notes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Notes (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Additional notes about this contact"
+                      className="min-h-[100px]"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <div className="flex gap-4">
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {mode === "create" ? "Create User" : "Update User"}
+                {mode === "create" ? "Create Contact" : "Update Contact"}
               </Button>
               <Button
                 type="button"

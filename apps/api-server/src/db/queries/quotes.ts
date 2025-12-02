@@ -52,15 +52,32 @@ export const quoteQueries = {
 
     const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
-    // Fetch items for each quote
-    const quotesWithItems = await Promise.all(
-      data.map(async (row: Record<string, unknown>) => {
-        const items = await db`
-          SELECT * FROM quote_items WHERE quote_id = ${row.id as string}
-        `;
-        return mapQuote(row, items);
-      })
-    );
+    // Fetch all items for all quotes in a single query (fixes N+1 problem)
+    if (data.length === 0) {
+      return { data: [], total };
+    }
+
+    const quoteIds = data.map((row: Record<string, unknown>) => row.id as string);
+    const allItems = await db`
+      SELECT * FROM quote_items
+      WHERE quote_id = ANY(${quoteIds})
+      ORDER BY quote_id
+    `;
+
+    // Group items by quote_id
+    const itemsByQuoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.quote_id]) {
+        acc[item.quote_id] = [];
+      }
+      acc[item.quote_id].push(item);
+      return acc;
+    }, {});
+
+    // Map quotes with their items
+    const quotesWithItems = data.map((row: Record<string, unknown>) => {
+      const items = itemsByQuoteId[row.id as string] || [];
+      return mapQuote(row, items);
+    });
 
     return { data: quotesWithItems, total };
   },

@@ -145,20 +145,57 @@ export const userQueries = {
   },
 
   async update(id: string, data: Partial<User>): Promise<User> {
-    const result = await db`
-      UPDATE users SET
-        first_name = COALESCE(${data.firstName ?? null}, first_name),
-        last_name = COALESCE(${data.lastName ?? null}, last_name),
-        email = COALESCE(${data.email ?? null}, email),
-        role = COALESCE(${data.role ?? null}, role),
-        company_id = COALESCE(${data.companyId ?? null}, company_id),
-        status = COALESCE(${data.status ?? null}, status),
-        avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
-        phone = COALESCE(${data.phone ?? null}, phone),
-        updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING *
-    `;
+    // If companyId is being updated, we need to invalidate cache
+    const shouldInvalidateCache = data.companyId !== undefined;
+    
+    // Build the update query conditionally
+    // For companyId: if undefined, use COALESCE to keep current value; if set, update it
+    let result;
+    
+    if (data.companyId !== undefined) {
+      // companyId is explicitly provided - update it (can be null to clear it)
+      result = await db`
+        UPDATE users SET
+          first_name = COALESCE(${data.firstName ?? null}, first_name),
+          last_name = COALESCE(${data.lastName ?? null}, last_name),
+          email = COALESCE(${data.email ?? null}, email),
+          role = COALESCE(${data.role ?? null}, role),
+          company_id = ${data.companyId || null},
+          status = COALESCE(${data.status ?? null}, status),
+          avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
+          phone = COALESCE(${data.phone ?? null}, phone),
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `;
+    } else {
+      // companyId is not provided - keep current value
+      result = await db`
+        UPDATE users SET
+          first_name = COALESCE(${data.firstName ?? null}, first_name),
+          last_name = COALESCE(${data.lastName ?? null}, last_name),
+          email = COALESCE(${data.email ?? null}, email),
+          role = COALESCE(${data.role ?? null}, role),
+          status = COALESCE(${data.status ?? null}, status),
+          avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
+          phone = COALESCE(${data.phone ?? null}, phone),
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `;
+    }
+    
+    if (result.length === 0) {
+      throw new Error(`User with id ${id} not found`);
+    }
+    
+    // Invalidate cache if companyId was updated
+    if (shouldInvalidateCache) {
+      const { cache } = await import("../../cache/redis");
+      const cacheKey = `user:${id}:company`;
+      await cache.del(cacheKey);
+    }
+    
     return mapUser(result[0]);
   },
 
@@ -207,6 +244,13 @@ export const userQueries = {
       SELECT COUNT(*) FROM users WHERE email = ${email}
     `;
     return parseInt(result[0].count, 10) > 0;
+  },
+
+  async getUserCompanyId(userId: string): Promise<string | null> {
+    const result = await db`
+      SELECT company_id FROM users WHERE id = ${userId}
+    `;
+    return result.length > 0 ? (result[0].company_id as string | null) : null;
   },
 };
 

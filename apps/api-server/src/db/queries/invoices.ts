@@ -59,15 +59,32 @@ export const invoiceQueries = {
 			safeOffset,
 		] as QueryParam[]);
 
-		// Fetch items for each invoice
-		const invoicesWithItems = await Promise.all(
-			data.map(async (row: Record<string, unknown>) => {
-				const items = await db`
-          SELECT * FROM invoice_items WHERE invoice_id = ${row.id as string}
-        `;
-				return mapInvoice(row, items);
-			}),
-		);
+		// Fetch all items for all invoices in a single query (fixes N+1 problem)
+		if (data.length === 0) {
+			return { data: [], total };
+		}
+
+		const invoiceIds = data.map((row: Record<string, unknown>) => row.id as string);
+		const allItems = await db`
+			SELECT * FROM invoice_items
+			WHERE invoice_id = ANY(${invoiceIds})
+			ORDER BY invoice_id
+		`;
+
+		// Group items by invoice_id
+		const itemsByInvoiceId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+			if (!acc[item.invoice_id]) {
+				acc[item.invoice_id] = [];
+			}
+			acc[item.invoice_id].push(item);
+			return acc;
+		}, {});
+
+		// Map invoices with their items
+		const invoicesWithItems = data.map((row: Record<string, unknown>) => {
+			const items = itemsByInvoiceId[row.id as string] || [];
+			return mapInvoice(row, items);
+		});
 
 		return { data: invoicesWithItems, total };
 	},

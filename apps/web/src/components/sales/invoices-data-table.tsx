@@ -21,7 +21,7 @@ import {
   TableRow
 } from "@/components/ui/table";
 import { invoicesApi, companiesApi } from "@/lib/api";
-import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
+import { usePaginatedApi, useMutation } from "@/hooks/use-api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { toast } from "sonner";
@@ -46,18 +46,25 @@ export function InvoicesDataTable() {
     router.push(`${pathname}?type=edit&invoiceId=${invoiceId}`);
   }, [router, pathname]);
 
-  // Fetch companies for name lookup
-  const { data: companies } = useApi<Company[]>(
-    () => companiesApi.getAll(),
-    { autoFetch: true }
+  // Fetch companies for name lookup - use paginated API to get all companies
+  const {
+    data: companies,
+    isLoading: companiesLoading,
+  } = usePaginatedApi<Company>(
+    (params) => companiesApi.getAll({ ...params, pageSize: 1000 }), // Get all companies
+    {}
   );
 
   // Create company lookup map
   const companyMap = React.useMemo(() => {
     const map = new Map<string, string>();
-    companies?.forEach((company) => {
-      map.set(company.id, company.name);
-    });
+    if (companies && Array.isArray(companies)) {
+      companies.forEach((company) => {
+        if (company?.id && company?.name) {
+          map.set(company.id, company.name);
+        }
+      });
+    }
     return map;
   }, [companies]);
 

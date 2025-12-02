@@ -71,6 +71,17 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     return null;
   }
 
+  // Sanitize CSS values to prevent CSS injection
+  const sanitizeCSSValue = (value: string): string => {
+    // Remove any characters that could break out of CSS context
+    return value.replace(/[<>{}]/g, '').trim();
+  };
+
+  const sanitizeCSSKey = (key: string): string => {
+    // Only allow alphanumeric, hyphen, and underscore
+    return key.replace(/[^a-zA-Z0-9_-]/g, '');
+  };
+
   return (
     <style
       dangerouslySetInnerHTML={{
@@ -81,7 +92,7 @@ ${prefix} [data-chart=${id}] {
 ${colorConfig
   .map(([key, itemConfig]) => {
     const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${key}: ${color};` : null;
+    return color ? `  --color-${sanitizeCSSKey(key)}: ${sanitizeCSSValue(color)};` : null;
   })
   .join("\n")}
 }

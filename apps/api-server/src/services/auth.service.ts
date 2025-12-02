@@ -3,6 +3,7 @@ import { successResponse, errorResponse, generateUUID, now } from "@crm/utils";
 import { userQueries } from "../db/queries/users";
 import { authQueries } from "../db/queries/auth";
 import { cache } from "../cache/redis";
+import { logger } from "../lib/logger";
 
 // ============================================
 // Configuration
@@ -220,7 +221,16 @@ async function createSession(
 	};
 
 	// Store session in Redis
-	await cache.setSession(sessionId, sessionData, JWT_REFRESH_EXPIRY);
+	try {
+		await cache.setSession(sessionId, sessionData, JWT_REFRESH_EXPIRY);
+	} catch (error) {
+		logger.error(
+			{ error, sessionId, userId },
+			"Failed to create session in Redis",
+		);
+		// Continue anyway - session ID is still valid, just not cached
+		// This allows login to proceed even if Redis is down
+	}
 
 	return sessionId;
 }
@@ -316,7 +326,7 @@ class AuthService {
 				sessionId,
 			});
 		} catch (error) {
-			console.error("Login error:", error);
+			logger.error(error, "Login error");
 			return errorResponse("SERVER_ERROR", "Login failed");
 		}
 	}
@@ -337,7 +347,7 @@ class AuthService {
 
 			return successResponse({ success: true });
 		} catch (error) {
-			console.error("Logout error:", error);
+			logger.error(error, "Logout error");
 			return errorResponse("SERVER_ERROR", "Logout failed");
 		}
 	}
@@ -392,7 +402,7 @@ class AuthService {
 				sessionId,
 			});
 		} catch (error) {
-			console.error("Refresh token error:", error);
+			logger.error(error, "Refresh token error");
 			return errorResponse("SERVER_ERROR", "Token refresh failed");
 		}
 	}
@@ -427,7 +437,7 @@ class AuthService {
 
 			return successResponse({ success: true });
 		} catch (error) {
-			console.error("Set password error:", error);
+			logger.error(error, "Set password error");
 			return errorResponse("SERVER_ERROR", "Failed to set password");
 		}
 	}
@@ -464,7 +474,7 @@ class AuthService {
 
 			return successResponse({ success: true });
 		} catch (error) {
-			console.error("Change password error:", error);
+			logger.error(error, "Change password error");
 			return errorResponse("SERVER_ERROR", "Failed to change password");
 		}
 	}
@@ -514,7 +524,7 @@ class AuthService {
 
 			return successResponse(user);
 		} catch (error) {
-			console.error("Register user error:", error);
+			logger.error(error, "Register user error");
 			return errorResponse("SERVER_ERROR", "Failed to register user");
 		}
 	}
@@ -531,7 +541,7 @@ class AuthService {
 			}
 			return successResponse(user);
 		} catch (error) {
-			console.error("Get current user error:", error);
+			logger.error(error, "Get current user error");
 			return errorResponse("SERVER_ERROR", "Failed to get user");
 		}
 	}

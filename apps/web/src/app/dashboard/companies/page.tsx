@@ -3,6 +3,8 @@
 import { Button } from "@/components/ui/button";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
 import { CompaniesDataTable } from "@/components/companies/companies-data-table";
+import { CompanyCreateSheet } from "@/components/companies/company-create-sheet";
+import { CompanyEditSheet } from "@/components/companies/company-edit-sheet";
 import { useCompanyParams } from "@/hooks/use-company-params";
 
 export default function CompaniesPage() {
@@ -23,6 +25,8 @@ export default function CompaniesPage() {
         </Button>
       </div>
       <CompaniesDataTable />
+      <CompanyCreateSheet />
+      <CompanyEditSheet />
     </div>
   );
 }

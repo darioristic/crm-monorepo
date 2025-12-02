@@ -6,8 +6,8 @@ import { UsersDataTable } from "@/components/users/users-data-table";
 
 export async function generateMetadata() {
   return generateMeta({
-    title: "Users",
-    description: "Manage users in your CRM system",
+    title: "Contacts",
+    description: "Manage individual contacts who are customers or employees in companies",
     canonical: "/dashboard/users"
   });
 }
@@ -17,15 +17,15 @@ export default function UsersPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Users</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Contacts</h1>
           <p className="text-muted-foreground">
-            Manage your CRM users and their permissions
+            Manage individual contacts who are customers or employees in companies
           </p>
         </div>
         <Button asChild>
           <Link href="/dashboard/users/new">
             <PlusCircledIcon className="mr-2 h-4 w-4" />
-            Add User
+            Add Contact
           </Link>
         </Button>
       </div>

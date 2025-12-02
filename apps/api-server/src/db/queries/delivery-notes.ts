@@ -52,15 +52,32 @@ export const deliveryNoteQueries = {
 
     const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
 
-    // Fetch items for each delivery note
-    const notesWithItems = await Promise.all(
-      data.map(async (row: Record<string, unknown>) => {
-        const items = await db`
-          SELECT * FROM delivery_note_items WHERE delivery_note_id = ${row.id as string}
-        `;
-        return mapDeliveryNote(row, items);
-      })
-    );
+    // Fetch all items for all delivery notes in a single query (fixes N+1 problem)
+    if (data.length === 0) {
+      return { data: [], total };
+    }
+
+    const noteIds = data.map((row: Record<string, unknown>) => row.id as string);
+    const allItems = await db`
+      SELECT * FROM delivery_note_items
+      WHERE delivery_note_id = ANY(${noteIds})
+      ORDER BY delivery_note_id
+    `;
+
+    // Group items by delivery_note_id
+    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.delivery_note_id]) {
+        acc[item.delivery_note_id] = [];
+      }
+      acc[item.delivery_note_id].push(item);
+      return acc;
+    }, {});
+
+    // Map delivery notes with their items
+    const notesWithItems = data.map((row: Record<string, unknown>) => {
+      const items = itemsByNoteId[row.id as string] || [];
+      return mapDeliveryNote(row, items);
+    });
 
     return { data: notesWithItems, total };
   },
@@ -192,36 +209,84 @@ export const deliveryNoteQueries = {
     const result = await db`
       SELECT * FROM delivery_notes WHERE company_id = ${companyId} ORDER BY created_at DESC
     `;
-    return Promise.all(
-      result.map(async (row) => {
-        const items = await db`SELECT * FROM delivery_note_items WHERE delivery_note_id = ${row.id}`;
-        return mapDeliveryNote(row, items);
-      })
-    );
+
+    if (result.length === 0) return [];
+
+    const noteIds = result.map((row) => row.id as string);
+    const allItems = await db`
+      SELECT * FROM delivery_note_items
+      WHERE delivery_note_id = ANY(${noteIds})
+      ORDER BY delivery_note_id
+    `;
+
+    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.delivery_note_id]) {
+        acc[item.delivery_note_id] = [];
+      }
+      acc[item.delivery_note_id].push(item);
+      return acc;
+    }, {});
+
+    return result.map((row) => {
+      const items = itemsByNoteId[row.id as string] || [];
+      return mapDeliveryNote(row, items);
+    });
   },
 
   async findByStatus(status: DeliveryNoteStatus): Promise<DeliveryNote[]> {
     const result = await db`
       SELECT * FROM delivery_notes WHERE status = ${status} ORDER BY created_at DESC
     `;
-    return Promise.all(
-      result.map(async (row) => {
-        const items = await db`SELECT * FROM delivery_note_items WHERE delivery_note_id = ${row.id}`;
-        return mapDeliveryNote(row, items);
-      })
-    );
+
+    if (result.length === 0) return [];
+
+    const noteIds = result.map((row) => row.id as string);
+    const allItems = await db`
+      SELECT * FROM delivery_note_items
+      WHERE delivery_note_id = ANY(${noteIds})
+      ORDER BY delivery_note_id
+    `;
+
+    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.delivery_note_id]) {
+        acc[item.delivery_note_id] = [];
+      }
+      acc[item.delivery_note_id].push(item);
+      return acc;
+    }, {});
+
+    return result.map((row) => {
+      const items = itemsByNoteId[row.id as string] || [];
+      return mapDeliveryNote(row, items);
+    });
   },
 
   async findByInvoice(invoiceId: string): Promise<DeliveryNote[]> {
     const result = await db`
       SELECT * FROM delivery_notes WHERE invoice_id = ${invoiceId} ORDER BY created_at DESC
     `;
-    return Promise.all(
-      result.map(async (row) => {
-        const items = await db`SELECT * FROM delivery_note_items WHERE delivery_note_id = ${row.id}`;
-        return mapDeliveryNote(row, items);
-      })
-    );
+
+    if (result.length === 0) return [];
+
+    const noteIds = result.map((row) => row.id as string);
+    const allItems = await db`
+      SELECT * FROM delivery_note_items
+      WHERE delivery_note_id = ANY(${noteIds})
+      ORDER BY delivery_note_id
+    `;
+
+    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.delivery_note_id]) {
+        acc[item.delivery_note_id] = [];
+      }
+      acc[item.delivery_note_id].push(item);
+      return acc;
+    }, {});
+
+    return result.map((row) => {
+      const items = itemsByNoteId[row.id as string] || [];
+      return mapDeliveryNote(row, items);
+    });
   },
 
   async markDelivered(id: string): Promise<DeliveryNote> {
@@ -237,12 +302,28 @@ export const deliveryNoteQueries = {
       WHERE status = 'pending'
       ORDER BY created_at ASC
     `;
-    return Promise.all(
-      result.map(async (row) => {
-        const items = await db`SELECT * FROM delivery_note_items WHERE delivery_note_id = ${row.id}`;
-        return mapDeliveryNote(row, items);
-      })
-    );
+
+    if (result.length === 0) return [];
+
+    const noteIds = result.map((row) => row.id as string);
+    const allItems = await db`
+      SELECT * FROM delivery_note_items
+      WHERE delivery_note_id = ANY(${noteIds})
+      ORDER BY delivery_note_id
+    `;
+
+    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.delivery_note_id]) {
+        acc[item.delivery_note_id] = [];
+      }
+      acc[item.delivery_note_id].push(item);
+      return acc;
+    }, {});
+
+    return result.map((row) => {
+      const items = itemsByNoteId[row.id as string] || [];
+      return mapDeliveryNote(row, items);
+    });
   },
 
   async getInTransit(): Promise<DeliveryNote[]> {
@@ -251,12 +332,28 @@ export const deliveryNoteQueries = {
       WHERE status = 'in_transit'
       ORDER BY ship_date ASC
     `;
-    return Promise.all(
-      result.map(async (row) => {
-        const items = await db`SELECT * FROM delivery_note_items WHERE delivery_note_id = ${row.id}`;
-        return mapDeliveryNote(row, items);
-      })
-    );
+
+    if (result.length === 0) return [];
+
+    const noteIds = result.map((row) => row.id as string);
+    const allItems = await db`
+      SELECT * FROM delivery_note_items
+      WHERE delivery_note_id = ANY(${noteIds})
+      ORDER BY delivery_note_id
+    `;
+
+    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+      if (!acc[item.delivery_note_id]) {
+        acc[item.delivery_note_id] = [];
+      }
+      acc[item.delivery_note_id].push(item);
+      return acc;
+    }, {});
+
+    return result.map((row) => {
+      const items = itemsByNoteId[row.id as string] || [];
+      return mapDeliveryNote(row, items);
+    });
   },
 };
 

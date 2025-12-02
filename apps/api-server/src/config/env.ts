@@ -52,6 +52,11 @@ const envSchema = z.object({
 
 	// Optional configurations
 	LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+
+	// AI Configuration (optional - features disabled if not set)
+	OPENAI_API_KEY: z.string().optional(),
+	MISTRAL_API_KEY: z.string().optional(),
+	GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

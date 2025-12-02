@@ -15,6 +15,28 @@ Modern, full-stack CRM system built with cutting-edge technologies.
 
 ## ⚡ Quick Start
 
+### Automatski (Preporučeno)
+
+Jedna komanda pokreće sve automatski:
+
+```bash
+# Pokreće Docker Desktop (ako nije pokrenut), Docker servise, i development servere
+bun run dev:start
+# ili direktno:
+bash scripts/dev.sh
+```
+
+Skripta automatski:
+- ✅ Proverava i pokreće Docker Desktop (macOS)
+- ✅ Pokreće PostgreSQL i Redis servise
+- ✅ Instalira zavisnosti (ako je potrebno)
+- ✅ Pokreće API server (port 3001) i Web server (port 3000)
+- ✅ Čeka dok sve servise ne budu spremni
+
+**🎉 Done!** Frontend: <http://localhost:3000> | API: <http://localhost:3001>
+
+### Ručno
+
 ```bash
 # 1. Clone and install
 git clone <repo-url> && cd crm-monorepo && bun install
@@ -28,8 +50,6 @@ cd apps/api-server && bun run db:setup
 # 4. Start development
 bun run dev
 ```
-
-**🎉 Done!** Frontend: <http://localhost:3000> | API: <http://localhost:4000>
 
 **Test credentials**: `admin@crm.com` / `Admin123!`
 
@@ -126,9 +146,11 @@ bun run dev:web
 
 | Command | Description |
 |---------|-------------|
-| `bun run dev` | Start all development servers |
+| `bun run dev:start` | **Automatski pokreće sve** (Docker + servisi + dev serveri) |
+| `bun run dev` | Start all development servers (zahteva Docker) |
 | `bun run dev:api` | Start API server only |
 | `bun run dev:web` | Start web frontend only |
+| `bun run dev:quick` | Quick start bez Docker provere |
 | `bun run build` | Build all packages |
 | `bun run db:up` | Start Docker containers |
 | `bun run db:down` | Stop Docker containers |

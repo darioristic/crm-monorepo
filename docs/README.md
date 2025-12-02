@@ -7,6 +7,7 @@ Dobrodošli u dokumentaciju CRM sistema! Ovde ćete pronaći sve potrebne inform
 ### 🚀 Za Početnike
 
 1. **[SETUP.md](./SETUP.md)** - Development Environment Setup
+
    - Instalacija dependencies (Bun, PostgreSQL, Redis)
    - Environment konfiguracija
    - Database setup i seeding
@@ -21,9 +22,27 @@ Dobrodošli u dokumentaciju CRM sistema! Ovde ćete pronaći sve potrebne inform
    - Error handling
    - API keys i integration guide
 
+### 🤖 AI System (NEW!)
+
+**[🎯 AI INDEX](./AI_INDEX.md)** - **START HERE** za AI dokumentaciju
+
+- **[AI README](./AI_README.md)** - Quick start i overview (11 KB)
+- **[AI Examples](./AI_EXAMPLES.md)** - 40+ code examples (29 KB)
+- **[Agents Guide](./AI_AGENTS_GUIDE.md)** - Agent development (10 KB)
+- **[Tools Guide](./AI_TOOLS_GUIDE.md)** - Tool development (15 KB)
+- **[API Reference](./AI_API_REFERENCE.md)** - AI REST API (11 KB)
+- **[Document Processing](./AI_DOCUMENT_PROCESSING.md)** - PDF/Image AI (18 KB)
+- **[Embeddings](./AI_EMBEDDINGS_GUIDE.md)** - Semantic search (10 KB)
+- **[Deployment](./AI_DEPLOYMENT.md)** - Production guide (16 KB)
+- **[Troubleshooting](./AI_TROUBLESHOOTING.md)** - Problem solving (11 KB)
+- **[Architecture](./AI_ARCHITECTURE_DIAGRAM.md)** - Visual diagrams (19 KB)
+
+> **12 dokumenata | 7,000+ linija | 150+ KB dokumentacije**
+
 ### 🏗️ Za Developere
 
 3. **[ARCHITECTURE.md](./ARCHITECTURE.md)** - System Architecture
+
    - High-level arhitektura
    - Monorepo struktura
    - Tech stack detalji
@@ -42,13 +61,14 @@ Dobrodošli u dokumentaciju CRM sistema! Ovde ćete pronaći sve potrebne inform
 
 ### 📊 Za Project Managere
 
-5. **[ROADMAP.md](./ROADMAP.md)** - Product Roadmap *(coming soon)*
+5. **[ROADMAP.md](./ROADMAP.md)** - Product Roadmap _(coming soon)_
+
    - Feature timeline (60/90/180 dana)
    - Priority matrix
    - Technical debt tracking
    - Release planning
 
-6. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment Guide *(coming soon)*
+6. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Deployment Guide _(coming soon)_
    - Production deployment
    - Infrastructure setup
    - Environment variables
@@ -83,6 +103,7 @@ Kompletna lista: [API.md](./API.md)
 ### Test Credentials
 
 Development environment:
+
 - **Admin**: `admin@crm.com` / `Admin123!`
 - **User**: `user@crm.com` / `User123!`
 
@@ -99,9 +120,9 @@ Development environment:
 
 ### Design Resources
 
-- [Figma Designs](#) *(link to designs)*
-- [Component Library](#) *(link to Storybook)*
-- [Brand Guidelines](#) *(link to brand assets)*
+- [Figma Designs](#) _(link to designs)_
+- [Component Library](#) _(link to Storybook)_
+- [Brand Guidelines](#) _(link to brand assets)_
 
 ## 🗺️ Documentation Navigation
 
@@ -207,7 +228,7 @@ Odgovorićemo u roku od 24 sata.
 
 Zainteresovani za contributing? Super!
 
-1. Read [CONTRIBUTING.md](./CONTRIBUTING.md) *(coming soon)*
+1. Read [CONTRIBUTING.md](./CONTRIBUTING.md) _(coming soon)_
 2. Fork repository
 3. Create feature branch
 4. Write tests
@@ -226,9 +247,9 @@ Zainteresovani za contributing? Super!
 
 ### Community
 
-- **Discord**: [Join our server](#) *(coming soon)*
-- **Forum**: [Community forum](#) *(coming soon)*
-- **Twitter**: [@CRMSystem](#) *(coming soon)*
+- **Discord**: [Join our server](#) _(coming soon)_
+- **Forum**: [Community forum](#) _(coming soon)_
+- **Twitter**: [@CRMSystem](#) _(coming soon)_
 
 ### Professional Support
 
@@ -239,6 +260,7 @@ Zainteresovani za contributing? Super!
 ### Office Hours
 
 Developer office hours: **Thursdays 2-4 PM CET**
+
 - Video call: [Zoom link](#)
 - Q&A, pair programming, code review
 
@@ -267,14 +289,16 @@ Zahvaljujemo svim open-source projektima koji su omogućili ovaj sistem:
 
 Hvala svim kontributorima! 🎉
 
-*(Lista će biti dodana)*
+_(Lista će biti dodana)_
 
 ---
 
 ## 📊 Documentation Stats
 
-- **Total Pages**: 5
-- **Last Updated**: 2025-12-01
+- **Total Pages**: 17 (5 core + 12 AI docs)
+- **Total Lines**: 10,000+
+- **Total Size**: 200+ KB
+- **Last Updated**: 2024-12-02
 - **Version**: 1.0.0
 - **Maintainers**: Development Team
 

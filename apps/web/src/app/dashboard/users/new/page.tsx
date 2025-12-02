@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 
 export async function generateMetadata() {
   return generateMeta({
-    title: "Create User",
-    description: "Add a new user to your CRM system",
+    title: "Create Contact",
+    description: "Add a new contact (customer or employee)",
     canonical: "/dashboard/users/new",
   });
 }
@@ -22,9 +22,9 @@ export default function NewUserPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Create User</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Create Contact</h1>
           <p className="text-muted-foreground">
-            Add a new user to your CRM system
+            Add a new contact (customer or employee)
           </p>
         </div>
       </div>

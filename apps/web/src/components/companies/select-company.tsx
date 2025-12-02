@@ -55,7 +55,7 @@ export function SelectCompany({
   }, [searchValue]);
 
   // Server-side search - API pretražuje celu bazu
-  const [companiesList, setCompaniesList] = useState<any[]>([]);
+  const [companiesList, setCompaniesList] = useState<Company[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -74,7 +74,7 @@ export function SelectCompany({
           console.log("📊 Companies received:", response.data?.length || 0);
           if (debouncedSearch) {
             console.log("🔎 Search term:", debouncedSearch);
-            console.log("📋 Companies:", response.data?.map((c: any) => c.name).join(", ") || "none");
+            console.log("📋 Companies:", response.data?.map((c: Company) => c.name).join(", ") || "none");
           }
         }
       } catch (error) {

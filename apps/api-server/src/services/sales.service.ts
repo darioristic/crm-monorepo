@@ -31,6 +31,7 @@ import {
 } from "@crm/utils";
 import { dealQueries, quoteQueries, invoiceQueries, deliveryNoteQueries } from "../db/queries";
 import { cache } from "../cache/redis";
+import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300;
 
@@ -66,7 +67,7 @@ class SalesService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching deals:", error);
+      serviceLogger.error("Error fetching deals:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch deals");
     }
   }
@@ -87,7 +88,7 @@ class SalesService {
       await cache.set(cacheKey, deal, CACHE_TTL);
       return successResponse(deal);
     } catch (error) {
-      console.error("Error fetching deal:", error);
+      serviceLogger.error("Error fetching deal:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch deal");
     }
   }
@@ -118,7 +119,7 @@ class SalesService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating deal:", error);
+      serviceLogger.error("Error creating deal:", error);
       return errorResponse("DATABASE_ERROR", "Failed to create deal");
     }
   }
@@ -142,7 +143,7 @@ class SalesService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating deal:", error);
+      serviceLogger.error("Error updating deal:", error);
       return errorResponse("DATABASE_ERROR", "Failed to update deal");
     }
   }
@@ -163,7 +164,7 @@ class SalesService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting deal:", error);
+      serviceLogger.error("Error deleting deal:", error);
       return errorResponse("DATABASE_ERROR", "Failed to delete deal");
     }
   }
@@ -185,7 +186,7 @@ class SalesService {
 
       return successResponse(summary);
     } catch (error) {
-      console.error("Error fetching pipeline summary:", error);
+      serviceLogger.error("Error fetching pipeline summary:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch pipeline summary");
     }
   }
@@ -238,7 +239,7 @@ class SalesService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching quotes:", error);
+      serviceLogger.error("Error fetching quotes:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch quotes");
     }
   }
@@ -259,7 +260,7 @@ class SalesService {
       await cache.set(cacheKey, quote, CACHE_TTL);
       return successResponse(quote);
     } catch (error) {
-      console.error("Error fetching quote:", error);
+      serviceLogger.error("Error fetching quote:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch quote");
     }
   }
@@ -314,7 +315,7 @@ class SalesService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating quote:", error);
+      serviceLogger.error("Error creating quote:", error);
       return errorResponse("DATABASE_ERROR", "Failed to create quote");
     }
   }
@@ -360,7 +361,7 @@ class SalesService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating quote:", error);
+      serviceLogger.error("Error updating quote:", error);
       return errorResponse("DATABASE_ERROR", "Failed to update quote");
     }
   }
@@ -380,7 +381,7 @@ class SalesService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting quote:", error);
+      serviceLogger.error("Error deleting quote:", error);
       return errorResponse("DATABASE_ERROR", "Failed to delete quote");
     }
   }
@@ -409,7 +410,7 @@ class SalesService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching invoices:", error);
+      serviceLogger.error("Error fetching invoices:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch invoices");
     }
   }
@@ -430,7 +431,7 @@ class SalesService {
       await cache.set(cacheKey, invoice, CACHE_TTL);
       return successResponse(invoice);
     } catch (error) {
-      console.error("Error fetching invoice:", error);
+      serviceLogger.error("Error fetching invoice:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch invoice");
     }
   }
@@ -544,7 +545,7 @@ class SalesService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating invoice:", error);
+      serviceLogger.error("Error creating invoice:", error);
       return errorResponse("DATABASE_ERROR", "Failed to create invoice");
     }
   }
@@ -601,7 +602,7 @@ class SalesService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating invoice:", error);
+      serviceLogger.error("Error updating invoice:", error);
       return errorResponse("DATABASE_ERROR", "Failed to update invoice");
     }
   }
@@ -621,7 +622,7 @@ class SalesService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting invoice:", error);
+      serviceLogger.error("Error deleting invoice:", error);
       return errorResponse("DATABASE_ERROR", "Failed to delete invoice");
     }
   }
@@ -641,7 +642,7 @@ class SalesService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error recording payment:", error);
+      serviceLogger.error("Error recording payment:", error);
       return errorResponse("DATABASE_ERROR", "Failed to record payment");
     }
   }
@@ -659,7 +660,7 @@ class SalesService {
 
       return successResponse(invoices);
     } catch (error) {
-      console.error("Error fetching overdue invoices:", error);
+      serviceLogger.error("Error fetching overdue invoices:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch overdue invoices");
     }
   }
@@ -684,7 +685,7 @@ class SalesService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching delivery notes:", error);
+      serviceLogger.error("Error fetching delivery notes:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch delivery notes");
     }
   }
@@ -705,7 +706,7 @@ class SalesService {
       await cache.set(cacheKey, note, CACHE_TTL);
       return successResponse(note);
     } catch (error) {
-      console.error("Error fetching delivery note:", error);
+      serviceLogger.error("Error fetching delivery note:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch delivery note");
     }
   }
@@ -754,7 +755,7 @@ class SalesService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating delivery note:", error);
+      serviceLogger.error("Error creating delivery note:", error);
       return errorResponse("DATABASE_ERROR", "Failed to create delivery note");
     }
   }
@@ -789,7 +790,7 @@ class SalesService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating delivery note:", error);
+      serviceLogger.error("Error updating delivery note:", error);
       return errorResponse("DATABASE_ERROR", "Failed to update delivery note");
     }
   }
@@ -809,7 +810,7 @@ class SalesService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting delivery note:", error);
+      serviceLogger.error("Error deleting delivery note:", error);
       return errorResponse("DATABASE_ERROR", "Failed to delete delivery note");
     }
   }
@@ -843,7 +844,7 @@ class SalesService {
 
       return successResponse(notes);
     } catch (error) {
-      console.error("Error fetching pending deliveries:", error);
+      serviceLogger.error("Error fetching pending deliveries:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch pending deliveries");
     }
   }
@@ -861,7 +862,7 @@ class SalesService {
 
       return successResponse(notes);
     } catch (error) {
-      console.error("Error fetching in-transit deliveries:", error);
+      serviceLogger.error("Error fetching in-transit deliveries:", error);
       return errorResponse("DATABASE_ERROR", "Failed to fetch in-transit deliveries");
     }
   }

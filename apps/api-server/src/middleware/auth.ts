@@ -185,14 +185,17 @@ export function isUser(auth: AuthContext): boolean {
 	return auth.role === "user";
 }
 
-export function canAccessCompany(
+export async function canAccessCompany(
 	auth: AuthContext,
 	companyId: string,
-): boolean {
+): Promise<boolean> {
 	// Admin can access any company
 	if (auth.role === "admin") return true;
-	// User can only access their own company
-	return auth.companyId === companyId;
+	
+	// Use company permission check with cache
+	const { checkCompanyPermission } = await import("./company-permission");
+	const result = await checkCompanyPermission(auth.userId, companyId);
+	return result.allowed;
 }
 
 export function canAccessUser(

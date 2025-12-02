@@ -15,6 +15,15 @@ export async function createSchema(): Promise<void> {
     END $$
   `;
 
+  // Create enum type for company roles
+  await db`
+    DO $$ BEGIN
+      CREATE TYPE company_role AS ENUM ('owner', 'member', 'admin');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$
+  `;
+
   // Companies table (must be created before users due to FK)
   await db`
     CREATE TABLE IF NOT EXISTS companies (
@@ -42,6 +51,18 @@ export async function createSchema(): Promise<void> {
       last_login_at TIMESTAMPTZ,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  // Users on Company table (many-to-many relationship)
+  await db`
+    CREATE TABLE IF NOT EXISTS users_on_company (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      role company_role NOT NULL DEFAULT 'member',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, company_id)
     )
   `;
 
@@ -350,6 +371,11 @@ export async function createSchema(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_users_company_id ON users(company_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`;
 
+  // Create indexes for users_on_company
+  await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_user_id ON users_on_company(user_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_company_id ON users_on_company(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_role ON users_on_company(role)`;
+
   // Create indexes for leads
   await db`CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status)`;
   await db`CREATE INDEX IF NOT EXISTS idx_leads_assigned_to ON leads(assigned_to)`;
@@ -558,8 +584,10 @@ export async function dropSchema(): Promise<void> {
   await db`DROP TABLE IF EXISTS deals CASCADE`;
   await db`DROP TABLE IF EXISTS contacts CASCADE`;
   await db`DROP TABLE IF EXISTS leads CASCADE`;
+  await db`DROP TABLE IF EXISTS users_on_company CASCADE`;
   await db`DROP TABLE IF EXISTS users CASCADE`;
   await db`DROP TABLE IF EXISTS companies CASCADE`;
+  await db`DROP TYPE IF EXISTS company_role`;
   await db`DROP TYPE IF EXISTS user_role`;
 
   console.log("✅ Database schema dropped");

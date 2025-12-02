@@ -94,7 +94,7 @@ export const navItems: NavGroup[] = [
     title: "CRM",
     items: [
       {
-        title: "Users",
+        title: "Contacts",
         href: "/dashboard/users",
         icon: UsersIcon,
       },

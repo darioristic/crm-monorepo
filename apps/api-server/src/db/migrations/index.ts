@@ -9,6 +9,10 @@ import * as migration009 from "./009_add_related_documents_function";
 import * as migration010 from "./010_add_invoice_template_fields";
 import * as migration011 from "./011_add_invoice_token_and_timestamps";
 import * as migration012 from "./012_add_company_logo_url";
+import * as migration013 from "./013_add_users_on_company";
+import * as migration014 from "./014_add_company_source";
+import * as migration015 from "./015_update_inline_companies_source";
+import * as migration016 from "./016_rename_company_source_values";
 
 interface Migration {
 	name: string;
@@ -28,6 +32,10 @@ const migrations: Migration[] = [
 	migration010,
 	migration011,
 	migration012,
+	migration013,
+	migration014,
+	migration015,
+	migration016,
 ];
 
 // Migrations tracking table

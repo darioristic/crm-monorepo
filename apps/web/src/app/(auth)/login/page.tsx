@@ -23,6 +23,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
 // ============================================
 // Form Schema
@@ -53,7 +54,7 @@ function LoginForm() {
     handleSubmit,
     formState: { errors },
   } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema) as any,
+    resolver: zodResolver(loginSchema),
     defaultValues: {
       email: "admin@crm.local",
       password: "changeme123",
@@ -68,13 +69,14 @@ function LoginForm() {
       const result = await login(data);
 
       if (result.success) {
-        router.push(returnUrl as any);
+        router.push(returnUrl);
         router.refresh();
       } else {
-        const errorMsg = typeof result.error === 'object' && result.error?.message 
-          ? result.error.message 
-          : typeof result.error === 'string' 
-            ? result.error 
+        const errorMsg =
+          typeof result.error === "object" && result.error?.message
+            ? result.error.message
+            : typeof result.error === "string"
+            ? result.error
             : "Login failed";
         setError(errorMsg);
       }

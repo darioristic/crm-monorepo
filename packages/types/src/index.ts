@@ -34,6 +34,8 @@ export interface Company extends BaseEntity {
 	companyNumber?: string | null;
 	// Additional
 	note?: string | null;
+	// Source: 'account' = account companies (companies that use the app), 'customer' = customer companies (clients created through forms)
+	source?: "account" | "customer";
 }
 
 // Enhanced Company type with additional fields (inspired by midday-main)

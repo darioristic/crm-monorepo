@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { SelectCustomer } from "./select-customer";
 import { LabelInput } from "./label-input";
+import type { Company } from "@crm/types";
 
 // Check if content has actual text
 function hasContent(content: JSONContent | null | undefined): boolean {
@@ -15,9 +16,9 @@ function hasContent(content: JSONContent | null | undefined): boolean {
   if (!content.content || !Array.isArray(content.content)) return false;
   
   // Check if any paragraph has text
-  return content.content.some((node: any) => {
+  return content.content.some((node: JSONContent) => {
     if (!node.content || !Array.isArray(node.content)) return false;
-    return node.content.some((inline: any) => inline.text && inline.text.trim().length > 0);
+    return node.content.some((inline: JSONContent) => inline.text && inline.text.trim().length > 0);
   });
 }
 
@@ -42,7 +43,7 @@ export function CustomerDetails() {
 
   // Find selected customer
   const customer = selectedCustomerId 
-    ? companies.find((c: any) => c.id === selectedCustomerId)
+    ? companies.find((c: Company) => c.id === selectedCustomerId)
     : null;
 
   const handleOnChange = (newContent?: JSONContent | null) => {
@@ -133,14 +134,16 @@ export function CustomerDetails() {
 }
 
 // Transform customer data to TipTap content
-function transformCustomerToContent(customer: any): JSONContent {
+function transformCustomerToContent(customer: Company): JSONContent {
   const lines = [
     customer.name,
     customer.address,
-    [customer.city, customer.postalCode, customer.country].filter(Boolean).join(", "),
+    [customer.city, customer.zip, customer.country].filter(Boolean).join(", "),
     customer.email,
     customer.phone,
-    customer.vatNumber ? `VAT: ${customer.vatNumber}` : null,
+    customer.website,
+    customer.vatNumber ? `PIB: ${customer.vatNumber}` : null,
+    customer.companyNumber ? `MB: ${customer.companyNumber}` : null,
   ].filter(Boolean);
 
   return {

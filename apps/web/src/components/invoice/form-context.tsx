@@ -7,6 +7,8 @@ import { z } from "zod";
 import type {
   InvoiceFormValues,
   InvoiceDefaultSettings,
+  EditorDoc,
+  InvoiceStatus,
 } from "@/types/invoice";
 import {
   DEFAULT_INVOICE_TEMPLATE,
@@ -35,9 +37,9 @@ export const invoiceTemplateSchema = z.object({
   noteLabel: z.string().default("Note"),
   logoUrl: z.string().optional().nullable(),
   currency: z.string().default("EUR"),
-  paymentDetails: z.any().nullable().optional(),
-  fromDetails: z.any().nullable().optional(),
-  noteDetails: z.any().nullable().optional(),
+  paymentDetails: z.custom<EditorDoc | string | null>().nullable().optional(),
+  fromDetails: z.custom<EditorDoc | string | null>().nullable().optional(),
+  noteDetails: z.custom<EditorDoc | string | null>().nullable().optional(),
   size: z.enum(["a4", "letter"]).default("a4"),
   includeVat: z.boolean().optional().default(true),
   includeTax: z.boolean().optional().default(false),
@@ -74,14 +76,14 @@ export const lineItemSchema = z.object({
 // Main invoice form schema
 export const invoiceFormSchema = z.object({
   id: z.string().uuid(),
-  status: z.string().default("draft"),
+  status: z.enum(["draft", "overdue", "paid", "unpaid", "canceled", "scheduled"]).default("draft"),
   template: invoiceTemplateSchema,
-  fromDetails: z.any().optional(),
-  customerDetails: z.any().optional(),
+  fromDetails: z.custom<EditorDoc | string | null>().optional(),
+  customerDetails: z.custom<EditorDoc | string | null>().optional(),
   customerId: z.string().uuid().optional(),
   customerName: z.string().optional(),
-  paymentDetails: z.any().optional(),
-  noteDetails: z.any().optional(),
+  paymentDetails: z.custom<EditorDoc | string | null>().optional(),
+  noteDetails: z.custom<EditorDoc | string | null>().optional(),
   dueDate: z.string(),
   issueDate: z.string(),
   invoiceNumber: z.string(),
@@ -90,8 +92,8 @@ export const invoiceFormSchema = z.object({
   tax: z.number().nullable().optional().default(0),
   discount: z.number().nullable().optional().default(0),
   subtotal: z.number().nullable().optional().default(0),
-  topBlock: z.any().nullable().optional(),
-  bottomBlock: z.any().nullable().optional(),
+  topBlock: z.custom<EditorDoc | null>().nullable().optional(),
+  bottomBlock: z.custom<EditorDoc | null>().nullable().optional(),
   amount: z.number().default(0),
   lineItems: z.array(lineItemSchema).min(1),
   token: z.string().optional(),
@@ -149,7 +151,7 @@ export function FormContext({
   defaultSettings,
 }: FormContextProps) {
   const form = useForm<FormValues>({
-    resolver: zodResolver(invoiceFormSchema) as any,
+    resolver: zodResolver(invoiceFormSchema),
     defaultValues: getDefaultValues(),
     mode: "onChange",
   });

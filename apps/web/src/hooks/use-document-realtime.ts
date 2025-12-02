@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { logger } from "@/lib/logger";
 
 // ============================================
 // Types
@@ -78,7 +79,7 @@ export function useDocumentRealtime(
 
 				switch (message.type as DocumentEventType | string) {
 					case "connected":
-						console.log("WebSocket connected:", message.payload);
+						logger.debug("WebSocket connected", { payload: message.payload });
 						break;
 
 					case "document:created": {
@@ -150,10 +151,10 @@ export function useDocumentRealtime(
 						break;
 
 					default:
-						console.log("Unknown WebSocket message:", message.type);
+						logger.debug("Unknown WebSocket message", { type: message.type });
 				}
 			} catch (error) {
-				console.error("Error parsing WebSocket message:", error);
+				logger.error("Error parsing WebSocket message", error);
 			}
 		},
 		[
@@ -179,7 +180,7 @@ export function useDocumentRealtime(
 			?.split("=")[1];
 
 		if (!token) {
-			console.log("No auth token available for WebSocket connection");
+			logger.warn("No auth token available for WebSocket connection");
 			return;
 		}
 
@@ -188,7 +189,7 @@ export function useDocumentRealtime(
 			const ws = new WebSocket(wsUrl);
 
 			ws.onopen = () => {
-				console.log("WebSocket connected");
+				logger.debug("WebSocket connected");
 				setIsConnected(true);
 				reconnectAttempts.current = 0;
 			};
@@ -196,7 +197,7 @@ export function useDocumentRealtime(
 			ws.onmessage = handleMessage;
 
 			ws.onclose = (event) => {
-				console.log("WebSocket closed:", event.code, event.reason);
+				logger.debug("WebSocket closed", { code: event.code, reason: event.reason });
 				setIsConnected(false);
 				wsRef.current = null;
 
@@ -211,13 +212,13 @@ export function useDocumentRealtime(
 						30000,
 					);
 					reconnectAttempts.current++;
-					console.log(`Reconnecting in ${delay}ms...`);
+					logger.debug(`Reconnecting in ${delay}ms...`);
 					reconnectTimeoutRef.current = setTimeout(connect, delay);
 				}
 			};
 
 			ws.onerror = (error) => {
-				console.error("WebSocket error:", error);
+				logger.error("WebSocket error", error);
 			};
 
 			wsRef.current = ws;
@@ -234,7 +235,7 @@ export function useDocumentRealtime(
 				clearInterval(heartbeatInterval);
 			});
 		} catch (error) {
-			console.error("WebSocket connection error:", error);
+			logger.error("WebSocket connection error", error);
 		}
 	}, [enabled, handleMessage]);
 

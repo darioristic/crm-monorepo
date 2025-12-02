@@ -19,6 +19,8 @@ import { notificationRoutes } from "./notifications-routes";
 import { paymentRoutes } from "./payments-routes";
 import { reportRoutes } from "./reports";
 import { documentRoutes } from "./documents";
+import { chatRoutes } from "./chat";
+import { fileRoutes } from "./files";
 
 // Auth routes
 import {
@@ -82,6 +84,12 @@ const routes: Route[] = [
 
 	// Documents (Vault)
 	...documentRoutes,
+
+	// Files (for serving uploaded files like logos)
+	...fileRoutes,
+
+	// AI Chat
+	...chatRoutes,
 ];
 
 // ============================================
@@ -368,8 +376,31 @@ export async function handleRequest(
 	const path = url.pathname;
 	const method = request.method;
 
+	// Sort routes by specificity: routes without params first, then by number of params
+	// This ensures /api/v1/users/me matches before /api/v1/users/:id
+	const sortedRoutes = [...routes].sort((a, b) => {
+		if (a.method !== b.method) return 0; // Only compare same method
+		
+		// Routes without params come first
+		const aHasParams = a.params.length > 0;
+		const bHasParams = b.params.length > 0;
+		if (aHasParams !== bHasParams) {
+			return aHasParams ? 1 : -1;
+		}
+		
+		// If both have params, fewer params = more specific
+		if (aHasParams && bHasParams) {
+			return a.params.length - b.params.length;
+		}
+		
+		// If neither has params, sort by path length (longer = more specific)
+		const aPathLength = a.pattern.source.length;
+		const bPathLength = b.pattern.source.length;
+		return bPathLength - aPathLength;
+	});
+
 	// Find matching route
-	for (const route of routes) {
+	for (const route of sortedRoutes) {
 		if (route.method !== method) continue;
 
 		const match = path.match(route.pattern);

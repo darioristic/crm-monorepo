@@ -165,6 +165,21 @@ export class SafeQueryBuilder {
   }
 
   /**
+   * Dodaje raw SQL uslov (bez parametara)
+   * Koristi se za složene uslove koji ne zahtevaju parametre
+   */
+  addCondition(sqlCondition: string): this {
+    if (!sqlCondition || sqlCondition.trim() === "") return this;
+
+    this.conditions.push({
+      sql: sqlCondition,
+      values: [],
+    });
+
+    return this;
+  }
+
+  /**
    * Gradi WHERE klauzulu
    */
   buildWhereClause(): { clause: string; values: QueryParam[] } {

@@ -118,7 +118,8 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
   // Handle domain detection from email or website
   const handleDomainDetection = useCallback((value: string, field: "email" | "website") => {
     const domain = extractDomain(value);
-    if (domain && domain !== detectedDomain) {
+    if (domain) {
+      // Always update if domain is detected (allow re-detection)
       setDetectedDomain(domain);
       setLogoError(false);
       
@@ -128,9 +129,14 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
       }
       
       // Set logo URL
-      form.setValue("logoUrl", getLogoUrl(domain));
+      const logoUrl = getLogoUrl(domain);
+      form.setValue("logoUrl", logoUrl);
+    } else {
+      // Clear logo if no domain detected
+      setDetectedDomain(null);
+      form.setValue("logoUrl", "");
     }
-  }, [detectedDomain, form]);
+  }, [form]);
 
   // Lookup company data (placeholder - can be expanded with real API)
   const handleLookup = useCallback(async () => {
@@ -166,6 +172,10 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
   }, [form]);
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+    // Generate logo from initials if no logo provided
+    const { generateLogoFromInitials } = await import("@/lib/logo-generator");
+    const logoUrl = values.logoUrl || generateLogoFromInitials(values.name);
+
     const formattedData = {
       name: values.name,
       industry: values.industry || "Other",
@@ -181,7 +191,8 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
       vatNumber: values.vatNumber || null,
       companyNumber: values.companyNumber || null,
       note: values.note || null,
-      logoUrl: values.logoUrl || null,
+      logoUrl: logoUrl, // Use generated logo or provided one
+      source: "customer" as const, // Mark as customer company (not shown in /dashboard/companies)
     };
 
     const result = await createMutation.mutate(formattedData);
@@ -219,12 +230,16 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
                   {/* Logo preview and company name */}
                   <div className="flex items-start gap-4">
                     <div className="flex-shrink-0">
-                      {detectedDomain && !logoError ? (
+                      {form.watch("logoUrl") && !logoError ? (
                         <Avatar className="h-16 w-16 rounded-lg border">
                           <AvatarImage 
                             src={form.watch("logoUrl") || ""} 
                             alt="Company logo"
-                            onError={() => setLogoError(true)}
+                            onError={() => {
+                              setLogoError(true);
+                              // Clear logoUrl if it fails to load
+                              form.setValue("logoUrl", "");
+                            }}
                           />
                           <AvatarFallback className="rounded-lg text-lg">
                             {form.watch("name")?.[0]?.toUpperCase() || "?"}

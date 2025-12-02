@@ -1,32 +1,42 @@
 import { Metadata } from "next";
 import { generateMeta } from "@/lib/utils";
-
-import { SidebarNav } from "./components/sidebar-nav";
+import { SecondaryMenu } from "@/components/secondary-menu";
+import { CompanyCreateSheet } from "@/components/companies/company-create-sheet";
 
 export async function generateMetadata(): Promise<Metadata> {
-  return generateMeta({
-    title: "Settings Page",
-    description:
-      "Example of settings page and form created using react-hook-form and Zod validator. Built with Tailwind CSS and React.",
-    canonical: "/pages/settings"
-  });
+	return generateMeta({
+		title: "Settings",
+		description: "Manage your account settings and preferences.",
+		canonical: "/dashboard/settings",
+	});
 }
 
-export default function SettingsLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="space-y-4 lg:space-y-6">
-      <div className="space-y-0.5">
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground">
-          Manage your account settings and set e-mail preferences.
-        </p>
-      </div>
-      <div className="flex flex-col space-y-4 lg:flex-row lg:space-y-0 lg:space-x-4">
-        <aside className="lg:w-64">
-          <SidebarNav />
-        </aside>
-        <div className="flex-1 lg:max-w-2xl">{children}</div>
-      </div>
-    </div>
-  );
+export default function SettingsLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="max-w-4xl mx-auto">
+			<div className="mb-8">
+				<h1 className="text-3xl font-semibold tracking-tight mb-2">Settings</h1>
+				<p className="text-muted-foreground">
+					Manage your account settings and preferences.
+				</p>
+			</div>
+			
+			<SecondaryMenu
+				items={[
+					{ path: "/dashboard/settings", label: "General" },
+					{ path: "/dashboard/settings/billing", label: "Billing" },
+					{ path: "/dashboard/settings/accounts", label: "Bank Connections" },
+					{ path: "/dashboard/settings/members", label: "Members" },
+					{ path: "/dashboard/settings/notifications", label: "Notifications" },
+				]}
+			/>
+
+			<main className="mt-8">{children}</main>
+			<CompanyCreateSheet />
+		</div>
+	);
 }

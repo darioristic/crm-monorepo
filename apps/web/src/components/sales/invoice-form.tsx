@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Invoice, CreateInvoiceRequest, UpdateInvoiceRequest } from "@crm/types";
-import { invoicesApi } from "@/lib/api";
+import type { Invoice, CreateInvoiceRequest, UpdateInvoiceRequest, Company } from "@crm/types";
+import { invoicesApi, companiesApi } from "@/lib/api";
 import { useMutation } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,10 +30,24 @@ import {
 import { SelectCompany } from "@/components/companies/select-company";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
+import { Loader2, AlertCircle, Plus, Trash2, Building2, MapPin, Phone, Mail, Globe, Hash } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
+
+interface CustomerDetails {
+  name: string;
+  address?: string;
+  city?: string;
+  zip?: string;
+  country?: string;
+  countryCode?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
+  vatNumber?: string;
+  companyNumber?: string;
+}
 
 const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -63,6 +77,8 @@ interface InvoiceFormProps {
 
 export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   const router = useRouter();
+  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
+  const [isLoadingCompany, setIsLoadingCompany] = useState(false);
 
   const createMutation = useMutation<Invoice, CreateInvoiceRequest>((data) =>
     invoicesApi.create(data)
@@ -74,6 +90,30 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
 
   const today = new Date().toISOString().split("T")[0];
   const defaultDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+  // Fetch company details when companyId changes
+  const fetchCompanyDetails = useCallback(async (companyId: string) => {
+    if (!companyId) {
+      setSelectedCompany(null);
+      return;
+    }
+
+    setIsLoadingCompany(true);
+    try {
+      const response = await companiesApi.getById(companyId);
+      if (response.success && response.data) {
+        setSelectedCompany(response.data);
+      } else {
+        setSelectedCompany(null);
+        console.error("Failed to fetch company details:", response.error);
+      }
+    } catch (error) {
+      console.error("Error fetching company details:", error);
+      setSelectedCompany(null);
+    } finally {
+      setIsLoadingCompany(false);
+    }
+  }, []);
 
   const form = useForm<InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema) as any,
@@ -118,8 +158,20 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
           discount: item.discount,
         })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
       });
+      // Fetch company details for existing invoice
+      if (invoice.companyId) {
+        fetchCompanyDetails(invoice.companyId);
+      }
     }
-  }, [invoice, form, today, defaultDueDate]);
+  }, [invoice, form, today, defaultDueDate, fetchCompanyDetails]);
+
+  // Watch companyId changes and fetch company details
+  const watchedCompanyId = form.watch("companyId");
+  useEffect(() => {
+    if (watchedCompanyId && watchedCompanyId !== selectedCompany?.id) {
+      fetchCompanyDetails(watchedCompanyId);
+    }
+  }, [watchedCompanyId, fetchCompanyDetails, selectedCompany?.id]);
 
   const watchedItems = form.watch("items");
   const watchedTaxRate = form.watch("taxRate");
@@ -145,6 +197,23 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
       };
     });
 
+    // Build customerDetails from selected company
+    const customerDetails: CustomerDetails | undefined = selectedCompany
+      ? {
+          name: selectedCompany.name,
+          address: selectedCompany.address || undefined,
+          city: selectedCompany.city || undefined,
+          zip: selectedCompany.zip || undefined,
+          country: selectedCompany.country || undefined,
+          countryCode: selectedCompany.countryCode || undefined,
+          email: selectedCompany.email || undefined,
+          phone: selectedCompany.phone || undefined,
+          website: selectedCompany.website || undefined,
+          vatNumber: selectedCompany.vatNumber || undefined,
+          companyNumber: selectedCompany.companyNumber || undefined,
+        }
+      : undefined;
+
     const data = {
       companyId: values.companyId,
       issueDate: new Date(values.issueDate).toISOString(),
@@ -157,7 +226,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
       notes: values.notes || undefined,
       terms: values.terms || undefined,
       items,
-      createdBy: "current-user-id", // This would come from auth context
+      customerDetails,
     };
 
     let result;
@@ -256,6 +325,88 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                   )}
                 />
               </div>
+
+              {/* Bill To Details - Company Information */}
+              {isLoadingCompany && (
+                <Card className="p-4">
+                  <div className="flex items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span>Loading company details...</span>
+                  </div>
+                </Card>
+              )}
+              
+              {selectedCompany && !isLoadingCompany && (
+                <Card className="p-4 bg-muted/30 border-primary/20">
+                  <div className="flex items-start gap-3">
+                    <Building2 className="h-5 w-5 text-primary mt-0.5" />
+                    <div className="flex-1 space-y-2">
+                      <h4 className="font-semibold text-lg">{selectedCompany.name}</h4>
+                      
+                      <div className="grid gap-2 sm:grid-cols-2 text-sm">
+                        {/* Address Info */}
+                        {(selectedCompany.address || selectedCompany.city || selectedCompany.zip || selectedCompany.country) && (
+                          <div className="flex items-start gap-2">
+                            <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                            <div>
+                              {selectedCompany.address && <p>{selectedCompany.address}</p>}
+                              {(selectedCompany.zip || selectedCompany.city) && (
+                                <p>
+                                  {selectedCompany.zip && `${selectedCompany.zip} `}
+                                  {selectedCompany.city}
+                                </p>
+                              )}
+                              {selectedCompany.country && <p>{selectedCompany.country}</p>}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Contact Info */}
+                        <div className="space-y-1">
+                          {selectedCompany.email && (
+                            <div className="flex items-center gap-2">
+                              <Mail className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span>{selectedCompany.email}</span>
+                            </div>
+                          )}
+                          {selectedCompany.phone && (
+                            <div className="flex items-center gap-2">
+                              <Phone className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span>{selectedCompany.phone}</span>
+                            </div>
+                          )}
+                          {selectedCompany.website && (
+                            <div className="flex items-center gap-2">
+                              <Globe className="h-4 w-4 text-muted-foreground shrink-0" />
+                              <span>{selectedCompany.website}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Business Identifiers */}
+                      {(selectedCompany.vatNumber || selectedCompany.companyNumber) && (
+                        <div className="flex flex-wrap gap-4 pt-2 border-t text-sm">
+                          {selectedCompany.vatNumber && (
+                            <div className="flex items-center gap-2">
+                              <Hash className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">VAT/OIB:</span>
+                              <span className="font-medium">{selectedCompany.vatNumber}</span>
+                            </div>
+                          )}
+                          {selectedCompany.companyNumber && (
+                            <div className="flex items-center gap-2">
+                              <Hash className="h-4 w-4 text-muted-foreground" />
+                              <span className="text-muted-foreground">Company No:</span>
+                              <span className="font-medium">{selectedCompany.companyNumber}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Card>
+              )}
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <FormField

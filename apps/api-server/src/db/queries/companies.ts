@@ -29,6 +29,19 @@ export const companyQueries = {
 			["name", "industry", "city", "country"],
 			filters.search,
 		);
+		
+		// Filter out customer companies (only show account companies in /dashboard/companies)
+		// Customer companies are created through forms (e.g., invoice form) and should not appear in the main list
+		// Account companies are the companies that use the app (account holders)
+		// If source filter is explicitly set, use it; otherwise exclude customer companies
+		if (filters.source) {
+			qb.addEqualCondition("source", filters.source);
+		} else {
+			// Exclude customer companies - show only account companies or companies without source (legacy)
+			// This ensures backward compatibility with existing companies
+			// Use NOT EQUAL to explicitly exclude customer companies
+			qb.addCondition("(source IS NULL OR source != 'customer')");
+		}
 
 		const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
@@ -251,6 +264,7 @@ function mapCompany(row: Record<string, unknown>): Company {
 		companyNumber: row.company_number as string | null,
 		logoUrl: row.logo_url as string | null,
 		note: row.note as string | null,
+		source: (row.source as "account" | "customer") || "account",
 	} as Company;
 }
 

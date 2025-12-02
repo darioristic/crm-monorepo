@@ -4,7 +4,8 @@
 # CRM Monorepo - Development Environment Startup Script
 # ============================================
 
-set -e
+# Don't exit on error - we want to handle Docker startup gracefully
+set +e
 
 # Colors for output
 RED='\033[0;31m'
@@ -38,42 +39,111 @@ kill_port() {
 
 # Function to check if Docker is running
 check_docker() {
-    if ! docker info > /dev/null 2>&1; then
-        echo -e "${RED}❌ Docker is not running. Please start Docker Desktop.${NC}"
-        exit 1
+    if docker info > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Docker is running${NC}"
+        return 0
     fi
-    echo -e "${GREEN}✓ Docker is running${NC}"
+    return 1
+}
+
+# Function to start Docker Desktop (macOS)
+start_docker_desktop() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo -e "${YELLOW}🐳 Docker is not running. Attempting to start Docker Desktop...${NC}"
+        
+        # Check if Docker Desktop is installed
+        if [ -d "/Applications/Docker.app" ]; then
+            echo -e "${BLUE}   Opening Docker Desktop...${NC}"
+            open -a Docker
+            
+            # Wait for Docker to start (max 60 seconds)
+            echo -e "${YELLOW}   Waiting for Docker to start (this may take up to 60 seconds)...${NC}"
+            local max_attempts=60
+            local attempt=0
+            
+            while [ $attempt -lt $max_attempts ]; do
+                if docker info > /dev/null 2>&1; then
+                    echo -e "${GREEN}✓ Docker is now running${NC}"
+                    sleep 2  # Give it a moment to fully initialize
+                    return 0
+                fi
+                echo -n "."
+                sleep 1
+                attempt=$((attempt + 1))
+            done
+            
+            echo ""
+            echo -e "${RED}❌ Docker failed to start after 60 seconds.${NC}"
+            echo -e "${YELLOW}   Please start Docker Desktop manually and try again.${NC}"
+            return 1
+        else
+            echo -e "${RED}❌ Docker Desktop is not installed.${NC}"
+            echo -e "${YELLOW}   Please install Docker Desktop from https://www.docker.com/products/docker-desktop${NC}"
+            return 1
+        fi
+    else
+        echo -e "${RED}❌ Docker is not running.${NC}"
+        echo -e "${YELLOW}   Please start Docker manually and try again.${NC}"
+        return 1
+    fi
 }
 
 # Function to start Docker services
 start_docker_services() {
     echo -e "${BLUE}🐳 Starting Docker services (PostgreSQL & Redis)...${NC}"
-    docker-compose up -d postgres redis
+    if ! docker-compose up -d postgres redis; then
+        echo -e "${RED}❌ Failed to start Docker services${NC}"
+        return 1
+    fi
     
     # Wait for services to be healthy
     echo -e "${YELLOW}⏳ Waiting for database to be ready...${NC}"
     sleep 3
     
-    # Check if postgres is ready
-    until docker-compose exec -T postgres pg_isready -U crm_user -d crm_db > /dev/null 2>&1; do
+    # Check if postgres is ready (max 60 seconds)
+    local max_attempts=30
+    local attempt=0
+    while [ $attempt -lt $max_attempts ]; do
+        if docker-compose exec -T postgres pg_isready -U crm_user -d crm_db > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ PostgreSQL is ready${NC}"
+            break
+        fi
         echo -e "${YELLOW}   Waiting for PostgreSQL...${NC}"
         sleep 2
+        attempt=$((attempt + 1))
     done
-    echo -e "${GREEN}✓ PostgreSQL is ready${NC}"
     
-    # Check if redis is ready
-    until docker-compose exec -T redis redis-cli ping > /dev/null 2>&1; do
+    if [ $attempt -eq $max_attempts ]; then
+        echo -e "${RED}❌ PostgreSQL failed to start after 60 seconds${NC}"
+        return 1
+    fi
+    
+    # Check if redis is ready (max 30 seconds)
+    attempt=0
+    while [ $attempt -lt 30 ]; do
+        if docker-compose exec -T redis redis-cli ping > /dev/null 2>&1; then
+            echo -e "${GREEN}✓ Redis is ready${NC}"
+            return 0
+        fi
         echo -e "${YELLOW}   Waiting for Redis...${NC}"
         sleep 1
+        attempt=$((attempt + 1))
     done
-    echo -e "${GREEN}✓ Redis is ready${NC}"
+    
+    echo -e "${RED}❌ Redis failed to start after 30 seconds${NC}"
+    return 1
 }
 
 # Function to install dependencies
 install_deps() {
     echo -e "${BLUE}📦 Installing dependencies...${NC}"
-    bun install
-    echo -e "${GREEN}✓ Dependencies installed${NC}"
+    if bun install; then
+        echo -e "${GREEN}✓ Dependencies installed${NC}"
+        return 0
+    else
+        echo -e "${RED}❌ Failed to install dependencies${NC}"
+        return 1
+    fi
 }
 
 # Navigate to project root
@@ -89,20 +159,35 @@ kill_port $WEB_PORT
 kill_port $API_PORT
 echo ""
 
-# Step 2: Check Docker
+# Step 2: Check and start Docker if needed
 echo -e "${BLUE}🐳 Checking Docker...${NC}"
-check_docker
+if ! check_docker; then
+    if ! start_docker_desktop; then
+        echo ""
+        echo -e "${RED}❌ Cannot proceed without Docker. Exiting.${NC}"
+        exit 1
+    fi
+fi
 echo ""
 
 # Step 3: Start Docker services
-start_docker_services
+if ! start_docker_services; then
+    echo -e "${RED}❌ Failed to start Docker services. Exiting.${NC}"
+    exit 1
+fi
 echo ""
 
 # Step 4: Install dependencies if needed
 if [ ! -d "node_modules" ] || [ "$1" == "--install" ]; then
-    install_deps
+    if ! install_deps; then
+        echo -e "${RED}❌ Failed to install dependencies. Exiting.${NC}"
+        exit 1
+    fi
     echo ""
 fi
+
+# Enable strict error handling for server startup
+set -e
 
 # Step 5: Start development servers
 echo -e "${BLUE}🚀 Starting development servers...${NC}"

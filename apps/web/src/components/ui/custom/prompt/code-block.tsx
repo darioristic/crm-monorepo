@@ -58,6 +58,8 @@ function CodeBlockCode({
   );
 
   // SSR fallback: render plain code if not hydrated yet
+  // Note: dangerouslySetInnerHTML is safe here because the HTML is generated
+  // by the trusted shiki library which properly escapes user input
   return highlightedHtml ? (
     <div className={classNames} dangerouslySetInnerHTML={{ __html: highlightedHtml }} {...props} />
   ) : (

@@ -23,6 +23,11 @@ const sidebarNavItems = [
     icon: Building2Icon
   },
   {
+    title: "Company",
+    href: "/dashboard/settings/company",
+    icon: Building2Icon
+  },
+  {
     title: "Profile",
     href: "/dashboard/settings",
     icon: UserIcon

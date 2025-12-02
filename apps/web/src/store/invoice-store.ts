@@ -1,13 +1,13 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { InvoiceTemplate, InvoiceDefaultSettings } from "@/types/invoice";
+import type { InvoiceTemplate, InvoiceDefaultSettings, EditorDoc } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
 // Only these fields should be persisted across invoices
 interface PersistedInvoiceSettings {
   template: InvoiceTemplate;
-  fromDetails?: any;
-  paymentDetails?: any;
+  fromDetails?: EditorDoc | string | null;
+  paymentDetails?: EditorDoc | string | null;
 }
 
 interface InvoiceSettingsState {
@@ -15,8 +15,8 @@ interface InvoiceSettingsState {
   recentCustomers: string[];
   setDefaultSettings: (settings: Partial<InvoiceDefaultSettings>) => void;
   setTemplate: (template: Partial<InvoiceTemplate>) => void;
-  setFromDetails: (fromDetails: any) => void;
-  setPaymentDetails: (paymentDetails: any) => void;
+  setFromDetails: (fromDetails: EditorDoc | string | null) => void;
+  setPaymentDetails: (paymentDetails: EditorDoc | string | null) => void;
   addRecentCustomer: (customerId: string) => void;
   reset: () => void;
 }
@@ -44,7 +44,10 @@ export const useInvoiceSettingsStore = create<InvoiceSettingsState>()(
           
           for (const key of allowedKeys) {
             if (key in settings) {
-              (filteredSettings as any)[key] = (settings as any)[key];
+              const value = settings[key as keyof InvoiceDefaultSettings];
+              if (value !== undefined) {
+                (filteredSettings as Record<string, unknown>)[key] = value;
+              }
             }
           }
           

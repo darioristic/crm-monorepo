@@ -1,8 +1,9 @@
 import type { User, UserRole } from "@crm/types";
+import { logger } from "./logger";
 
 // Use empty string for client-side requests (will use proxy via rewrites)
 // Use full URL for server-side requests
-const API_URL = typeof window === "undefined" 
+const API_URL = typeof window === "undefined"
   ? (process.env.API_URL || "http://localhost:3001")
   : "";
 
@@ -18,6 +19,14 @@ export interface AuthUser {
 	role: UserRole;
 	companyId?: string;
 	avatarUrl?: string;
+	company?: {
+		id: string;
+		name: string;
+		industry: string;
+		address: string;
+		logoUrl?: string | null;
+		email?: string | null;
+	};
 }
 
 export interface LoginCredentials {
@@ -58,6 +67,86 @@ export interface MeResponse {
 }
 
 // ============================================
+// Helper Functions for API Calls
+// ============================================
+
+/**
+ * Safely parse JSON response, handling non-JSON error responses
+ */
+async function parseJsonResponse<T>(response: Response): Promise<T> {
+	const contentType = response.headers.get("content-type");
+	const isJson = contentType?.includes("application/json");
+
+	if (!isJson) {
+		const text = await response.text();
+		const errorMessage = text.length > 200 
+			? `${text.substring(0, 200)}...` 
+			: text;
+		
+		throw new Error(
+			`Server returned non-JSON response (${response.status}): ${errorMessage}`
+		);
+	}
+
+	return response.json() as Promise<T>;
+}
+
+/**
+ * Handle API response with proper error handling
+ */
+async function handleApiResponse<T>(
+	response: Response,
+	defaultErrorCode: string = "API_ERROR"
+): Promise<T> {
+	if (!response.ok) {
+		try {
+			const contentType = response.headers.get("content-type");
+			if (contentType?.includes("application/json")) {
+				const errorData = await response.json();
+				// If the response is already in our error format, return it
+				if (errorData && typeof errorData === "object" && "error" in errorData) {
+					return errorData as T;
+				}
+				// Otherwise, wrap it in our error format
+				return {
+					success: false,
+					error: {
+						code: errorData.code || defaultErrorCode,
+						message: errorData.message || `Server error: ${response.status}`,
+					},
+				} as T;
+			} else {
+				// Non-JSON error response (HTML error page, etc.)
+				const text = await response.text();
+				const errorMessage = text.length > 200 
+					? `${text.substring(0, 200)}...` 
+					: text;
+				
+				return {
+					success: false,
+					error: {
+						code: defaultErrorCode,
+						message: `Server error (${response.status}): ${errorMessage}`,
+					},
+				} as T;
+			}
+		} catch (parseError) {
+			// If we can't parse the error response, return a generic error
+			return {
+				success: false,
+				error: {
+					code: defaultErrorCode,
+					message: `Server error: ${response.status} ${response.statusText}`,
+				},
+			} as T;
+		}
+	}
+
+	// Successful response - parse JSON
+	return parseJsonResponse<T>(response);
+}
+
+// ============================================
 // Auth API Functions
 // ============================================
 
@@ -75,15 +164,16 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
 			credentials: "include", // Important for cookies
 		});
 
-		const data = await response.json();
-		return data as AuthResponse;
+		return handleApiResponse<AuthResponse>(response, "LOGIN_ERROR");
 	} catch (error) {
-		console.error("Login error:", error);
+		logger.error("Login error", error);
 		return {
 			success: false,
 			error: {
 				code: "NETWORK_ERROR",
-				message: "Failed to connect to server",
+				message: error instanceof Error 
+					? error.message 
+					: "Failed to connect to server",
 			},
 		};
 	}
@@ -99,10 +189,18 @@ export async function logout(): Promise<{ success: boolean }> {
 			credentials: "include",
 		});
 
-		const data = await response.json();
+		if (!response.ok) {
+			const errorData = await handleApiResponse<{ success: boolean; error?: { code: string; message: string } }>(
+				response,
+				"LOGOUT_ERROR"
+			);
+			return { success: false };
+		}
+
+		const data = await parseJsonResponse<{ success: boolean }>(response);
 		return data;
 	} catch (error) {
-		console.error("Logout error:", error);
+		logger.error("Logout error", error);
 		return { success: false };
 	}
 }
@@ -117,38 +215,62 @@ export async function refreshToken(): Promise<RefreshResponse> {
 			credentials: "include",
 		});
 
-		const data = await response.json();
-		return data as RefreshResponse;
+		return handleApiResponse<RefreshResponse>(response, "REFRESH_ERROR");
 	} catch (error) {
-		console.error("Refresh token error:", error);
+		logger.error("Refresh token error", error);
 		return {
 			success: false,
 			error: {
 				code: "NETWORK_ERROR",
-				message: "Failed to refresh token",
+				message: error instanceof Error 
+					? error.message 
+					: "Failed to refresh token",
 			},
 		};
 	}
 }
 
 /**
- * Get current user info
+ * Get current user info (includes company information)
  */
-export async function getCurrentUser(): Promise<MeResponse> {
+export async function getCurrentUser(): Promise<MeResponse & {
+	data?: AuthUser & {
+		company?: {
+			id: string;
+			name: string;
+			industry: string;
+			address: string;
+			logoUrl?: string | null;
+			email?: string | null;
+		};
+	};
+}> {
 	try {
 		const response = await fetch(`${API_URL}/api/v1/auth/me`, {
 			credentials: "include",
 		});
 
-		const data = await response.json();
-		return data as MeResponse;
+		return handleApiResponse<MeResponse & {
+			data?: AuthUser & {
+				company?: {
+					id: string;
+					name: string;
+					industry: string;
+					address: string;
+					logoUrl?: string | null;
+					email?: string | null;
+				};
+			};
+		}>(response, "GET_USER_ERROR");
 	} catch (error) {
-		console.error("Get current user error:", error);
+		logger.error("Get current user error", error);
 		return {
 			success: false,
 			error: {
 				code: "NETWORK_ERROR",
-				message: "Failed to get user info",
+				message: error instanceof Error 
+					? error.message 
+					: "Failed to get user info",
 			},
 		};
 	}
@@ -171,15 +293,19 @@ export async function changePassword(
 			credentials: "include",
 		});
 
-		const data = await response.json();
-		return data;
+		return handleApiResponse<{ success: boolean; error?: { code: string; message: string } }>(
+			response,
+			"CHANGE_PASSWORD_ERROR"
+		);
 	} catch (error) {
-		console.error("Change password error:", error);
+		logger.error("Change password error", error);
 		return {
 			success: false,
 			error: {
 				code: "NETWORK_ERROR",
-				message: "Failed to change password",
+				message: error instanceof Error 
+					? error.message 
+					: "Failed to change password",
 			},
 		};
 	}
