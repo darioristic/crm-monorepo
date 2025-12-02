@@ -437,62 +437,107 @@ class SalesService {
 
   async createInvoice(data: CreateInvoiceRequest): Promise<ApiResponse<Invoice>> {
     try {
-      // Validate required fields
-      if (!data.companyId || !data.dueDate || !data.items || data.items.length === 0) {
-        return errorResponse("VALIDATION_ERROR", "Company, dueDate, and items are required");
+      // Validate required fields with specific error messages
+      const errors: string[] = [];
+      
+      if (!data.companyId || typeof data.companyId !== 'string' || data.companyId.trim() === '') {
+        errors.push("Company ID is required");
+      }
+      
+      if (!data.dueDate) {
+        errors.push("Due date is required");
+      }
+      
+      if (!data.items || !Array.isArray(data.items)) {
+        errors.push("Items are required");
+      } else if (data.items.length === 0) {
+        errors.push("At least one item is required");
+      }
+      
+      if (errors.length > 0) {
+        return errorResponse("VALIDATION_ERROR", errors.join(", "));
       }
 
       // Calculate totals
-      const extData = data as any;
-      const items: Omit<InvoiceItem, "id" | "invoiceId">[] = data.items.map((item: any) => ({
+      const items: Omit<InvoiceItem, "id" | "invoiceId">[] = data.items.map((item) => ({
         productName: item.productName,
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discount: item.discount || 0,
         unit: item.unit || "pcs",
-        vatRate: item.vatRate ?? extData.vatRate ?? 20,
+        vatRate: item.vatRate ?? data.vatRate ?? 20,
         total: item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100),
       }));
 
       const subtotal = items.reduce((sum, item) => sum + item.total, 0);
       const taxRate = data.taxRate || 0;
-      const vatRate = extData.vatRate || 20;
+      const vatRate = data.vatRate || 20;
       const tax = subtotal * (taxRate / 100);
       const vat = subtotal * (vatRate / 100);
       const total = subtotal + tax + vat;
 
-      const invoiceNumber = await invoiceQueries.generateNumber();
+      // Retry logic for duplicate invoice numbers (race condition protection)
+      let retries = 5;
+      let created: Invoice | null = null;
+      
+      while (retries > 0 && !created) {
+        try {
+          const invoiceNumber = await invoiceQueries.generateNumber();
 
-      const invoice: Omit<Invoice, "items"> = {
-        id: generateUUID(),
-        createdAt: now(),
-        updatedAt: now(),
-        invoiceNumber,
-        quoteId: data.quoteId,
-        companyId: data.companyId,
-        contactId: data.contactId,
-        status: data.status || "draft",
-        issueDate: data.issueDate || now(),
-        dueDate: data.dueDate,
-        subtotal,
-        taxRate,
-        tax,
-        total,
-        paidAmount: 0,
-        notes: data.notes,
-        terms: data.terms,
-        createdBy: data.createdBy,
-        // New fields for PDF generation
-        fromDetails: extData.fromDetails || null,
-        customerDetails: extData.customerDetails || null,
-        logoUrl: extData.logoUrl || null,
-        vatRate: vatRate,
-        currency: extData.currency || "EUR",
-        templateSettings: extData.templateSettings || null,
-      } as any;
+          const invoice: Omit<Invoice, "items"> = {
+            id: generateUUID(),
+            createdAt: now(),
+            updatedAt: now(),
+            invoiceNumber,
+            quoteId: data.quoteId,
+            companyId: data.companyId,
+            contactId: data.contactId,
+            status: data.status || "draft",
+            issueDate: data.issueDate || now(),
+            dueDate: data.dueDate,
+            subtotal,
+            taxRate,
+            tax,
+            total,
+            paidAmount: 0,
+            notes: data.notes,
+            terms: data.terms,
+            createdBy: data.createdBy,
+            // New fields for PDF generation
+            fromDetails: data.fromDetails || null,
+            customerDetails: data.customerDetails || null,
+            logoUrl: data.logoUrl || null,
+            vatRate: vatRate,
+            currency: data.currency || "EUR",
+            templateSettings: data.templateSettings || null,
+          };
 
-      const created = await invoiceQueries.create(invoice, items);
+          created = await invoiceQueries.create(invoice, items);
+        } catch (err: any) {
+          // Check if it's a duplicate key error
+          const isDuplicateError =
+            (err.code === '23505' || err.code === 23505) &&
+            (err.constraint === 'invoices_invoice_number_unique' ||
+             err.constraint_name === 'invoices_invoice_number_unique' ||
+             err.message?.includes('invoices_invoice_number_unique'));
+
+          if (isDuplicateError) {
+            retries--;
+            if (retries === 0) {
+              throw err; // Throw the error if we've run out of retries
+            }
+            // Wait a small random time before retrying to reduce collision chance
+            await new Promise(resolve => setTimeout(resolve, Math.random() * 50));
+          } else {
+            throw err; // Re-throw if it's a different error
+          }
+        }
+      }
+
+      if (!created) {
+        return errorResponse("DATABASE_ERROR", "Failed to generate unique invoice number after retries");
+      }
 
       // Invalidate cache
       await cache.invalidatePattern("invoices:list:*");
@@ -511,14 +556,13 @@ class SalesService {
         return Errors.NotFound("Invoice").toResponse();
       }
 
-      const extData = data as any;
       let items: Omit<InvoiceItem, "invoiceId">[] | undefined;
       let subtotal = existing.subtotal;
       let tax = existing.tax;
       let total = existing.total;
 
       if (data.items) {
-        items = data.items.map((item: any) => ({
+        items = data.items.map((item) => ({
           id: item.id || generateUUID(),
           productName: item.productName,
           description: item.description,
@@ -526,12 +570,12 @@ class SalesService {
           unitPrice: item.unitPrice,
           discount: item.discount || 0,
           unit: item.unit || "pcs",
-          vatRate: item.vatRate ?? extData.vatRate ?? 20,
+          vatRate: item.vatRate ?? data.vatRate ?? 20,
           total: item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100),
         }));
         subtotal = items.reduce((sum, item) => sum + item.total, 0);
         const taxRate = data.taxRate ?? existing.taxRate ?? 0;
-        const vatRate = extData.vatRate ?? (existing as any).vatRate ?? 20;
+        const vatRate = data.vatRate ?? existing.vatRate ?? 20;
         tax = subtotal * (taxRate / 100);
         const vat = subtotal * (vatRate / 100);
         total = subtotal + tax + vat;
@@ -543,12 +587,12 @@ class SalesService {
         tax,
         total,
         // Ensure new fields are passed
-        fromDetails: extData.fromDetails,
-        customerDetails: extData.customerDetails,
-        logoUrl: extData.logoUrl,
-        vatRate: extData.vatRate,
-        currency: extData.currency,
-        templateSettings: extData.templateSettings,
+        fromDetails: data.fromDetails,
+        customerDetails: data.customerDetails,
+        logoUrl: data.logoUrl,
+        vatRate: data.vatRate,
+        currency: data.currency,
+        templateSettings: data.templateSettings,
       }, items);
 
       // Invalidate cache

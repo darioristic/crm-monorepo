@@ -59,6 +59,7 @@ import type {
 	CreatePaymentRequest,
 	UpdatePaymentRequest,
 } from "@crm/types";
+import { logger } from "./logger";
 
 // Use empty string for client-side requests (will use proxy via rewrites)
 // Use full URL for server-side requests
@@ -115,10 +116,39 @@ async function request<T>(
 			},
 		});
 
+		// Handle 401 Unauthorized - try to refresh token and retry ONCE
+		if (response.status === 401 && typeof window !== "undefined") {
+			try {
+				const { refreshToken } = await import("./auth");
+				const refreshResult = await refreshToken();
+				
+				if (refreshResult.success) {
+					// Retry the original request ONCE after successful refresh
+					// Pass retryOn401=false to prevent infinite loop
+					const retryResponse = await fetch(url, {
+						...options,
+						credentials: "include",
+						headers: {
+							...defaultHeaders,
+							...options.headers,
+						},
+					});
+					
+					const retryData = await retryResponse.json();
+					return retryData as ApiResponse<T>;
+				}
+			} catch (refreshError) {
+				logger.error("Token refresh failed", refreshError);
+			}
+			// If refresh failed or didn't succeed, return the original 401 response
+			const data = await response.json();
+			return data as ApiResponse<T>;
+		}
+
 		const data = await response.json();
 		return data as ApiResponse<T>;
 	} catch (error) {
-		console.error("API request failed:", error);
+		logger.error("API request failed", error);
 		return {
 			success: false,
 			error: {
