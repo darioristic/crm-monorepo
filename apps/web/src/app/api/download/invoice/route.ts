@@ -8,19 +8,45 @@ import { join } from "path";
 
 // Get logo as base64 data URL for PDF rendering
 // PDF renderer can't fetch from localhost, so we read the file directly
-function getLogoDataUrl(): string | null {
+function getLogoDataUrl(logoPath?: string): string | null {
 	try {
-		// Try to read logo from public folder
-		const logoPath = join(process.cwd(), "public", "logo.png");
+		// Determine the path to read
+		let filePath: string;
+		
+		if (logoPath && logoPath.startsWith("data:")) {
+			// Already a data URL, return as-is
+			return logoPath;
+		}
+		
+		if (logoPath && logoPath.startsWith("http")) {
+			// External URL - can't read directly, return as-is
+			// Note: PDF renderer may still have issues with this
+			return logoPath;
+		}
+		
+		if (logoPath && logoPath.startsWith("/")) {
+			// Relative URL like /logo.png - read from public folder
+			filePath = join(process.cwd(), "public", logoPath.substring(1));
+		} else {
+			// Default to logo.png in public folder
+			filePath = join(process.cwd(), "public", "logo.png");
+		}
 
-		if (!existsSync(logoPath)) {
-			console.warn("Logo file not found at:", logoPath);
+		if (!existsSync(filePath)) {
+			console.warn("Logo file not found at:", filePath);
 			return null;
 		}
 
-		const logoBuffer = readFileSync(logoPath);
+		const logoBuffer = readFileSync(filePath);
 		const base64 = logoBuffer.toString("base64");
-		return `data:image/png;base64,${base64}`;
+		
+		// Determine MIME type from extension
+		const ext = filePath.toLowerCase().split(".").pop();
+		const mimeType = ext === "svg" ? "image/svg+xml" 
+			: ext === "jpg" || ext === "jpeg" ? "image/jpeg"
+			: "image/png";
+		
+		return `data:${mimeType};base64,${base64}`;
 	} catch (error) {
 		console.error("Error reading logo file:", error);
 		return null;
@@ -162,7 +188,8 @@ export async function GET(request: NextRequest) {
 		}
 		
 		// Get logo from invoice or use default
-		const logoUrl = apiInvoice.logoUrl || getLogoDataUrl();
+		// Convert relative URLs to base64 for PDF rendering
+		const logoUrl = getLogoDataUrl(apiInvoice.logoUrl);
 
 		const companyName = apiInvoice.companyName || apiInvoice.company?.name;
 
@@ -250,13 +277,14 @@ export async function GET(request: NextRequest) {
 		};
 
 		// Debug: Log invoice data
-		console.log(
-			"Generating PDF for invoice:",
-			invoice.invoiceNumber,
-			"with",
-			invoice.lineItems?.length || 0,
-			"items",
-		);
+		console.log("=== PDF Generation Debug ===");
+		console.log("Invoice Number:", invoice.invoiceNumber);
+		console.log("Items count:", invoice.lineItems?.length || 0);
+		console.log("Has fromDetails:", !!invoice.fromDetails);
+		console.log("Has customerDetails:", !!invoice.customerDetails);
+		console.log("Logo URL type:", invoice.template.logoUrl?.substring(0, 30) || "null");
+		console.log("Currency:", invoice.currency);
+		console.log("============================");
 
 		// Dynamically import PDF components to avoid client/server issues
 		const { renderToStream } = await import("@react-pdf/renderer");

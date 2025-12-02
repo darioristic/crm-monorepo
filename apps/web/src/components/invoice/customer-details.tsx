@@ -4,7 +4,7 @@ import { Editor } from "@/components/invoice/editor";
 import { companiesApi } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 import type { JSONContent } from "@tiptap/react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { SelectCustomer } from "./select-customer";
 import { LabelInput } from "./label-input";
@@ -28,11 +28,16 @@ export function CustomerDetails() {
   const content = watch("customerDetails");
   const id = watch("id");
 
-  const { data: companiesData, isLoading, error } = useApi(
+  const { data: companiesData, isLoading, error, refetch } = useApi(
     () => companiesApi.getAll({ pageSize: 100 }),
     { autoFetch: true }
   );
   const companies = companiesData || [];
+
+  // Callback when a new company is created - refresh the list
+  const handleCompanyCreated = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
 
   // Find selected customer
@@ -118,6 +123,7 @@ export function CustomerDetails() {
             <SelectCustomer 
               companies={companies}
               onSelect={(customerId) => setSelectedCustomerId(customerId)}
+              onCompanyCreated={handleCompanyCreated}
             />
           )}
         </>

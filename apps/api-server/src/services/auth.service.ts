@@ -8,16 +8,15 @@ import { cache } from "../cache/redis";
 // Configuration
 // ============================================
 
-// JWT_SECRET is required - fail early if not set
+// JWT_SECRET is required - fail early if not set in any environment
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-	const isProduction = process.env.NODE_ENV === "production";
-	if (isProduction) {
-		throw new Error("FATAL: JWT_SECRET environment variable is required in production");
-	}
-	console.warn("⚠️  WARNING: JWT_SECRET not set. Using insecure default for development only.");
+	throw new Error(
+		"FATAL: JWT_SECRET environment variable is required. " +
+		"Generate one with: openssl rand -base64 32"
+	);
 }
-const EFFECTIVE_JWT_SECRET = JWT_SECRET || "dev-only-insecure-secret-do-not-use-in-production";
+const EFFECTIVE_JWT_SECRET = JWT_SECRET;
 
 const JWT_ACCESS_EXPIRY = 15 * 60; // 15 minutes in seconds
 const JWT_REFRESH_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
