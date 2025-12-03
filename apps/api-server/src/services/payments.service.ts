@@ -13,6 +13,7 @@ import { successResponse, errorResponse, paginatedResponse } from "@crm/utils";
 import { paymentQueries } from "../db/queries/payments";
 import { invoiceQueries } from "../db/queries/invoices";
 import { notificationsService } from "./notifications.service";
+import { serviceLogger } from "../lib/logger";
 
 // ============================================
 // Payments Service
@@ -37,7 +38,7 @@ class PaymentsService {
 			const { payments, total } = await paymentQueries.findAll(pagination, filters);
 			return paginatedResponse(payments, total, pagination);
 		} catch (error) {
-			console.error("Error fetching payments:", error);
+			serviceLogger.error(error, "Error fetching payments");
 			return errorResponse("SERVER_ERROR", "Failed to fetch payments");
 		}
 	}
@@ -53,7 +54,7 @@ class PaymentsService {
 			}
 			return successResponse(payment);
 		} catch (error) {
-			console.error("Error fetching payment:", error);
+			serviceLogger.error(error, "Error fetching payment");
 			return errorResponse("SERVER_ERROR", "Failed to fetch payment");
 		}
 	}
@@ -66,7 +67,7 @@ class PaymentsService {
 			const payments = await paymentQueries.findByInvoice(invoiceId);
 			return successResponse(payments);
 		} catch (error) {
-			console.error("Error fetching payments for invoice:", error);
+			serviceLogger.error(error, "Error fetching payments for invoice");
 			return errorResponse("SERVER_ERROR", "Failed to fetch payments");
 		}
 	}
@@ -134,7 +135,7 @@ class PaymentsService {
 
 			return successResponse(payment);
 		} catch (error) {
-			console.error("Error recording payment:", error);
+			serviceLogger.error(error, "Error recording payment");
 			return errorResponse("SERVER_ERROR", "Failed to record payment");
 		}
 	}
@@ -160,7 +161,7 @@ class PaymentsService {
 
 			return successResponse(payment);
 		} catch (error) {
-			console.error("Error updating payment:", error);
+			serviceLogger.error(error, "Error updating payment");
 			return errorResponse("SERVER_ERROR", "Failed to update payment");
 		}
 	}
@@ -201,7 +202,7 @@ class PaymentsService {
 
 			return successResponse(payment);
 		} catch (error) {
-			console.error("Error refunding payment:", error);
+			serviceLogger.error(error, "Error refunding payment");
 			return errorResponse("SERVER_ERROR", "Failed to refund payment");
 		}
 	}
@@ -226,7 +227,7 @@ class PaymentsService {
 			const deleted = await paymentQueries.delete(id);
 			return successResponse({ deleted });
 		} catch (error) {
-			console.error("Error deleting payment:", error);
+			serviceLogger.error(error, "Error deleting payment");
 			return errorResponse("SERVER_ERROR", "Failed to delete payment");
 		}
 	}
@@ -241,7 +242,7 @@ class PaymentsService {
 			const summary = await paymentQueries.getInvoicePaymentSummary(invoiceId);
 			return successResponse(summary);
 		} catch (error) {
-			console.error("Error getting payment summary:", error);
+			serviceLogger.error(error, "Error getting payment summary");
 			return errorResponse("SERVER_ERROR", "Failed to get payment summary");
 		}
 	}
@@ -264,7 +265,7 @@ class PaymentsService {
 			const stats = await paymentQueries.getPaymentStats(filters);
 			return successResponse(stats);
 		} catch (error) {
-			console.error("Error getting payment stats:", error);
+			serviceLogger.error(error, "Error getting payment stats");
 			return errorResponse("SERVER_ERROR", "Failed to get payment statistics");
 		}
 	}

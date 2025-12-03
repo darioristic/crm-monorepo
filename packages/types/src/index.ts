@@ -330,6 +330,9 @@ export interface DeliveryNoteItem {
 	description?: string;
 	quantity: number;
 	unit: string;
+	unitPrice: number;
+	discount: number;
+	total?: number;
 }
 
 export interface DeliveryNote extends BaseEntity {
@@ -344,13 +347,50 @@ export interface DeliveryNote extends BaseEntity {
 	shippingAddress: string;
 	trackingNumber?: string;
 	carrier?: string;
+	taxRate: number;
+	subtotal: number;
+	tax: number;
+	total: number;
 	notes?: string;
+	terms?: string;
+	/** Customer/Bill to details as JSON object */
+	customerDetails?: unknown;
 	createdBy: UUID;
 }
 
 export interface DeliveryNoteWithRelations extends DeliveryNote {
 	company?: Company;
 	contact?: Contact;
+	invoice?: Invoice;
+}
+
+// Order (Narudžba)
+export type OrderStatus =
+	| "pending"
+	| "processing"
+	| "completed"
+	| "cancelled"
+	| "refunded";
+
+export interface Order extends BaseEntity {
+	orderNumber: string;
+	companyId: UUID;
+	contactId?: UUID | null;
+	quoteId?: UUID | null;
+	invoiceId?: UUID | null;
+	status: OrderStatus;
+	subtotal: number;
+	tax: number;
+	total: number;
+	currency: string;
+	notes?: string | null;
+	createdBy: UUID;
+}
+
+export interface OrderWithRelations extends Order {
+	company?: Company;
+	contact?: Contact;
+	quote?: Quote;
 	invoice?: Invoice;
 }
 
@@ -697,6 +737,12 @@ export type UpdateDeliveryNoteRequest = Partial<
 > & {
 	items?: Omit<DeliveryNoteItem, "deliveryNoteId">[];
 };
+
+export type CreateOrderRequest = Omit<
+	Order,
+	keyof BaseEntity | "orderNumber"
+>;
+export type UpdateOrderRequest = Partial<CreateOrderRequest>;
 
 // Product Catalog Request Types
 export type CreateProductCategoryRequest = Omit<

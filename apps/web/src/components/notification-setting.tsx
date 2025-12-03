@@ -29,9 +29,12 @@ export function NotificationSetting({
 			channel: "in_app" | "email" | "push";
 			enabled: boolean;
 		}) => {
-			// TODO: Implement actual API call
-			// For now, just simulate success
-			return { success: true };
+			const { request } = await import("@/lib/api");
+			const response = await request(`/api/v1/notification-settings`, {
+				method: "PATCH",
+				body: JSON.stringify(variables),
+			});
+			return response;
 		},
 		onMutate: async (variables) => {
 			// Cancel any outgoing refetches

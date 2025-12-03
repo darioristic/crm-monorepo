@@ -140,7 +140,8 @@ export default function CalendarDateRangePicker({
               className={cn(
                 "justify-start text-left font-normal",
                 !date && "text-muted-foreground"
-              )}>
+              )}
+              suppressHydrationWarning>
               <CalendarIcon />
               {date?.from ? (
                 date.to ? (

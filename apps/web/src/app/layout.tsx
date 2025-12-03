@@ -6,7 +6,13 @@ import { AuthProvider } from "@/contexts/auth-context";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
+import { initSentry } from "@/lib/sentry";
 import "./globals.css";
+
+// Initialize Sentry on client side
+if (typeof window !== "undefined") {
+	initSentry();
+}
 
 export const metadata: Metadata = {
   title: "CRM Dashboard",

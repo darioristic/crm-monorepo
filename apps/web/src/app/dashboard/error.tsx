@@ -22,6 +22,11 @@ export default function DashboardError({
 }) {
 	useEffect(() => {
 		console.error("Dashboard error:", error);
+		
+		// Capture error in Sentry
+		import("@/lib/sentry").then(({ captureException }) => {
+			captureException(error, { context: "dashboard_error_boundary" });
+		});
 	}, [error]);
 
 	return (

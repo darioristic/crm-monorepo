@@ -28,6 +28,5 @@ export { InvoicesDataTable } from "./invoices-data-table";
 export { DeliveryNotesDataTable } from "./delivery-notes-data-table";
 
 // Forms
-export { QuoteForm } from "./quote-form";
 export { InvoiceForm } from "./invoice-form";
 export { DeliveryNoteForm } from "./delivery-note-form";

@@ -1,54 +1,35 @@
-import { Metadata } from "next";
-import { promises as fs } from "fs";
-import Link from "next/link";
-import { PlusIcon } from "@radix-ui/react-icons";
-import path from "path";
-import { generateMeta } from "@/lib/utils";
+"use client";
 
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import OrdersDataTable from "./data-table";
+import { PlusCircledIcon } from "@radix-ui/react-icons";
+import { OrdersDataTable } from "@/components/sales/orders-data-table";
+import { OrderSheet } from "@/components/order";
 
-export async function generateMetadata(): Promise<Metadata> {
-  return generateMeta({
-    title: "Orders Page",
-    description:
-      "A list of orders generated using the Tanstack Table. Built with Tailwind CSS, shadcn/ui and Next.js.",
-    canonical: "/pages/orders"
-  });
-}
+export default function OrdersPage() {
+  const router = useRouter();
+  const pathname = usePathname();
 
-async function getOrders() {
-  const data = await fs.readFile(
-    path.join(process.cwd(), "src/app/dashboard/sales/orders/data.json")
-  );
-
-  return JSON.parse(data.toString());
-}
-
-export default async function Page() {
-  const orders = await getOrders();
+  const handleCreateOrder = () => {
+    router.push(`${pathname}?type=create`);
+  };
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-row items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight lg:text-2xl">Orders</h1>
-        <Button asChild>
-          <Link href="#">
-            <PlusIcon /> Create Order
-          </Link>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Orders</h1>
+          <p className="text-muted-foreground">
+            Create and manage your orders
+          </p>
+        </div>
+        <Button onClick={handleCreateOrder}>
+          <PlusCircledIcon className="mr-2 h-4 w-4" />
+          New Order
         </Button>
       </div>
-      <Tabs defaultValue="overview" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="overview">All</TabsTrigger>
-          <TabsTrigger value="completed">Completed</TabsTrigger>
-          <TabsTrigger value="processed">Processed</TabsTrigger>
-          <TabsTrigger value="returned">Returned</TabsTrigger>
-          <TabsTrigger value="canceled">Canceled</TabsTrigger>
-        </TabsList>
-        <OrdersDataTable data={orders} />
-      </Tabs>
+      <OrdersDataTable />
+      <OrderSheet />
     </div>
   );
 }

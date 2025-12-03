@@ -1,25 +1,19 @@
-import { generateMeta } from "@/lib/utils";
-import { DeliveryNoteForm } from "@/components/sales/delivery-note-form";
+"use client";
 
-export async function generateMetadata() {
-  return generateMeta({
-    title: "New Delivery Note",
-    description: "Create a new delivery note",
-    canonical: "/dashboard/sales/delivery-notes/new",
-  });
-}
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
+// This page redirects to the delivery notes page with the create sheet open
 export default function NewDeliveryNotePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/dashboard/sales/delivery-notes?type=create");
+  }, [router]);
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Delivery Note</h1>
-        <p className="text-muted-foreground">
-          Create a new delivery note for shipping products
-        </p>
-      </div>
-      <DeliveryNoteForm mode="create" />
+    <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="animate-pulse text-muted-foreground">Loading...</div>
     </div>
   );
 }
-

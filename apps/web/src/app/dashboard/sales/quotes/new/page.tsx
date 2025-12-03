@@ -1,25 +1,19 @@
-import { generateMeta } from "@/lib/utils";
-import { QuoteForm } from "@/components/sales/quote-form";
+"use client";
 
-export async function generateMetadata() {
-  return generateMeta({
-    title: "New Quote",
-    description: "Create a new sales quote",
-    canonical: "/dashboard/sales/quotes/new",
-  });
-}
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
+// This page redirects to the quotes page with the create sheet open
 export default function NewQuotePage() {
+  const router = useRouter();
+
+  useEffect(() => {
+    router.replace("/dashboard/sales/quotes?type=create");
+  }, [router]);
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">New Quote</h1>
-        <p className="text-muted-foreground">
-          Create a new sales quote for a customer
-        </p>
-      </div>
-      <QuoteForm mode="create" />
+    <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
+      <div className="animate-pulse text-muted-foreground">Loading...</div>
     </div>
   );
 }
-

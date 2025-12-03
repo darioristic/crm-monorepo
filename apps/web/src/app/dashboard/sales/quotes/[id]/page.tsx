@@ -1,78 +1,361 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import type { Quote } from "@crm/types";
+import { use } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { quotesApi } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
-import { QuoteForm } from "@/components/sales/quote-form";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
+import { HtmlTemplate } from "@/components/quote/templates/html";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { motion } from "framer-motion";
+import { Download, Copy, Pencil, ArrowLeft, Check } from "lucide-react";
+import { toast } from "sonner";
+import { useState } from "react";
+import type { Quote as QuoteType, QuoteTemplate } from "@/types/quote";
 
-export default function EditQuotePage() {
-  const params = useParams();
-  const id = params.id as string;
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-  const { data: quote, isLoading, error, refetch } = useApi<Quote>(
+// Quote Status Component
+function QuoteStatus({ status }: { status?: string }) {
+  const getStatusColor = () => {
+    switch (status) {
+      case "accepted":
+        return "bg-[#C6F6D5] text-[#22543D]";
+      case "rejected":
+        return "bg-[#FED7D7] text-[#822727]";
+      case "draft":
+        return "bg-[#E2E8F0] text-[#4A5568]";
+      case "sent":
+        return "bg-[#FEEBC8] text-[#744210]";
+      case "expired":
+        return "bg-[#E2E8F0] text-[#4A5568]";
+      default:
+        return "bg-[#E2E8F0] text-[#4A5568]";
+    }
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium capitalize ${getStatusColor()}`}
+    >
+      {status || "draft"}
+    </span>
+  );
+}
+
+export default function QuoteDetailPage({ params }: PageProps) {
+  const { id } = use(params);
+  const router = useRouter();
+  const [copied, setCopied] = useState(false);
+
+  const { data: quote, isLoading, error } = useApi<any>(
     () => quotesApi.getById(id),
     { autoFetch: true }
   );
 
+  const handleCopyLink = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    setCopied(true);
+    toast.success("Link copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownload = async () => {
+    try {
+      toast.info("Preparing PDF download...");
+      window.open(`/api/download/quote?id=${id}`, "_blank");
+    } catch {
+      toast.error("Failed to download quote");
+    }
+  };
+
+  const handleEdit = () => {
+    router.push(`/dashboard/sales/quotes?type=edit&quoteId=${id}`);
+  };
+
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-64" />
-        <Skeleton className="h-[600px] w-full" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="space-y-4">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {error}
-          </AlertDescription>
-        </Alert>
-        <div className="flex gap-4">
-          <Button onClick={() => refetch()}>Try Again</Button>
-          <Button variant="outline" asChild>
-            <Link href="/dashboard/sales/quotes">Back to Quotes</Link>
-          </Button>
+      <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4">
+        <div className="flex flex-col w-full max-w-[595px] py-6">
+          <div className="flex justify-between items-center mb-4">
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-6 w-20" />
+          </div>
+          <Skeleton className="h-[842px] w-full" />
         </div>
       </div>
     );
   }
 
-  if (!quote) {
+  if (error || !quote) {
     return (
-      <div className="space-y-4">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>Quote not found</AlertDescription>
-        </Alert>
-        <Button variant="outline" asChild>
-          <Link href="/dashboard/sales/quotes">Back to Quotes</Link>
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-8">
+        <h2 className="text-xl font-semibold mb-2">Quote not found</h2>
+        <p className="text-muted-foreground mb-4">
+          The quote you're looking for doesn't exist or has been deleted.
+        </p>
+        <Button asChild>
+          <Link href="/dashboard/sales/quotes">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Quotes
+          </Link>
         </Button>
       </div>
     );
   }
 
+  // Transform API data to template format
+  const templateData = transformQuoteToTemplateData(quote);
+  const width = templateData.template?.size === "letter" ? 750 : 595;
+  const height = templateData.template?.size === "letter" ? 1056 : 842;
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Edit Quote</h1>
-        <p className="text-muted-foreground">
-          Editing quote {quote.quoteNumber}
-        </p>
+    <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4 sm:p-6 md:p-0">
+      <div
+        className="flex flex-col w-full max-w-full py-6"
+        style={{ maxWidth: width }}
+      >
+        {/* Customer Header */}
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center space-x-2">
+            <Button variant="ghost" size="icon" asChild className="mr-2">
+              <Link href="/dashboard/sales/quotes">
+                <ArrowLeft className="h-4 w-4" />
+              </Link>
+            </Button>
+            <Avatar className="size-5 object-contain border border-border">
+              <AvatarFallback className="text-[9px] font-medium">
+                {quote.companyName?.[0] || "?"}
+              </AvatarFallback>
+            </Avatar>
+            <span className="truncate text-sm">{quote.companyName || "Unknown"}</span>
+          </div>
+
+          <QuoteStatus status={quote.status} />
+        </div>
+
+        {/* Quote Template with shadow */}
+        <div className="pb-24 md:pb-0">
+          <div className="shadow-[0_24px_48px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
+            <HtmlTemplate data={templateData} width={width} height={height} />
+          </div>
+        </div>
       </div>
-      <QuoteForm quote={quote} mode="edit" />
+
+      {/* Floating Toolbar */}
+      <motion.div
+        className="fixed inset-x-0 -bottom-1 flex justify-center"
+        initial={{ opacity: 0, filter: "blur(8px)", y: 0 }}
+        animate={{ opacity: 1, filter: "blur(0px)", y: -24 }}
+        transition={{ type: "spring", stiffness: 300, damping: 25 }}
+      >
+        <div className="backdrop-filter backdrop-blur-lg dark:bg-[#1A1A1A]/80 bg-[#F6F6F3]/80 rounded-full pl-2 pr-4 py-3 h-10 flex items-center justify-center border-[0.5px] border-border">
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full size-8"
+                  onClick={handleDownload}
+                >
+                  <Download className="size-[18px]" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                sideOffset={15}
+                className="text-[10px] px-2 py-1 rounded-sm font-medium"
+              >
+                <p>Download</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full size-8"
+                  onClick={handleCopyLink}
+                >
+                  {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                sideOffset={15}
+                className="text-[10px] px-2 py-1 rounded-sm font-medium"
+              >
+                <p>Copy link</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="rounded-full size-8"
+                  onClick={handleEdit}
+                >
+                  <Pencil className="size-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent
+                sideOffset={15}
+                className="text-[10px] px-2 py-1 rounded-sm font-medium"
+              >
+                <p>Edit quote</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      </motion.div>
     </div>
   );
 }
 
+// Transform API quote to Quote type
+function transformQuoteToTemplateData(quote: any): QuoteType {
+  // Default template
+  const defaultTemplate: QuoteTemplate = {
+    title: "Quote",
+    customerLabel: "Bill to",
+    fromLabel: "From",
+    quoteNoLabel: "Quote No",
+    issueDateLabel: "Issue Date",
+    validUntilLabel: "Valid Until",
+    descriptionLabel: "Description",
+    priceLabel: "Price",
+    quantityLabel: "Quantity",
+    totalLabel: "Total",
+    totalSummaryLabel: "Total",
+    vatLabel: "VAT",
+    subtotalLabel: "Subtotal",
+    taxLabel: "Tax",
+    discountLabel: "Discount",
+    paymentLabel: "Payment Details",
+    noteLabel: "Note",
+    logoUrl: null,
+    currency: quote.currency || "EUR",
+    paymentDetails: null,
+    fromDetails: null,
+    noteDetails: null,
+    dateFormat: "dd.MM.yyyy",
+    includeVat: Boolean(quote.vat),
+    includeTax: Boolean(quote.tax),
+    includeDiscount: Boolean(quote.discount),
+    includeDecimals: true,
+    includeUnits: false,
+    includeQr: false,
+    includePdf: true,
+    taxRate: quote.taxRate || 0,
+    vatRate: 20,
+    size: "a4",
+    deliveryType: "create",
+    locale: "sr-RS",
+    timezone: "Europe/Belgrade",
+  };
+
+  return {
+    id: quote.id,
+    quoteNumber: quote.quoteNumber,
+    issueDate: quote.issueDate,
+    validUntil: quote.validUntil,
+    createdAt: quote.createdAt,
+    updatedAt: quote.updatedAt,
+    amount: quote.total || 0,
+    currency: quote.currency || "EUR",
+    discount: quote.discount || null,
+    vat: quote.vat || null,
+    tax: quote.tax || null,
+    subtotal: quote.subtotal || null,
+    status: quote.status || "draft",
+    template: defaultTemplate,
+    token: quote.token || "",
+    filePath: null,
+    sentAt: quote.sentAt || null,
+    viewedAt: null,
+    acceptedAt: quote.acceptedAt || null,
+    rejectedAt: quote.rejectedAt || null,
+    sentTo: null,
+    note: quote.notes || null,
+    internalNote: null,
+    topBlock: null,
+    bottomBlock: null,
+    customerId: quote.companyId || null,
+    customerName: quote.companyName || null,
+    customer: quote.companyName ? {
+      id: quote.companyId,
+      name: quote.companyName,
+      website: null,
+      email: null,
+    } : null,
+    team: null,
+    scheduledAt: null,
+    lineItems: (quote.items || []).map((item: any) => ({
+      name: item.productName || item.description || "",
+      quantity: Number(item.quantity) || 1,
+      price: Number(item.unitPrice) || 0,
+      unit: item.unit || undefined,
+    })),
+    fromDetails: getStoredFromDetails(),
+    customerDetails: quote.companyName ? {
+      type: "doc" as const,
+      content: [{
+        type: "paragraph",
+        content: [{ type: "text", text: quote.companyName }]
+      }]
+    } : null,
+    paymentDetails: getStoredPaymentDetails() || (quote.terms ? {
+      type: "doc" as const,
+      content: [{
+        type: "paragraph",
+        content: [{ type: "text", text: quote.terms }]
+      }]
+    } : null),
+    noteDetails: quote.notes ? {
+      type: "doc" as const,
+      content: [{
+        type: "paragraph",
+        content: [{ type: "text", text: quote.notes }]
+      }]
+    } : null,
+  };
+}
+
+// Get stored fromDetails from localStorage
+function getStoredFromDetails() {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem("quote_from_details");
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}
+
+// Get stored paymentDetails from localStorage
+function getStoredPaymentDetails() {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = localStorage.getItem("quote_payment_details");
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+}

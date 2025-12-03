@@ -52,6 +52,53 @@ class CacheService {
     }
   }
 
+  /**
+   * Get with stale-while-revalidate pattern
+   * Returns stale data immediately while refreshing in background
+   */
+  async getWithStale<T>(
+    key: string,
+    fetcher: () => Promise<T>,
+    ttl: number = 300,
+    staleTTL: number = 600
+  ): Promise<T> {
+    try {
+      const freshKey = `fresh:${key}`;
+      const staleKey = `stale:${key}`;
+      
+      // Try to get fresh data first
+      const fresh = await this.get<T>(freshKey);
+      if (fresh !== null) {
+        return fresh;
+      }
+
+      // If fresh data not available, try stale data
+      const stale = await this.get<T>(staleKey);
+      if (stale !== null) {
+        // Refresh in background (fire and forget)
+        fetcher()
+          .then((data) => {
+            this.set(freshKey, data, ttl);
+            this.set(staleKey, data, staleTTL);
+          })
+          .catch((error) => {
+            cacheLogger.error({ key, error }, "Background refresh error");
+          });
+        return stale;
+      }
+
+      // If no cached data, fetch fresh
+      const data = await fetcher();
+      await this.set(freshKey, data, ttl);
+      await this.set(staleKey, data, staleTTL);
+      return data;
+    } catch (error) {
+      cacheLogger.error({ key, error }, "Get with stale error");
+      // Fallback to direct fetch on error
+      return fetcher();
+    }
+  }
+
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     try {
       const serialized = JSON.stringify(value);
@@ -71,9 +118,31 @@ class CacheService {
 
   async invalidatePattern(pattern: string): Promise<void> {
     try {
-      const keys = await redis.keys(pattern);
+      // Use SCAN instead of KEYS for better performance in production
+      // KEYS blocks the Redis server, SCAN is non-blocking
+      const keys: string[] = [];
+      let cursor = "0";
+      
+      do {
+        const result = await redis.scan(
+          cursor,
+          "MATCH",
+          pattern,
+          "COUNT",
+          100, // Process 100 keys at a time
+        );
+        cursor = result[0];
+        keys.push(...result[1]);
+      } while (cursor !== "0");
+
+      // Delete keys in batches to avoid overwhelming Redis
       if (keys.length > 0) {
-        await redis.del(...keys);
+        const batchSize = 100;
+        for (let i = 0; i < keys.length; i += batchSize) {
+          const batch = keys.slice(i, i + batchSize);
+          await redis.del(...batch);
+        }
+        cacheLogger.debug({ pattern, keysCount: keys.length }, "Cache invalidated by pattern");
       }
     } catch (error) {
       cacheLogger.error({ pattern, error }, "Cache invalidate pattern error");

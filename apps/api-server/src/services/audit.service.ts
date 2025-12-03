@@ -115,7 +115,7 @@ class AuditService {
 	logAction(params: CreateAuditLogParams): void {
 		// Fire and forget - don't await
 		this.createLog(params).catch((error) => {
-			console.error("Audit log error:", error);
+			serviceLogger.error(error, "Audit log error:");
 		});
 	}
 
@@ -152,7 +152,7 @@ class AuditService {
         )
       `;
 		} catch (error) {
-			console.error("Failed to write audit log:", error);
+			serviceLogger.error(error, "Failed to write audit log:");
 		}
 	}
 
@@ -172,28 +172,63 @@ class AuditService {
 		const { page = 1, pageSize = 50 } = options;
 		const offset = (page - 1) * pageSize;
 
+		// Build WHERE clause with parameterized queries (SQL injection safe)
 		const conditions: string[] = [];
-		if (options.userId) conditions.push(`user_id = '${options.userId}'`);
-		if (options.action) conditions.push(`action = '${options.action}'`);
-		if (options.entityType) conditions.push(`entity_type = '${options.entityType}'`);
-		if (options.entityId) conditions.push(`entity_id = '${options.entityId}'`);
-		if (options.fromDate) conditions.push(`created_at >= '${options.fromDate}'`);
-		if (options.toDate) conditions.push(`created_at <= '${options.toDate}'`);
+		const params: any[] = [];
+		let paramIndex = 1;
+
+		if (options.userId) {
+			conditions.push(`user_id = $${paramIndex}`);
+			params.push(options.userId);
+			paramIndex++;
+		}
+		if (options.action) {
+			conditions.push(`action = $${paramIndex}`);
+			params.push(options.action);
+			paramIndex++;
+		}
+		if (options.entityType) {
+			conditions.push(`entity_type = $${paramIndex}`);
+			params.push(options.entityType);
+			paramIndex++;
+		}
+		if (options.entityId) {
+			conditions.push(`entity_id = $${paramIndex}`);
+			params.push(options.entityId);
+			paramIndex++;
+		}
+		if (options.fromDate) {
+			conditions.push(`created_at >= $${paramIndex}`);
+			params.push(options.fromDate);
+			paramIndex++;
+		}
+		if (options.toDate) {
+			conditions.push(`created_at <= $${paramIndex}`);
+			params.push(options.toDate);
+			paramIndex++;
+		}
 
 		const whereClause =
 			conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
 		const countResult = await db.unsafe(
 			`SELECT COUNT(*) FROM audit_logs ${whereClause}`,
+			params
 		);
 		const total = Number.parseInt(countResult[0].count as string, 10);
 
-		const data = await db.unsafe(`
+		// Add LIMIT and OFFSET to params
+		params.push(pageSize, offset);
+
+		const data = await db.unsafe(
+			`
       SELECT * FROM audit_logs
       ${whereClause}
       ORDER BY created_at DESC
-      LIMIT ${pageSize} OFFSET ${offset}
-    `);
+      LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+    `,
+			params
+		);
 
 		return {
 			data: data.map(mapAuditLog),

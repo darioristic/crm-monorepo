@@ -11,6 +11,7 @@ import type {
 	Quote,
 	Invoice,
 	DeliveryNote,
+	Order,
 	Project,
 	Task,
 	Milestone,
@@ -20,6 +21,8 @@ import type {
 	UpdateInvoiceRequest,
 	CreateDeliveryNoteRequest,
 	UpdateDeliveryNoteRequest,
+	CreateOrderRequest,
+	UpdateOrderRequest,
 	CreateProjectRequest,
 	UpdateProjectRequest,
 	CreateTaskRequest,
@@ -330,6 +333,31 @@ export const deliveryNotesApi = {
 
 	delete: (id: string) =>
 		request<void>(`/api/v1/delivery-notes/${id}`, {
+			method: "DELETE",
+		}),
+};
+
+// Orders API
+export const ordersApi = {
+	getAll: (params: FilterParams & PaginationParams = {}) =>
+		request<Order[]>(`/api/v1/orders${buildQueryString(params)}`),
+
+	getById: (id: string) => request<Order>(`/api/v1/orders/${id}`),
+
+	create: (data: CreateOrderRequest) =>
+		request<Order>("/api/v1/orders", {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
+	update: (id: string, data: UpdateOrderRequest) =>
+		request<Order>(`/api/v1/orders/${id}`, {
+			method: "PUT",
+			body: JSON.stringify(data),
+		}),
+
+	delete: (id: string) =>
+		request<void>(`/api/v1/orders/${id}`, {
 			method: "DELETE",
 		}),
 };
@@ -878,6 +906,41 @@ export const documentTagAssignmentsApi = {
 		request<{ success: boolean }>("/api/v1/document-tag-assignments", {
 			method: "DELETE",
 			body: JSON.stringify(data),
+		}),
+};
+
+// Invites API
+export const invitesApi = {
+	getAll: () => request<Array<{
+		id: string;
+		email: string;
+		role: "owner" | "member" | "admin";
+		status: string;
+		expiresAt: string;
+		createdAt: string;
+	}>>("/api/v1/invites"),
+
+	create: (data: { email: string; role: "owner" | "member" | "admin" }) =>
+		request<{
+			id: string;
+			email: string;
+			role: "owner" | "member" | "admin";
+			status: string;
+			expiresAt: string;
+			createdAt: string;
+		}>("/api/v1/invites", {
+			method: "POST",
+			body: JSON.stringify(data),
+		}),
+
+	delete: (id: string) =>
+		request<void>(`/api/v1/invites/${id}`, {
+			method: "DELETE",
+		}),
+
+	accept: (token: string) =>
+		request<void>(`/api/v1/invites/accept/${token}`, {
+			method: "POST",
 		}),
 };
 

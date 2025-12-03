@@ -1,18 +1,20 @@
-import { generateMeta } from "@/lib/utils";
+"use client";
+
+import { Suspense } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
-import Link from "next/link";
 import { DeliveryNotesDataTable } from "@/components/sales/delivery-notes-data-table";
+import { DeliveryNoteSheet } from "@/components/delivery-note/delivery-note-sheet";
 
-export async function generateMetadata() {
-  return generateMeta({
-    title: "Delivery Notes",
-    description: "Manage your delivery notes",
-    canonical: "/dashboard/sales/delivery-notes",
-  });
-}
+function DeliveryNotesPageContent() {
+  const router = useRouter();
+  const pathname = usePathname();
 
-export default function DeliveryNotesPage() {
+  const handleNewDeliveryNote = () => {
+    router.push(`${pathname}?type=create`);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -22,14 +24,23 @@ export default function DeliveryNotesPage() {
             Track and manage product deliveries
           </p>
         </div>
-        <Button asChild>
-          <Link href="/dashboard/sales/delivery-notes/new">
-            <PlusCircledIcon className="mr-2 h-4 w-4" />
-            New Delivery Note
-          </Link>
+        <Button onClick={handleNewDeliveryNote}>
+          <PlusCircledIcon className="mr-2 h-4 w-4" />
+          New Delivery Note
         </Button>
       </div>
       <DeliveryNotesDataTable />
+
+      {/* Delivery Note Sheet for URL-based opening */}
+      <DeliveryNoteSheet />
     </div>
+  );
+}
+
+export default function DeliveryNotesPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse">Loading...</div>}>
+      <DeliveryNotesPageContent />
+    </Suspense>
   );
 }

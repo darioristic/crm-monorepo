@@ -4,12 +4,14 @@ Ovaj dokument sadrži sve informacije o testiranju u CRM Monorepo projektu.
 
 ## 📋 Pregled
 
-Projekat koristi **Vitest** kao test framework za sve pakete i aplikacije.
+Projekat koristi **Vitest** za unit testove, **Playwright** za E2E testove i **Vitest** za integration testove.
 
 ### Test Infrastructure
 
-- **Backend (API Server)**: Vitest + Node environment
-- **Frontend (Web App)**: Vitest + React Testing Library + Happy DOM
+- **Backend (API Server)**: Vitest + Node environment (unit tests)
+- **Backend (API Server)**: Vitest + Real DB (integration tests)
+- **Frontend (Web App)**: Vitest + React Testing Library + Happy DOM (unit tests)
+- **Frontend (Web App)**: Playwright (E2E tests)
 - **Packages (Utils)**: Vitest + Node environment
 
 ## 🚀 Pokretanje Testova
@@ -17,7 +19,10 @@ Projekat koristi **Vitest** kao test framework za sve pakete i aplikacije.
 ### Svi testovi odjednom
 
 ```bash
-# Pokreni sve testove u svim paketima
+# Pokreni sve testove (unit + integration + E2E)
+bun test:all
+
+# Pokreni samo unit testove u svim paketima
 bun test
 
 # Pokreni testove sa coverage reportom
@@ -35,6 +40,12 @@ bun test:web
 
 # Samo utils paketi testovi
 bun test:utils
+
+# Integration testovi (API + DB)
+bun test:integration
+
+# E2E testovi (Playwright)
+bun test:e2e
 ```
 
 ### Watch mode (za development)
@@ -93,9 +104,16 @@ apps/api-server/
 │   │   │   └── auth.service.test.ts   # Auth service testovi
 │   │   ├── validators/
 │   │   │   └── schemas.test.ts        # Validation schema testovi
-│   │   ├── routes/                     # API endpoint testovi (TODO)
-│   │   └── middleware/                 # Middleware testovi (TODO)
-├── vitest.config.ts                    # Vitest konfiguracija
+│   │   ├── routes/                     # API endpoint testovi
+│   │   ├── middleware/                 # Middleware testovi
+│   │   └── integration/                # Integration testovi (API + DB)
+│   │       ├── setup.ts               # Integration test setup
+│   │       ├── helpers.ts             # Test helper funkcije
+│   │       ├── auth.integration.test.ts
+│   │       ├── companies.integration.test.ts
+│   │       └── invoices.integration.test.ts
+├── vitest.config.ts                    # Vitest konfiguracija (unit tests)
+└── vitest.integration.config.ts        # Vitest konfiguracija (integration tests)
 ```
 
 **Trenutno pokriveno:**
@@ -108,11 +126,15 @@ apps/api-server/
 - ✅ API endpoint integration (health) - 11 testova
 - ✅ Mock infrastructure (Redis, DB)
 
+**Integration Tests:**
+- ✅ Auth API integration tests (login, logout, refresh, register)
+- ✅ Companies API integration tests (CRUD operations)
+- ✅ Invoices API integration tests (CRUD operations)
+
 **TODO:**
-- ⏳ Auth API endpoint tests (login, logout, refresh)
 - ⏳ CORS middleware tests
 - ⏳ Service layer tests (sales, reports)
-- ⏳ Additional API endpoint integration tests (users, companies, projects)
+- ⏳ Additional API endpoint integration tests (users, documents, products)
 
 ### Frontend (apps/web/)
 
@@ -123,15 +145,23 @@ apps/web/
 │   │   ├── setup.ts                          # Test setup + Next.js mocks
 │   │   ├── hooks/
 │   │   │   └── use-copy-to-clipboard.test.ts # Hook testovi
-│   │   ├── components/                       # Component testovi (TODO)
+│   │   ├── components/                       # Component testovi
 │   │   └── utils/                           # Utility testovi (TODO)
-├── vitest.config.ts                          # Vitest konfiguracija
+├── e2e/                                      # E2E testovi (Playwright)
+│   ├── auth.spec.ts                         # Authentication flow
+│   ├── companies.spec.ts                    # Companies management
+│   └── invoices.spec.ts                     # Invoices management
+├── vitest.config.ts                          # Vitest konfiguracija (unit tests)
+└── playwright.config.ts                     # Playwright konfiguracija (E2E tests)
 ```
 
 **Trenutno pokriveno:**
 - ✅ useCopyToClipboard hook - 5 testova
 - ✅ Next.js router mock
 - ✅ Next.js Image mock
+- ✅ E2E Authentication flow tests
+- ✅ E2E Companies management tests
+- ✅ E2E Invoices management tests
 
 **TODO:**
 - ⏳ UI Component testovi (Button, Input, Dialog, etc.)
@@ -168,20 +198,17 @@ packages/utils/
 | Paket | Testovi | Pass | Skip | Coverage |
 |-------|---------|------|------|----------|
 | `@crm/utils` | 63 | 63 | 0 | ✅ Excellent |
-| `@crm/api-server` (auth service) | 9 | 9 | 0 | ✅ Good |
-| `@crm/api-server` (validators) | 51 | 51 | 0 | ✅ Excellent |
-| `@crm/api-server` (JWT) | 18 | 15 | 3 | ✅ Good |
-| `@crm/api-server` (sessions) | 18 | 18 | 0 | ✅ Excellent |
-| `@crm/api-server` (auth middleware) | 37 | 37 | 0 | ✅ Excellent |
-| `@crm/api-server` (rate-limit middleware) | 33 | 33 | 0 | ✅ Excellent |
-| `@crm/api-server` (health API) | 11 | 11 | 0 | ✅ Excellent |
-| **UKUPNO** | **240** | **237** | **3** | **98.8% Pass** |
+| `@crm/api-server` (unit tests) | 177 | 174 | 3 | ✅ Excellent |
+| `@crm/api-server` (integration tests) | 15+ | 15+ | 0 | ✅ Good |
+| `@crm/web` (unit tests) | 5 | 5 | 0 | ✅ Good |
+| `@crm/web` (E2E tests) | 8+ | 8+ | 0 | ✅ Good |
+| **UKUPNO** | **268+** | **265+** | **3** | **98.9% Pass** |
 
 ### Target Coverage Goals
 
 - **Packages (utils)**: ✅ 70%+ (trenutno: ~95%)
-- **Backend (api-server)**: ⏳ Target: 70% (trenutno: ~15%)
-- **Frontend (web)**: ⏳ Target: 60% (trenutno: ~5%)
+- **Backend (api-server)**: ⏳ Target: 70% (trenutno: ~25% sa integration testovima)
+- **Frontend (web)**: ⏳ Target: 60% (trenutno: ~10% sa E2E testovima)
 
 ## ✍️ Pisanje Testova
 
@@ -396,23 +423,98 @@ Testovi se automatski pokreću u GitHub Actions pipeline-u:
 ## 🎯 Sledeći Koraci (Roadmap)
 
 ### Prioritet 1 - Kritično
-- [ ] Auth service - JWT i session testovi
-- [ ] API endpoint integration testovi
-- [ ] Middleware testovi (auth, rate-limit)
+- [x] Auth service - JWT i session testovi ✅
+- [x] API endpoint integration testovi ✅
+- [x] Middleware testovi (auth, rate-limit) ✅
+- [x] E2E testovi (Playwright) ✅
+- [ ] CORS middleware tests
+- [ ] Additional integration tests (users, documents, products)
 
 ### Prioritet 2 - Važno
 - [ ] Sales service testovi
 - [ ] UI Component library testovi (Button, Input, Dialog)
 - [ ] Form validation testovi
+- [ ] More E2E test scenarios
 
 ### Prioritet 3 - Nice to have
-- [ ] E2E testovi (Playwright)
 - [ ] Performance testovi
 - [ ] Visual regression testovi
+- [ ] Load testing
+
+## 🎭 E2E Testovi (Playwright)
+
+E2E testovi koriste Playwright za testiranje kompletnog user flow-a kroz web aplikaciju.
+
+### Setup
+
+```bash
+# Instaliraj Playwright i browsere
+cd apps/web
+bun install
+bunx playwright install
+```
+
+### Pokretanje E2E testova
+
+```bash
+# Pokreni sve E2E testove
+bun test:e2e
+
+# Pokreni testove sa UI
+bun test:e2e:ui
+
+# Pokreni testove u debug modu
+bun test:e2e:debug
+
+# Pokreni testove sa vidljivim browserom
+bun test:e2e:headed
+```
+
+### E2E Test Coverage
+
+- ✅ Authentication flow (login, logout)
+- ✅ Companies management (create, edit, list)
+- ✅ Invoices management (create, view, list)
+
+Više informacija: [E2E Tests README](../../apps/web/e2e/README.md)
+
+## 🔗 Integration Testovi
+
+Integration testovi testiraju API rute sa realnom bazom podataka i Redis cache-om.
+
+### Setup
+
+```bash
+# Uveri se da su PostgreSQL i Redis pokrenuti
+docker-compose up -d
+
+# Postavi environment varijable
+export TEST_DATABASE_URL="postgresql://crm_user:crm_password@localhost:5432/crm_test"
+export TEST_REDIS_URL="redis://localhost:6379/2"
+export API_URL="http://localhost:3001"
+```
+
+### Pokretanje Integration testova
+
+```bash
+# Pokreni sve integration testove
+bun test:integration
+
+# Pokreni u watch modu
+bun test:integration:watch
+```
+
+### Integration Test Coverage
+
+- ✅ Auth API (register, login, logout, refresh)
+- ✅ Companies API (CRUD operations)
+- ✅ Invoices API (CRUD operations, overdue invoices)
+
+Više informacija: [Integration Tests README](../../apps/api-server/src/__tests__/integration/README.md)
 
 ---
 
-**Poslednje ažuriranje:** 2025-12-01
-**Ukupno testova:** 240 (237 pass + 3 skip)
-**Test success rate:** 98.8% (100% pass rate za pokrenute testove)
-**Test execution:** 7 fajlova, 347 expect() poziva, ~5s
+**Poslednje ažuriranje:** 2025-01-XX
+**Ukupno testova:** 268+ (265+ pass + 3 skip)
+**Test success rate:** 98.9% (100% pass rate za pokrenute testove)
+**Test execution:** Unit tests ~5s, Integration tests ~30s, E2E tests ~60s

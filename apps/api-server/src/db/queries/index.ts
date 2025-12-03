@@ -710,6 +710,7 @@ export { userQueries } from "./users";
 export { quoteQueries } from "./quotes";
 export { invoiceQueries } from "./invoices";
 export { deliveryNoteQueries } from "./delivery-notes";
+export { orderQueries } from "./orders";
 
 // ============================================
 // Re-export Project Module Queries

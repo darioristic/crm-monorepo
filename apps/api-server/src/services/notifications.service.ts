@@ -7,6 +7,7 @@ import type {
 	PaginationParams,
 } from "@crm/types";
 import { successResponse, errorResponse, paginatedResponse } from "@crm/utils";
+import { serviceLogger } from "../lib/logger";
 import { notificationQueries } from "../db/queries/notifications";
 import { userQueries } from "../db/queries/users";
 import { emailService } from "../integrations/email.service";
@@ -42,7 +43,7 @@ class NotificationsService {
 				data: { notifications, unreadCount },
 			};
 		} catch (error) {
-			console.error("Error fetching notifications:", error);
+			serviceLogger.error(error, "Error fetching notifications:");
 			return errorResponse("SERVER_ERROR", "Failed to fetch notifications");
 		}
 	}
@@ -67,7 +68,7 @@ class NotificationsService {
 
 			return successResponse(notification);
 		} catch (error) {
-			console.error("Error fetching notification:", error);
+			serviceLogger.error(error, "Error fetching notification:");
 			return errorResponse("SERVER_ERROR", "Failed to fetch notification");
 		}
 	}
@@ -102,7 +103,7 @@ class NotificationsService {
 
 			return successResponse(notification);
 		} catch (error) {
-			console.error("Error creating notification:", error);
+			serviceLogger.error(error, "Error creating notification:");
 			return errorResponse("SERVER_ERROR", "Failed to create notification");
 		}
 	}
@@ -132,7 +133,7 @@ class NotificationsService {
 
 			return successResponse(notifications);
 		} catch (error) {
-			console.error("Error creating bulk notifications:", error);
+			serviceLogger.error(error, "Error creating bulk notifications:");
 			return errorResponse("SERVER_ERROR", "Failed to create notifications");
 		}
 	}
@@ -161,7 +162,7 @@ class NotificationsService {
 
 			return successResponse(notification);
 		} catch (error) {
-			console.error("Error marking notification as read:", error);
+			serviceLogger.error(error, "Error marking notification as read:");
 			return errorResponse("SERVER_ERROR", "Failed to mark as read");
 		}
 	}
@@ -176,7 +177,7 @@ class NotificationsService {
 			const markedCount = await notificationQueries.markAllAsRead(userId);
 			return successResponse({ markedCount });
 		} catch (error) {
-			console.error("Error marking all notifications as read:", error);
+			serviceLogger.error(error, "Error marking all notifications as read:");
 			return errorResponse("SERVER_ERROR", "Failed to mark all as read");
 		}
 	}
@@ -201,7 +202,7 @@ class NotificationsService {
 			const deleted = await notificationQueries.delete(id);
 			return successResponse({ deleted });
 		} catch (error) {
-			console.error("Error deleting notification:", error);
+			serviceLogger.error(error, "Error deleting notification:");
 			return errorResponse("SERVER_ERROR", "Failed to delete notification");
 		}
 	}
@@ -214,7 +215,7 @@ class NotificationsService {
 			const count = await notificationQueries.getUnreadCount(userId);
 			return successResponse({ count });
 		} catch (error) {
-			console.error("Error getting unread count:", error);
+			serviceLogger.error(error, "Error getting unread count:");
 			return errorResponse("SERVER_ERROR", "Failed to get unread count");
 		}
 	}
@@ -236,7 +237,7 @@ class NotificationsService {
 
 			await notificationQueries.markEmailSent(notification.id);
 		} catch (error) {
-			console.error("Error sending email notification:", error);
+			serviceLogger.error(error, "Error sending email notification:");
 			// Don't fail the notification creation if email fails
 		}
 	}

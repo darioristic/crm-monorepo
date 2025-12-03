@@ -726,7 +726,19 @@ class SalesService {
         description: item.description,
         quantity: item.quantity,
         unit: item.unit || "pcs",
+        unitPrice: item.unitPrice || 0,
+        discount: item.discount || 0,
       }));
+
+      // Calculate totals
+      const subtotal = items.reduce((sum, item) => {
+        const lineTotal = item.quantity * item.unitPrice;
+        const discountAmount = lineTotal * (item.discount / 100);
+        return sum + (lineTotal - discountAmount);
+      }, 0);
+      const taxRate = data.taxRate || 0;
+      const tax = subtotal * (taxRate / 100);
+      const total = subtotal + tax;
 
       const deliveryNumber = await deliveryNoteQueries.generateNumber();
 
@@ -744,7 +756,13 @@ class SalesService {
         shippingAddress: data.shippingAddress,
         trackingNumber: data.trackingNumber,
         carrier: data.carrier,
+        taxRate,
+        subtotal,
+        tax,
+        total,
         notes: data.notes,
+        terms: data.terms,
+        customerDetails: data.customerDetails || null,
         createdBy: data.createdBy,
       };
 
@@ -779,7 +797,23 @@ class SalesService {
           description: item.description,
           quantity: item.quantity,
           unit: item.unit || "pcs",
+          unitPrice: item.unitPrice || 0,
+          discount: item.discount || 0,
         }));
+
+        // Recalculate totals if items are updated
+        const subtotal = items.reduce((sum, item) => {
+          const lineTotal = item.quantity * item.unitPrice;
+          const discountAmount = lineTotal * (item.discount / 100);
+          return sum + (lineTotal - discountAmount);
+        }, 0);
+        const taxRate = data.taxRate ?? existing.taxRate;
+        const tax = subtotal * (taxRate / 100);
+        const total = subtotal + tax;
+
+        data.subtotal = subtotal;
+        data.tax = tax;
+        data.total = total;
       }
 
       const updated = await deliveryNoteQueries.update(id, data, items);

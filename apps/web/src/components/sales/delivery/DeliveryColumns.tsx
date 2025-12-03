@@ -1,8 +1,16 @@
 "use client";
 
-import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Pencil, Trash2, Eye, Truck } from "lucide-react";
+import {
+  ArrowUpDown,
+  MoreHorizontal,
+  Pencil,
+  Trash2,
+  Eye,
+  Truck,
+  Download,
+  Link2,
+} from "lucide-react";
 import type { DeliveryNote } from "@crm/types";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,8 +21,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatDate } from "@/lib/utils";
-import { DeliveryStatusBadge, type DeliveryStatus } from "@/components/sales/status";
+import { formatDate, formatCurrency } from "@/lib/utils";
+import {
+  DeliveryStatusBadge,
+  type DeliveryStatus,
+} from "@/components/sales/status";
+import { toast } from "sonner";
 
 export type DeliveryNoteWithCompany = DeliveryNote & {
   companyName?: string;
@@ -68,26 +80,40 @@ export function getDeliveryColumns({
         </Button>
       ),
       cell: ({ row }) => (
-        <Link
-          href={`/dashboard/sales/delivery-notes/${row.original.id}`}
-          className="font-medium text-primary hover:underline"
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(
+              `/d/id/${row.original.id}`,
+              "_blank",
+              "noopener,noreferrer"
+            );
+          }}
+          className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
           {row.original.deliveryNumber}
-        </Link>
+        </button>
       ),
     },
     {
       accessorKey: "companyName",
       header: "Company",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.companyName}</span>
+        <span className="text-muted-foreground">
+          {row.original.companyName}
+        </span>
       ),
     },
     {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <DeliveryStatusBadge status={row.original.status as DeliveryStatus} showTooltip={false} />
+        <DeliveryStatusBadge
+          status={row.original.status as DeliveryStatus}
+          showTooltip={false}
+        />
       ),
     },
     {
@@ -115,74 +141,122 @@ export function getDeliveryColumns({
         row.original.deliveryDate ? formatDate(row.original.deliveryDate) : "-",
     },
     {
+      accessorKey: "total",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Total
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (
+        <span className="font-medium">
+          {formatCurrency(row.original.total || 0)}
+        </span>
+      ),
+    },
+    {
       accessorKey: "createdAt",
       header: "Created",
       cell: ({ row }) => formatDate(row.original.createdAt),
     },
     {
       id: "actions",
-      cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={() => onView?.(row.original)}
-              asChild={!onView}
-            >
-              {onView ? (
-                <>
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Details
-                </>
-              ) : (
-                <Link href={`/dashboard/sales/delivery-notes/${row.original.id}`}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Details
-                </Link>
-              )}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onEdit?.(row.original)}
-              asChild={!onEdit}
-            >
-              {onEdit ? (
-                <>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Delivery Note
-                </>
-              ) : (
-                <Link href={`/dashboard/sales/delivery-notes/${row.original.id}`}>
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Edit Delivery Note
-                </Link>
-              )}
-            </DropdownMenuItem>
-            {row.original.status !== "delivered" && onMarkDelivered && (
-              <DropdownMenuItem onClick={() => onMarkDelivered(row.original)}>
-                <Truck className="mr-2 h-4 w-4" />
-                Mark as Delivered
+      cell: ({ row }) => {
+        const handleCopyLink = async () => {
+          const url = `${window.location.origin}/dashboard/sales/delivery-notes/${row.original.id}`;
+          try {
+            await navigator.clipboard.writeText(url);
+            toast.success("Link copied to clipboard");
+          } catch {
+            toast.error("Failed to copy link");
+          }
+        };
+
+        const handleDownload = () => {
+          window.open(
+            `/api/download/delivery-note?id=${row.original.id}`,
+            "_blank"
+          );
+        };
+
+        return (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  if (onView) {
+                    onView(row.original);
+                  } else {
+                    window.open(
+                      `/d/id/${row.original.id}`,
+                      "_blank",
+                      "noopener,noreferrer"
+                    );
+                  }
+                }}
+              >
+                <Eye className="mr-2 h-4 w-4" />
+                View Details
               </DropdownMenuItem>
-            )}
-            {onDelete && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => onDelete(row.original)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      ),
+              <DropdownMenuItem
+                onClick={() => {
+                  if (onEdit) {
+                    onEdit(row.original);
+                  } else {
+                    window.open(
+                      `/dashboard/sales/delivery-notes?type=edit&deliveryNoteId=${row.original.id}`,
+                      "_blank",
+                      "noopener,noreferrer"
+                    );
+                  }
+                }}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit Delivery Note
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleDownload}>
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleCopyLink}>
+                <Link2 className="mr-2 h-4 w-4" />
+                Copy Link
+              </DropdownMenuItem>
+              {row.original.status !== "delivered" && onMarkDelivered && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => onMarkDelivered(row.original)}
+                  >
+                    <Truck className="mr-2 h-4 w-4" />
+                    Mark as Delivered
+                  </DropdownMenuItem>
+                </>
+              )}
+              {onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive"
+                    onClick={() => onDelete(row.original)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        );
+      },
     },
   ];
 }
-

@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Quote, Company, CreateQuoteRequest, UpdateQuoteRequest } from "@crm/types";
-import { quotesApi, companiesApi } from "@/lib/api";
+import type { Order, Company, CreateOrderRequest, UpdateOrderRequest, Quote, Invoice } from "@crm/types";
+import { ordersApi, companiesApi, quotesApi, invoicesApi } from "@/lib/api";
 import { useMutation, useApi } from "@/hooks/use-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,37 +30,40 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
 import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
 
 const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
   description: z.string().optional(),
-  quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
+  quantity: z.coerce.number().min(0.01, "Quantity must be greater than 0"),
   unitPrice: z.coerce.number().min(0, "Unit price must be positive"),
   discount: z.coerce.number().min(0).max(100).default(0),
+  total: z.coerce.number().min(0).default(0),
 });
 
-const quoteFormSchema = z.object({
+const orderFormSchema = z.object({
   companyId: z.string().min(1, "Company is required"),
-  issueDate: z.string().min(1, "Issue date is required"),
-  validUntil: z.string().min(1, "Valid until date is required"),
-  status: z.enum(["draft", "sent", "accepted", "rejected", "expired"]),
-  taxRate: z.coerce.number().min(0).max(100).default(0),
+  contactId: z.string().optional(),
+  quoteId: z.string().optional(),
+  invoiceId: z.string().optional(),
+  status: z.enum(["pending", "processing", "completed", "cancelled", "refunded"]),
+  subtotal: z.coerce.number().min(0).default(0),
+  tax: z.coerce.number().min(0).default(0),
+  total: z.coerce.number().min(0).default(0),
+  currency: z.string().min(1, "Currency is required").default("EUR"),
   notes: z.string().optional(),
-  terms: z.string().optional(),
   items: z.array(lineItemSchema).min(1, "At least one item is required"),
 });
 
-type QuoteFormValues = z.infer<typeof quoteFormSchema>;
+type OrderFormValues = z.infer<typeof orderFormSchema>;
 
-interface QuoteFormProps {
-  quote?: Quote;
+interface OrderFormProps {
+  order?: Order & { items?: any[] };
   mode: "create" | "edit";
 }
 
-export function QuoteForm({ quote, mode }: QuoteFormProps) {
+export function OrderForm({ order, mode }: OrderFormProps) {
   const router = useRouter();
 
   const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
@@ -68,34 +71,45 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
     { autoFetch: true }
   );
 
-  const createMutation = useMutation<Quote, CreateQuoteRequest>((data) =>
-    quotesApi.create(data)
+  const { data: quotes } = useApi<Quote[]>(
+    () => quotesApi.getAll(),
+    { autoFetch: true }
   );
 
-  const updateMutation = useMutation<Quote, UpdateQuoteRequest>((data) =>
-    quotesApi.update(quote?.id || "", data)
+  const { data: invoices } = useApi<Invoice[]>(
+    () => invoicesApi.getAll(),
+    { autoFetch: true }
   );
 
-  const today = new Date().toISOString().split("T")[0];
-  const defaultValidUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const createMutation = useMutation<Order, CreateOrderRequest>((data) =>
+    ordersApi.create(data)
+  );
 
-  const form = useForm<QuoteFormValues>({
-    resolver: zodResolver(quoteFormSchema) as any,
+  const updateMutation = useMutation<Order, UpdateOrderRequest>((data) =>
+    ordersApi.update(order?.id || "", data)
+  );
+
+  const form = useForm<OrderFormValues>({
+    resolver: zodResolver(orderFormSchema) as any,
     defaultValues: {
-      companyId: quote?.companyId || "",
-      issueDate: quote?.issueDate?.split("T")[0] || today,
-      validUntil: quote?.validUntil?.split("T")[0] || defaultValidUntil,
-      status: quote?.status || "draft",
-      taxRate: quote?.taxRate || 0,
-      notes: quote?.notes || "",
-      terms: quote?.terms || "",
-      items: quote?.items?.map((item) => ({
-        productName: item.productName,
+      companyId: order?.companyId || "",
+      contactId: order?.contactId || "",
+      quoteId: order?.quoteId || "",
+      invoiceId: order?.invoiceId || "",
+      status: order?.status || "pending",
+      subtotal: order?.subtotal || 0,
+      tax: order?.tax || 0,
+      total: order?.total || 0,
+      currency: order?.currency || "EUR",
+      notes: order?.notes || "",
+      items: order?.items?.map((item: any) => ({
+        productName: item.productName || "",
         description: item.description || "",
-        quantity: item.quantity,
-        unitPrice: item.unitPrice,
-        discount: item.discount,
-      })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
+        quantity: item.quantity || 1,
+        unitPrice: item.unitPrice || 0,
+        discount: item.discount || 0,
+        total: item.total || 0,
+      })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 }],
     },
   });
 
@@ -104,79 +118,87 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
     name: "items",
   });
 
+  // Calculate totals when items change
   useEffect(() => {
-    if (quote) {
+    const subscription = form.watch((value, { name }) => {
+      if (name?.startsWith("items.")) {
+        const items = form.getValues("items");
+        let subtotal = 0;
+        
+        items.forEach((item) => {
+          const quantity = item.quantity || 0;
+          const unitPrice = item.unitPrice || 0;
+          const discount = item.discount || 0;
+          const lineTotal = quantity * unitPrice;
+          const discountAmount = lineTotal * (discount / 100);
+          const itemTotal = lineTotal - discountAmount;
+          subtotal += itemTotal;
+        });
+
+        const tax = subtotal * 0.2; // 20% VAT
+        const total = subtotal + tax;
+
+        form.setValue("subtotal", subtotal);
+        form.setValue("tax", tax);
+        form.setValue("total", total);
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, [form]);
+
+  useEffect(() => {
+    if (order) {
       form.reset({
-        companyId: quote.companyId,
-        issueDate: quote.issueDate?.split("T")[0] || today,
-        validUntil: quote.validUntil?.split("T")[0] || defaultValidUntil,
-        status: quote.status,
-        taxRate: quote.taxRate,
-        notes: quote.notes || "",
-        terms: quote.terms || "",
-        items: quote.items?.map((item) => ({
-          productName: item.productName,
+        companyId: order.companyId,
+        contactId: order.contactId || "",
+        quoteId: order.quoteId || "",
+        invoiceId: order.invoiceId || "",
+        status: order.status,
+        subtotal: order.subtotal,
+        tax: order.tax,
+        total: order.total,
+        currency: order.currency,
+        notes: order.notes || "",
+        items: order.items?.map((item: any) => ({
+          productName: item.productName || "",
           description: item.description || "",
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          discount: item.discount,
-        })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
+          quantity: item.quantity || 1,
+          unitPrice: item.unitPrice || 0,
+          discount: item.discount || 0,
+          total: item.total || 0,
+        })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 }],
       });
     }
-  }, [quote, form, today, defaultValidUntil]);
+  }, [order, form]);
 
-  const watchedItems = form.watch("items");
-  const watchedTaxRate = form.watch("taxRate");
-
-  const calculations = useMemo(() => {
-    const subtotal = watchedItems.reduce((sum, item) => {
-      const lineTotal = (item.quantity || 0) * (item.unitPrice || 0);
-      const discountAmount = lineTotal * ((item.discount || 0) / 100);
-      return sum + (lineTotal - discountAmount);
-    }, 0);
-    const tax = subtotal * ((watchedTaxRate || 0) / 100);
-    const total = subtotal + tax;
-    return { subtotal, tax, total };
-  }, [watchedItems, watchedTaxRate]);
-
-  const onSubmit = async (values: QuoteFormValues) => {
-    const items = values.items.map((item) => {
-      const lineTotal = item.quantity * item.unitPrice;
-      const discountAmount = lineTotal * (item.discount / 100);
-      return {
-        ...item,
-        total: lineTotal - discountAmount,
-      };
-    });
-
+  const onSubmit = async (values: OrderFormValues) => {
     const data = {
       companyId: values.companyId,
-      issueDate: new Date(values.issueDate).toISOString(),
-      validUntil: new Date(values.validUntil).toISOString(),
+      contactId: values.contactId || undefined,
+      quoteId: values.quoteId || undefined,
+      invoiceId: values.invoiceId || undefined,
       status: values.status,
-      taxRate: values.taxRate,
-      subtotal: calculations.subtotal,
-      tax: calculations.tax,
-      total: calculations.total,
+      subtotal: values.subtotal,
+      tax: values.tax,
+      total: values.total,
+      currency: values.currency,
       notes: values.notes || undefined,
-      terms: values.terms || undefined,
-      items,
       createdBy: "current-user-id", // This would come from auth context
     };
 
     let result;
     if (mode === "create") {
-      result = await createMutation.mutate(data as CreateQuoteRequest);
+      result = await createMutation.mutate(data as CreateOrderRequest);
     } else {
-      result = await updateMutation.mutate(data as UpdateQuoteRequest);
+      result = await updateMutation.mutate(data as UpdateOrderRequest);
     }
 
     if (result.success) {
-      toast.success(mode === "create" ? "Quote created successfully" : "Quote updated successfully");
-      router.push("/dashboard/sales/quotes");
+      toast.success(mode === "create" ? "Order created successfully" : "Order updated successfully");
+      router.push("/dashboard/sales/orders");
       router.refresh();
     } else {
-      toast.error(getErrorMessage(result.error, "Failed to save quote"));
+      toast.error(getErrorMessage(result.error, "Failed to save order"));
     }
   };
 
@@ -187,11 +209,11 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>{mode === "create" ? "Create Quote" : "Edit Quote"}</CardTitle>
+          <CardTitle>{mode === "create" ? "Create Order" : "Edit Order"}</CardTitle>
           <CardDescription>
             {mode === "create"
-              ? "Create a new sales quote for a customer"
-              : `Editing quote ${quote?.quoteNumber}`}
+              ? "Create a new order"
+              : `Editing order ${order?.orderNumber}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -248,11 +270,11 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="draft">Draft</SelectItem>
-                          <SelectItem value="sent">Sent</SelectItem>
-                          <SelectItem value="accepted">Accepted</SelectItem>
-                          <SelectItem value="rejected">Rejected</SelectItem>
-                          <SelectItem value="expired">Expired</SelectItem>
+                          <SelectItem value="pending">Pending</SelectItem>
+                          <SelectItem value="processing">Processing</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
+                          <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="refunded">Refunded</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -264,13 +286,29 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
               <div className="grid gap-4 sm:grid-cols-3">
                 <FormField
                   control={form.control}
-                  name="issueDate"
+                  name="quoteId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Issue Date *</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
+                      <FormLabel>Related Quote</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
+                        value={field.value || "none"}
+                        disabled={!quotes || quotes.length === 0}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select a quote (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {quotes?.map((quote) => (
+                            <SelectItem key={quote.id} value={quote.id}>
+                              {quote.quoteNumber}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -278,13 +316,29 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="validUntil"
+                  name="invoiceId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Valid Until *</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
+                      <FormLabel>Related Invoice</FormLabel>
+                      <Select
+                        onValueChange={(value) => field.onChange(value === "none" ? "" : value)}
+                        value={field.value || "none"}
+                        disabled={!invoices || invoices.length === 0}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select an invoice (optional)" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          {invoices?.map((invoice) => (
+                            <SelectItem key={invoice.id} value={invoice.id}>
+                              {invoice.invoiceNumber}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -292,13 +346,23 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
 
                 <FormField
                   control={form.control}
-                  name="taxRate"
+                  name="currency"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tax Rate (%)</FormLabel>
-                      <FormControl>
-                        <Input type="number" min="0" max="100" step="0.01" {...field} />
-                      </FormControl>
+                      <FormLabel>Currency *</FormLabel>
+                      <Select onValueChange={field.onChange} value={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="EUR">EUR</SelectItem>
+                          <SelectItem value="USD">USD</SelectItem>
+                          <SelectItem value="GBP">GBP</SelectItem>
+                          <SelectItem value="RSD">RSD</SelectItem>
+                        </SelectContent>
+                      </Select>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -308,12 +372,12 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
               {/* Line Items */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Line Items</h3>
+                  <h3 className="text-lg font-medium">Order Items</h3>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => append({ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 })}
+                    onClick={() => append({ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 })}
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Item
@@ -329,7 +393,7 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
                           name={`items.${index}.productName`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Product/Service *</FormLabel>
+                              <FormLabel>Product *</FormLabel>
                               <FormControl>
                                 <Input placeholder="Product name" {...field} />
                               </FormControl>
@@ -345,9 +409,9 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
                           name={`items.${index}.quantity`}
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Qty *</FormLabel>
+                              <FormLabel>Quantity *</FormLabel>
                               <FormControl>
-                                <Input type="number" min="1" {...field} />
+                                <Input type="number" min="0.01" step="0.01" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -388,16 +452,6 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
                       </div>
 
                       <div className="sm:col-span-1 flex items-end">
-                        <div className="text-sm font-medium mb-2">
-                          {formatCurrency(
-                            (watchedItems[index]?.quantity || 0) *
-                            (watchedItems[index]?.unitPrice || 0) *
-                            (1 - (watchedItems[index]?.discount || 0) / 100)
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="sm:col-span-1 flex items-end">
                         <Button
                           type="button"
                           variant="ghost"
@@ -432,70 +486,78 @@ export function QuoteForm({ quote, mode }: QuoteFormProps) {
                 )}
               </div>
 
-              {/* Totals */}
-              <Card className="p-4 bg-muted/50">
-                <div className="space-y-2 text-right">
-                  <div className="flex justify-end gap-8">
-                    <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-medium w-32">{formatCurrency(calculations.subtotal)}</span>
-                  </div>
-                  <div className="flex justify-end gap-8">
-                    <span className="text-muted-foreground">Tax ({watchedTaxRate}%):</span>
-                    <span className="font-medium w-32">{formatCurrency(calculations.tax)}</span>
-                  </div>
-                  <div className="flex justify-end gap-8 text-lg">
-                    <span className="font-semibold">Total:</span>
-                    <span className="font-bold w-32">{formatCurrency(calculations.total)}</span>
-                  </div>
-                </div>
-              </Card>
-
-              {/* Notes & Terms */}
-              <div className="grid gap-4 sm:grid-cols-2">
+              {/* Summary */}
+              <div className="grid gap-4 sm:grid-cols-3">
                 <FormField
                   control={form.control}
-                  name="notes"
+                  name="subtotal"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Notes</FormLabel>
+                      <FormLabel>Subtotal</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Internal notes..."
-                          className="resize-none"
-                          rows={4}
-                          {...field}
-                        />
+                        <Input type="number" readOnly {...field} />
                       </FormControl>
-                      <FormDescription>Internal notes (not visible to customer)</FormDescription>
+                      <FormDescription>Calculated from items</FormDescription>
                     </FormItem>
                   )}
                 />
 
                 <FormField
                   control={form.control}
-                  name="terms"
+                  name="tax"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Terms & Conditions</FormLabel>
+                      <FormLabel>Tax (VAT)</FormLabel>
                       <FormControl>
-                        <Textarea
-                          placeholder="Terms and conditions..."
-                          className="resize-none"
-                          rows={4}
-                          {...field}
-                        />
+                        <Input type="number" readOnly {...field} />
                       </FormControl>
-                      <FormDescription>Visible on the quote document</FormDescription>
+                      <FormDescription>20% of subtotal</FormDescription>
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="total"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Total</FormLabel>
+                      <FormControl>
+                        <Input type="number" readOnly className="font-semibold" {...field} />
+                      </FormControl>
+                      <FormDescription>Subtotal + Tax</FormDescription>
                     </FormItem>
                   )}
                 />
               </div>
 
+              {/* Notes */}
+              <FormField
+                control={form.control}
+                name="notes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Notes</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Special instructions or notes..."
+                        className="resize-none"
+                        rows={4}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      Add any special instructions or internal notes
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+
               {/* Actions */}
               <div className="flex gap-4">
                 <Button type="submit" disabled={isLoading}>
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {mode === "create" ? "Create Quote" : "Update Quote"}
+                  {mode === "create" ? "Create Order" : "Update Order"}
                 </Button>
                 <Button
                   type="button"

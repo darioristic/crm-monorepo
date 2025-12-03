@@ -17,6 +17,7 @@ import {
 } from "@crm/utils";
 import { companyQueries } from "../db/queries/companies";
 import { cache } from "../cache/redis";
+import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300; // 5 minutes
 const CACHE_PREFIX = "companies";
@@ -49,7 +50,7 @@ class CompaniesService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching companies:", error);
+      serviceLogger.error(error, "Error fetching companies");
       return errorResponse("DATABASE_ERROR", "Failed to fetch companies");
     }
   }
@@ -76,7 +77,7 @@ class CompaniesService {
       await cache.set(cacheKey, company, CACHE_TTL);
       return successResponse(company);
     } catch (error) {
-      console.error("Error fetching company:", error);
+      serviceLogger.error(error, "Error fetching company");
       return errorResponse("DATABASE_ERROR", "Failed to fetch company");
     }
   }
@@ -115,7 +116,7 @@ class CompaniesService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating company:", error);
+      serviceLogger.error(error, "Error creating company");
       return errorResponse("DATABASE_ERROR", "Failed to create company");
     }
   }
@@ -157,7 +158,7 @@ class CompaniesService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating company:", error);
+      serviceLogger.error(error, "Error updating company");
       return errorResponse("DATABASE_ERROR", "Failed to update company");
     }
   }
@@ -183,7 +184,7 @@ class CompaniesService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting company:", error);
+      serviceLogger.error(error, "Error deleting company");
       return errorResponse("DATABASE_ERROR", "Failed to delete company");
     }
   }
@@ -206,7 +207,7 @@ class CompaniesService {
 
       return successResponse(companies);
     } catch (error) {
-      console.error("Error fetching companies by industry:", error);
+      serviceLogger.error(error, "Error fetching companies by industry");
       return errorResponse("DATABASE_ERROR", "Failed to fetch companies");
     }
   }
@@ -229,7 +230,7 @@ class CompaniesService {
 
       return successResponse(industries);
     } catch (error) {
-      console.error("Error fetching industries:", error);
+      serviceLogger.error(error, "Error fetching industries");
       return errorResponse("DATABASE_ERROR", "Failed to fetch industries");
     }
   }

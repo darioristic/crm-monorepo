@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from "@tanstack/react-query";
+import { request } from "@/lib/api";
 
 function BankAccountListSkeleton() {
 	return (
@@ -22,10 +24,42 @@ function BankAccountListSkeleton() {
 }
 
 function BankAccountList() {
-	// TODO: Implement bank account list
+	const { data: accounts, isLoading } = useQuery({
+		queryKey: ["connected-accounts"],
+		queryFn: async () => {
+			const response = await request("/api/v1/connected-accounts");
+			return response.success && response.data ? response.data : [];
+		},
+	});
+
+	if (isLoading) {
+		return <BankAccountListSkeleton />;
+	}
+
+	if (!accounts || accounts.length === 0) {
+		return (
+			<div className="text-sm text-muted-foreground py-4">
+				No bank accounts connected.
+			</div>
+		);
+	}
+
 	return (
-		<div className="text-sm text-muted-foreground py-4">
-			No bank accounts connected.
+		<div className="space-y-4">
+			{accounts.map((account: any) => (
+				<div key={account.id} className="border p-4 rounded">
+					<div className="font-medium">{account.accountName}</div>
+					{account.bankName && (
+						<div className="text-sm text-muted-foreground">{account.bankName}</div>
+					)}
+					{account.iban && (
+						<div className="text-sm text-muted-foreground">IBAN: {account.iban}</div>
+					)}
+					<div className="text-sm font-medium mt-2">
+						Balance: {account.balance} {account.currency}
+					</div>
+				</div>
+			))}
 		</div>
 	);
 }

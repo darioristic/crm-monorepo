@@ -141,7 +141,12 @@ const Notifications = () => {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button size="icon" variant="ghost" className="relative">
+        <Button 
+          size="icon" 
+          variant="ghost" 
+          className="relative"
+          suppressHydrationWarning
+        >
           <BellIcon className={unreadCount > 0 ? "animate-tada" : ""} />
           {unreadCount > 0 && (
             <Badge

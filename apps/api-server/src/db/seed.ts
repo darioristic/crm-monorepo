@@ -7,6 +7,7 @@ import type {
   Quote, 
   Invoice, 
   DeliveryNote,
+  Order,
   Product,
   ProductCategory,
   Payment,
@@ -18,7 +19,7 @@ import { companyQueries } from "./queries/companies";
 import { userQueries } from "./queries/users";
 import { authQueries } from "./queries/auth";
 import { projectQueries, taskQueries, milestoneQueries } from "./queries";
-import { quoteQueries, invoiceQueries, deliveryNoteQueries } from "./queries";
+import { quoteQueries, invoiceQueries, deliveryNoteQueries, orderQueries } from "./queries";
 import { productQueries, productCategoryQueries } from "./queries/products";
 import { paymentQueries } from "./queries/payments";
 import { notificationQueries } from "./queries/notifications";
@@ -426,6 +427,61 @@ function generateInvoices(count: number, companyIds: string[], quoteIds: string[
   return invoices;
 }
 
+function generateOrders(count: number, companyIds: string[], quoteIds: string[], invoiceIds: string[], userIds: string[]): { order: Omit<Order, "items">; items: Array<{ productName: string; description?: string | null; quantity: number; unitPrice: number; discount?: number; total: number }> }[] {
+  const orders: { order: Omit<Order, "items">; items: Array<{ productName: string; description?: string | null; quantity: number; unitPrice: number; discount?: number; total: number }> }[] = [];
+  const statuses: Order["status"][] = ["pending", "processing", "completed", "cancelled", "refunded"];
+
+  for (let i = 0; i < count; i++) {
+    const itemCount = randomNumber(1, 5);
+    const items: Array<{ productName: string; description?: string | null; quantity: number; unitPrice: number; discount?: number; total: number }> = [];
+    let subtotal = 0;
+
+    for (let j = 0; j < itemCount; j++) {
+      const quantity = randomNumber(1, 20);
+      const unitPrice = randomNumber(100, 10000);
+      const discount = Math.random() > 0.7 ? randomNumber(5, 20) : 0;
+      const total = quantity * unitPrice * (1 - discount / 100);
+      subtotal += total;
+
+      items.push({
+        productName: randomElement(PRODUCT_NAMES),
+        description: `Order item ${j + 1} description`,
+        quantity,
+        unitPrice,
+        discount,
+        total,
+      });
+    }
+
+    const taxRate = 20;
+    const tax = subtotal * (taxRate / 100);
+    const total = subtotal + tax;
+    const status = randomElement(statuses);
+
+    orders.push({
+      order: {
+        id: generateUUID(),
+        orderNumber: `ORD-2025-${String(i + 1).padStart(5, "0")}`,
+        companyId: randomElement(companyIds),
+        quoteId: Math.random() > 0.5 && quoteIds.length > 0 ? randomElement(quoteIds) : undefined,
+        invoiceId: Math.random() > 0.5 && invoiceIds.length > 0 ? randomElement(invoiceIds) : undefined,
+        status,
+        subtotal,
+        tax,
+        total,
+        currency: "EUR",
+        notes: Math.random() > 0.5 ? `Order notes - reference ${i + 1}` : undefined,
+        createdBy: randomElement(userIds),
+        createdAt: pastDate(randomNumber(1, 90)),
+        updatedAt: now(),
+      },
+      items,
+    });
+  }
+
+  return orders;
+}
+
 function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: string[], userIds: string[]): { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] {
   const notes: { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] = [];
   const statuses: DeliveryNote["status"][] = ["pending", "shipped", "in_transit", "delivered", "cancelled"];
@@ -777,6 +833,29 @@ async function seedInvoices(invoices: { invoice: Omit<Invoice, "items">; items: 
   return ids;
 }
 
+async function seedOrders(orders: { order: Omit<Order, "items">; items: Array<{ productName: string; description?: string | null; quantity: number; unitPrice: number; discount?: number; total: number }> }[]): Promise<string[]> {
+  console.log("🛒 Seeding orders...");
+  const ids: string[] = [];
+
+  for (const { order, items } of orders) {
+    try {
+      const result = await orderQueries.create(order, items);
+      if (result.success && result.data) {
+        console.log(`  ✅ Created order: ${result.data.orderNumber}`);
+        ids.push(result.data.id);
+      } else {
+        console.error(`  ❌ Failed to create order ${order.orderNumber}: ${result.error?.message || "Unknown error"}`);
+      }
+    } catch (error: any) {
+      console.error(`  ❌ Failed to create order ${order.orderNumber}: ${error?.message || error}`);
+      if (error?.code) console.error(`     Error code: ${error.code}`);
+      if (error?.detail) console.error(`     Detail: ${error.detail}`);
+    }
+  }
+
+  return ids;
+}
+
 async function seedDeliveryNotes(notes: { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[]): Promise<void> {
   console.log("📦 Seeding delivery notes...");
 
@@ -978,6 +1057,20 @@ export async function seed(): Promise<void> {
     const invoiceIds = await seedInvoices(invoicesData);
     console.log(`\n  📊 Invoices seeded: ${invoiceIds.length}\n`);
 
+    // Get companies that have users (for orders to be visible)
+    // Use the same companyIds that were used for users to ensure orders are visible
+    // If no companies with users, fall back to all companyIds
+    const companiesWithUsers = await db`
+      SELECT DISTINCT company_id FROM users WHERE company_id IS NOT NULL
+    `;
+    const companyIdsWithUsers = companiesWithUsers.map((row: any) => row.company_id as string);
+    
+    // Generate and seed orders only for companies that have users
+    // This ensures orders will be visible when users log in
+    const ordersData = generateOrders(50, companyIdsWithUsers.length > 0 ? companyIdsWithUsers : companyIds, quoteIds, invoiceIds, allUserIds);
+    const orderIds = await seedOrders(ordersData);
+    console.log(`\n  📊 Orders seeded: ${orderIds.length}\n`);
+
     // Generate and seed delivery notes
     const deliveryNotesData = generateDeliveryNotes(50, companyIds, invoiceIds, allUserIds);
     await seedDeliveryNotes(deliveryNotesData);
@@ -1011,6 +1104,7 @@ export async function seed(): Promise<void> {
     const milestoneCount = await milestoneQueries.count();
     const quoteCount = await quoteQueries.count();
     const invoiceCount = await invoiceQueries.count();
+    const orderCount = await db`SELECT COUNT(*) FROM orders`;
     const deliveryCount = await deliveryNoteQueries.count();
     const categoryCount = await db`SELECT COUNT(*) FROM product_categories`;
     const productCount = await db`SELECT COUNT(*) FROM products`;
@@ -1026,6 +1120,7 @@ export async function seed(): Promise<void> {
     console.log(`   Milestones:         ${milestoneCount}`);
     console.log(`   Quotes:             ${quoteCount}`);
     console.log(`   Invoices:           ${invoiceCount}`);
+    console.log(`   Orders:             ${parseInt(orderCount[0].count as string, 10)}`);
     console.log(`   Delivery Notes:     ${deliveryCount}`);
     console.log(`   Product Categories: ${parseInt(categoryCount[0].count as string, 10)}`);
     console.log(`   Products:           ${parseInt(productCount[0].count as string, 10)}`);
@@ -1061,6 +1156,8 @@ export async function unseed(): Promise<void> {
     await safeDelete("payments", "payments");
     await safeDelete("delivery_note_items", "delivery note items");
     await safeDelete("delivery_notes", "delivery notes");
+    await safeDelete("order_items", "order items");
+    await safeDelete("orders", "orders");
     await safeDelete("invoice_items", "invoice items");
     await safeDelete("invoices", "invoices");
     await safeDelete("quote_items", "quote items");

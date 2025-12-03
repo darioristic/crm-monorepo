@@ -21,6 +21,10 @@ import { reportRoutes } from "./reports";
 import { documentRoutes } from "./documents";
 import { chatRoutes } from "./chat";
 import { fileRoutes } from "./files";
+import { inviteRoutes } from "./invites";
+import { orderRoutes } from "./orders";
+import { connectedAccountRoutes } from "./connected-accounts";
+import { inviteRoutes } from "./invites";
 
 // Auth routes
 import {
@@ -75,6 +79,15 @@ const routes: Route[] = [
 
 	// Notifications
 	...notificationRoutes,
+
+	// Invites
+	...inviteRoutes,
+
+	// Orders
+	...orderRoutes,
+
+	// Connected Accounts
+	...connectedAccountRoutes,
 
 	// Payments
 	...paymentRoutes,

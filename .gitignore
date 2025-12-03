@@ -31,6 +31,12 @@ yarn-error.log*
 
 # Coverage
 coverage/
+*.lcov
+
+# Test results
+test-results/
+playwright-report/
+playwright/.cache/
 
 # Cache
 .cache/

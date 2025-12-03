@@ -47,7 +47,7 @@ class UsersService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching users:", error);
+      serviceLogger.error(error, "Error fetching users:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch users");
     }
   }
@@ -74,7 +74,7 @@ class UsersService {
       await cache.set(cacheKey, user, CACHE_TTL);
       return successResponse(user);
     } catch (error) {
-      console.error("Error fetching user:", error);
+      serviceLogger.error(error, "Error fetching user:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch user");
     }
   }
@@ -126,7 +126,7 @@ class UsersService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating user:", error);
+      serviceLogger.error(error, "Error creating user:");
       return errorResponse("DATABASE_ERROR", "Failed to create user");
     }
   }
@@ -162,7 +162,7 @@ class UsersService {
       if (data.companyId !== undefined && data.companyId !== null && data.companyId !== "") {
         const company = await companyQueries.findById(data.companyId);
         if (!company) {
-          console.error(`Company not found: ${data.companyId}`);
+          serviceLogger.warn({ companyId: data.companyId }, "Company not found");
           return errorResponse("VALIDATION_ERROR", "Invalid company ID - company not found");
         }
       }
@@ -201,10 +201,7 @@ class UsersService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating user:", error);
-      if (error instanceof Error) {
-        console.error("Error details:", error.message, error.stack);
-      }
+      serviceLogger.error(error, "Error updating user");
       return errorResponse("DATABASE_ERROR", `Failed to update user: ${error instanceof Error ? error.message : "Unknown error"}`);
     }
   }
@@ -228,7 +225,7 @@ class UsersService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting user:", error);
+      serviceLogger.error(error, "Error deleting user:");
       return errorResponse("DATABASE_ERROR", "Failed to delete user");
     }
   }
@@ -251,7 +248,7 @@ class UsersService {
 
       return successResponse(users);
     } catch (error) {
-      console.error("Error fetching users by company:", error);
+      serviceLogger.error(error, "Error fetching users by company:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch users");
     }
   }
@@ -274,7 +271,7 @@ class UsersService {
 
       return successResponse(users);
     } catch (error) {
-      console.error("Error fetching users by role:", error);
+      serviceLogger.error(error, "Error fetching users by role:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch users");
     }
   }
@@ -293,7 +290,7 @@ class UsersService {
 
       return successResponse(user);
     } catch (error) {
-      console.error("Error fetching user by email:", error);
+      serviceLogger.error(error, "Error fetching user by email:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch user");
     }
   }

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
 import type { Quote } from "@crm/types";
@@ -66,12 +65,20 @@ export function getQuotesColumns({
         </Button>
       ),
       cell: ({ row }) => (
-        <Link
-          href={`/dashboard/sales/quotes/${row.original.id}`}
-          className="font-medium text-primary hover:underline"
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.open(
+              `/q/id/${row.original.id}`,
+              "_blank",
+              "noopener,noreferrer"
+            );
+          }}
+          className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
           {row.original.quoteNumber}
-        </Link>
+        </button>
       ),
     },
     {
@@ -124,20 +131,21 @@ export function getQuotesColumns({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuItem
-              onClick={() => onView?.(row.original)}
-              asChild={!onView}
+              onClick={(e) => {
+                e.preventDefault();
+                if (onView) {
+                  onView(row.original);
+                } else {
+                  window.open(
+                    `/q/id/${row.original.id}`,
+                    "_blank",
+                    "noopener,noreferrer"
+                  );
+                }
+              }}
             >
-              {onView ? (
-                <>
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Details
-                </>
-              ) : (
-                <Link href={`/dashboard/sales/quotes/${row.original.id}`}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  View Details
-                </Link>
-              )}
+              <Eye className="mr-2 h-4 w-4" />
+              View Quote
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => onEdit?.(row.original)}

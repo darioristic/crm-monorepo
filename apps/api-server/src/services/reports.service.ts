@@ -25,6 +25,7 @@ import type {
   AnalyticsDateRange,
 } from "@crm/types";
 import { successResponse, errorResponse, paginatedResponse } from "@crm/utils";
+import { serviceLogger } from "../lib/logger";
 import { sql as db } from "../db/client";
 import { cache } from "../cache/redis";
 
@@ -49,28 +50,60 @@ class ReportsService {
       const { page = 1, pageSize = 20 } = pagination;
       const offset = (page - 1) * pageSize;
 
-      let whereClause = "WHERE 1=1";
+      // Build WHERE clause with parameterized queries (SQL injection safe)
+      const whereConditions: string[] = [];
+      const params: any[] = [];
+      let paramIndex = 1;
+
       if (filters.search) {
-        whereClause += ` AND (u.first_name ILIKE '%${filters.search}%' OR u.last_name ILIKE '%${filters.search}%' OR u.email ILIKE '%${filters.search}%')`;
-      }
-      if (filters.companyId) {
-        whereClause += ` AND u.company_id = '${filters.companyId}'`;
-      }
-      if (filters.role) {
-        whereClause += ` AND u.role = '${filters.role}'`;
-      }
-      if (filters.status) {
-        whereClause += ` AND u.status = '${filters.status}'`;
+        whereConditions.push(
+          `(u.first_name ILIKE $${paramIndex} OR u.last_name ILIKE $${paramIndex} OR u.email ILIKE $${paramIndex})`
+        );
+        params.push(`%${filters.search}%`);
+        paramIndex++;
       }
 
-      const countResult = await db.unsafe(`SELECT COUNT(*) FROM users u ${whereClause}`);
+      if (filters.companyId) {
+        whereConditions.push(`u.company_id = $${paramIndex}`);
+        params.push(filters.companyId);
+        paramIndex++;
+      }
+
+      if (filters.role) {
+        whereConditions.push(`u.role = $${paramIndex}`);
+        params.push(filters.role);
+        paramIndex++;
+      }
+
+      if (filters.status) {
+        whereConditions.push(`u.status = $${paramIndex}`);
+        params.push(filters.status);
+        paramIndex++;
+      }
+
+      const whereClause = whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(' AND ')}`
+        : '';
+
+      const countResult = await db.unsafe(
+        `SELECT COUNT(*) FROM users u ${whereClause}`,
+        params
+      );
       const total = parseInt(countResult[0].count, 10);
 
-      const sortBy = pagination.sortBy || "u.created_at";
-      const sortOrder = pagination.sortOrder || "desc";
+      // Whitelist allowed sort columns to prevent SQL injection
+      const ALLOWED_SORT_COLUMNS = ['u.created_at', 'u.first_name', 'u.last_name', 'u.email'];
+      const sortBy = pagination.sortBy && ALLOWED_SORT_COLUMNS.includes(pagination.sortBy)
+        ? pagination.sortBy
+        : 'u.created_at';
+      const sortOrder = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
 
-      const data = await db.unsafe(`
-        SELECT 
+      // Add LIMIT and OFFSET to params
+      params.push(pageSize, offset);
+
+      const data = await db.unsafe(
+        `
+        SELECT
           u.*,
           c.name as company_name,
           (SELECT COUNT(*) FROM projects p WHERE p.manager_id = u.id OR u.id = ANY(p.team_members)) as total_projects,
@@ -79,8 +112,10 @@ class ReportsService {
         LEFT JOIN companies c ON u.company_id = c.id
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ${pageSize} OFFSET ${offset}
-      `);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `,
+        params
+      );
 
       const users: UserReport[] = data.map((row: Record<string, unknown>) => ({
         id: row.id as string,
@@ -103,7 +138,7 @@ class ReportsService {
       await cache.set(cacheKey, users, CACHE_TTL);
       return paginatedResponse(users, total, pagination);
     } catch (error) {
-      console.error("Error fetching users report:", error);
+      serviceLogger.error(error, "Error fetching users report:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch users report");
     }
   }
@@ -122,22 +157,48 @@ class ReportsService {
       const { page = 1, pageSize = 20 } = pagination;
       const offset = (page - 1) * pageSize;
 
-      let whereClause = "WHERE 1=1";
+      // Build WHERE clause with parameterized queries (SQL injection safe)
+      const whereConditions: string[] = [];
+      const params: any[] = [];
+      let paramIndex = 1;
+
       if (filters.search) {
-        whereClause += ` AND (c.name ILIKE '%${filters.search}%' OR c.address ILIKE '%${filters.search}%')`;
-      }
-      if (filters.industry) {
-        whereClause += ` AND c.industry = '${filters.industry}'`;
+        whereConditions.push(
+          `(c.name ILIKE $${paramIndex} OR c.address ILIKE $${paramIndex})`
+        );
+        params.push(`%${filters.search}%`);
+        paramIndex++;
       }
 
-      const countResult = await db.unsafe(`SELECT COUNT(*) FROM companies c ${whereClause}`);
+      if (filters.industry) {
+        whereConditions.push(`c.industry = $${paramIndex}`);
+        params.push(filters.industry);
+        paramIndex++;
+      }
+
+      const whereClause = whereConditions.length > 0
+        ? `WHERE ${whereConditions.join(' AND ')}`
+        : '';
+
+      const countResult = await db.unsafe(
+        `SELECT COUNT(*) FROM companies c ${whereClause}`,
+        params
+      );
       const total = parseInt(countResult[0].count, 10);
 
-      const sortBy = pagination.sortBy || "c.created_at";
-      const sortOrder = pagination.sortOrder || "desc";
+      // Whitelist allowed sort columns to prevent SQL injection
+      const ALLOWED_SORT_COLUMNS = ['c.created_at', 'c.name', 'c.industry'];
+      const sortBy = pagination.sortBy && ALLOWED_SORT_COLUMNS.includes(pagination.sortBy)
+        ? pagination.sortBy
+        : 'c.created_at';
+      const sortOrder = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
 
-      const data = await db.unsafe(`
-        SELECT 
+      // Add LIMIT and OFFSET to params
+      params.push(pageSize, offset);
+
+      const data = await db.unsafe(
+        `
+        SELECT
           c.*,
           (SELECT COUNT(*) FROM users u WHERE u.company_id = c.id) as total_users,
           (SELECT COUNT(*) FROM quotes q WHERE q.company_id = c.id) as total_quotes,
@@ -146,8 +207,10 @@ class ReportsService {
         FROM companies c
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ${pageSize} OFFSET ${offset}
-      `);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `,
+        params
+      );
 
       const companies: CompanyReport[] = data.map((row: Record<string, unknown>) => ({
         id: row.id as string,
@@ -165,7 +228,7 @@ class ReportsService {
       await cache.set(cacheKey, companies, CACHE_TTL);
       return paginatedResponse(companies, total, pagination);
     } catch (error) {
-      console.error("Error fetching companies report:", error);
+      serviceLogger.error(error, "Error fetching companies report:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch companies report");
     }
   }
@@ -189,31 +252,58 @@ class ReportsService {
       const { page = 1, pageSize = 20 } = pagination;
       const offset = (page - 1) * pageSize;
 
-      let whereClause = "WHERE 1=1";
+      // Build WHERE clause with parameterized queries (SQL injection safe)
+      const whereConditions: string[] = ['1=1'];
+      const params: any[] = [];
+      let paramIndex = 1;
+
       if (filters.status) {
-        whereClause += ` AND q.status = '${filters.status}'`;
+        whereConditions.push(`q.status = $${paramIndex}`);
+        params.push(filters.status);
+        paramIndex++;
       }
       if (filters.companyId) {
-        whereClause += ` AND q.company_id = '${filters.companyId}'`;
+        whereConditions.push(`q.company_id = $${paramIndex}`);
+        params.push(filters.companyId);
+        paramIndex++;
       }
       if (filters.userId) {
-        whereClause += ` AND q.created_by = '${filters.userId}'`;
+        whereConditions.push(`q.created_by = $${paramIndex}`);
+        params.push(filters.userId);
+        paramIndex++;
       }
       if (dateRange?.startDate) {
-        whereClause += ` AND q.issue_date >= '${dateRange.startDate}'`;
+        whereConditions.push(`q.issue_date >= $${paramIndex}`);
+        params.push(dateRange.startDate);
+        paramIndex++;
       }
       if (dateRange?.endDate) {
-        whereClause += ` AND q.issue_date <= '${dateRange.endDate}'`;
+        whereConditions.push(`q.issue_date <= $${paramIndex}`);
+        params.push(dateRange.endDate);
+        paramIndex++;
       }
 
-      const countResult = await db.unsafe(`SELECT COUNT(*) FROM quotes q ${whereClause}`);
+      const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+
+      const countResult = await db.unsafe(
+        `SELECT COUNT(*) FROM quotes q ${whereClause}`,
+        params
+      );
       const total = parseInt(countResult[0].count, 10);
 
-      const sortBy = pagination.sortBy || "q.created_at";
-      const sortOrder = pagination.sortOrder || "desc";
+      // Whitelist allowed sort columns
+      const ALLOWED_SORT_COLUMNS = ['q.created_at', 'q.issue_date', 'q.total'];
+      const sortBy = pagination.sortBy && ALLOWED_SORT_COLUMNS.includes(pagination.sortBy)
+        ? pagination.sortBy
+        : 'q.created_at';
+      const sortOrder = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
 
-      const data = await db.unsafe(`
-        SELECT 
+      // Add LIMIT and OFFSET to params
+      params.push(pageSize, offset);
+
+      const data = await db.unsafe(
+        `
+        SELECT
           q.*,
           c.name as company_name,
           CONCAT(u.first_name, ' ', u.last_name) as created_by_name
@@ -222,8 +312,10 @@ class ReportsService {
         LEFT JOIN users u ON q.created_by = u.id
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ${pageSize} OFFSET ${offset}
-      `);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `,
+        params
+      );
 
       const quotes: QuoteReport[] = await Promise.all(
         data.map(async (row: Record<string, unknown>) => {
@@ -264,7 +356,7 @@ class ReportsService {
       await cache.set(cacheKey, quotes, CACHE_TTL);
       return paginatedResponse(quotes, total, pagination);
     } catch (error) {
-      console.error("Error fetching quotes report:", error);
+      serviceLogger.error(error, "Error fetching quotes report:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch quotes report");
     }
   }
@@ -284,28 +376,49 @@ class ReportsService {
       const { page = 1, pageSize = 20 } = pagination;
       const offset = (page - 1) * pageSize;
 
-      let whereClause = "WHERE 1=1";
+      // Build WHERE clause with parameterized queries (SQL injection safe)
+      const whereConditions: string[] = ['1=1'];
+      const params: any[] = [];
+      let paramIndex = 1;
+
       if (filters.status) {
-        whereClause += ` AND i.status = '${filters.status}'`;
+        whereConditions.push(`i.status = $${paramIndex}`);
+        params.push(filters.status);
+        paramIndex++;
       }
       if (filters.companyId) {
-        whereClause += ` AND i.company_id = '${filters.companyId}'`;
+        whereConditions.push(`i.company_id = $${paramIndex}`);
+        params.push(filters.companyId);
+        paramIndex++;
       }
       if (dateRange?.startDate) {
-        whereClause += ` AND i.issue_date >= '${dateRange.startDate}'`;
+        whereConditions.push(`i.issue_date >= $${paramIndex}`);
+        params.push(dateRange.startDate);
+        paramIndex++;
       }
       if (dateRange?.endDate) {
-        whereClause += ` AND i.issue_date <= '${dateRange.endDate}'`;
+        whereConditions.push(`i.issue_date <= $${paramIndex}`);
+        params.push(dateRange.endDate);
+        paramIndex++;
       }
 
-      const countResult = await db.unsafe(`SELECT COUNT(*) FROM invoices i ${whereClause}`);
+      const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+
+      const countResult = await db.unsafe(`SELECT COUNT(*) FROM invoices i ${whereClause}`, params);
       const total = parseInt(countResult[0].count, 10);
 
-      const sortBy = pagination.sortBy || "i.created_at";
-      const sortOrder = pagination.sortOrder || "desc";
+      // Whitelist allowed sort columns to prevent SQL injection
+      const ALLOWED_SORT_COLUMNS = ['i.created_at', 'i.updated_at', 'i.invoice_number', 'i.status', 'i.issue_date', 'i.due_date', 'i.total'];
+      const sortBy = pagination.sortBy && ALLOWED_SORT_COLUMNS.includes(pagination.sortBy)
+        ? pagination.sortBy
+        : 'i.created_at';
+      const sortOrder = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+      // Add LIMIT and OFFSET to params
+      params.push(pageSize, offset);
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           i.*,
           c.name as company_name,
           CONCAT(u.first_name, ' ', u.last_name) as created_by_name,
@@ -315,8 +428,8 @@ class ReportsService {
         LEFT JOIN users u ON i.created_by = u.id
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ${pageSize} OFFSET ${offset}
-      `);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, params);
 
       const invoices: InvoiceReport[] = await Promise.all(
         data.map(async (row: Record<string, unknown>) => {
@@ -360,7 +473,7 @@ class ReportsService {
       await cache.set(cacheKey, invoices, CACHE_TTL);
       return paginatedResponse(invoices, total, pagination);
     } catch (error) {
-      console.error("Error fetching invoices report:", error);
+      serviceLogger.error(error, "Error fetching invoices report:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch invoices report");
     }
   }
@@ -449,7 +562,7 @@ class ReportsService {
       await cache.set(cacheKey, notes, CACHE_TTL);
       return paginatedResponse(notes, total, pagination);
     } catch (error) {
-      console.error("Error fetching delivery notes report:", error);
+      serviceLogger.error(error, "Error fetching delivery notes report:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch delivery notes report");
     }
   }
@@ -537,7 +650,7 @@ class ReportsService {
       await cache.set(cacheKey, projects, CACHE_TTL);
       return paginatedResponse(projects, total, pagination);
     } catch (error) {
-      console.error("Error fetching projects report:", error);
+      serviceLogger.error(error, "Error fetching projects report:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch projects report");
     }
   }
@@ -615,7 +728,7 @@ class ReportsService {
       await cache.set(cacheKey, tasks, CACHE_TTL);
       return paginatedResponse(tasks, total, pagination);
     } catch (error) {
-      console.error("Error fetching tasks report:", error);
+      serviceLogger.error(error, "Error fetching tasks report:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch tasks report");
     }
   }
@@ -690,7 +803,7 @@ class ReportsService {
       await cache.set(cacheKey, milestones, CACHE_TTL);
       return paginatedResponse(milestones, total, pagination);
     } catch (error) {
-      console.error("Error fetching milestones report:", error);
+      serviceLogger.error(error, "Error fetching milestones report:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch milestones report");
     }
   }
@@ -741,7 +854,7 @@ class ReportsService {
       await cache.set(cacheKey, summary, 60); // 1 minute cache for summary
       return successResponse(summary);
     } catch (error) {
-      console.error("Error fetching sales summary:", error);
+      serviceLogger.error(error, "Error fetching sales summary:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch sales summary");
     }
   }
@@ -791,7 +904,7 @@ class ReportsService {
       await cache.set(cacheKey, summary, 60); // 1 minute cache for summary
       return successResponse(summary);
     } catch (error) {
-      console.error("Error fetching project summary:", error);
+      serviceLogger.error(error, "Error fetching project summary:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch project summary");
     }
   }
@@ -832,7 +945,7 @@ class ReportsService {
       await cache.set(cacheKey, points, CACHE_TTL);
       return successResponse(points);
     } catch (error) {
-      console.error("Error fetching revenue over time:", error);
+      serviceLogger.error(error, "Error fetching revenue over time:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch revenue data");
     }
   }
@@ -876,7 +989,7 @@ class ReportsService {
       await cache.set(cacheKey, companies, CACHE_TTL);
       return successResponse(companies);
     } catch (error) {
-      console.error("Error fetching revenue by company:", error);
+      serviceLogger.error(error, "Error fetching revenue by company:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch company revenue data");
     }
   }
@@ -933,7 +1046,7 @@ class ReportsService {
       await cache.set(cacheKey, customers, CACHE_TTL);
       return successResponse(customers);
     } catch (error) {
-      console.error("Error fetching top customers:", error);
+      serviceLogger.error(error, "Error fetching top customers:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch top customers data");
     }
   }
@@ -998,7 +1111,7 @@ class ReportsService {
       await cache.set(cacheKey, funnel, CACHE_TTL);
       return successResponse(funnel);
     } catch (error) {
-      console.error("Error fetching conversion funnel:", error);
+      serviceLogger.error(error, "Error fetching conversion funnel:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch conversion funnel data");
     }
   }
@@ -1033,7 +1146,7 @@ class ReportsService {
       await cache.set(cacheKey, breakdown, CACHE_TTL);
       return successResponse(breakdown);
     } catch (error) {
-      console.error("Error fetching invoice status breakdown:", error);
+      serviceLogger.error(error, "Error fetching invoice status breakdown:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch invoice status data");
     }
   }
@@ -1121,7 +1234,7 @@ class ReportsService {
       await cache.set(cacheKey, points, CACHE_TTL);
       return successResponse(points);
     } catch (error) {
-      console.error("Error fetching task stats over time:", error);
+      serviceLogger.error(error, "Error fetching task stats over time:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch task stats data");
     }
   }
@@ -1165,7 +1278,7 @@ class ReportsService {
       await cache.set(cacheKey, breakdown, CACHE_TTL);
       return successResponse(breakdown);
     } catch (error) {
-      console.error("Error fetching milestone breakdown:", error);
+      serviceLogger.error(error, "Error fetching milestone breakdown:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch milestone breakdown data");
     }
   }
@@ -1218,7 +1331,7 @@ class ReportsService {
       await cache.set(cacheKey, stats, CACHE_TTL);
       return successResponse(stats);
     } catch (error) {
-      console.error("Error fetching tasks by priority:", error);
+      serviceLogger.error(error, "Error fetching tasks by priority:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch tasks by priority data");
     }
   }
@@ -1259,7 +1372,7 @@ class ReportsService {
       await cache.set(cacheKey, stats, CACHE_TTL);
       return successResponse(stats);
     } catch (error) {
-      console.error("Error fetching project duration stats:", error);
+      serviceLogger.error(error, "Error fetching project duration stats:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch project duration stats");
     }
   }

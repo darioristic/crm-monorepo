@@ -24,11 +24,19 @@ type TeamInvite = {
 export function DataTable() {
 	const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
 
-	// TODO: Implement getTeamInvites API call
 	const { data } = useQuery({
 		queryKey: ["company", "invites"],
 		queryFn: async (): Promise<TeamInvite[]> => {
-			// Placeholder - implement actual API call
+			const { invitesApi } = await import("@/lib/api");
+			const response = await invitesApi.getAll();
+			if (response.success && response.data) {
+				return response.data.map(invite => ({
+					id: invite.id,
+					email: invite.email,
+					role: invite.role,
+					companyId: "", // Will be filled from current company context
+				}));
+			}
 			return [];
 		},
 	});

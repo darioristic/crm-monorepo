@@ -655,6 +655,103 @@ class EmailService {
       return errorResponse("INTERNAL_ERROR", "Failed to send email");
     }
   }
+
+  /**
+   * Send team invite email
+   */
+  async sendInviteEmail(params: {
+    to: string;
+    companyName: string;
+    inviteToken: string;
+    role: "owner" | "member" | "admin";
+  }): Promise<void> {
+    const inviteUrl = process.env.FRONTEND_URL 
+      ? `${process.env.FRONTEND_URL}/invite/${params.inviteToken}`
+      : `http://localhost:3000/invite/${params.inviteToken}`;
+
+    const roleLabels: Record<string, string> = {
+      owner: "Vlasnik",
+      member: "Član",
+      admin: "Administrator",
+    };
+
+    const template = {
+      subject: `Pozivnica za tim: ${params.companyName}`,
+      html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pozivnica za tim</title>
+  <style>
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+    .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; }
+    .header { background-color: #1a1a2e; color: #ffffff; padding: 30px; text-align: center; }
+    .header h1 { margin: 0; font-size: 24px; font-weight: 600; }
+    .content { padding: 30px; }
+    .invite-info { background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin-bottom: 20px; }
+    .cta-button { display: inline-block; background-color: #0066cc; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 600; margin-top: 20px; }
+    .cta-button:hover { background-color: #0052a3; }
+    .footer { background-color: #f8f9fa; padding: 20px 30px; text-align: center; font-size: 12px; color: #6c757d; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>Pozivnica za tim</h1>
+    </div>
+    <div class="content">
+      <p>Poštovani,</p>
+      <p>Dobili ste pozivnicu da se pridružite timu <strong>${params.companyName}</strong> kao <strong>${roleLabels[params.role] || params.role}</strong>.</p>
+      
+      <div class="invite-info">
+        <p style="margin: 0;"><strong>Kompanija:</strong> ${params.companyName}</p>
+        <p style="margin: 10px 0 0 0;"><strong>Uloga:</strong> ${roleLabels[params.role] || params.role}</p>
+      </div>
+      
+      <p>Kliknite na dugme ispod da prihvatite pozivnicu:</p>
+      <a href="${inviteUrl}" class="cta-button">Prihvati pozivnicu</a>
+      
+      <p style="margin-top: 30px; font-size: 14px; color: #6c757d;">
+        Ili kopirajte ovaj link u vaš browser:<br>
+        <a href="${inviteUrl}">${inviteUrl}</a>
+      </p>
+      
+      <p style="margin-top: 30px; font-size: 12px; color: #6c757d;">
+        Napomena: Ova pozivnica važi 7 dana. Ako imate pitanja, kontaktirajte osobu koja vas je pozvala.
+      </p>
+    </div>
+    <div class="footer">
+      <p>Ova poruka je automatski generisana. Molimo ne odgovarajte direktno na ovaj email.</p>
+    </div>
+  </div>
+</body>
+</html>
+      `,
+      text: `
+Pozivnica za tim: ${params.companyName}
+
+Poštovani,
+
+Dobili ste pozivnicu da se pridružite timu ${params.companyName} kao ${roleLabels[params.role] || params.role}.
+
+Kliknite na link ispod da prihvatite pozivnicu:
+${inviteUrl}
+
+Napomena: Ova pozivnica važi 7 dana. Ako imate pitanja, kontaktirajte osobu koja vas je pozvala.
+      `,
+    };
+
+    await addEmailJob({
+      to: params.to,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+    });
+
+    logger.info({ to: params.to, companyName: params.companyName }, "Invite email queued");
+  }
 }
 
 export const emailService = new EmailService();

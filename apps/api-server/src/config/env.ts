@@ -57,6 +57,9 @@ const envSchema = z.object({
 	OPENAI_API_KEY: z.string().optional(),
 	MISTRAL_API_KEY: z.string().optional(),
 	GOOGLE_GENERATIVE_AI_API_KEY: z.string().optional(),
+
+	// Sentry Configuration (optional - error tracking)
+	SENTRY_DSN: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

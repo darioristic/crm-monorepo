@@ -5,245 +5,271 @@ import { ApiResponse, FilterParams, PaginationParams } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
 type UseApiOptions<T> = {
-  initialData?: T;
-  autoFetch?: boolean;
+	initialData?: T;
+	autoFetch?: boolean;
 };
 
 type UseApiResult<T> = {
-  data: T | undefined;
-  error: string | undefined;
-  isLoading: boolean;
-  refetch: () => Promise<void>;
-  meta?: {
-    page: number;
-    pageSize: number;
-    totalCount: number;
-    totalPages: number;
-  };
+	data: T | undefined;
+	error: string | undefined;
+	isLoading: boolean;
+	refetch: () => Promise<void>;
+	meta?: {
+		page: number;
+		pageSize: number;
+		totalCount: number;
+		totalPages: number;
+	};
 };
 
 export function useApi<T>(
-  fetchFn: () => Promise<ApiResponse<T>>,
-  options: UseApiOptions<T> = {}
+	fetchFn: () => Promise<ApiResponse<T>>,
+	options: UseApiOptions<T> = {},
 ): UseApiResult<T> {
-  const { initialData, autoFetch = true } = options;
-  const [data, setData] = useState<T | undefined>(initialData);
-  const [error, setError] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(autoFetch);
-  const [meta, setMeta] = useState<UseApiResult<T>["meta"]>();
+	const { initialData, autoFetch = true } = options;
+	const [data, setData] = useState<T | undefined>(initialData);
+	const [error, setError] = useState<string | undefined>();
+	const [isLoading, setIsLoading] = useState(autoFetch);
+	const [meta, setMeta] = useState<UseApiResult<T>["meta"]>();
 
-  // Store fetchFn in a ref to avoid dependency changes
-  const fetchFnRef = useRef(fetchFn);
-  fetchFnRef.current = fetchFn;
+	// Store fetchFn in a ref to avoid dependency changes
+	const fetchFnRef = useRef(fetchFn);
+	fetchFnRef.current = fetchFn;
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(undefined);
+	const fetchData = useCallback(async () => {
+		setIsLoading(true);
+		setError(undefined);
 
-    try {
-      const response = await fetchFnRef.current();
+		try {
+			const response = await fetchFnRef.current();
 
-      if (response.success) {
-        setData(response.data);
-        setMeta(response.meta);
-      } else {
-        setError(getErrorMessage(response.error, "Unknown error"));
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch data");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+			if (response.success) {
+				setData(response.data);
+				setMeta(response.meta);
+			} else {
+				setError(getErrorMessage(response.error, "Unknown error"));
+			}
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Failed to fetch data");
+		} finally {
+			setIsLoading(false);
+		}
+	}, []);
 
-  useEffect(() => {
-    if (autoFetch) {
-      fetchData();
-    }
-  }, [autoFetch, fetchData]);
+	useEffect(() => {
+		if (autoFetch) {
+			fetchData();
+		}
+	}, [autoFetch, fetchData]);
 
-  return {
-    data,
-    error,
-    isLoading,
-    refetch: fetchData,
-    meta,
-  };
+	return {
+		data,
+		error,
+		isLoading,
+		refetch: fetchData,
+		meta,
+	};
 }
 
 type UsePaginatedApiResult<T> = UseApiResult<T[]> & {
-  page: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  setPage: (page: number) => void;
-  setPageSize: (pageSize: number) => void;
-  filters: FilterParams;
-  setFilters: (filters: FilterParams) => void;
+	page: number;
+	pageSize: number;
+	totalCount: number;
+	totalPages: number;
+	setPage: (page: number) => void;
+	setPageSize: (pageSize: number) => void;
+	filters: FilterParams;
+	setFilters: (filters: FilterParams) => void;
 };
 
 export function usePaginatedApi<T>(
-  fetchFn: (params: FilterParams & PaginationParams) => Promise<ApiResponse<T[]>>,
-  initialFilters: FilterParams = {}
+	fetchFn: (
+		params: FilterParams & PaginationParams,
+	) => Promise<ApiResponse<T[]>>,
+	initialFilters: FilterParams = {},
 ): UsePaginatedApiResult<T> {
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [filters, setFilters] = useState<FilterParams>(initialFilters);
-  const [data, setData] = useState<T[]>([]);
-  const [error, setError] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
+	const [page, setPage] = useState(1);
+	const [pageSize, setPageSize] = useState(20);
+	const [filters, setFilters] = useState<FilterParams>(initialFilters);
+	const [data, setData] = useState<T[]>([]);
+	const [error, setError] = useState<string | undefined>();
+	const [isLoading, setIsLoading] = useState(true);
+	const [totalCount, setTotalCount] = useState(0);
+	const [totalPages, setTotalPages] = useState(0);
 
-  // Store fetchFn in a ref to avoid dependency changes
-  const fetchFnRef = useRef(fetchFn);
-  fetchFnRef.current = fetchFn;
+	// Store fetchFn in a ref to avoid dependency changes
+	const fetchFnRef = useRef(fetchFn);
+	fetchFnRef.current = fetchFn;
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(undefined);
+	// Track the latest fetch request to prevent race conditions
+	const fetchIdRef = useRef(0);
 
-    try {
-      const response = await fetchFnRef.current({ ...filters, page, pageSize });
+	const fetchData = useCallback(async () => {
+		const currentFetchId = ++fetchIdRef.current;
+		setIsLoading(true);
+		setError(undefined);
 
-      if (response.success) {
-        setData(response.data || []);
-        if (response.meta) {
-          setTotalCount(response.meta.totalCount);
-          setTotalPages(response.meta.totalPages);
-        }
-      } else {
-        setError(getErrorMessage(response.error, "Unknown error"));
-      }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch data");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filters, page, pageSize]);
+		try {
+			const response = await fetchFnRef.current({ ...filters, page, pageSize });
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+			// Only update state if this is still the latest fetch
+			if (currentFetchId !== fetchIdRef.current) {
+				return;
+			}
 
-  const handleSetPage = useCallback((newPage: number) => {
-    setPage(newPage);
-  }, []);
+			if (response.success) {
+				const newData = response.data || [];
+				// Use functional update to ensure we're setting the latest data
+				setData(() => newData);
+				if (response.meta) {
+					setTotalCount(response.meta.totalCount);
+					setTotalPages(response.meta.totalPages);
+				}
+			} else {
+				setError(getErrorMessage(response.error, "Unknown error"));
+			}
+		} catch (e) {
+			// Only update error if this is still the latest fetch
+			if (currentFetchId === fetchIdRef.current) {
+				setError(e instanceof Error ? e.message : "Failed to fetch data");
+			}
+		} finally {
+			// Only update loading state if this is still the latest fetch
+			if (currentFetchId === fetchIdRef.current) {
+				setIsLoading(false);
+			}
+		}
+	}, [filters, page, pageSize]);
 
-  const handleSetPageSize = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize);
-    setPage(1);
-  }, []);
+	useEffect(() => {
+		fetchData();
+	}, [fetchData]);
 
-  const handleSetFilters = useCallback((newFilters: FilterParams) => {
-    setFilters(newFilters);
-    setPage(1);
-  }, []);
+	const handleSetPage = useCallback((newPage: number) => {
+		setPage(newPage);
+	}, []);
 
-  return {
-    data,
-    error,
-    isLoading,
-    refetch: fetchData,
-    page,
-    pageSize,
-    totalCount,
-    totalPages,
-    setPage: handleSetPage,
-    setPageSize: handleSetPageSize,
-    filters,
-    setFilters: handleSetFilters,
-    meta: { page, pageSize, totalCount, totalPages },
-  };
+	const handleSetPageSize = useCallback((newPageSize: number) => {
+		setPageSize(newPageSize);
+		setPage(1);
+	}, []);
+
+	const handleSetFilters = useCallback(
+		(newFilters: FilterParams) => {
+			// Only update if filters actually changed
+			const filtersChanged =
+				JSON.stringify(newFilters) !== JSON.stringify(filters);
+			if (filtersChanged) {
+				setFilters(newFilters);
+				setPage(1);
+			}
+		},
+		[filters],
+	);
+
+	return {
+		data,
+		error,
+		isLoading,
+		refetch: fetchData,
+		page,
+		pageSize,
+		totalCount,
+		totalPages,
+		setPage: handleSetPage,
+		setPageSize: handleSetPageSize,
+		filters,
+		setFilters: handleSetFilters,
+		meta: { page, pageSize, totalCount, totalPages },
+	};
 }
 
 export function useMutation<TData, TVariables>(
-  mutationFn: (variables: TVariables) => Promise<ApiResponse<TData>>
+	mutationFn: (variables: TVariables) => Promise<ApiResponse<TData>>,
 ) {
-  const [data, setData] = useState<TData | undefined>();
-  const [error, setError] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(false);
+	const [data, setData] = useState<TData | undefined>();
+	const [error, setError] = useState<string | undefined>();
+	const [isLoading, setIsLoading] = useState(false);
 
-  const mutate = useCallback(
-    async (variables: TVariables) => {
-      setIsLoading(true);
-      setError(undefined);
+	const mutate = useCallback(
+		async (variables: TVariables) => {
+			setIsLoading(true);
+			setError(undefined);
 
-      try {
-        const response = await mutationFn(variables);
+			try {
+				const response = await mutationFn(variables);
 
-        if (response.success) {
-          setData(response.data);
-          return { success: true, data: response.data };
-        } else {
-          const errorMessage = getErrorMessage(response.error, "Unknown error");
-          setError(errorMessage);
-          return { success: false, error: errorMessage };
-        }
-      } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : "Mutation failed";
-        setError(errorMessage);
-        return { success: false, error: errorMessage };
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [mutationFn]
-  );
+				if (response.success) {
+					setData(response.data);
+					return { success: true, data: response.data };
+				} else {
+					const errorMessage = getErrorMessage(response.error, "Unknown error");
+					setError(errorMessage);
+					return { success: false, error: errorMessage };
+				}
+			} catch (e) {
+				const errorMessage = e instanceof Error ? e.message : "Mutation failed";
+				setError(errorMessage);
+				return { success: false, error: errorMessage };
+			} finally {
+				setIsLoading(false);
+			}
+		},
+		[mutationFn],
+	);
 
-  return {
-    mutate,
-    data,
-    error,
-    isLoading,
-    reset: () => {
-      setData(undefined);
-      setError(undefined);
-    },
-  };
+	return {
+		mutate,
+		data,
+		error,
+		isLoading,
+		reset: () => {
+			setData(undefined);
+			setError(undefined);
+		},
+	};
 }
 
 type UseQueryOptions = {
-  enabled?: boolean;
+	enabled?: boolean;
 };
 
 export function useQuery<T>(
-  queryKey: (string | undefined)[],
-  queryFn: () => Promise<ApiResponse<T> | null>,
-  options: UseQueryOptions = {}
+	queryKey: (string | undefined)[],
+	queryFn: () => Promise<ApiResponse<T> | null>,
+	options: UseQueryOptions = {},
 ) {
-  const { enabled = true } = options;
-  const [data, setData] = useState<ApiResponse<T> | null>(null);
-  const [error, setError] = useState<string | undefined>();
-  const [isLoading, setIsLoading] = useState(enabled);
+	const { enabled = true } = options;
+	const [data, setData] = useState<ApiResponse<T> | null>(null);
+	const [error, setError] = useState<string | undefined>();
+	const [isLoading, setIsLoading] = useState(enabled);
 
-  const fetchData = useCallback(async () => {
-    if (!enabled) return;
-    
-    setIsLoading(true);
-    setError(undefined);
+	const fetchData = useCallback(async () => {
+		if (!enabled) return;
 
-    try {
-      const response = await queryFn();
-      setData(response);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to fetch data");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [enabled, queryFn]);
+		setIsLoading(true);
+		setError(undefined);
 
-  useEffect(() => {
-    if (enabled) {
-      fetchData();
-    }
-  }, [enabled, fetchData]);
+		try {
+			const response = await queryFn();
+			setData(response);
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Failed to fetch data");
+		} finally {
+			setIsLoading(false);
+		}
+	}, [enabled, queryFn]);
 
-  return {
-    data,
-    error,
-    isLoading,
-    refetch: fetchData,
-  };
+	useEffect(() => {
+		if (enabled) {
+			fetchData();
+		}
+	}, [enabled, fetchData]);
+
+	return {
+		data,
+		error,
+		isLoading,
+		refetch: fetchData,
+	};
 }
-

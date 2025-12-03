@@ -12,6 +12,7 @@ import type {
 } from "@crm/types";
 import { successResponse, errorResponse, paginatedResponse } from "@crm/utils";
 import { productQueries, productCategoryQueries } from "../db/queries/products";
+import { serviceLogger } from "../lib/logger";
 
 // ============================================
 // Product Category Service
@@ -29,7 +30,7 @@ class ProductCategoryService {
 			);
 			return paginatedResponse(categories, total, pagination);
 		} catch (error) {
-			console.error("Error fetching categories:", error);
+			serviceLogger.error(error, "Error fetching categories");
 			return errorResponse("SERVER_ERROR", "Failed to fetch categories");
 		}
 	}
@@ -44,7 +45,7 @@ class ProductCategoryService {
 			}
 			return successResponse(category);
 		} catch (error) {
-			console.error("Error fetching category:", error);
+			serviceLogger.error(error, "Error fetching category");
 			return errorResponse("SERVER_ERROR", "Failed to fetch category");
 		}
 	}
@@ -60,7 +61,7 @@ class ProductCategoryService {
 			const category = await productCategoryQueries.create(data);
 			return successResponse(category);
 		} catch (error) {
-			console.error("Error creating category:", error);
+			serviceLogger.error(error, "Error creating category");
 			return errorResponse("SERVER_ERROR", "Failed to create category");
 		}
 	}
@@ -76,7 +77,7 @@ class ProductCategoryService {
 			}
 			return successResponse(category);
 		} catch (error) {
-			console.error("Error updating category:", error);
+			serviceLogger.error(error, "Error updating category");
 			return errorResponse("SERVER_ERROR", "Failed to update category");
 		}
 	}
@@ -89,7 +90,7 @@ class ProductCategoryService {
 			}
 			return successResponse({ deleted: true });
 		} catch (error) {
-			console.error("Error deleting category:", error);
+			serviceLogger.error(error, "Error deleting category:");
 			return errorResponse("SERVER_ERROR", "Failed to delete category");
 		}
 	}
@@ -118,7 +119,7 @@ class ProductService {
 			);
 			return paginatedResponse(products, total, pagination);
 		} catch (error) {
-			console.error("Error fetching products:", error);
+			serviceLogger.error(error, "Error fetching products:");
 			return errorResponse("SERVER_ERROR", "Failed to fetch products");
 		}
 	}
@@ -131,7 +132,7 @@ class ProductService {
 			}
 			return successResponse(product);
 		} catch (error) {
-			console.error("Error fetching product:", error);
+			serviceLogger.error(error, "Error fetching product:");
 			return errorResponse("SERVER_ERROR", "Failed to fetch product");
 		}
 	}
@@ -144,7 +145,7 @@ class ProductService {
 			}
 			return successResponse(product);
 		} catch (error) {
-			console.error("Error fetching product by SKU:", error);
+			serviceLogger.error(error, "Error fetching product by SKU:");
 			return errorResponse("SERVER_ERROR", "Failed to fetch product");
 		}
 	}
@@ -179,7 +180,7 @@ class ProductService {
 			const product = await productQueries.create(data);
 			return successResponse(product);
 		} catch (error) {
-			console.error("Error creating product:", error);
+			serviceLogger.error(error, "Error creating product:");
 			return errorResponse("SERVER_ERROR", "Failed to create product");
 		}
 	}
@@ -206,7 +207,7 @@ class ProductService {
 			}
 			return successResponse(product);
 		} catch (error) {
-			console.error("Error updating product:", error);
+			serviceLogger.error(error, "Error updating product:");
 			return errorResponse("SERVER_ERROR", "Failed to update product");
 		}
 	}
@@ -219,7 +220,7 @@ class ProductService {
 			}
 			return successResponse({ deleted: true });
 		} catch (error) {
-			console.error("Error deleting product:", error);
+			serviceLogger.error(error, "Error deleting product:");
 			return errorResponse("SERVER_ERROR", "Failed to delete product");
 		}
 	}
@@ -242,7 +243,7 @@ class ProductService {
 			}
 			return successResponse(product);
 		} catch (error) {
-			console.error("Error updating stock:", error);
+			serviceLogger.error(error, "Error updating stock:");
 			return errorResponse("SERVER_ERROR", "Failed to update stock");
 		}
 	}
@@ -252,7 +253,7 @@ class ProductService {
 			const products = await productQueries.getLowStockProducts();
 			return successResponse(products);
 		} catch (error) {
-			console.error("Error fetching low stock products:", error);
+			serviceLogger.error(error, "Error fetching low stock products:");
 			return errorResponse(
 				"SERVER_ERROR",
 				"Failed to fetch low stock products",
@@ -272,7 +273,7 @@ class ProductService {
 			const products = await productQueries.getPopularProducts(limit, currency);
 			return successResponse(products);
 		} catch (error) {
-			console.error("Error fetching popular products:", error);
+			serviceLogger.error(error, "Error fetching popular products:");
 			return errorResponse("SERVER_ERROR", "Failed to fetch popular products");
 		}
 	}
@@ -289,7 +290,7 @@ class ProductService {
 			}
 			return successResponse(product);
 		} catch (error) {
-			console.error("Error incrementing product usage:", error);
+			serviceLogger.error(error, "Error incrementing product usage:");
 			return errorResponse("SERVER_ERROR", "Failed to increment product usage");
 		}
 	}
@@ -312,7 +313,7 @@ class ProductService {
 			const result = await productQueries.upsertProduct(data);
 			return successResponse(result);
 		} catch (error) {
-			console.error("Error saving line item as product:", error);
+			serviceLogger.error(error, "Error saving line item as product:");
 			return errorResponse(
 				"SERVER_ERROR",
 				"Failed to save line item as product",

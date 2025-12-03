@@ -548,11 +548,167 @@ export async function createSchema(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_payments_recorded_by ON payments(recorded_by)`;
   await db`CREATE INDEX IF NOT EXISTS idx_payments_reference ON payments(reference)`;
 
+  // ============================================
+  // Team Invites Table
+  // ============================================
+
+  // Create enum type for invite status
+  await db`
+    DO $$ BEGIN
+      CREATE TYPE invite_status AS ENUM ('pending', 'accepted', 'rejected', 'expired', 'cancelled');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$
+  `;
+
+  // Team invites table
+  await db`
+    CREATE TABLE IF NOT EXISTS team_invites (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email VARCHAR(255) NOT NULL,
+      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      role company_role NOT NULL DEFAULT 'member',
+      status invite_status NOT NULL DEFAULT 'pending',
+      invited_by UUID NOT NULL REFERENCES users(id),
+      token VARCHAR(255) UNIQUE NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days'),
+      accepted_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(email, company_id, status) 
+        WHERE status = 'pending'
+    )
+  `;
+
+  await db`CREATE INDEX IF NOT EXISTS idx_team_invites_company_id ON team_invites(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_team_invites_email ON team_invites(email)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_team_invites_status ON team_invites(status)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_team_invites_token ON team_invites(token)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_team_invites_expires_at ON team_invites(expires_at)`;
+
+  // ============================================
+  // Notification Settings Table
+  // ============================================
+
+  // Notification settings table (user preferences for notifications)
+  await db`
+    CREATE TABLE IF NOT EXISTS notification_settings (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      notification_type VARCHAR(100) NOT NULL,
+      channel VARCHAR(50) NOT NULL, -- 'in_app', 'email', 'push'
+      enabled BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE(user_id, notification_type, channel)
+    )
+  `;
+
+  await db`CREATE INDEX IF NOT EXISTS idx_notification_settings_user_id ON notification_settings(user_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_notification_settings_type ON notification_settings(notification_type)`;
+
+  // ============================================
+  // Orders Table
+  // ============================================
+
+  // Create enum type for order status
+  await db`
+    DO $$ BEGIN
+      CREATE TYPE order_status AS ENUM ('pending', 'processing', 'completed', 'cancelled', 'refunded');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$
+  `;
+
+  // Orders table
+  await db`
+    CREATE TABLE IF NOT EXISTS orders (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      order_number VARCHAR(50) UNIQUE NOT NULL,
+      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
+      quote_id UUID REFERENCES quotes(id) ON DELETE SET NULL,
+      invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
+      status order_status NOT NULL DEFAULT 'pending',
+      subtotal DECIMAL(15, 2) NOT NULL DEFAULT 0,
+      tax DECIMAL(15, 2) NOT NULL DEFAULT 0,
+      total DECIMAL(15, 2) NOT NULL DEFAULT 0,
+      currency VARCHAR(3) NOT NULL DEFAULT 'EUR',
+      notes TEXT,
+      created_by UUID NOT NULL REFERENCES users(id),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_company_id ON orders(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC)`;
+
+  // Order Items table
+  await db`
+    CREATE TABLE IF NOT EXISTS order_items (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+      product_name VARCHAR(255) NOT NULL,
+      description TEXT,
+      quantity DECIMAL(10, 2) NOT NULL DEFAULT 1,
+      unit_price DECIMAL(15, 2) NOT NULL,
+      discount DECIMAL(5, 2) NOT NULL DEFAULT 0,
+      total DECIMAL(15, 2) NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await db`CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)`;
+
+  // ============================================
+  // Connected Accounts (Bank Accounts) Table
+  // ============================================
+
+  // Connected accounts table (for bank accounts and external integrations)
+  await db`
+    CREATE TABLE IF NOT EXISTS connected_accounts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      account_type VARCHAR(50) NOT NULL DEFAULT 'bank', -- 'bank', 'stripe', 'paypal', etc.
+      account_name VARCHAR(255) NOT NULL,
+      account_number VARCHAR(255),
+      bank_name VARCHAR(255),
+      iban VARCHAR(50),
+      swift VARCHAR(50),
+      currency VARCHAR(3) NOT NULL DEFAULT 'EUR',
+      balance DECIMAL(15, 2) DEFAULT 0,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      metadata JSONB,
+      connected_by UUID NOT NULL REFERENCES users(id),
+      connected_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      last_synced_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `;
+
+  await db`CREATE INDEX IF NOT EXISTS idx_connected_accounts_company_id ON connected_accounts(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_connected_accounts_account_type ON connected_accounts(account_type)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_connected_accounts_is_active ON connected_accounts(is_active)`;
+
   console.log("✅ Database schema created successfully");
 }
 
 export async function dropSchema(): Promise<void> {
   console.log("Dropping database schema...");
+
+  // Drop new tables first (due to FK constraints)
+  await db`DROP TABLE IF EXISTS connected_accounts CASCADE`;
+  await db`DROP TABLE IF EXISTS order_items CASCADE`;
+  await db`DROP TABLE IF EXISTS orders CASCADE`;
+  await db`DROP TYPE IF EXISTS order_status`;
+  await db`DROP TABLE IF EXISTS notification_settings CASCADE`;
+  await db`DROP TABLE IF EXISTS team_invites CASCADE`;
+  await db`DROP TYPE IF EXISTS invite_status`;
 
   // Drop Payments table
   await db`DROP TABLE IF EXISTS payments CASCADE`;

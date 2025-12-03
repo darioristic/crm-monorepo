@@ -1,4 +1,5 @@
 import pino from "pino";
+import { captureException, captureMessage } from "./sentry";
 
 // ============================================
 // Logger Configuration

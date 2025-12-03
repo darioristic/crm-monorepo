@@ -98,4 +98,32 @@ router.delete("/api/v1/notifications/:id", async (request, _url, params) => {
   });
 });
 
+// ============================================
+// Notification Settings Routes
+// ============================================
+
+import { notificationSettingsService } from "../services/notification-settings.service";
+
+router.get("/api/v1/notification-settings", async (request) => {
+	return withAuth(request, async (auth) => {
+		return notificationSettingsService.getSettings(auth.userId);
+	});
+});
+
+router.patch("/api/v1/notification-settings", async (request) => {
+	return withAuth(request, async (auth) => {
+		const body = await parseBody<{
+			notificationType: string;
+			channel: "in_app" | "email" | "push";
+			enabled: boolean;
+		}>(request);
+
+		if (!body || !body.notificationType || !body.channel) {
+			return errorResponse("VALIDATION_ERROR", "Notification type and channel are required");
+		}
+
+		return notificationSettingsService.updateSetting(auth.userId, body);
+	});
+});
+
 export const notificationRoutes = router.getRoutes();

@@ -38,6 +38,7 @@ const ALLOWED_SORT_COLUMNS: Record<string, string[]> = {
   tasks: ["created_at", "updated_at", "title", "status", "priority", "due_date"],
   quotes: ["created_at", "updated_at", "quote_number", "status", "issue_date", "valid_until", "total"],
   invoices: ["created_at", "updated_at", "invoice_number", "status", "issue_date", "due_date", "total"],
+  orders: ["created_at", "updated_at", "order_number", "status", "total", "subtotal", "tax"],
   delivery_notes: ["created_at", "updated_at", "delivery_number", "status", "ship_date", "delivery_date"],
   milestones: ["created_at", "updated_at", "name", "status", "due_date"],
   products: ["created_at", "updated_at", "name", "sku", "price", "stock_quantity"],

@@ -59,8 +59,8 @@ export const columns: ColumnDef<TeamInvite>[] = [
 
 			const deleteInvite = useMutation({
 				mutationFn: async (inviteId: string) => {
-					// TODO: Implement delete invite API call
-					// For now, just return success
+					const { invitesApi } = await import("@/lib/api");
+					await invitesApi.delete(inviteId);
 					return { success: true };
 				},
 				onSuccess: () => {

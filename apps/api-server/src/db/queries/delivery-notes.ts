@@ -125,13 +125,17 @@ export const deliveryNoteQueries = {
       INSERT INTO delivery_notes (
         id, delivery_number, invoice_id, company_id, contact_id, status,
         ship_date, delivery_date, shipping_address, tracking_number, carrier,
-        notes, created_by, created_at, updated_at
+        tax_rate, subtotal, tax, total, notes, terms, customer_details,
+        created_by, created_at, updated_at
       ) VALUES (
         ${note.id}, ${note.deliveryNumber}, ${note.invoiceId || null},
         ${note.companyId}, ${note.contactId || null}, ${note.status},
         ${note.shipDate || null}, ${note.deliveryDate || null}, ${note.shippingAddress},
         ${note.trackingNumber || null}, ${note.carrier || null},
-        ${note.notes || null}, ${note.createdBy}, ${note.createdAt}, ${note.updatedAt}
+        ${note.taxRate || 0}, ${note.subtotal || 0}, ${note.tax || 0}, ${note.total || 0},
+        ${note.notes || null}, ${note.terms || null},
+        ${note.customerDetails ? JSON.stringify(note.customerDetails) : null},
+        ${note.createdBy}, ${note.createdAt}, ${note.updatedAt}
       )
       RETURNING *
     `;
@@ -140,8 +144,8 @@ export const deliveryNoteQueries = {
     const insertedItems: DeliveryNoteItem[] = [];
     for (const item of items) {
       const itemResult = await db`
-        INSERT INTO delivery_note_items (delivery_note_id, product_name, description, quantity, unit)
-        VALUES (${note.id}, ${item.productName}, ${item.description || null}, ${item.quantity}, ${item.unit})
+        INSERT INTO delivery_note_items (delivery_note_id, product_name, description, quantity, unit, unit_price, discount)
+        VALUES (${note.id}, ${item.productName}, ${item.description || null}, ${item.quantity}, ${item.unit}, ${item.unitPrice || 0}, ${item.discount || 0})
         RETURNING *
       `;
       insertedItems.push(mapDeliveryNoteItem(itemResult[0]));
@@ -166,7 +170,13 @@ export const deliveryNoteQueries = {
         shipping_address = COALESCE(${data.shippingAddress ?? null}, shipping_address),
         tracking_number = COALESCE(${data.trackingNumber ?? null}, tracking_number),
         carrier = COALESCE(${data.carrier ?? null}, carrier),
+        tax_rate = COALESCE(${data.taxRate ?? null}, tax_rate),
+        subtotal = COALESCE(${data.subtotal ?? null}, subtotal),
+        tax = COALESCE(${data.tax ?? null}, tax),
+        total = COALESCE(${data.total ?? null}, total),
         notes = COALESCE(${data.notes ?? null}, notes),
+        terms = COALESCE(${data.terms ?? null}, terms),
+        customer_details = COALESCE(${data.customerDetails ? JSON.stringify(data.customerDetails) : null}, customer_details),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -177,8 +187,8 @@ export const deliveryNoteQueries = {
       await db`DELETE FROM delivery_note_items WHERE delivery_note_id = ${id}`;
       for (const item of items) {
         await db`
-          INSERT INTO delivery_note_items (id, delivery_note_id, product_name, description, quantity, unit)
-          VALUES (${item.id || db`gen_random_uuid()`}, ${id}, ${item.productName}, ${item.description || null}, ${item.quantity}, ${item.unit})
+          INSERT INTO delivery_note_items (id, delivery_note_id, product_name, description, quantity, unit, unit_price, discount)
+          VALUES (${item.id || db`gen_random_uuid()`}, ${id}, ${item.productName}, ${item.description || null}, ${item.quantity}, ${item.unit}, ${item.unitPrice || 0}, ${item.discount || 0})
         `;
       }
     }
@@ -379,10 +389,21 @@ function mapDeliveryNoteItem(row: Record<string, unknown>): DeliveryNoteItem {
     description: row.description as string | undefined,
     quantity: parseFloat(row.quantity as string),
     unit: row.unit as string,
+    unitPrice: parseFloat((row.unit_price as string) || "0"),
+    discount: parseFloat((row.discount as string) || "0"),
+    total: row.total ? parseFloat(row.total as string) : undefined,
   };
 }
 
 function mapDeliveryNote(row: Record<string, unknown>, items: unknown[]): DeliveryNote {
+  let customerDetails = null;
+  if (row.customer_details) {
+    customerDetails =
+      typeof row.customer_details === "string"
+        ? JSON.parse(row.customer_details as string)
+        : row.customer_details;
+  }
+
   return {
     id: row.id as string,
     createdAt: toISOString(row.created_at),
@@ -398,7 +419,13 @@ function mapDeliveryNote(row: Record<string, unknown>, items: unknown[]): Delive
     shippingAddress: row.shipping_address as string,
     trackingNumber: row.tracking_number as string | undefined,
     carrier: row.carrier as string | undefined,
+    taxRate: parseFloat((row.tax_rate as string) || "0"),
+    subtotal: parseFloat((row.subtotal as string) || "0"),
+    tax: parseFloat((row.tax as string) || "0"),
+    total: parseFloat((row.total as string) || "0"),
     notes: row.notes as string | undefined,
+    terms: row.terms as string | undefined,
+    customerDetails,
     createdBy: row.created_by as string,
   };
 }

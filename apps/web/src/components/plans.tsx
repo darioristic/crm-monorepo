@@ -20,11 +20,29 @@ export function Plans() {
 	const handleCheckout = async (plan: "starter" | "pro") => {
 		try {
 			setIsSubmitting(plan === "starter" ? 1 : 2);
-			// TODO: Implement checkout flow
-			toast.info("Checkout functionality coming soon");
+			
+			// TODO: Implement checkout flow with payment provider (Stripe/PayPal)
+			// This requires:
+			// 1. Payment provider integration (Stripe recommended)
+			// 2. Subscription management system
+			// 3. Webhook handling for payment events
+			// 4. Subscription status tracking in database
+			
+			// Placeholder: Redirect to checkout page or open payment modal
+			// const { request } = await import("@/lib/api");
+			// const response = await request("/api/v1/subscriptions/checkout", {
+			//   method: "POST",
+			//   body: JSON.stringify({ plan }),
+			// });
+			// if (response.success && response.data?.checkoutUrl) {
+			//   window.location.href = response.data.checkoutUrl;
+			// }
+			
+			toast.info("Checkout functionality requires payment provider integration");
 			setIsSubmitting(0);
 		} catch (error) {
 			console.error("Failed to open checkout", error);
+			toast.error("Failed to initiate checkout");
 			setIsSubmitting(0);
 		}
 	};

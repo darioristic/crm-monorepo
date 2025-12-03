@@ -63,10 +63,14 @@ class Logger {
 
       console.error(this.formatMessage('error', message, errorContext));
 
-      // TODO: Send to error tracking service (Sentry, etc.)
-      // if (typeof window !== 'undefined' && window.Sentry) {
-      //   window.Sentry.captureException(error, { extra: context });
-      // }
+      // Send to error tracking service (Sentry)
+      if (typeof window !== 'undefined') {
+        import('./sentry').then(({ captureException }) => {
+          captureException(error instanceof Error ? error : new Error(String(error)), context);
+        }).catch(() => {
+          // Silently fail if Sentry import fails
+        });
+      }
     }
   }
 

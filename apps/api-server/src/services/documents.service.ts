@@ -21,6 +21,7 @@ import {
 	type DocumentProcessingStatus,
 } from "../db/queries/documents";
 import * as fileStorage from "./file-storage.service";
+import { serviceLogger } from "../lib/logger";
 
 // ============================================
 // Document Service
@@ -43,7 +44,7 @@ export const documentsService = {
 			);
 			return successResponse(result);
 		} catch (error) {
-			console.error("Error fetching documents:", error);
+			serviceLogger.error(error, "Error fetching documents");
 			return errorResponse("INTERNAL_ERROR", "Failed to fetch documents");
 		}
 	},
@@ -62,7 +63,7 @@ export const documentsService = {
 			}
 			return successResponse(document);
 		} catch (error) {
-			console.error("Error fetching document:", error);
+			serviceLogger.error(error, "Error fetching document");
 			return errorResponse("INTERNAL_ERROR", "Failed to fetch document");
 		}
 	},
@@ -125,7 +126,7 @@ export const documentsService = {
 
 			return successResponse(uploadedDocuments);
 		} catch (error) {
-			console.error("Error uploading files:", error);
+			serviceLogger.error(error, "Error uploading files");
 			return errorResponse("INTERNAL_ERROR", "Failed to upload files");
 		}
 	},
@@ -148,7 +149,7 @@ export const documentsService = {
 			);
 			return successResponse(undefined);
 		} catch (error) {
-			console.error("Error processing documents:", error);
+			serviceLogger.error(error, "Error processing documents");
 			return errorResponse("INTERNAL_ERROR", "Failed to process documents");
 		}
 	},
@@ -172,7 +173,7 @@ export const documentsService = {
 			}
 			return successResponse(document);
 		} catch (error) {
-			console.error("Error updating document:", error);
+			serviceLogger.error(error, "Error updating document");
 			return errorResponse("INTERNAL_ERROR", "Failed to update document");
 		}
 	},
@@ -197,7 +198,7 @@ export const documentsService = {
 
 			return successResponse({ id: result.id });
 		} catch (error) {
-			console.error("Error deleting document:", error);
+			serviceLogger.error(error, "Error deleting document");
 			return errorResponse("INTERNAL_ERROR", "Failed to delete document");
 		}
 	},
@@ -227,7 +228,7 @@ export const documentsService = {
 				mimetype,
 			});
 		} catch (error) {
-			console.error("Error getting download info:", error);
+			serviceLogger.error(error, "Error getting download info");
 			return errorResponse("INTERNAL_ERROR", "Failed to get file info");
 		}
 	},
@@ -244,7 +245,7 @@ export const documentsService = {
 			const signedUrl = fileStorage.getSignedUrl(pathTokens, expireIn);
 			return successResponse({ signedUrl });
 		} catch (error) {
-			console.error("Error getting signed URL:", error);
+			serviceLogger.error(error, "Error getting signed URL");
 			return errorResponse("INTERNAL_ERROR", "Failed to get signed URL");
 		}
 	},
@@ -259,7 +260,7 @@ export const documentsService = {
 			const count = await documentQueries.count(companyId);
 			return successResponse({ count });
 		} catch (error) {
-			console.error("Error getting document count:", error);
+			serviceLogger.error(error, "Error getting document count");
 			return errorResponse("INTERNAL_ERROR", "Failed to get document count");
 		}
 	},
@@ -275,7 +276,7 @@ export const documentsService = {
 			const documents = await documentQueries.findRecent(companyId, limit);
 			return successResponse(documents);
 		} catch (error) {
-			console.error("Error fetching recent documents:", error);
+			serviceLogger.error(error, "Error fetching recent documents");
 			return errorResponse(
 				"INTERNAL_ERROR",
 				"Failed to fetch recent documents",
@@ -299,7 +300,7 @@ export const documentsService = {
 			);
 			return successResponse(documents);
 		} catch (error) {
-			console.error("Error fetching related documents:", error);
+			serviceLogger.error(error, "Error fetching related documents");
 			return errorResponse(
 				"INTERNAL_ERROR",
 				"Failed to fetch related documents",
@@ -321,7 +322,7 @@ export const documentTagsService = {
 			const tags = await documentTagQueries.findAll(companyId);
 			return successResponse(tags);
 		} catch (error) {
-			console.error("Error fetching tags:", error);
+			serviceLogger.error(error, "Error fetching tags");
 			return errorResponse("INTERNAL_ERROR", "Failed to fetch tags");
 		}
 	},
@@ -354,7 +355,7 @@ export const documentTagsService = {
 
 			return successResponse(tag);
 		} catch (error) {
-			console.error("Error creating tag:", error);
+			serviceLogger.error(error, "Error creating tag");
 			return errorResponse("INTERNAL_ERROR", "Failed to create tag");
 		}
 	},
@@ -373,7 +374,7 @@ export const documentTagsService = {
 			}
 			return successResponse({ id: result.id });
 		} catch (error) {
-			console.error("Error deleting tag:", error);
+			serviceLogger.error(error, "Error deleting tag");
 			return errorResponse("INTERNAL_ERROR", "Failed to delete tag");
 		}
 	},
@@ -399,7 +400,7 @@ export const documentTagAssignmentsService = {
 			});
 			return successResponse(assignment);
 		} catch (error) {
-			console.error("Error assigning tag:", error);
+			serviceLogger.error(error, "Error assigning tag");
 			return errorResponse("INTERNAL_ERROR", "Failed to assign tag");
 		}
 	},
@@ -424,7 +425,7 @@ export const documentTagAssignmentsService = {
 
 			return successResponse({ success: true });
 		} catch (error) {
-			console.error("Error removing tag:", error);
+			serviceLogger.error(error, "Error removing tag");
 			return errorResponse("INTERNAL_ERROR", "Failed to remove tag");
 		}
 	},

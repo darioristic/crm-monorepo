@@ -43,7 +43,7 @@ class CRMService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching leads:", error);
+      serviceLogger.error(error, "Error fetching leads:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch leads");
     }
   }
@@ -64,7 +64,7 @@ class CRMService {
       await cache.set(cacheKey, lead, CACHE_TTL);
       return successResponse(lead);
     } catch (error) {
-      console.error("Error fetching lead:", error);
+      serviceLogger.error(error, "Error fetching lead:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch lead");
     }
   }
@@ -90,7 +90,7 @@ class CRMService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating lead:", error);
+      serviceLogger.error(error, "Error creating lead:");
       return errorResponse("DATABASE_ERROR", "Failed to create lead");
     }
   }
@@ -117,7 +117,7 @@ class CRMService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating lead:", error);
+      serviceLogger.error(error, "Error updating lead:");
       return errorResponse("DATABASE_ERROR", "Failed to update lead");
     }
   }
@@ -137,7 +137,7 @@ class CRMService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting lead:", error);
+      serviceLogger.error(error, "Error deleting lead:");
       return errorResponse("DATABASE_ERROR", "Failed to delete lead");
     }
   }
@@ -162,7 +162,7 @@ class CRMService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching contacts:", error);
+      serviceLogger.error(error, "Error fetching contacts:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch contacts");
     }
   }
@@ -183,7 +183,7 @@ class CRMService {
       await cache.set(cacheKey, contact, CACHE_TTL);
       return successResponse(contact);
     } catch (error) {
-      console.error("Error fetching contact:", error);
+      serviceLogger.error(error, "Error fetching contact:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch contact");
     }
   }
@@ -206,7 +206,7 @@ class CRMService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating contact:", error);
+      serviceLogger.error(error, "Error creating contact:");
       return errorResponse("DATABASE_ERROR", "Failed to create contact");
     }
   }

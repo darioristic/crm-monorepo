@@ -46,7 +46,7 @@ class ProjectsService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching projects:", error);
+      serviceLogger.error(error, "Error fetching projects:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch projects");
     }
   }
@@ -67,7 +67,7 @@ class ProjectsService {
       await cache.set(cacheKey, project, CACHE_TTL);
       return successResponse(project);
     } catch (error) {
-      console.error("Error fetching project:", error);
+      serviceLogger.error(error, "Error fetching project:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch project");
     }
   }
@@ -92,7 +92,7 @@ class ProjectsService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating project:", error);
+      serviceLogger.error(error, "Error creating project:");
       return errorResponse("DATABASE_ERROR", "Failed to create project");
     }
   }
@@ -115,7 +115,7 @@ class ProjectsService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating project:", error);
+      serviceLogger.error(error, "Error updating project:");
       return errorResponse("DATABASE_ERROR", "Failed to update project");
     }
   }
@@ -135,7 +135,7 @@ class ProjectsService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting project:", error);
+      serviceLogger.error(error, "Error deleting project:");
       return errorResponse("DATABASE_ERROR", "Failed to delete project");
     }
   }
@@ -160,7 +160,7 @@ class ProjectsService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching tasks:", error);
+      serviceLogger.error(error, "Error fetching tasks:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch tasks");
     }
   }
@@ -181,7 +181,7 @@ class ProjectsService {
       await cache.set(cacheKey, task, CACHE_TTL);
       return successResponse(task);
     } catch (error) {
-      console.error("Error fetching task:", error);
+      serviceLogger.error(error, "Error fetching task:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch task");
     }
   }
@@ -216,7 +216,7 @@ class ProjectsService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating task:", error);
+      serviceLogger.error(error, "Error creating task:");
       return errorResponse("DATABASE_ERROR", "Failed to create task");
     }
   }
@@ -239,7 +239,7 @@ class ProjectsService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating task:", error);
+      serviceLogger.error(error, "Error updating task:");
       return errorResponse("DATABASE_ERROR", "Failed to update task");
     }
   }
@@ -260,7 +260,7 @@ class ProjectsService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting task:", error);
+      serviceLogger.error(error, "Error deleting task:");
       return errorResponse("DATABASE_ERROR", "Failed to delete task");
     }
   }
@@ -282,7 +282,7 @@ class ProjectsService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching tasks:", error);
+      serviceLogger.error(error, "Error fetching tasks:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch tasks");
     }
   }
@@ -326,7 +326,7 @@ class ProjectsService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating task:", error);
+      serviceLogger.error(error, "Error creating task:");
       return errorResponse("DATABASE_ERROR", "Failed to create task");
     }
   }
@@ -351,7 +351,7 @@ class ProjectsService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      console.error("Error fetching milestones:", error);
+      serviceLogger.error(error, "Error fetching milestones:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch milestones");
     }
   }
@@ -372,7 +372,7 @@ class ProjectsService {
       await cache.set(cacheKey, milestone, CACHE_TTL);
       return successResponse(milestone);
     } catch (error) {
-      console.error("Error fetching milestone:", error);
+      serviceLogger.error(error, "Error fetching milestone:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch milestone");
     }
   }
@@ -406,7 +406,7 @@ class ProjectsService {
 
       return successResponse(created);
     } catch (error) {
-      console.error("Error creating milestone:", error);
+      serviceLogger.error(error, "Error creating milestone:");
       return errorResponse("DATABASE_ERROR", "Failed to create milestone");
     }
   }
@@ -429,7 +429,7 @@ class ProjectsService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error updating milestone:", error);
+      serviceLogger.error(error, "Error updating milestone:");
       return errorResponse("DATABASE_ERROR", "Failed to update milestone");
     }
   }
@@ -452,7 +452,7 @@ class ProjectsService {
 
       return successResponse({ deleted: true });
     } catch (error) {
-      console.error("Error deleting milestone:", error);
+      serviceLogger.error(error, "Error deleting milestone:");
       return errorResponse("DATABASE_ERROR", "Failed to delete milestone");
     }
   }
@@ -470,7 +470,7 @@ class ProjectsService {
 
       return successResponse(milestones);
     } catch (error) {
-      console.error("Error fetching project milestones:", error);
+      serviceLogger.error(error, "Error fetching project milestones:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch project milestones");
     }
   }
@@ -491,7 +491,7 @@ class ProjectsService {
 
       return successResponse(updated);
     } catch (error) {
-      console.error("Error completing milestone:", error);
+      serviceLogger.error(error, "Error completing milestone:");
       return errorResponse("DATABASE_ERROR", "Failed to complete milestone");
     }
   }

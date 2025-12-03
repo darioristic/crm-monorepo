@@ -37,7 +37,10 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2">
+        <button 
+          className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+          suppressHydrationWarning
+        >
           <Avatar className="cursor-pointer">
             <AvatarImage
               src={user.avatarUrl || `/images/avatars/01.png`}

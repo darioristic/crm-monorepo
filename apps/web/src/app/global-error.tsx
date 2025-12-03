@@ -10,8 +10,13 @@ export default function GlobalError({
 	reset: () => void;
 }) {
 	useEffect(() => {
-		// Log error to console in development, could integrate with error tracking service
+		// Log error to console in development
 		console.error("Global error:", error);
+		
+		// Capture error in Sentry
+		import("@/lib/sentry").then(({ captureException }) => {
+			captureException(error, { context: "global_error_boundary" });
+		});
 	}, [error]);
 
 	return (

@@ -13,6 +13,9 @@ import * as migration013 from "./013_add_users_on_company";
 import * as migration014 from "./014_add_company_source";
 import * as migration015 from "./015_update_inline_companies_source";
 import * as migration016 from "./016_rename_company_source_values";
+import * as migration017 from "./017_add_performance_indexes";
+import * as migration018 from "./018_create_orders_table";
+import * as migration019 from "./019_add_delivery_note_fields";
 
 interface Migration {
 	name: string;
@@ -36,6 +39,9 @@ const migrations: Migration[] = [
 	migration014,
 	migration015,
 	migration016,
+	migration017,
+	migration018,
+	migration019,
 ];
 
 // Migrations tracking table

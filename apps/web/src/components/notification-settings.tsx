@@ -42,13 +42,25 @@ type NotificationType = {
 };
 
 export function NotificationSettings() {
-	// TODO: Implement actual API call for notification settings
 	const { data: notificationTypes, isLoading } = useQuery<NotificationType[]>({
 		queryKey: ["notificationSettings", "getAll"],
 		queryFn: async () => {
-			// Placeholder - implement actual API call
-			// Return sample data for now
-			return [
+			// Fetch notification settings from API
+			const { request } = await import("@/lib/api");
+			const settingsResponse = await request<Array<{
+				id: string;
+				notificationType: string;
+				channel: "in_app" | "email" | "push";
+				enabled: boolean;
+			}>>("/api/v1/notification-settings");
+
+			const settings = settingsResponse.success && settingsResponse.data ? settingsResponse.data : [];
+
+			// Map to NotificationType format with default values
+			const notificationTypeMap = new Map<string, NotificationType>();
+			
+			// Default notification types (used as fallback when no settings exist)
+			const defaultTypes: NotificationType[] = [
 				{
 					type: "invoice.created",
 					category: "invoices",
@@ -90,6 +102,47 @@ export function NotificationSettings() {
 					],
 				},
 			];
+
+			// Process settings from API
+			for (const setting of settings) {
+				if (!notificationTypeMap.has(setting.notificationType)) {
+					// Find default type or create new one
+					const defaultType = defaultTypes.find(t => t.type === setting.notificationType);
+					notificationTypeMap.set(setting.notificationType, {
+						type: setting.notificationType,
+						category: defaultType?.category || "other",
+						order: defaultType?.order || 999,
+						settings: defaultType?.settings.map(s => ({
+							channel: s.channel,
+							enabled: s.enabled,
+						})) || [
+							{ channel: "in_app", enabled: false },
+							{ channel: "email", enabled: false },
+							{ channel: "push", enabled: false },
+						],
+					});
+				}
+				// Update the specific channel setting
+				const notificationType = notificationTypeMap.get(setting.notificationType)!;
+				const settingIndex = notificationType.settings.findIndex(
+					s => s.channel === setting.channel
+				);
+				if (settingIndex >= 0) {
+					notificationType.settings[settingIndex].enabled = setting.enabled;
+				}
+			}
+
+			// Convert map to array and add any missing default types
+			const result = Array.from(notificationTypeMap.values());
+			
+			// Add any default types that don't have settings yet
+			for (const defaultType of defaultTypes) {
+				if (!notificationTypeMap.has(defaultType.type)) {
+					result.push(defaultType);
+				}
+			}
+
+			return result;
 		},
 	});
 

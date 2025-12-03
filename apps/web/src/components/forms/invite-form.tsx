@@ -35,17 +35,23 @@ type InviteFormProps = {
 export function InviteForm({ onSuccess, skippable = true }: InviteFormProps) {
 	const queryClient = useQueryClient();
 
-	const inviteMutation = useMutation({
+		const inviteMutation = useMutation({
 		mutationFn: async (invites: Array<{ email: string; role: "owner" | "member" | "admin" }>) => {
-			// Get current company
-			const companyResult = await getCurrentCompany();
-			if (!companyResult.success || !companyResult.data) {
-				throw new Error("No company selected");
+			const { invitesApi } = await import("@/lib/api");
+			let sent = 0;
+			let skipped = 0;
+
+			for (const invite of invites) {
+				try {
+					await invitesApi.create(invite);
+					sent++;
+				} catch (error) {
+					console.error("Failed to send invite:", error);
+					skipped++;
+				}
 			}
 
-			// TODO: Implement actual invite API call
-			// For now, just simulate success
-			return { sent: invites.length, skipped: 0 };
+			return { sent, skipped };
 		},
 		onSuccess: (data) => {
 			queryClient.invalidateQueries({ queryKey: ["company", "invites"] });

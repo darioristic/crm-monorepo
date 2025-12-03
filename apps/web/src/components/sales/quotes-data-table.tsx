@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, usePathname } from "next/navigation";
 import {
   flexRender,
   getCoreRowModel,
@@ -29,6 +30,8 @@ import { getQuotesColumns, type QuoteWithCompany } from "@/components/sales/quot
 import { QuotesToolbar } from "@/components/sales/quotes/QuotesToolbar";
 
 export function QuotesDataTable() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [searchValue, setSearchValue] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -36,6 +39,11 @@ export function QuotesDataTable() {
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
+
+  // Open quote in sheet
+  const handleOpenSheet = React.useCallback((quoteId: string) => {
+    router.push(`${pathname}?type=edit&quoteId=${quoteId}`);
+  }, [router, pathname]);
 
   // Fetch companies for name lookup - use paginated API to get all companies
   const {
@@ -151,12 +159,15 @@ export function QuotesDataTable() {
   const columns = React.useMemo(
     () =>
       getQuotesColumns({
+        onEdit: (quote) => {
+          handleOpenSheet(quote.id);
+        },
         onDelete: (quote) => {
           setSelectedQuote(quote);
           setDeleteDialogOpen(true);
         },
       }),
-    []
+    [handleOpenSheet]
   );
 
   const table = useReactTable({

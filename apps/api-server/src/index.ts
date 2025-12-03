@@ -3,6 +3,7 @@ import { handleRequest } from "./routes";
 import { sql, closeConnection } from "./db/client";
 import { redis } from "./cache/redis";
 import { logger, createRequestLogger, logRequest } from "./lib/logger";
+import { initSentry } from "./lib/sentry";
 import {
 	startWorkers,
 	stopWorkers,
@@ -15,6 +16,10 @@ import {
 	handlePreflight,
 	applyCorsHeaders,
 } from "./middleware/cors";
+import { applySecurityHeaders } from "./middleware/security-headers";
+
+// Initialize Sentry before anything else
+initSentry();
 
 const { PORT, HOST, ENABLE_WORKERS, NODE_ENV } = env;
 
@@ -79,11 +84,22 @@ const server = Bun.serve({
 			const duration = performance.now() - startTime;
 			logRequest(reqLogger, response.status, duration);
 
-			// Apply CORS headers and return
-			return applyCorsHeaders(response, corsHeaders);
+			// Apply CORS and security headers
+			const corsResponse = applyCorsHeaders(response, corsHeaders);
+			return applySecurityHeaders(corsResponse);
 		} catch (error) {
 			const duration = performance.now() - startTime;
 			reqLogger.error({ error, durationMs: duration }, "Server error");
+
+			// Capture error in Sentry
+			if (error instanceof Error) {
+				const { captureException } = await import("./lib/sentry");
+				captureException(error, {
+					url: request.url,
+					method: request.method,
+					durationMs: duration,
+				});
+			}
 
 			const errorResponse = new Response(
 				JSON.stringify({
@@ -99,12 +115,20 @@ const server = Bun.serve({
 				},
 			);
 
-			return applyCorsHeaders(errorResponse, corsHeaders);
+			const corsErrorResponse = applyCorsHeaders(errorResponse, corsHeaders);
+			return applySecurityHeaders(corsErrorResponse);
 		}
 	},
 
-	error(error: Error): Response {
+	async error(error: Error): Promise<Response> {
 		logger.error({ error }, "Unhandled server error");
+		// Capture error in Sentry
+		try {
+			const { captureException } = await import("./lib/sentry");
+			captureException(error, { context: "unhandled_server_error" });
+		} catch (sentryError) {
+			// Ignore Sentry errors to prevent recursive errors
+		}
 		return new Response(
 			JSON.stringify({
 				success: false,
