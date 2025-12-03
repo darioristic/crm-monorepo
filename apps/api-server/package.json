@@ -27,6 +27,8 @@
     "db:unseed": "bun run src/db/seed.ts unseed",
     "db:seed-companies": "bun run src/db/seed-companies.ts",
     "db:seed-customers": "bun run src/db/seed-customer-data.ts",
+    "db:add-admin-to-all-companies": "bun run src/db/add-admin-to-all-companies.ts",
+    "db:reset": "bun run src/db/reset-data.ts",
     "db:setup": "bun run db:push && bun run db:seed",
     "migrate": "bun run src/db/migrations/index.ts",
     "migrate:up": "bun run src/db/migrations/index.ts up",

@@ -56,10 +56,14 @@ router.get("/api/v1/companies", async (request, url) => {
 		// If no query params, return user's companies
 		const hasQueryParams = url.searchParams.toString().length > 0;
 		
-		if (!hasQueryParams) {
-			const companies = await getCompaniesByUserId(auth.userId);
-			return successResponse(companies);
-		}
+    if (!hasQueryParams) {
+      const companies = await getCompaniesByUserId(auth.userId);
+      const detailed = await Promise.all(
+        companies.map((c) => getCompanyById(c.id))
+      );
+      const fullCompanies = detailed.filter(Boolean) as Array<import("@crm/types").Company>;
+      return successResponse(fullCompanies);
+    }
 
 		// Otherwise use the existing service for paginated/filtered list
 		const pagination = parsePagination(url);
@@ -159,7 +163,7 @@ router.put("/api/v1/companies/:id", async (request, _url, params) => {
 				name: body.name,
 				industry: body.industry,
 				address: body.address,
-				email: body.email,
+        email: body.email ?? undefined,
 				logoUrl: logoUrl,
 			});
 
@@ -375,4 +379,3 @@ router.get("/api/v1/industries", async (request) => {
 });
 
 export const companyRoutes = router.getRoutes();
-

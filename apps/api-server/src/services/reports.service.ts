@@ -124,7 +124,11 @@ class ReportsService {
         firstName: row.first_name as string,
         lastName: row.last_name as string,
         email: row.email as string,
-        role: row.role as "admin" | "user",
+        role: (row.role === "admin"
+          ? "tenant_admin"
+          : row.role === "superadmin"
+          ? "superadmin"
+          : "crm_user") as UserReport["role"],
         companyId: row.company_id as string | undefined,
         status: row.status as "active" | "inactive" | "pending" | undefined,
         avatarUrl: row.avatar_url as string | undefined,
@@ -493,28 +497,49 @@ class ReportsService {
       const { page = 1, pageSize = 20 } = pagination;
       const offset = (page - 1) * pageSize;
 
-      let whereClause = "WHERE 1=1";
+      // Build WHERE clause with parameterized queries (SQL injection safe)
+      const whereConditions: string[] = ['1=1'];
+      const params: any[] = [];
+      let paramIndex = 1;
+
       if (filters.status) {
-        whereClause += ` AND d.status = '${filters.status}'`;
+        whereConditions.push(`d.status = $${paramIndex}`);
+        params.push(filters.status);
+        paramIndex++;
       }
       if (filters.companyId) {
-        whereClause += ` AND d.company_id = '${filters.companyId}'`;
+        whereConditions.push(`d.company_id = $${paramIndex}`);
+        params.push(filters.companyId);
+        paramIndex++;
       }
       if (dateRange?.startDate) {
-        whereClause += ` AND d.created_at >= '${dateRange.startDate}'`;
+        whereConditions.push(`d.created_at >= $${paramIndex}`);
+        params.push(dateRange.startDate);
+        paramIndex++;
       }
       if (dateRange?.endDate) {
-        whereClause += ` AND d.created_at <= '${dateRange.endDate}'`;
+        whereConditions.push(`d.created_at <= $${paramIndex}`);
+        params.push(dateRange.endDate);
+        paramIndex++;
       }
 
-      const countResult = await db.unsafe(`SELECT COUNT(*) FROM delivery_notes d ${whereClause}`);
+      const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+
+      const countResult = await db.unsafe(`SELECT COUNT(*) FROM delivery_notes d ${whereClause}`, params);
       const total = parseInt(countResult[0].count, 10);
 
-      const sortBy = pagination.sortBy || "d.created_at";
-      const sortOrder = pagination.sortOrder || "desc";
+      // Whitelist allowed sort columns to prevent SQL injection
+      const ALLOWED_SORT_COLUMNS = ['d.created_at', 'd.updated_at', 'd.delivery_number', 'd.status', 'd.ship_date', 'd.delivery_date'];
+      const sortBy = pagination.sortBy && ALLOWED_SORT_COLUMNS.includes(pagination.sortBy)
+        ? pagination.sortBy
+        : 'd.created_at';
+      const sortOrder = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+      // Add LIMIT and OFFSET to params
+      params.push(pageSize, offset);
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           d.*,
           c.name as company_name,
           i.invoice_number
@@ -523,8 +548,8 @@ class ReportsService {
         LEFT JOIN invoices i ON d.invoice_id = i.id
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ${pageSize} OFFSET ${offset}
-      `);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, params);
 
       const notes: DeliveryNoteReport[] = await Promise.all(
         data.map(async (row: Record<string, unknown>) => {
@@ -547,10 +572,17 @@ class ReportsService {
               description: item.description as string | undefined,
               quantity: parseFloat(item.quantity as string),
               unit: item.unit as string,
+              unitPrice: parseFloat((item.unit_price as string) || "0"),
+              discount: parseFloat((item.discount as string) || "0"),
+              total: item.total ? parseFloat(item.total as string) : undefined,
             })),
             shippingAddress: row.shipping_address as string,
             trackingNumber: row.tracking_number as string | undefined,
             carrier: row.carrier as string | undefined,
+            taxRate: parseFloat(row.tax_rate as string),
+            subtotal: parseFloat(row.subtotal as string),
+            tax: parseFloat(row.tax as string),
+            total: parseFloat(row.total as string),
             notes: row.notes as string | undefined,
             createdBy: row.created_by as string,
             companyName: row.company_name as string | undefined,
@@ -585,25 +617,44 @@ class ReportsService {
       const { page = 1, pageSize = 20 } = pagination;
       const offset = (page - 1) * pageSize;
 
-      let whereClause = "WHERE 1=1";
+      // Build WHERE clause with parameterized queries (SQL injection safe)
+      const whereConditions: string[] = ['1=1'];
+      const params: any[] = [];
+      let paramIndex = 1;
+
       if (filters.status) {
-        whereClause += ` AND p.status = '${filters.status}'`;
+        whereConditions.push(`p.status = $${paramIndex}`);
+        params.push(filters.status);
+        paramIndex++;
       }
       if (filters.userId) {
-        whereClause += ` AND (p.manager_id = '${filters.userId}' OR '${filters.userId}' = ANY(p.team_members))`;
+        whereConditions.push(`(p.manager_id = $${paramIndex} OR $${paramIndex} = ANY(p.team_members))`);
+        params.push(filters.userId);
+        paramIndex++;
       }
       if (filters.search) {
-        whereClause += ` AND p.name ILIKE '%${filters.search}%'`;
+        whereConditions.push(`p.name ILIKE $${paramIndex}`);
+        params.push(`%${filters.search}%`);
+        paramIndex++;
       }
 
-      const countResult = await db.unsafe(`SELECT COUNT(*) FROM projects p ${whereClause}`);
+      const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+
+      const countResult = await db.unsafe(`SELECT COUNT(*) FROM projects p ${whereClause}`, params);
       const total = parseInt(countResult[0].count, 10);
 
-      const sortBy = pagination.sortBy || "p.created_at";
-      const sortOrder = pagination.sortOrder || "desc";
+      // Whitelist allowed sort columns to prevent SQL injection
+      const ALLOWED_SORT_COLUMNS = ['p.created_at', 'p.updated_at', 'p.name', 'p.status', 'p.start_date', 'p.end_date', 'p.budget'];
+      const sortBy = pagination.sortBy && ALLOWED_SORT_COLUMNS.includes(pagination.sortBy)
+        ? pagination.sortBy
+        : 'p.created_at';
+      const sortOrder = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+      // Add LIMIT and OFFSET to params
+      params.push(pageSize, offset);
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           p.*,
           CONCAT(u.first_name, ' ', u.last_name) as manager_name,
           (SELECT COUNT(*) FROM tasks t WHERE t.project_id = p.id) as task_count,
@@ -614,8 +665,8 @@ class ReportsService {
         LEFT JOIN users u ON p.manager_id = u.id
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ${pageSize} OFFSET ${offset}
-      `);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, params);
 
       const projects: ProjectReport[] = data.map((row: Record<string, unknown>) => {
         const taskCount = parseInt(row.task_count as string, 10);
@@ -669,28 +720,49 @@ class ReportsService {
       const { page = 1, pageSize = 20 } = pagination;
       const offset = (page - 1) * pageSize;
 
-      let whereClause = "WHERE 1=1";
+      // Build WHERE clause with parameterized queries (SQL injection safe)
+      const whereConditions: string[] = ['1=1'];
+      const params: any[] = [];
+      let paramIndex = 1;
+
       if (filters.status) {
-        whereClause += ` AND t.status = '${filters.status}'`;
+        whereConditions.push(`t.status = $${paramIndex}`);
+        params.push(filters.status);
+        paramIndex++;
       }
       if (filters.projectId) {
-        whereClause += ` AND t.project_id = '${filters.projectId}'`;
+        whereConditions.push(`t.project_id = $${paramIndex}`);
+        params.push(filters.projectId);
+        paramIndex++;
       }
       if (filters.assignedTo) {
-        whereClause += ` AND t.assigned_to = '${filters.assignedTo}'`;
+        whereConditions.push(`t.assigned_to = $${paramIndex}`);
+        params.push(filters.assignedTo);
+        paramIndex++;
       }
       if (filters.search) {
-        whereClause += ` AND t.title ILIKE '%${filters.search}%'`;
+        whereConditions.push(`t.title ILIKE $${paramIndex}`);
+        params.push(`%${filters.search}%`);
+        paramIndex++;
       }
 
-      const countResult = await db.unsafe(`SELECT COUNT(*) FROM tasks t ${whereClause}`);
+      const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+
+      const countResult = await db.unsafe(`SELECT COUNT(*) FROM tasks t ${whereClause}`, params);
       const total = parseInt(countResult[0].count, 10);
 
-      const sortBy = pagination.sortBy || "t.created_at";
-      const sortOrder = pagination.sortOrder || "desc";
+      // Whitelist allowed sort columns to prevent SQL injection
+      const ALLOWED_SORT_COLUMNS = ['t.created_at', 't.updated_at', 't.title', 't.status', 't.priority', 't.due_date'];
+      const sortBy = pagination.sortBy && ALLOWED_SORT_COLUMNS.includes(pagination.sortBy)
+        ? pagination.sortBy
+        : 't.created_at';
+      const sortOrder = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+      // Add LIMIT and OFFSET to params
+      params.push(pageSize, offset);
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           t.*,
           p.name as project_name,
           m.name as milestone_name,
@@ -701,8 +773,8 @@ class ReportsService {
         LEFT JOIN users u ON t.assigned_to = u.id
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ${pageSize} OFFSET ${offset}
-      `);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, params);
 
       const tasks: TaskReport[] = data.map((row: Record<string, unknown>) => ({
         id: row.id as string,
@@ -747,25 +819,44 @@ class ReportsService {
       const { page = 1, pageSize = 20 } = pagination;
       const offset = (page - 1) * pageSize;
 
-      let whereClause = "WHERE 1=1";
+      // Build WHERE clause with parameterized queries (SQL injection safe)
+      const whereConditions: string[] = ['1=1'];
+      const params: any[] = [];
+      let paramIndex = 1;
+
       if (filters.status) {
-        whereClause += ` AND m.status = '${filters.status}'`;
+        whereConditions.push(`m.status = $${paramIndex}`);
+        params.push(filters.status);
+        paramIndex++;
       }
       if (filters.projectId) {
-        whereClause += ` AND m.project_id = '${filters.projectId}'`;
+        whereConditions.push(`m.project_id = $${paramIndex}`);
+        params.push(filters.projectId);
+        paramIndex++;
       }
       if (filters.search) {
-        whereClause += ` AND m.name ILIKE '%${filters.search}%'`;
+        whereConditions.push(`m.name ILIKE $${paramIndex}`);
+        params.push(`%${filters.search}%`);
+        paramIndex++;
       }
 
-      const countResult = await db.unsafe(`SELECT COUNT(*) FROM milestones m ${whereClause}`);
+      const whereClause = `WHERE ${whereConditions.join(' AND ')}`;
+
+      const countResult = await db.unsafe(`SELECT COUNT(*) FROM milestones m ${whereClause}`, params);
       const total = parseInt(countResult[0].count, 10);
 
-      const sortBy = pagination.sortBy || "m.due_date";
-      const sortOrder = pagination.sortOrder || "asc";
+      // Whitelist allowed sort columns to prevent SQL injection
+      const ALLOWED_SORT_COLUMNS = ['m.created_at', 'm.updated_at', 'm.name', 'm.status', 'm.due_date'];
+      const sortBy = pagination.sortBy && ALLOWED_SORT_COLUMNS.includes(pagination.sortBy)
+        ? pagination.sortBy
+        : 'm.due_date';
+      const sortOrder = pagination.sortOrder === 'asc' ? 'ASC' : 'DESC';
+
+      // Add LIMIT and OFFSET to params
+      params.push(pageSize, offset);
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           m.*,
           p.name as project_name,
           (SELECT COUNT(*) FROM tasks t WHERE t.milestone_id = m.id) as task_count,
@@ -774,8 +865,8 @@ class ReportsService {
         LEFT JOIN projects p ON m.project_id = p.id
         ${whereClause}
         ORDER BY ${sortBy} ${sortOrder}
-        LIMIT ${pageSize} OFFSET ${offset}
-      `);
+        LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
+      `, params);
 
       const milestones: MilestoneReport[] = data.map((row: Record<string, unknown>) => {
         const taskCount = parseInt(row.task_count as string, 10);
@@ -924,17 +1015,17 @@ class ReportsService {
       }
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           DATE(issue_date) as date,
           COALESCE(SUM(paid_amount), 0) as revenue,
           COUNT(*) as invoice_count
         FROM invoices
-        WHERE issue_date >= '${dateRange.from}' 
-          AND issue_date <= '${dateRange.to}'
+        WHERE issue_date >= $1
+          AND issue_date <= $2
           AND status IN ('paid', 'partial')
         GROUP BY DATE(issue_date)
         ORDER BY date ASC
-      `);
+      `, [dateRange.from, dateRange.to]);
 
       const points: RevenuePoint[] = data.map((row: Record<string, unknown>) => ({
         date: (row.date as Date).toISOString().split('T')[0],
@@ -961,22 +1052,25 @@ class ReportsService {
         return successResponse(cached);
       }
 
+      // Sanitize limit to prevent SQL injection
+      const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           c.id as company_id,
           c.name as company_name,
           c.industry,
           COALESCE(SUM(i.paid_amount), 0) as revenue,
           COUNT(i.id) as invoice_count
         FROM companies c
-        LEFT JOIN invoices i ON c.id = i.company_id 
-          AND i.issue_date >= '${dateRange.from}' 
-          AND i.issue_date <= '${dateRange.to}'
+        LEFT JOIN invoices i ON c.id = i.company_id
+          AND i.issue_date >= $1
+          AND i.issue_date <= $2
         GROUP BY c.id, c.name, c.industry
         HAVING COALESCE(SUM(i.paid_amount), 0) > 0
         ORDER BY revenue DESC
-        LIMIT ${limit}
-      `);
+        LIMIT $3
+      `, [dateRange.from, dateRange.to, safeLimit]);
 
       const companies: CompanyRevenue[] = data.map((row: Record<string, unknown>) => ({
         companyId: row.company_id as string,
@@ -1005,8 +1099,11 @@ class ReportsService {
         return successResponse(cached);
       }
 
+      // Sanitize limit to prevent SQL injection
+      const safeLimit = Math.min(100, Math.max(1, Math.floor(limit)));
+
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           c.id as company_id,
           c.name as company_name,
           c.industry,
@@ -1014,23 +1111,23 @@ class ReportsService {
           COALESCE(SUM(i.paid_amount), 0) as paid_revenue,
           COUNT(DISTINCT i.id) as invoice_count,
           COUNT(DISTINCT q.id) as quote_count,
-          CASE 
-            WHEN COUNT(DISTINCT q.id) > 0 
+          CASE
+            WHEN COUNT(DISTINCT q.id) > 0
             THEN ROUND((COUNT(DISTINCT i.id)::decimal / COUNT(DISTINCT q.id)::decimal) * 100, 2)
-            ELSE 0 
+            ELSE 0
           END as conversion_rate
         FROM companies c
-        LEFT JOIN invoices i ON c.id = i.company_id 
-          AND i.issue_date >= '${dateRange.from}' 
-          AND i.issue_date <= '${dateRange.to}'
-        LEFT JOIN quotes q ON c.id = q.company_id 
-          AND q.issue_date >= '${dateRange.from}' 
-          AND q.issue_date <= '${dateRange.to}'
+        LEFT JOIN invoices i ON c.id = i.company_id
+          AND i.issue_date >= $1
+          AND i.issue_date <= $2
+        LEFT JOIN quotes q ON c.id = q.company_id
+          AND q.issue_date >= $1
+          AND q.issue_date <= $2
         GROUP BY c.id, c.name, c.industry
         HAVING COALESCE(SUM(i.total), 0) > 0 OR COUNT(DISTINCT q.id) > 0
         ORDER BY total_revenue DESC
-        LIMIT ${limit}
-      `);
+        LIMIT $3
+      `, [dateRange.from, dateRange.to, safeLimit]);
 
       const customers: TopCustomer[] = data.map((row: Record<string, unknown>) => ({
         companyId: row.company_id as string,
@@ -1062,29 +1159,29 @@ class ReportsService {
       }
 
       const quoteStats = await db.unsafe(`
-        SELECT 
+        SELECT
           COUNT(*) as total,
           COUNT(CASE WHEN status IN ('sent', 'accepted', 'rejected', 'expired') THEN 1 END) as sent,
           COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted
         FROM quotes
-        WHERE issue_date >= '${dateRange.from}' AND issue_date <= '${dateRange.to}'
-      `);
+        WHERE issue_date >= $1 AND issue_date <= $2
+      `, [dateRange.from, dateRange.to]);
 
       const invoiceFromQuotes = await db.unsafe(`
         SELECT COUNT(DISTINCT i.id) as converted
         FROM invoices i
         INNER JOIN quotes q ON i.quote_id = q.id
-        WHERE q.issue_date >= '${dateRange.from}' AND q.issue_date <= '${dateRange.to}'
-      `);
+        WHERE q.issue_date >= $1 AND q.issue_date <= $2
+      `, [dateRange.from, dateRange.to]);
 
       const paidFromQuotes = await db.unsafe(`
         SELECT COUNT(DISTINCT i.id) as paid
         FROM invoices i
         INNER JOIN quotes q ON i.quote_id = q.id
-        WHERE q.issue_date >= '${dateRange.from}' 
-          AND q.issue_date <= '${dateRange.to}'
+        WHERE q.issue_date >= $1
+          AND q.issue_date <= $2
           AND i.status = 'paid'
-      `);
+      `, [dateRange.from, dateRange.to]);
 
       const avgDays = await db.unsafe(`
         SELECT COALESCE(AVG(
@@ -1092,8 +1189,8 @@ class ReportsService {
         ), 0) as avg_days
         FROM invoices i
         INNER JOIN quotes q ON i.quote_id = q.id
-        WHERE q.issue_date >= '${dateRange.from}' AND q.issue_date <= '${dateRange.to}'
-      `);
+        WHERE q.issue_date >= $1 AND q.issue_date <= $2
+      `, [dateRange.from, dateRange.to]);
 
       const totalQuotes = parseInt(quoteStats[0].total as string, 10);
       const convertedToInvoice = parseInt(invoiceFromQuotes[0].converted as string, 10);
@@ -1127,15 +1224,15 @@ class ReportsService {
       }
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           status,
           COUNT(*) as count,
           COALESCE(SUM(total), 0) as total_value
         FROM invoices
-        WHERE issue_date >= '${dateRange.from}' AND issue_date <= '${dateRange.to}'
+        WHERE issue_date >= $1 AND issue_date <= $2
         GROUP BY status
         ORDER BY count DESC
-      `);
+      `, [dateRange.from, dateRange.to]);
 
       const breakdown: InvoiceStatusBreakdown[] = data.map((row: Record<string, unknown>) => ({
         status: row.status as "draft" | "sent" | "paid" | "partial" | "overdue" | "cancelled",
@@ -1166,35 +1263,37 @@ class ReportsService {
         return successResponse(cached);
       }
 
+      const params: any[] = [dateRange.from, dateRange.to];
       let projectFilter = "";
       if (projectId) {
-        projectFilter = `AND project_id = '${projectId}'`;
+        projectFilter = `AND project_id = $3`;
+        params.push(projectId);
       }
 
       const created = await db.unsafe(`
-        SELECT 
+        SELECT
           DATE(created_at) as date,
           COUNT(*) as count
         FROM tasks
-        WHERE created_at >= '${dateRange.from}' 
-          AND created_at <= '${dateRange.to}'
+        WHERE created_at >= $1
+          AND created_at <= $2
           ${projectFilter}
         GROUP BY DATE(created_at)
         ORDER BY date ASC
-      `);
+      `, params);
 
       const completed = await db.unsafe(`
-        SELECT 
+        SELECT
           DATE(updated_at) as date,
           COUNT(*) as count
         FROM tasks
         WHERE status = 'done'
-          AND updated_at >= '${dateRange.from}' 
-          AND updated_at <= '${dateRange.to}'
+          AND updated_at >= $1
+          AND updated_at <= $2
           ${projectFilter}
         GROUP BY DATE(updated_at)
         ORDER BY date ASC
-      `);
+      `, params);
 
       // Build a map of dates
       const dateMap = new Map<string, TaskStatPoint>();
@@ -1250,18 +1349,20 @@ class ReportsService {
       }
 
       let projectFilter = "";
+      const params: any[] = [];
       if (projectId) {
-        projectFilter = `WHERE project_id = '${projectId}'`;
+        projectFilter = `WHERE project_id = $1`;
+        params.push(projectId);
       }
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           status,
           COUNT(*) as count
         FROM milestones
         ${projectFilter}
         GROUP BY status
-      `);
+      `, params);
 
       const total = data.reduce((sum: number, row: Record<string, unknown>) => 
         sum + parseInt(row.count as string, 10), 0);
@@ -1294,26 +1395,28 @@ class ReportsService {
       }
 
       let projectFilter = "";
+      const params: any[] = [];
       if (projectId) {
-        projectFilter = `WHERE project_id = '${projectId}'`;
+        projectFilter = `WHERE project_id = $1`;
+        params.push(projectId);
       }
 
       const data = await db.unsafe(`
-        SELECT 
+        SELECT
           priority,
           COUNT(*) as count,
           COUNT(CASE WHEN status = 'done' THEN 1 END) as completed_count
         FROM tasks
         ${projectFilter}
         GROUP BY priority
-        ORDER BY 
+        ORDER BY
           CASE priority
             WHEN 'urgent' THEN 1
             WHEN 'high' THEN 2
             WHEN 'medium' THEN 3
             WHEN 'low' THEN 4
           END
-      `);
+      `, params);
 
       const total = data.reduce((sum: number, row: Record<string, unknown>) => 
         sum + parseInt(row.count as string, 10), 0);
@@ -1379,4 +1482,3 @@ class ReportsService {
 }
 
 export const reportsService = new ReportsService();
-

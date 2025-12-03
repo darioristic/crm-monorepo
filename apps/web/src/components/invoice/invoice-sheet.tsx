@@ -21,6 +21,58 @@ import { useApi } from "@/hooks/use-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
+// API Invoice Response Type
+interface InvoiceApiResponse {
+  id: string;
+  invoiceNumber: string | null;
+  issueDate: string | null;
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  total: number;
+  currency?: string | null;
+  items?: Array<{
+    productName?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    discount?: number;
+    vat?: number;
+    vatRate?: number;
+  }>;
+  terms?: string;
+  notes?: string;
+  companyId: string;
+  companyName?: string;
+  company?: {
+    name?: string;
+    addressLine1?: string;
+    address?: string;
+    addressLine2?: string;
+    city?: string;
+    zip?: string;
+    postalCode?: string;
+    country?: string;
+    email?: string;
+    billingEmail?: string;
+    phone?: string;
+    vatNumber?: string;
+    website?: string;
+  };
+  vat?: number | null;
+  tax?: number | null;
+  discount?: number | null;
+  subtotal: number;
+  status: string;
+  taxRate?: number;
+  vatRate?: number;
+  paidAt?: string | null;
+  sentAt?: string | null;
+  viewedAt?: string | null;
+  token?: string;
+}
+
 type InvoiceSheetProps = {
   defaultSettings?: Partial<InvoiceDefaultSettings>;
 };
@@ -91,7 +143,7 @@ export function InvoiceSheet({ defaultSettings }: InvoiceSheetProps) {
 type InvoiceSheetContentProps = {
   type: "create" | "edit" | "success";
   invoiceId?: string | null;
-  invoiceData?: any;
+  invoiceData?: InvoiceApiResponse;
   onSuccess: (id: string) => void;
   onClose: () => void;
   isLoading?: boolean;
@@ -170,7 +222,7 @@ function InvoiceSheetContent({
 
 type SuccessContentProps = {
   invoiceId: string;
-  invoice?: any;
+  invoice?: InvoiceApiResponse;
   onViewInvoice: () => void;
   onCreateAnother: () => void;
 };
@@ -337,7 +389,7 @@ function SuccessContent({
 
 // Transform API invoice to form values
 function transformInvoiceToFormValues(
-  invoice: any
+  invoice: InvoiceApiResponse
 ): Partial<InvoiceFormValues> {
   return {
     id: invoice.id,
@@ -374,7 +426,7 @@ function transformInvoiceToFormValues(
           ],
         }
       : null,
-    lineItems: (invoice.items || []).map((item: any) => ({
+    lineItems: (invoice.items || []).map((item) => ({
       name: item.productName || item.description || "",
       quantity: item.quantity || 1,
       price: item.unitPrice || 0,

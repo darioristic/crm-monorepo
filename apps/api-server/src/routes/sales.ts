@@ -6,6 +6,9 @@ import { errorResponse, successResponse } from "@crm/utils";
 import { salesService } from "../services/sales.service";
 import { RouteBuilder, withAuth, parseBody, parsePagination, parseFilters, json } from "./helpers";
 import { invoiceQueries } from "../db/queries";
+import { userQueries } from "../db/queries/users";
+import { hasCompanyAccess } from "../db/queries/companies-members";
+import { logger } from "../lib/logger";
 import type {
   CreateQuoteRequest,
   UpdateQuoteRequest,
@@ -55,10 +58,45 @@ router.post("/api/invoices/token/:token/viewed", async (_request, _url, params) 
 // ============================================
 
 router.get("/api/v1/quotes", async (request, url) => {
-  return withAuth(request, async () => {
+  return withAuth(request, async (auth) => {
     const pagination = parsePagination(url);
     const filters = parseFilters(url);
-    return salesService.getQuotes(pagination, filters);
+    
+    // Check if companyId query parameter is provided (for admin to filter by company)
+    const queryCompanyId = url.searchParams.get("companyId");
+    
+    let companyId: string | null = null;
+
+    if (queryCompanyId) {
+      // If companyId is provided in query, verify user has access
+      if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+        // Admin can access any company (they should be added to all via users_on_company)
+        companyId = queryCompanyId;
+      } else {
+        // Regular users can only access companies they're members of
+        const hasAccess = await hasCompanyAccess(queryCompanyId, auth.userId);
+        if (!hasAccess) {
+          return errorResponse("FORBIDDEN", "Not a member of this company");
+        }
+        companyId = queryCompanyId;
+      }
+    } else {
+      // No query parameter - use user's current active company
+      const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+      
+      if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+        // Admin users can see all quotes if no company filter is specified
+        companyId = null;
+      } else {
+        // Regular users need an active company
+        if (!userCompanyId) {
+          return errorResponse("NOT_FOUND", "No active company found for user");
+        }
+        companyId = userCompanyId;
+      }
+    }
+    
+    return salesService.getQuotes(companyId, pagination, filters);
   });
 });
 
@@ -113,16 +151,87 @@ router.delete("/api/v1/quotes/:id", async (request, _url, params) => {
 // ============================================
 
 router.get("/api/v1/invoices", async (request, url) => {
-  return withAuth(request, async () => {
-    const pagination = parsePagination(url);
-    const filters = parseFilters(url);
-    return salesService.getInvoices(pagination, filters);
+  return withAuth(request, async (auth) => {
+    try {
+      const pagination = parsePagination(url);
+      const filters = parseFilters(url);
+      
+      // Check if companyId query parameter is provided (for admin to filter by company)
+      const queryCompanyId = url.searchParams.get("companyId");
+      
+      let companyId: string | null = null;
+
+      if (queryCompanyId) {
+        // If companyId is provided in query, verify user has access
+        if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+          // Admin can access any company (they should be added to all via users_on_company)
+          companyId = queryCompanyId;
+        } else {
+          // Regular users can only access companies they're members of
+          const hasAccess = await hasCompanyAccess(queryCompanyId, auth.userId);
+          if (!hasAccess) {
+            return errorResponse("FORBIDDEN", "Not a member of this company");
+          }
+          companyId = queryCompanyId;
+        }
+      } else {
+        // No query parameter - use user's current active company
+        const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+        
+        if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+          // Admin users can see all invoices if no company filter is specified
+          companyId = null;
+        } else {
+          // Regular users need an active company
+          if (!userCompanyId) {
+            return errorResponse("NOT_FOUND", "No active company found for user");
+          }
+          companyId = userCompanyId;
+        }
+      }
+      
+      return salesService.getInvoices(companyId, pagination, filters);
+    } catch (error) {
+      logger.error({ error, url: url.toString() }, "Error in /api/v1/invoices route");
+      return errorResponse("INTERNAL_ERROR", "Failed to fetch invoices");
+    }
   });
 });
 
-router.get("/api/v1/invoices/overdue", async (request) => {
-  return withAuth(request, async () => {
-    return salesService.getOverdueInvoices();
+router.get("/api/v1/invoices/overdue", async (request, url) => {
+  return withAuth(request, async (auth) => {
+    // Check if companyId query parameter is provided (for admin to filter by company)
+    const queryCompanyId = url.searchParams.get("companyId");
+    
+    let companyId: string | null = null;
+
+    if (queryCompanyId) {
+      // If companyId is provided in query, verify user has access
+      if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+        companyId = queryCompanyId;
+      } else {
+        const hasAccess = await hasCompanyAccess(queryCompanyId, auth.userId);
+        if (!hasAccess) {
+          return errorResponse("FORBIDDEN", "Not a member of this company");
+        }
+        companyId = queryCompanyId;
+      }
+    } else {
+      // No query parameter - use user's current active company
+      const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+      
+      if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+        // Admin users can see all overdue invoices if no company filter is specified
+        companyId = null;
+      } else {
+        if (!userCompanyId) {
+          return errorResponse("NOT_FOUND", "No active company found for user");
+        }
+        companyId = userCompanyId;
+      }
+    }
+    
+    return salesService.getOverdueInvoices(companyId);
   });
 });
 
@@ -187,10 +296,45 @@ router.post("/api/v1/invoices/:id/payment", async (request, _url, params) => {
 // ============================================
 
 router.get("/api/v1/delivery-notes", async (request, url) => {
-  return withAuth(request, async () => {
+  return withAuth(request, async (auth) => {
     const pagination = parsePagination(url);
     const filters = parseFilters(url);
-    return salesService.getDeliveryNotes(pagination, filters);
+    
+    // Check if companyId query parameter is provided (for admin to filter by company)
+    const queryCompanyId = url.searchParams.get("companyId");
+    
+    let companyId: string | null = null;
+
+    if (queryCompanyId) {
+      // If companyId is provided in query, verify user has access
+      if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+        // Admin can access any company (they should be added to all via users_on_company)
+        companyId = queryCompanyId;
+      } else {
+        // Regular users can only access companies they're members of
+        const hasAccess = await hasCompanyAccess(queryCompanyId, auth.userId);
+        if (!hasAccess) {
+          return errorResponse("FORBIDDEN", "Not a member of this company");
+        }
+        companyId = queryCompanyId;
+      }
+    } else {
+      // No query parameter - use user's current active company
+      const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+      
+      if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+        // Admin users can see all delivery notes if no company filter is specified
+        companyId = null;
+      } else {
+        // Regular users need an active company
+        if (!userCompanyId) {
+          return errorResponse("NOT_FOUND", "No active company found for user");
+        }
+        companyId = userCompanyId;
+      }
+    }
+    
+    return salesService.getDeliveryNotes(companyId, pagination, filters);
   });
 });
 

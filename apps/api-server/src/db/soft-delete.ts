@@ -91,12 +91,13 @@ export async function getDeletedRecords<T>(
   table: SoftDeletableTable,
   limit: number = 100
 ): Promise<T[]> {
-  return sql`
+  const rows = await sql`
     SELECT * FROM ${sql(table)}
     WHERE deleted_at IS NOT NULL
     ORDER BY deleted_at DESC
     LIMIT ${limit}
-  ` as Promise<T[]>;
+  `;
+  return rows as unknown as T[];
 }
 
 /**
@@ -283,4 +284,3 @@ export async function canDeletePayment(paymentId: string): Promise<string | null
 
   return null; // Can be deleted
 }
-

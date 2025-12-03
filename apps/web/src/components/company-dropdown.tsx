@@ -67,11 +67,21 @@ export function CompanyDropdown({ isExpanded = false }: Props) {
 		mutationFn: async (companyId: string) => {
 			console.log("🔄 Frontend: Switching to company:", companyId);
 			const result = await switchCompany(companyId);
-			console.log("📦 Frontend: Switch result:", result);
+			
 			if (!result.success) {
-				console.error("❌ Frontend: Switch failed:", result.error);
-				throw new Error(result.error?.message || "Failed to switch company");
+				// Ensure we have a valid error message before throwing
+				const errorMessage = result.error?.message || 
+					result.error?.code || 
+					"Failed to switch company";
+				
+				console.error("❌ Frontend: Switch failed:", {
+					error: result.error || { code: "UNKNOWN", message: errorMessage },
+					message: errorMessage,
+				});
+				
+				throw new Error(errorMessage);
 			}
+			
 			console.log("✅ Frontend: Switch successful");
 			return result;
 		},
@@ -101,6 +111,16 @@ export function CompanyDropdown({ isExpanded = false }: Props) {
 			// Invalidate team/company queries used in Settings page
 			await queryClient.invalidateQueries({ queryKey: ["team", "current"] });
 			await queryClient.invalidateQueries({ queryKey: ["company", "current"] });
+			
+			// Invalidate all company-dependent data queries
+			await queryClient.invalidateQueries({ queryKey: ["documents"] });
+			await queryClient.invalidateQueries({ queryKey: ["invoices"] });
+			await queryClient.invalidateQueries({ queryKey: ["delivery-notes"] });
+			await queryClient.invalidateQueries({ queryKey: ["orders"] });
+			await queryClient.invalidateQueries({ queryKey: ["quotes"] });
+			await queryClient.invalidateQueries({ queryKey: ["contacts"] });
+			await queryClient.invalidateQueries({ queryKey: ["products"] });
+			await queryClient.invalidateQueries({ queryKey: ["payments"] });
 			
 			// Refetch all data immediately
 			await Promise.all([
@@ -163,6 +183,46 @@ export function CompanyDropdown({ isExpanded = false }: Props) {
 
 	const selectedCompany = sortedCompanies.find((c) => c.id === selectedId) || sortedCompanies[0];
 	const isExpandedState = state === "expanded" || isExpanded;
+
+	// If no companies, show empty state with option to create
+	if (sortedCompanies.length === 0) {
+		return (
+			<DropdownMenu open={isActive} onOpenChange={setActive}>
+				<DropdownMenuTrigger asChild>
+					<SidebarMenuButton className="hover:text-foreground h-10 group-data-[collapsible=icon]:px-0! hover:bg-[var(--primary)]/5">
+						<Avatar className="h-8 w-8 rounded-lg">
+							<AvatarFallback className="bg-muted text-muted-foreground text-xs font-semibold rounded-lg">
+								<Plus className="h-4 w-4" />
+							</AvatarFallback>
+						</Avatar>
+						{isExpandedState && (
+							<span className="font-semibold truncate text-muted-foreground">No Company</span>
+						)}
+						<ChevronsUpDown className="ml-auto group-data-[collapsible=icon]:hidden" />
+					</SidebarMenuButton>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent
+					className="mt-4 w-[--radix-dropdown-menu-trigger-width] min-w-56 rounded-lg"
+					side={isMobile ? "bottom" : "right"}
+					align="end"
+					sideOffset={4}
+				>
+					<DropdownMenuLabel>Companies</DropdownMenuLabel>
+					<DropdownMenuSeparator />
+					<div className="px-2 py-4 text-center text-sm text-muted-foreground">
+						No companies available
+					</div>
+					<DropdownMenuSeparator />
+					<Button className="w-full" asChild>
+						<Link href="/dashboard/companies/create" onClick={() => setActive(false)}>
+							<Plus className="mr-2 h-4 w-4" />
+							Create Company
+						</Link>
+					</Button>
+				</DropdownMenuContent>
+			</DropdownMenu>
+		);
+	}
 
 	if (!selectedCompany) {
 		return (

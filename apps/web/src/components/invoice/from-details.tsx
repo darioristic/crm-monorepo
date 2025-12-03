@@ -5,9 +5,10 @@ import { Editor } from "@/components/invoice/editor";
 import { Controller, useFormContext } from "react-hook-form";
 import { LabelInput } from "./label-input";
 import type { JSONContent } from "@tiptap/react";
+import { STORAGE_KEYS } from "@/constants/storage-keys";
 
-const STORAGE_KEY = "invoice_from_details";
-const STORAGE_LABEL_KEY = "invoice_from_label";
+const STORAGE_KEY = STORAGE_KEYS.INVOICE_FROM_DETAILS;
+const STORAGE_LABEL_KEY = STORAGE_KEYS.INVOICE_FROM_LABEL;
 
 export function FromDetails() {
   const { control, watch, setValue } = useFormContext();

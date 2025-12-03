@@ -21,9 +21,7 @@ export function initSentry() {
 		// Performance monitoring
 		tracesSampleRate: 0.1, // 10% of transactions
 		// Capture unhandled promise rejections
-		integrations: [
-			new Sentry.Integrations.Http({ tracing: true }),
-		],
+		// Minimal initialization without explicit integrations to satisfy type constraints
 		// Filter out health check requests
 		beforeSend(event, hint) {
 			// Don't send events for health check endpoints
@@ -59,4 +57,3 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = "i
 		});
 	}
 }
-

@@ -18,6 +18,7 @@ import { join, dirname, extname } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { randomUUID } from "node:crypto";
 import { env } from "../config/env";
+import { serviceLogger } from "../lib/logger";
 
 const VAULT_BUCKET = "vault";
 

@@ -95,8 +95,49 @@ async function handleApiResponse<T>(
 			const contentType = response.headers.get("content-type");
 			if (contentType?.includes("application/json")) {
 				const errorData = await response.json();
-				// If the response is already in our error format, return it
+				console.log("🔍 handleApiResponse: Error data received:", errorData);
+				
+				// If the response is already in our error format, ensure it has valid structure
 				if (errorData && typeof errorData === "object" && "error" in errorData) {
+					const errorObj = errorData.error;
+					
+					// If error object is missing or empty, create a valid one
+					if (!errorObj || (typeof errorObj === "object" && Object.keys(errorObj).length === 0)) {
+						const statusMessages: Record<number, string> = {
+							401: "Unauthorized",
+							403: "Forbidden",
+							404: "Not found",
+							400: "Bad request",
+						};
+						
+						return {
+							success: false,
+							error: {
+								code: errorData.code || defaultErrorCode,
+								message: errorData.message || statusMessages[response.status] || `Server error (${response.status})`,
+							},
+						} as T;
+					}
+					
+					// Ensure error object has both code and message
+					if (typeof errorObj === "object") {
+						const code = typeof errorObj.code === "string" && errorObj.code.trim() 
+							? errorObj.code 
+							: errorData.code || defaultErrorCode;
+						const message = typeof errorObj.message === "string" && errorObj.message.trim()
+							? errorObj.message
+							: errorData.message || `Server error (${response.status})`;
+						
+						// If we had to fix the error, return the fixed version
+						if (code !== errorObj.code || message !== errorObj.message) {
+							return {
+								success: false,
+								error: { code, message },
+							} as T;
+						}
+					}
+					
+					// Error object is valid - return as is
 					return errorData as T;
 				}
 				// Otherwise, wrap it in our error format
@@ -279,10 +320,11 @@ export async function updateCompany(
  */
 export async function switchCompany(companyId: string): Promise<{
 	success: boolean;
-	data?: { id: string; companyId: string };
+	data?: { id: string; companyId: string; accessToken?: string };
 	error?: { code: string; message: string };
 }> {
 	try {
+		console.log("🔄 switchCompany: Making request to /api/v1/users/me", { companyId, API_URL });
 		const response = await fetch(`${API_URL}/api/v1/users/me`, {
 			method: "PUT",
 			headers: {
@@ -292,12 +334,57 @@ export async function switchCompany(companyId: string): Promise<{
 			credentials: "include",
 		});
 
-		return handleApiResponse<{
+		console.log("📡 switchCompany: Response received", {
+			status: response.status,
+			statusText: response.statusText,
+			ok: response.ok,
+			headers: Object.fromEntries(response.headers.entries()),
+		});
+
+		// Use handleApiResponse for both success and error cases
+		const result = await handleApiResponse<{
 			success: boolean;
-			data?: { id: string; companyId: string };
+			data?: { id: string; companyId: string; accessToken?: string };
 			error?: { code: string; message: string };
 		}>(response, "SWITCH_COMPANY_ERROR");
+
+		// Ensure error object has valid structure if success is false
+		if (!result.success) {
+			// If error is missing or empty, create a fallback
+			if (!result.error || (typeof result.error === "object" && Object.keys(result.error).length === 0)) {
+				const statusMessages: Record<number, string> = {
+					401: "Unauthorized - please log in again",
+					403: "Forbidden - you don't have access to this company",
+					404: "Company not found",
+					400: "Invalid request - company ID is required",
+				};
+				
+				result.error = {
+					code: "UNKNOWN_ERROR",
+					message: statusMessages[response.status] || `Server error (${response.status})`,
+				};
+			}
+			
+			// Ensure error has both code and message
+			if (!result.error.code || !result.error.message) {
+				result.error = {
+					code: result.error.code || "UNKNOWN_ERROR",
+					message: result.error.message || `Server error (${response.status})`,
+				};
+			}
+		}
+
+		// If we received a new accessToken, the backend should have set it as a cookie
+		// via Set-Cookie header, which will be automatically handled by the browser
+		// when using credentials: "include". However, we log it for debugging.
+		if (result.success && result.data?.accessToken) {
+			logger.info("New access token received after company switch");
+			// Token is automatically saved via cookie, no manual action needed
+		}
+
+		return result;
 	} catch (error) {
+		console.error("❌ switchCompany: Exception caught:", error);
 		logger.error("Switch company error", error);
 		return {
 			success: false,

@@ -130,9 +130,9 @@ export const chatRoutes: Route[] = [
         // Build user context
         const userContext: ChatUserContext = {
           userId: auth.userId,
-          teamId: auth.teamId || auth.userId,
-          teamName: auth.teamName || "My Company",
-          fullName: auth.name || auth.email,
+          teamId: auth.companyId || auth.userId,
+          teamName: null,
+          fullName: null,
           baseCurrency: "EUR",
           locale: "sr-RS",
           timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -167,8 +167,7 @@ export const chatRoutes: Route[] = [
           model: openai("gpt-4o-mini"),
           system: selectedAgent.getSystemPrompt(appContext),
           messages,
-          tools: agentTools,
-          maxSteps: 5,
+          tools: agentTools as any,
           onFinish: async ({ text }) => {
             // Save assistant response to history
             await saveChatMessage(chatId, {
@@ -179,7 +178,7 @@ export const chatRoutes: Route[] = [
         });
 
         // Return streaming response
-        return result.toDataStreamResponse();
+        return result.toTextStreamResponse();
       } catch (error) {
         logger.error({ error }, "Error in chat endpoint");
         return json(
@@ -264,4 +263,3 @@ function getAgentDescription(name: string): string {
 }
 
 export default chatRoutes;
-

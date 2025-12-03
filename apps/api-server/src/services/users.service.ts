@@ -21,6 +21,7 @@ import {
 import { userQueries } from "../db/queries/users";
 import { companyQueries } from "../db/queries/companies";
 import { cache } from "../cache/redis";
+import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300; // 5 minutes
 const CACHE_PREFIX = "users";

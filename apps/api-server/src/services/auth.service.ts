@@ -9,15 +9,22 @@ import { logger } from "../lib/logger";
 // Configuration
 // ============================================
 
-// JWT_SECRET is required - fail early if not set in any environment
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-	throw new Error(
-		"FATAL: JWT_SECRET environment variable is required. " +
-		"Generate one with: openssl rand -base64 32"
-	);
+const NODE_ENV = process.env.NODE_ENV || "development";
+let EFFECTIVE_JWT_SECRET = JWT_SECRET || "";
+if (!EFFECTIVE_JWT_SECRET) {
+    if (NODE_ENV !== "production") {
+        const bytes = new Uint8Array(32);
+        crypto.getRandomValues(bytes);
+        EFFECTIVE_JWT_SECRET = Array.from(bytes)
+            .map((b) => b.toString(16).padStart(2, "0"))
+            .join("");
+    } else {
+        throw new Error(
+            "FATAL: JWT_SECRET environment variable is required. Generate one with: openssl rand -base64 32"
+        );
+    }
 }
-const EFFECTIVE_JWT_SECRET = JWT_SECRET;
 
 const JWT_ACCESS_EXPIRY = 15 * 60; // 15 minutes in seconds
 const JWT_REFRESH_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
@@ -31,7 +38,8 @@ const MAX_SESSIONS_PER_USER = 5;
 export interface JWTPayload {
 	userId: string;
 	role: UserRole;
-	companyId?: string;
+	tenantId?: string; // null for superadmin, required for tenant_admin and crm_user
+	companyId?: string; // optional for crm_user, null for others
 	sessionId: string;
 	iat: number;
 	exp: number;
@@ -40,6 +48,7 @@ export interface JWTPayload {
 export interface SessionData {
 	userId: string;
 	userRole: UserRole;
+	tenantId?: string;
 	companyId?: string;
 	email: string;
 	createdAt: string;
@@ -114,6 +123,7 @@ async function verifyHmacSignature(
 export async function generateJWT(
 	userId: string,
 	role: UserRole,
+	tenantId: string | undefined,
 	companyId: string | undefined,
 	sessionId: string,
 ): Promise<string> {
@@ -123,6 +133,7 @@ export async function generateJWT(
 	const payload: JWTPayload = {
 		userId,
 		role,
+		tenantId,
 		companyId,
 		sessionId,
 		iat: now,
@@ -131,10 +142,10 @@ export async function generateJWT(
 
 	const encodedHeader = base64UrlEncode(JSON.stringify(header));
 	const encodedPayload = base64UrlEncode(JSON.stringify(payload));
-	const signature = await createHmacSignature(
-		`${encodedHeader}.${encodedPayload}`,
-		EFFECTIVE_JWT_SECRET,
-	);
+    const signature = await createHmacSignature(
+        `${encodedHeader}.${encodedPayload}`,
+        EFFECTIVE_JWT_SECRET,
+    );
 
 	return `${encodedHeader}.${encodedPayload}.${signature}`;
 }
@@ -207,6 +218,7 @@ async function hashTokenForStorage(token: string): Promise<string> {
 async function createSession(
 	userId: string,
 	role: UserRole,
+	tenantId: string | undefined,
 	companyId: string | undefined,
 	email: string,
 ): Promise<string> {
@@ -214,6 +226,7 @@ async function createSession(
 	const sessionData: SessionData = {
 		userId,
 		userRole: role,
+		tenantId,
 		companyId,
 		email,
 		createdAt: now(),
@@ -222,7 +235,7 @@ async function createSession(
 
 	// Store session in Redis
 	try {
-		await cache.setSession(sessionId, sessionData, JWT_REFRESH_EXPIRY);
+    await cache.setSession(sessionId, (sessionData as unknown) as Record<string, unknown>, JWT_REFRESH_EXPIRY);
 	} catch (error) {
 		logger.error(
 			{ error, sessionId, userId },
@@ -283,10 +296,14 @@ class AuthService {
 				return errorResponse("UNAUTHORIZED", "Invalid email or password");
 			}
 
+			// Get tenantId from user (user.tenantId will be added in user queries)
+			const tenantId = (user as User & { tenantId?: string }).tenantId;
+
 			// Create session
 			const sessionId = await createSession(
 				user.id,
 				user.role,
+				tenantId,
 				user.companyId,
 				user.email,
 			);
@@ -295,6 +312,7 @@ class AuthService {
 			const accessToken = await generateJWT(
 				user.id,
 				user.role,
+				tenantId,
 				user.companyId,
 				sessionId,
 			);
@@ -378,10 +396,14 @@ class AuthService {
 			// Revoke old refresh token
 			await authQueries.revokeRefreshToken(tokenHash);
 
+			// Get tenantId from user
+			const tenantId = (user as User & { tenantId?: string }).tenantId;
+
 			// Create new session
 			const sessionId = await createSession(
 				user.id,
 				user.role,
+				tenantId,
 				user.companyId,
 				user.email,
 			);
@@ -390,6 +412,7 @@ class AuthService {
 			const newAccessToken = await generateJWT(
 				user.id,
 				user.role,
+				tenantId,
 				user.companyId,
 				sessionId,
 			);
@@ -511,7 +534,7 @@ class AuthService {
 				firstName: userData.firstName.trim(),
 				lastName: userData.lastName.trim(),
 				email: userData.email.toLowerCase().trim(),
-				role: userData.role || "user",
+        role: userData.role || "crm_user",
 				companyId: userData.companyId,
 				status: "active",
 				createdAt: now(),
@@ -549,4 +572,3 @@ class AuthService {
 
 export const authService = new AuthService();
 export default authService;
-

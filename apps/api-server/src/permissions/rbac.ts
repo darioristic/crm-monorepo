@@ -169,8 +169,9 @@ const USER_PERMISSIONS: PermissionRule[] = [
 
 // Permission map by role
 const ROLE_PERMISSIONS: Record<UserRole, PermissionRule[]> = {
-	admin: ADMIN_PERMISSIONS,
-	user: USER_PERMISSIONS,
+  superadmin: ADMIN_PERMISSIONS,
+  tenant_admin: ADMIN_PERMISSIONS,
+  crm_user: USER_PERMISSIONS,
 };
 
 // ============================================
@@ -249,7 +250,7 @@ export function requirePermission(
  * Check if user can delete (admin only for users/companies)
  */
 export function canDelete(auth: AuthContext, resource: Resource): boolean {
-	if (auth.role === "admin") return true;
+  if (auth.role === "tenant_admin" || auth.role === "superadmin") return true;
 	
 	// Users cannot delete users or companies
 	if (resource === "users" || resource === "companies") {
@@ -263,7 +264,7 @@ export function canDelete(auth: AuthContext, resource: Resource): boolean {
  * Check if user can modify invoice number (admin only)
  */
 export function canModifyInvoiceNumber(auth: AuthContext): boolean {
-	return auth.role === "admin";
+  return auth.role === "tenant_admin" || auth.role === "superadmin";
 }
 
 /**
@@ -274,7 +275,7 @@ export async function canAccessProject(
 	auth: AuthContext,
 	project: { managerId: string; teamMembers?: string[] },
 ): Promise<boolean> {
-	if (auth.role === "admin") return true;
+  if (auth.role === "tenant_admin" || auth.role === "superadmin") return true;
 	
 	if (project.managerId === auth.userId) return true;
 	
@@ -291,7 +292,7 @@ export function canAccessTask(
 	auth: AuthContext,
 	task: { assignedTo?: string },
 ): boolean {
-	if (auth.role === "admin") return true;
+  if (auth.role === "tenant_admin" || auth.role === "superadmin") return true;
 	
 	if (task.assignedTo === auth.userId) return true;
 	
@@ -305,7 +306,7 @@ export function filterByOwnership<T extends { assignedTo?: string }>(
 	auth: AuthContext,
 	items: T[],
 ): T[] {
-	if (auth.role === "admin") return items;
+  if (auth.role === "tenant_admin" || auth.role === "superadmin") return items;
 	
 	return items.filter((item) => item.assignedTo === auth.userId);
 }
@@ -317,7 +318,7 @@ export function filterProjectsByAccess<T extends { managerId: string; teamMember
 	auth: AuthContext,
 	projects: T[],
 ): T[] {
-	if (auth.role === "admin") return projects;
+  if (auth.role === "tenant_admin" || auth.role === "superadmin") return projects;
 	
 	return projects.filter(
 		(p) => p.managerId === auth.userId || p.teamMembers?.includes(auth.userId),
@@ -353,4 +354,3 @@ export function getPermissionsForRole(role: UserRole): { action: Action; resourc
 		resource: p.resource,
 	}));
 }
-

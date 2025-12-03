@@ -33,10 +33,7 @@ class CompaniesService {
   ): Promise<ApiResponse<Company[]>> {
     try {
       // Always exclude inline companies unless explicitly requested
-      const effectiveFilters = {
-        ...filters,
-        source: filters.source || undefined, // Don't set source if not provided, let query handle it
-      };
+      const effectiveFilters = { ...filters };
 
       const cacheKey = `${CACHE_PREFIX}:list:${JSON.stringify({ pagination, effectiveFilters })}`;
       const cached = await cache.get<{ data: Company[]; total: number }>(cacheKey);

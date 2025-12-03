@@ -6,19 +6,50 @@ import { successResponse, errorResponse } from "@crm/utils";
 import { RouteBuilder, withAuth, parsePagination, parseFilters, parseBody } from "./helpers";
 import { orderQueries } from "../db/queries/orders";
 import { userQueries } from "../db/queries/users";
+import { hasCompanyAccess } from "../db/queries/companies-members";
 import type { CreateOrderRequest, UpdateOrderRequest } from "@crm/types";
 
 const router = new RouteBuilder();
 
 router.get("/api/v1/orders", async (request, url) => {
 	return withAuth(request, async (auth) => {
-		const companyId = await userQueries.getUserCompanyId(auth.userId);
-		if (!companyId) {
-			return errorResponse("NOT_FOUND", "No active company found for user");
-		}
-
 		const pagination = parsePagination(url);
 		const filters = parseFilters(url);
+		
+		// Check if companyId query parameter is provided (for admin to filter by company)
+		const queryCompanyId = url.searchParams.get("companyId");
+		
+		let companyId: string | null = null;
+
+		if (queryCompanyId) {
+			// If companyId is provided in query, verify user has access
+			if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+				// Admin can access any company (they should be added to all via users_on_company)
+				companyId = queryCompanyId;
+			} else {
+				// Regular users can only access companies they're members of
+				const hasAccess = await hasCompanyAccess(queryCompanyId, auth.userId);
+				if (!hasAccess) {
+					return errorResponse("FORBIDDEN", "Not a member of this company");
+				}
+				companyId = queryCompanyId;
+			}
+		} else {
+			// No query parameter - use user's current active company
+			const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+			
+			if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+				// Admin users can see all orders if no company filter is specified
+				companyId = null;
+			} else {
+				// Regular users need an active company
+				if (!userCompanyId) {
+					return errorResponse("NOT_FOUND", "No active company found for user");
+				}
+				companyId = userCompanyId;
+			}
+		}
+
 		return orderQueries.findAll(companyId, pagination, filters);
 	});
 });
@@ -64,4 +95,3 @@ router.delete("/api/v1/orders/:id", async (request, _url, params) => {
 });
 
 export const orderRoutes = router.getRoutes();
-

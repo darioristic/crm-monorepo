@@ -54,37 +54,51 @@ export function applySecurityHeaders(
 	response: Response,
 	config?: SecurityHeadersConfig,
 ): Response {
-	const headers = config || getSecurityHeaders();
+	try {
+		const headers = config || getSecurityHeaders();
+		const responseHeaders = new Headers(response.headers);
 
-	// Apply headers
-	if (headers.contentSecurityPolicy) {
-		response.headers.set("Content-Security-Policy", headers.contentSecurityPolicy);
+		// Apply headers
+		if (headers.contentSecurityPolicy) {
+			responseHeaders.set("Content-Security-Policy", headers.contentSecurityPolicy);
+		}
+
+		if (headers.strictTransportSecurity) {
+			responseHeaders.set("Strict-Transport-Security", headers.strictTransportSecurity);
+		}
+
+		if (headers.xFrameOptions) {
+			responseHeaders.set("X-Frame-Options", headers.xFrameOptions);
+		}
+
+		if (headers.xContentTypeOptions) {
+			responseHeaders.set("X-Content-Type-Options", headers.xContentTypeOptions);
+		}
+
+		if (headers.xXSSProtection) {
+			responseHeaders.set("X-XSS-Protection", headers.xXSSProtection);
+		}
+
+		if (headers.referrerPolicy) {
+			responseHeaders.set("Referrer-Policy", headers.referrerPolicy);
+		}
+
+		if (headers.permissionsPolicy) {
+			responseHeaders.set("Permissions-Policy", headers.permissionsPolicy);
+		}
+
+		// Create new Response with same body and status but new headers
+		// This ensures body is not modified
+		return new Response(response.body, {
+			status: response.status,
+			statusText: response.statusText,
+			headers: responseHeaders,
+		});
+	} catch (error) {
+		// If there's an error applying security headers, return the original response
+		// This prevents breaking the entire request
+		console.error("Error applying security headers:", error);
+		return response;
 	}
-
-	if (headers.strictTransportSecurity) {
-		response.headers.set("Strict-Transport-Security", headers.strictTransportSecurity);
-	}
-
-	if (headers.xFrameOptions) {
-		response.headers.set("X-Frame-Options", headers.xFrameOptions);
-	}
-
-	if (headers.xContentTypeOptions) {
-		response.headers.set("X-Content-Type-Options", headers.xContentTypeOptions);
-	}
-
-	if (headers.xXSSProtection) {
-		response.headers.set("X-XSS-Protection", headers.xXSSProtection);
-	}
-
-	if (headers.referrerPolicy) {
-		response.headers.set("Referrer-Policy", headers.referrerPolicy);
-	}
-
-	if (headers.permissionsPolicy) {
-		response.headers.set("Permissions-Policy", headers.permissionsPolicy);
-	}
-
-	return response;
 }
 

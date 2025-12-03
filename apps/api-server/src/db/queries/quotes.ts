@@ -20,6 +20,7 @@ import {
 
 export const quoteQueries = {
   async findAll(
+    companyId: string | null,
     pagination: PaginationParams,
     filters: FilterParams
   ): Promise<{ data: Quote[]; total: number }> {
@@ -31,6 +32,10 @@ export const quoteQueries = {
 
     // Koristi query builder za sigurne upite
     const qb = createQueryBuilder("quotes");
+    // Only filter by companyId if provided (admin can see all)
+    if (companyId) {
+      qb.addEqualCondition("company_id", companyId);
+    }
     qb.addSearchCondition(["quote_number"], filters.search);
     qb.addEqualCondition("status", filters.status);
 

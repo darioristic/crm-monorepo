@@ -21,7 +21,7 @@ router.get("/api/v1/files/vault/:companyId/:filename", async (request, _url, par
 		const { hasCompanyAccess } = await import("../db/queries/companies-members");
 		const hasAccess = await hasCompanyAccess(companyId, auth.userId);
 		
-		if (!hasAccess && auth.role !== "admin") {
+		if (!hasAccess && auth.role !== "tenant_admin" && auth.role !== "superadmin") {
 			return errorResponse("FORBIDDEN", "Access denied");
 		}
 
@@ -71,4 +71,3 @@ router.get("/api/v1/files/vault/:companyId/:filename", async (request, _url, par
 });
 
 export const fileRoutes = router.getRoutes();
-

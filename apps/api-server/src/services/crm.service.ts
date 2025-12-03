@@ -19,6 +19,7 @@ import {
 } from "@crm/utils";
 import { leadQueries, contactQueries } from "../db/queries";
 import { cache } from "../cache/redis";
+import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300; // 5 minutes
 

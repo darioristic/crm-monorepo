@@ -42,6 +42,7 @@ export async function getCompaniesByUserId(
     FROM users_on_company uoc
     INNER JOIN companies c ON uoc.company_id = c.id
     WHERE uoc.user_id = ${userId}
+      AND (c.source IS NULL OR c.source != 'customer')
     ORDER BY c.name ASC
   `;
 

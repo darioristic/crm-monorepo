@@ -17,8 +17,59 @@ import type { Invoice, EditorDoc } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 import { useAuth } from "@/contexts/auth-context";
 
+// API Invoice Response Type
+interface InvoiceApiResponse {
+  id: string;
+  invoiceNumber: string | null;
+  issueDate: string | null;
+  dueDate: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  total: number;
+  currency?: string | null;
+  items?: Array<{
+    productName?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    discount?: number;
+    vat?: number;
+    vatRate?: number;
+  }>;
+  terms?: string;
+  notes?: string;
+  companyId: string;
+  companyName?: string;
+  company?: {
+    name?: string;
+    addressLine1?: string;
+    address?: string;
+    addressLine2?: string;
+    city?: string;
+    zip?: string;
+    postalCode?: string;
+    country?: string;
+    email?: string;
+    billingEmail?: string;
+    phone?: string;
+    vatNumber?: string;
+    website?: string;
+  };
+  vat?: number | null;
+  tax?: number | null;
+  discount?: number | null;
+  subtotal: number;
+  status: string;
+  taxRate?: number;
+  vatRate?: number;
+  paidAt?: string | null;
+  sentAt?: string | null;
+  viewedAt?: string | null;
+}
+
 type InvoicePublicViewProps = {
-  invoice: any;
+  invoice: InvoiceApiResponse;
   token: string;
 };
 
@@ -91,7 +142,7 @@ function getStoredLogo(): string | null {
 const DEFAULT_LOGO_URL: string | null = "/logo.png";
 
 // Build customer details from company data (Bill to)
-function buildCustomerDetails(invoice: any): EditorDoc | null {
+function buildCustomerDetails(invoice: InvoiceApiResponse): EditorDoc | null {
   const lines: string[] = [];
 
   // Get company name from either direct field or nested object
@@ -205,7 +256,7 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
     amount: invoice.total,
     currency: invoice.currency || "EUR",
     lineItems:
-      invoice.items?.map((item: any) => ({
+      invoice.items?.map((item) => ({
         name: item.productName || item.description || "",
         quantity: item.quantity || 1,
         price: item.unitPrice || 0,

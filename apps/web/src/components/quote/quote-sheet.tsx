@@ -21,6 +21,59 @@ import { useApi } from "@/hooks/use-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 
+// API Quote Response Type
+interface QuoteApiResponse {
+  id: string;
+  quoteNumber: string | null;
+  issueDate: string | null;
+  validUntil: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  total: number;
+  currency?: string | null;
+  items?: Array<{
+    productName?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    discount?: number;
+    vat?: number;
+    vatRate?: number;
+  }>;
+  terms?: string;
+  notes?: string;
+  companyId: string;
+  companyName?: string;
+  company?: {
+    name?: string;
+    addressLine1?: string;
+    address?: string;
+    addressLine2?: string;
+    city?: string;
+    zip?: string;
+    postalCode?: string;
+    country?: string;
+    email?: string;
+    billingEmail?: string;
+    phone?: string;
+    vatNumber?: string;
+    website?: string;
+  };
+  vat?: number | null;
+  tax?: number | null;
+  discount?: number | null;
+  subtotal: number;
+  status: string;
+  taxRate?: number;
+  vatRate?: number;
+  sentAt?: string | null;
+  viewedAt?: string | null;
+  acceptedAt?: string | null;
+  rejectedAt?: string | null;
+  token?: string;
+}
+
 type QuoteSheetProps = {
   defaultSettings?: Partial<QuoteDefaultSettings>;
 };
@@ -91,7 +144,7 @@ export function QuoteSheet({ defaultSettings }: QuoteSheetProps) {
 type QuoteSheetContentProps = {
   type: "create" | "edit" | "success";
   quoteId?: string | null;
-  quoteData?: any;
+  quoteData?: QuoteApiResponse;
   onSuccess: (id: string) => void;
   onClose: () => void;
   isLoading?: boolean;
@@ -170,7 +223,7 @@ function QuoteSheetContent({
 
 type SuccessContentProps = {
   quoteId: string;
-  quote?: any;
+  quote?: QuoteApiResponse;
   onViewQuote: () => void;
   onCreateAnother: () => void;
 };
@@ -337,7 +390,7 @@ function SuccessContent({
 
 // Transform API quote to form values
 function transformQuoteToFormValues(
-  quote: any
+  quote: QuoteApiResponse
 ): Partial<QuoteFormValues> {
   return {
     id: quote.id,
@@ -374,7 +427,7 @@ function transformQuoteToFormValues(
           ],
         }
       : null,
-    lineItems: (quote.items || []).map((item: any) => ({
+    lineItems: (quote.items || []).map((item) => ({
       name: item.productName || item.description || "",
       quantity: item.quantity || 1,
       price: item.unitPrice || 0,

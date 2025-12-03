@@ -19,110 +19,17 @@ import {
 import { motion } from "framer-motion";
 import { Download, Copy, Pencil, ArrowLeft, Check } from "lucide-react";
 import { toast } from "sonner";
-import { useState } from "react";
-
-function DeliveryNoteStatus({ status }: { status?: string }) {
-  const getStatusColor = () => {
-    switch (status) {
-      case "delivered":
-        return "bg-[#C6F6D5] text-[#22543D]";
-      case "in_transit":
-        return "bg-[#FEEBC8] text-[#744210]";
-      case "pending":
-        return "bg-[#E2E8F0] text-[#4A5568]";
-      case "returned":
-        return "bg-[#FED7D7] text-[#822727]";
-      default:
-        return "bg-[#E2E8F0] text-[#4A5568]";
-    }
-  };
-
-  return (
-    <span
-      className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium capitalize ${getStatusColor()}`}
-    >
-      {status || "pending"}
-    </span>
-  );
-}
-
-function buildCustomerDetails(
-  deliveryNote:
-    | DeliveryNote
-    | {
-        company?: {
-          name?: string;
-          address?: string;
-          city?: string;
-          zip?: string;
-          postalCode?: string;
-          country?: string;
-          email?: string;
-          phone?: string;
-          vatNumber?: string;
-        };
-        companyName?: string;
-        customerDetails?: unknown;
-      }
-): {
-  type: string;
-  content: Array<{
-    type: string;
-    content: Array<{ type: string; text: string }>;
-  }>;
-} | null {
-  if (deliveryNote.customerDetails) {
-    if (typeof deliveryNote.customerDetails === "string") {
-      try {
-        return JSON.parse(deliveryNote.customerDetails);
-      } catch {
-        return null;
-      }
-    }
-    return deliveryNote.customerDetails;
-  }
-
-  const lines: string[] = [];
-  const companyName = deliveryNote.companyName || deliveryNote.company?.name;
-  if (companyName) {
-    lines.push(companyName);
-  }
-
-  if (deliveryNote.company) {
-    if (deliveryNote.company.address) {
-      lines.push(deliveryNote.company.address);
-    }
-    const cityLine = [
-      deliveryNote.company.city,
-      deliveryNote.company.zip || deliveryNote.company.postalCode,
-      deliveryNote.company.country,
-    ]
-      .filter(Boolean)
-      .join(", ");
-    if (cityLine) lines.push(cityLine);
-    if (deliveryNote.company.email) lines.push(deliveryNote.company.email);
-    if (deliveryNote.company.phone) lines.push(deliveryNote.company.phone);
-    if (deliveryNote.company.vatNumber) {
-      lines.push(`VAT: ${deliveryNote.company.vatNumber}`);
-    }
-  }
-
-  if (lines.length === 0) return null;
-
-  return {
-    type: "doc",
-    content: lines.map((line) => ({
-      type: "paragraph",
-      content: [{ type: "text", text: line }],
-    })),
-  };
-}
+import { PAGE_SIZES } from "@/constants/page-sizes";
+import { DeliveryStatusBadge } from "@/components/sales/status/DeliveryStatusBadge";
+import { buildCustomerDetails } from "@/utils/customer-details";
+import { getStoredFromDetails } from "@/hooks/use-stored-from-details";
+import { useCopyLink } from "@/hooks/use-copy-link";
 
 export default function DeliveryNoteDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const router = useRouter();
-  const [copied, setCopied] = useState(false);
+  const { copyLink, copied } = useCopyLink();
 
   const {
     data: deliveryNote,
@@ -134,17 +41,15 @@ export default function DeliveryNoteDetailPage() {
 
   const handleCopyLink = () => {
     const url = window.location.href;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    toast.success("Link copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
+    copyLink(url);
   };
 
   const handleDownload = async () => {
     try {
       toast.info("Preparing PDF download...");
       window.open(`/api/download/delivery-note?id=${id}`, "_blank");
-    } catch {
+    } catch (error) {
+      console.error("Failed to download delivery note:", error);
       toast.error("Failed to download delivery note");
     }
   };
@@ -154,14 +59,18 @@ export default function DeliveryNoteDetailPage() {
   };
 
   if (isLoading) {
+    const { width, height } = PAGE_SIZES.A4;
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4">
-        <div className="flex flex-col w-full max-w-[595px] py-6">
+        <div
+          className="flex flex-col w-full max-w-full py-6"
+          style={{ maxWidth: width }}
+        >
           <div className="flex justify-between items-center mb-4">
             <Skeleton className="h-6 w-32" />
             <Skeleton className="h-6 w-20" />
           </div>
-          <Skeleton className="h-[842px] w-full" />
+          <Skeleton style={{ height }} className="w-full" />
         </div>
       </div>
     );
@@ -189,8 +98,7 @@ export default function DeliveryNoteDetailPage() {
     deliveryNote.companyName || deliveryNote.company?.name || "Unknown";
   const customerDetails = buildCustomerDetails(deliveryNote);
   const fromDetails = getStoredFromDetails();
-  const width = 595;
-  const height = 842;
+  const { width, height } = PAGE_SIZES.A4;
 
   return (
     <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4 sm:p-6 md:p-0">
@@ -214,7 +122,10 @@ export default function DeliveryNoteDetailPage() {
             <span className="truncate text-sm">{customerName}</span>
           </div>
 
-          <DeliveryNoteStatus status={deliveryNote.status} />
+          <DeliveryStatusBadge
+            status={deliveryNote.status}
+            showTooltip={false}
+          />
         </div>
 
         {/* Delivery Note Template with shadow */}
@@ -282,9 +193,7 @@ export default function DeliveryNoteDetailPage() {
                 <p>Download</p>
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
 
-          <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -307,9 +216,7 @@ export default function DeliveryNoteDetailPage() {
                 <p>Copy link</p>
               </TooltipContent>
             </Tooltip>
-          </TooltipProvider>
 
-          <TooltipProvider delayDuration={0}>
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -333,15 +240,4 @@ export default function DeliveryNoteDetailPage() {
       </motion.div>
     </div>
   );
-}
-
-// Get stored fromDetails from localStorage
-function getStoredFromDetails() {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = localStorage.getItem("invoice_from_details");
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
 }

@@ -20,6 +20,7 @@ import {
 
 export const deliveryNoteQueries = {
   async findAll(
+    companyId: string | null,
     pagination: PaginationParams,
     filters: FilterParams
   ): Promise<{ data: DeliveryNote[]; total: number }> {
@@ -31,6 +32,10 @@ export const deliveryNoteQueries = {
 
     // Koristi query builder za sigurne upite
     const qb = createQueryBuilder("delivery_notes");
+    // Only filter by companyId if provided (admin can see all)
+    if (companyId) {
+      qb.addEqualCondition("company_id", companyId);
+    }
     qb.addSearchCondition(["delivery_number"], filters.search);
     qb.addEqualCondition("status", filters.status);
 
@@ -306,12 +311,23 @@ export const deliveryNoteQueries = {
     });
   },
 
-  async getPending(): Promise<DeliveryNote[]> {
-    const result = await db`
-      SELECT * FROM delivery_notes
-      WHERE status = 'pending'
-      ORDER BY created_at ASC
-    `;
+  async getPending(companyId: string | null): Promise<DeliveryNote[]> {
+    let query;
+    if (companyId) {
+      query = db`
+        SELECT * FROM delivery_notes
+        WHERE company_id = ${companyId}
+          AND status = 'pending'
+        ORDER BY created_at ASC
+      `;
+    } else {
+      query = db`
+        SELECT * FROM delivery_notes
+        WHERE status = 'pending'
+        ORDER BY created_at ASC
+      `;
+    }
+    const result = await query;
 
     if (result.length === 0) return [];
 
@@ -336,12 +352,23 @@ export const deliveryNoteQueries = {
     });
   },
 
-  async getInTransit(): Promise<DeliveryNote[]> {
-    const result = await db`
-      SELECT * FROM delivery_notes
-      WHERE status = 'in_transit'
-      ORDER BY ship_date ASC
-    `;
+  async getInTransit(companyId: string | null): Promise<DeliveryNote[]> {
+    let query;
+    if (companyId) {
+      query = db`
+        SELECT * FROM delivery_notes
+        WHERE company_id = ${companyId}
+          AND status = 'in_transit'
+        ORDER BY ship_date ASC
+      `;
+    } else {
+      query = db`
+        SELECT * FROM delivery_notes
+        WHERE status = 'in_transit'
+        ORDER BY ship_date ASC
+      `;
+    }
+    const result = await query;
 
     if (result.length === 0) return [];
 

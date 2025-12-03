@@ -99,11 +99,19 @@ const Notifications = () => {
 
       if (notifResult.success && notifResult.data) {
         setNotifications(notifResult.data.notifications || []);
+      } else if (!notifResult.success) {
+        // Log error but don't show toast for background polling
+        console.warn("Failed to fetch notifications:", notifResult.error?.message);
       }
+
       if (countResult.success && countResult.data) {
         setUnreadCount(countResult.data.count);
+      } else if (!countResult.success) {
+        // Log error but don't show toast for background polling
+        console.warn("Failed to fetch notification count:", countResult.error?.message);
       }
     } catch (error) {
+      // Only log, don't show toast for background polling errors
       console.error("Failed to fetch notifications:", error);
     } finally {
       setIsLoading(false);

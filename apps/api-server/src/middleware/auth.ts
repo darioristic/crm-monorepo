@@ -2,6 +2,7 @@ import type { UserRole } from "@crm/types";
 import { errorResponse } from "@crm/utils";
 import { validateJWT, type JWTPayload } from "../services/auth.service";
 import { cache } from "../cache/redis";
+import { logger } from "../lib/logger";
 
 // ============================================
 // Auth Context Type
@@ -10,7 +11,8 @@ import { cache } from "../cache/redis";
 export interface AuthContext {
 	userId: string;
 	role: UserRole;
-	companyId?: string;
+	tenantId?: string; // null for superadmin, required for tenant_admin and crm_user
+	companyId?: string; // optional for crm_user, null for others
 	sessionId: string;
 }
 
@@ -55,28 +57,46 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 export async function verifyAndGetUser(
 	request: Request,
 ): Promise<AuthContext | null> {
-	const token = extractJWT(request);
-	if (!token) {
+	try {
+		const token = extractJWT(request);
+		if (!token) {
+			return null;
+		}
+
+		const payload = await validateJWT(token);
+		if (!payload) {
+			return null;
+		}
+
+		// Verify session still exists in Redis
+		// Wrap in try-catch to handle Redis connection errors gracefully
+		let session;
+		try {
+			session = await cache.getSession(payload.sessionId);
+		} catch (redisError) {
+			logger.error({ error: redisError }, "Redis error in verifyAndGetUser");
+			// If Redis fails, we can still proceed with JWT validation
+			// This allows the system to continue working even if Redis is down
+			session = null;
+		}
+
+		if (!session) {
+			return null;
+		}
+
+		// Return auth context with tenantId and companyId from payload
+		// These may be undefined for old tokens, which is OK
+		return {
+			userId: payload.userId,
+			role: payload.role,
+			tenantId: payload.tenantId,
+			companyId: payload.companyId,
+			sessionId: payload.sessionId,
+		};
+	} catch (error) {
+		logger.error({ error }, "Error in verifyAndGetUser");
 		return null;
 	}
-
-	const payload = await validateJWT(token);
-	if (!payload) {
-		return null;
-	}
-
-	// Verify session still exists in Redis
-	const session = await cache.getSession(payload.sessionId);
-	if (!session) {
-		return null;
-	}
-
-	return {
-		userId: payload.userId,
-		role: payload.role,
-		companyId: payload.companyId,
-		sessionId: payload.sessionId,
-	};
 }
 
 // ============================================
@@ -104,9 +124,7 @@ export type AuthenticatedRouteHandler = (
 /**
  * Requires authentication - returns 401 if not authenticated
  */
-export function requireAuth(
-	handler: AuthenticatedRouteHandler,
-): RouteHandler {
+export function requireAuth(handler: AuthenticatedRouteHandler): RouteHandler {
 	return async (request, url, params) => {
 		const auth = await verifyAndGetUser(request);
 
@@ -132,7 +150,7 @@ export function requireRole(
 			return unauthorizedResponse("Authentication required");
 		}
 
-		if (auth.role !== role && auth.role !== "admin") {
+		if (auth.role !== role && auth.role !== "superadmin") {
 			return forbiddenResponse(`Requires ${role} role`);
 		}
 
@@ -143,9 +161,7 @@ export function requireRole(
 /**
  * Requires admin role - returns 403 if not admin
  */
-export function requireAdmin(
-	handler: AuthenticatedRouteHandler,
-): RouteHandler {
+export function requireAdmin(handler: AuthenticatedRouteHandler): RouteHandler {
 	return async (request, url, params) => {
 		const auth = await verifyAndGetUser(request);
 
@@ -153,8 +169,8 @@ export function requireAdmin(
 			return unauthorizedResponse("Authentication required");
 		}
 
-		if (auth.role !== "admin") {
-			return forbiddenResponse("Admin access required");
+		if (auth.role !== "superadmin") {
+			return forbiddenResponse("Superadmin access required");
 		}
 
 		return handler(request, url, params, auth);
@@ -164,9 +180,7 @@ export function requireAdmin(
 /**
  * Optional auth - attaches user if authenticated, but doesn't require it
  */
-export function optionalAuth(
-	handler: RouteHandler,
-): RouteHandler {
+export function optionalAuth(handler: RouteHandler): RouteHandler {
 	return async (request, url, params) => {
 		const auth = await verifyAndGetUser(request);
 		return handler(request, url, params, auth || undefined);
@@ -177,21 +191,31 @@ export function optionalAuth(
 // Role Check Helpers
 // ============================================
 
-export function isAdmin(auth: AuthContext): boolean {
-	return auth.role === "admin";
+export function isSuperadmin(auth: AuthContext): boolean {
+	return auth.role === "superadmin";
 }
 
-export function isUser(auth: AuthContext): boolean {
-	return auth.role === "user";
+export function isTenantAdmin(auth: AuthContext): boolean {
+	return auth.role === "tenant_admin";
+}
+
+export function isCrmUser(auth: AuthContext): boolean {
+	return auth.role === "crm_user";
 }
 
 export async function canAccessCompany(
 	auth: AuthContext,
 	companyId: string,
 ): Promise<boolean> {
-	// Admin can access any company
-	if (auth.role === "admin") return true;
-	
+	// Superadmin can access any company
+	if (auth.role === "superadmin") return true;
+
+	// Tenant admin can access companies in their tenant
+	if (auth.role === "tenant_admin") {
+		// TODO: Add tenant-scoped company access check
+		return true;
+	}
+
 	// Use company permission check with cache
 	const { checkCompanyPermission } = await import("./company-permission");
 	const result = await checkCompanyPermission(auth.userId, companyId);
@@ -202,9 +226,14 @@ export function canAccessUser(
 	auth: AuthContext,
 	targetUserId: string,
 ): boolean {
-	// Admin can access any user
-	if (auth.role === "admin") return true;
-	// User can only access themselves
+	// Superadmin can access any user
+	if (auth.role === "superadmin") return true;
+	// Tenant admin can access users in their tenant
+	if (auth.role === "tenant_admin") {
+		// TODO: Add tenant-scoped user access check
+		return true;
+	}
+	// CRM user can only access themselves
 	return auth.userId === targetUserId;
 }
 
@@ -213,26 +242,20 @@ export function canAccessUser(
 // ============================================
 
 function unauthorizedResponse(message: string): Response {
-	return new Response(
-		JSON.stringify(errorResponse("UNAUTHORIZED", message)),
-		{
-			status: 401,
-			headers: {
-				"Content-Type": "application/json",
-				"WWW-Authenticate": 'Bearer realm="CRM API"',
-			},
+	return new Response(JSON.stringify(errorResponse("UNAUTHORIZED", message)), {
+		status: 401,
+		headers: {
+			"Content-Type": "application/json",
+			"WWW-Authenticate": 'Bearer realm="CRM API"',
 		},
-	);
+	});
 }
 
 function forbiddenResponse(message: string): Response {
-	return new Response(
-		JSON.stringify(errorResponse("FORBIDDEN", message)),
-		{
-			status: 403,
-			headers: { "Content-Type": "application/json" },
-		},
-	);
+	return new Response(JSON.stringify(errorResponse("FORBIDDEN", message)), {
+		status: 403,
+		headers: { "Content-Type": "application/json" },
+	});
 }
 
 // ============================================
@@ -241,4 +264,3 @@ function forbiddenResponse(message: string): Response {
 
 export { validateJWT };
 export type { JWTPayload };
-

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { DeliveryNoteForm } from "@/components/sales/delivery-note-form";
@@ -13,6 +13,8 @@ import { useApi } from "@/hooks/use-api";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
 import type { DeliveryNote } from "@crm/types";
+import { SHEET_SIZES } from "@/constants/sheet-sizes";
+import { useCopyLink } from "@/hooks/use-copy-link";
 
 export function DeliveryNoteSheet() {
   const searchParams = useSearchParams();
@@ -86,7 +88,7 @@ function DeliveryNoteSheetContent({
   onClose,
   isLoading,
 }: DeliveryNoteSheetContentProps) {
-  const [size] = useState(700);
+  const size = SHEET_SIZES.DEFAULT;
 
   if (isLoading) {
     return (
@@ -176,13 +178,19 @@ function SuccessContent({
       ? `${window.location.origin}/dashboard/sales/delivery-notes/${deliveryNoteId}`
       : "";
 
+  const { copyLink } = useCopyLink();
+
   const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareUrl);
-    toast.success("Link copied to clipboard");
+    copyLink(shareUrl);
   };
 
   const handleDownload = () => {
-    window.open(`/api/download/delivery-note?id=${deliveryNoteId}`, "_blank");
+    try {
+      window.open(`/api/download/delivery-note?id=${deliveryNoteId}`, "_blank");
+    } catch (error) {
+      console.error("Failed to open download link:", error);
+      toast.error("Failed to download delivery note");
+    }
   };
 
   // Get company data

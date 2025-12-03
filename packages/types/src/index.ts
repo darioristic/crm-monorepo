@@ -82,7 +82,7 @@ export interface UpsertCompanyParams {
 // User & Auth Types
 // ============================================
 
-export type UserRole = "admin" | "user";
+export type UserRole = "superadmin" | "tenant_admin" | "crm_user";
 export type UserStatus = "active" | "inactive" | "pending";
 
 export interface User extends BaseEntity {

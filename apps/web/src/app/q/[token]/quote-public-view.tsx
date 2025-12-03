@@ -17,8 +17,60 @@ import type { Quote, EditorDoc } from "@/types/quote";
 import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
 import { useAuth } from "@/contexts/auth-context";
 
+// API Quote Response Type
+interface QuoteApiResponse {
+  id: string;
+  quoteNumber: string | null;
+  issueDate: string | null;
+  validUntil: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  total: number;
+  currency?: string | null;
+  items?: Array<{
+    productName?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    discount?: number;
+    vat?: number;
+    vatRate?: number;
+  }>;
+  terms?: string;
+  notes?: string;
+  companyId: string;
+  companyName?: string;
+  company?: {
+    name?: string;
+    addressLine1?: string;
+    address?: string;
+    addressLine2?: string;
+    city?: string;
+    zip?: string;
+    postalCode?: string;
+    country?: string;
+    email?: string;
+    billingEmail?: string;
+    phone?: string;
+    vatNumber?: string;
+    website?: string;
+  };
+  vat?: number | null;
+  tax?: number | null;
+  discount?: number | null;
+  subtotal: number;
+  status: string;
+  taxRate?: number;
+  vatRate?: number;
+  sentAt?: string | null;
+  viewedAt?: string | null;
+  acceptedAt?: string | null;
+  rejectedAt?: string | null;
+}
+
 type QuotePublicViewProps = {
-  quote: any;
+  quote: QuoteApiResponse;
   token: string;
 };
 
@@ -87,7 +139,7 @@ function getStoredLogo(): string | null {
 const DEFAULT_LOGO_URL: string | null = "/logo.png";
 
 // Build customer details from company data (Bill to)
-function buildCustomerDetails(quote: any): EditorDoc | null {
+function buildCustomerDetails(quote: QuoteApiResponse): EditorDoc | null {
   const lines: string[] = [];
 
   // Get company name from either direct field or nested object
@@ -201,7 +253,7 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
     amount: quote.total,
     currency: quote.currency || "EUR",
     lineItems:
-      quote.items?.map((item: any) => ({
+      quote.items?.map((item) => ({
         name: item.productName || item.description || "",
         quantity: item.quantity || 1,
         price: item.unitPrice || 0,

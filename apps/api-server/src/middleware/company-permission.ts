@@ -85,8 +85,9 @@ export async function withCompanyPermission<T>(
 	if (!companyId && ["POST", "PUT", "PATCH"].includes(request.method)) {
 		try {
 			const body = await request.clone().json();
-			if (body?.companyId) {
-				companyId = body.companyId;
+			const b = body as Record<string, unknown>;
+			if (typeof b.companyId === "string") {
+				companyId = b.companyId as string;
 			}
 		} catch {
 			// Ignore JSON parse errors
@@ -137,4 +138,3 @@ export async function checkCompanyPermission(
 
 	return { allowed: true };
 }
-

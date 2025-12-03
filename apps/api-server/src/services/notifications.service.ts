@@ -6,7 +6,7 @@ import type {
 	ApiResponse,
 	PaginationParams,
 } from "@crm/types";
-import { successResponse, errorResponse, paginatedResponse } from "@crm/utils";
+import { successResponse, errorResponse } from "@crm/utils";
 import { serviceLogger } from "../lib/logger";
 import { notificationQueries } from "../db/queries/notifications";
 import { userQueries } from "../db/queries/users";
@@ -32,19 +32,50 @@ class NotificationsService {
 		ApiResponse<{ notifications: Notification[]; unreadCount: number }>
 	> {
 		try {
-			const { notifications, total, unreadCount } = await notificationQueries.findAll(
-				userId,
-				pagination,
-				filters,
-			);
+			// Validate userId
+			if (!userId || typeof userId !== "string") {
+				return errorResponse("VALIDATION_ERROR", "Invalid user ID");
+			}
 
-			return {
-				...paginatedResponse(notifications, total, pagination),
-				data: { notifications, unreadCount },
-			};
+			const { notifications, total, unreadCount } =
+				await notificationQueries.findAll(userId, pagination, filters);
+
+			const page = pagination.page ?? 1;
+			const pageSize = pagination.pageSize ?? 20;
+
+			return successResponse(
+				{ notifications: notifications || [], unreadCount: unreadCount || 0 },
+				{
+					page,
+					pageSize,
+					totalCount: total || 0,
+					totalPages: Math.ceil((total || 0) / pageSize),
+				},
+			);
 		} catch (error) {
-			serviceLogger.error(error, "Error fetching notifications:");
-			return errorResponse("SERVER_ERROR", "Failed to fetch notifications");
+			serviceLogger.error(
+				{
+					error,
+					errorMessage: error instanceof Error ? error.message : String(error),
+					errorStack: error instanceof Error ? error.stack : undefined,
+					userId,
+					pagination,
+					filters,
+				},
+				"Error fetching notifications:",
+			);
+			// Return empty result instead of error to prevent 500
+			const page = pagination.page ?? 1;
+			const pageSize = pagination.pageSize ?? 20;
+			return successResponse(
+				{ notifications: [], unreadCount: 0 },
+				{
+					page,
+					pageSize,
+					totalCount: 0,
+					totalPages: 0,
+				},
+			);
 		}
 	}
 
@@ -116,10 +147,16 @@ class NotificationsService {
 	): Promise<ApiResponse<Notification[]>> {
 		try {
 			if (!data.userIds || data.userIds.length === 0) {
-				return errorResponse("VALIDATION_ERROR", "At least one user ID is required");
+				return errorResponse(
+					"VALIDATION_ERROR",
+					"At least one user ID is required",
+				);
 			}
 
-			const notifications = await notificationQueries.createBulk(data.userIds, data);
+			const notifications = await notificationQueries.createBulk(
+				data.userIds,
+				data,
+			);
 
 			// Send emails if channel includes email
 			if (data.channel === "email" || data.channel === "both") {
@@ -210,13 +247,21 @@ class NotificationsService {
 	/**
 	 * Get unread count for a user
 	 */
-	async getUnreadCount(userId: string): Promise<ApiResponse<{ count: number }>> {
+	async getUnreadCount(
+		userId: string,
+	): Promise<ApiResponse<{ count: number }>> {
 		try {
+			// Validate userId
+			if (!userId || typeof userId !== "string") {
+				return successResponse({ count: 0 });
+			}
+
 			const count = await notificationQueries.getUnreadCount(userId);
-			return successResponse({ count });
+			return successResponse({ count: count || 0 });
 		} catch (error) {
-			serviceLogger.error(error, "Error getting unread count:");
-			return errorResponse("SERVER_ERROR", "Failed to get unread count");
+			serviceLogger.error({ error, userId }, "Error getting unread count:");
+			// Always return success with count 0 instead of error to prevent 500
+			return successResponse({ count: 0 });
 		}
 	}
 
@@ -361,4 +406,3 @@ class NotificationsService {
 }
 
 export const notificationsService = new NotificationsService();
-

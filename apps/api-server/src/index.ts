@@ -84,21 +84,31 @@ const server = Bun.serve({
 			const duration = performance.now() - startTime;
 			logRequest(reqLogger, response.status, duration);
 
-			// Apply CORS and security headers
-			const corsResponse = applyCorsHeaders(response, corsHeaders);
-			return applySecurityHeaders(corsResponse);
+			// Apply CORS and security headers with error handling
+			try {
+				const corsResponse = applyCorsHeaders(response, corsHeaders);
+				return applySecurityHeaders(corsResponse);
+			} catch (middlewareError) {
+				reqLogger.error({ error: middlewareError }, "Error applying middleware headers");
+				// Return original response if middleware fails
+				return response;
+			}
 		} catch (error) {
 			const duration = performance.now() - startTime;
 			reqLogger.error({ error, durationMs: duration }, "Server error");
 
 			// Capture error in Sentry
-			if (error instanceof Error) {
-				const { captureException } = await import("./lib/sentry");
-				captureException(error, {
-					url: request.url,
-					method: request.method,
-					durationMs: duration,
-				});
+			try {
+				if (error instanceof Error) {
+					const { captureException } = await import("./lib/sentry");
+					captureException(error, {
+						url: request.url,
+						method: request.method,
+						durationMs: duration,
+					});
+				}
+			} catch (sentryError) {
+				// Ignore Sentry errors
 			}
 
 			const errorResponse = new Response(
@@ -115,34 +125,49 @@ const server = Bun.serve({
 				},
 			);
 
-			const corsErrorResponse = applyCorsHeaders(errorResponse, corsHeaders);
-			return applySecurityHeaders(corsErrorResponse);
+			try {
+				const corsErrorResponse = applyCorsHeaders(errorResponse, corsHeaders);
+				return applySecurityHeaders(corsErrorResponse);
+			} catch (middlewareError) {
+				// If middleware fails, return error response without CORS/security headers
+				return errorResponse;
+			}
 		}
 	},
 
-	async error(error: Error): Promise<Response> {
-		logger.error({ error }, "Unhandled server error");
-		// Capture error in Sentry
-		try {
-			const { captureException } = await import("./lib/sentry");
-			captureException(error, { context: "unhandled_server_error" });
-		} catch (sentryError) {
-			// Ignore Sentry errors to prevent recursive errors
-		}
-		return new Response(
-			JSON.stringify({
-				success: false,
-				error: {
-					code: "INTERNAL_ERROR",
-					message: "Internal server error",
-				},
-			}),
-			{
-				status: 500,
-				headers: { "Content-Type": "application/json" },
-			},
-		);
-	},
+  async error(error: Error): Promise<Response> {
+    logger.error({ error }, "Unhandled server error");
+    // Capture error in Sentry
+    try {
+      const { captureException } = await import("./lib/sentry");
+      captureException(error, { context: "unhandled_server_error" });
+    } catch (sentryError) {
+      // Ignore Sentry errors to prevent recursive errors
+    }
+
+    const baseErrorResponse = new Response(
+      JSON.stringify({
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: "Internal server error",
+        },
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+
+    // Apply CORS and security headers even for unhandled server errors
+    try {
+      const corsHeaders = buildCorsHeaders(null, corsConfig);
+      const corsErrorResponse = applyCorsHeaders(baseErrorResponse, corsHeaders);
+      return applySecurityHeaders(corsErrorResponse);
+    } catch {
+      return baseErrorResponse;
+    }
+  },
 });
 
 logger.info(

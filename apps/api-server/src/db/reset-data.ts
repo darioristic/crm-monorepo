@@ -164,6 +164,8 @@ async function deleteAllDocuments(): Promise<void> {
 	await safeDelete("quote_items", "stavke ponuda");
 	await safeDelete("quotes", "ponude");
 	await safeDelete("notifications", "notifikacije");
+	await safeDelete("products", "proizvodi");
+	await safeDelete("product_categories", "kategorije proizvoda");
 
 	console.log("\n✅ Svi dokumenti su obrisani!\n");
 }
@@ -186,6 +188,16 @@ async function deleteAllUsersAndCompanies(): Promise<void> {
 	};
 
 	// Delete in reverse order of dependencies
+	// First delete entities that reference users
+	await safeDelete("activities", "aktivnosti");
+	await safeDelete("tasks", "zadaci");
+	await safeDelete("milestones", "milestoni");
+	await safeDelete("projects", "projekti");
+	await safeDelete("deals", "poslovi");
+	await safeDelete("contacts", "kontakti");
+	await safeDelete("leads", "potencijalni klijenti");
+	
+	// Then delete user-related tables
 	await safeDelete("users_on_company", "veze korisnika i kompanija");
 	await safeDelete("auth_credentials", "autentifikacije");
 	await safeDelete("sessions", "sesije");
@@ -490,8 +502,34 @@ function generateOrders(
 	quoteIds: string[],
 	invoiceIds: string[],
 	userIds: string[],
-): Order[] {
-	const orders: Order[] = [];
+): Array<{
+	orderNumber: string;
+	companyId: string;
+	contactId?: string | null;
+	quoteId?: string | null;
+	invoiceId?: string | null;
+	status: Order["status"];
+	subtotal: number;
+	tax: number;
+	total: number;
+	currency: string;
+	notes?: string | null;
+	createdBy: string;
+}> {
+	const orders: Array<{
+		orderNumber: string;
+		companyId: string;
+		contactId?: string | null;
+		quoteId?: string | null;
+		invoiceId?: string | null;
+		status: Order["status"];
+		subtotal: number;
+		tax: number;
+		total: number;
+		currency: string;
+		notes?: string | null;
+		createdBy: string;
+	}> = [];
 	const statuses: Order["status"][] = ["pending", "processing", "completed", "cancelled", "refunded"];
 
 	for (let i = 0; i < count; i++) {
@@ -501,20 +539,18 @@ function generateOrders(
 		const status = randomElement(statuses);
 
 		orders.push({
-			id: generateUUID(),
 			orderNumber: `NAR-2025-${String(i + 1).padStart(5, "0")}`,
 			companyId: randomElement(companyIds),
-			quoteId: Math.random() > 0.5 && quoteIds.length > 0 ? randomElement(quoteIds) : undefined,
-			invoiceId: Math.random() > 0.5 && invoiceIds.length > 0 ? randomElement(invoiceIds) : undefined,
+			contactId: null,
+			quoteId: Math.random() > 0.5 && quoteIds.length > 0 ? randomElement(quoteIds) : null,
+			invoiceId: Math.random() > 0.5 && invoiceIds.length > 0 ? randomElement(invoiceIds) : null,
 			status,
 			subtotal,
 			tax,
 			total,
 			currency: "RSD",
-			notes: Math.random() > 0.5 ? `Napomena za narudžbinu ${i + 1}` : undefined,
+			notes: Math.random() > 0.5 ? `Napomena za narudžbinu ${i + 1}` : null,
 			createdBy: randomElement(userIds),
-			createdAt: pastDate(randomNumber(1, 60)),
-			updatedAt: now(),
 		});
 	}
 
@@ -546,18 +582,24 @@ async function seedCompanies(companies: Company[]): Promise<string[]> {
 async function seedUsers(users: User[]): Promise<string[]> {
 	console.log(`\n👥 Kreiranje ${users.length} korisnika...\n`);
 	const userIds: string[] = [];
+	const DEFAULT_PASSWORD = "changeme123";
+
+	// Hash password once for all users
+	const passwordHash = await Bun.password.hash(DEFAULT_PASSWORD, {
+		algorithm: "bcrypt",
+		cost: 12,
+	});
 
 	for (const user of users) {
 		try {
 			const created = await userQueries.create(user);
 			userIds.push(created.id);
 
-			// Create auth credential with default password
-			await authQueries.createCredential({
-				userId: created.id,
-				email: user.email,
-				password: "changeme123",
-			});
+			// Create auth credential with hashed password
+			const exists = await authQueries.credentialsExist(created.id);
+			if (!exists) {
+				await authQueries.createCredentials(created.id, passwordHash);
+			}
 
 			console.log(`  ✅ Kreiran korisnik: ${user.firstName} ${user.lastName} (${user.email})`);
 		} catch (error: any) {
@@ -565,6 +607,8 @@ async function seedUsers(users: User[]): Promise<string[]> {
 			throw error;
 		}
 	}
+
+	console.log(`\n  ℹ️  Podrazumevana lozinka za sve korisnike: "${DEFAULT_PASSWORD}"`);
 
 	return userIds;
 }
@@ -634,16 +678,34 @@ async function seedDeliveryNotes(
 	}
 }
 
-async function seedOrders(orders: Order[]): Promise<void> {
+async function seedOrders(
+	orders: Array<{
+		orderNumber: string;
+		companyId: string;
+		contactId?: string | null;
+		quoteId?: string | null;
+		invoiceId?: string | null;
+		status: Order["status"];
+		subtotal: number;
+		tax: number;
+		total: number;
+		currency: string;
+		notes?: string | null;
+		createdBy: string;
+	}>,
+): Promise<void> {
 	console.log(`\n🛒 Kreiranje ${orders.length} narudžbina...\n`);
 
 	for (const order of orders) {
 		try {
-			const created = await orderQueries.create(order);
-			console.log(`  ✅ Kreirana narudžbina: ${created.orderNumber}`);
+			const result = await orderQueries.create(order);
+			if (result.success && result.data) {
+				console.log(`  ✅ Kreirana narudžbina: ${result.data.orderNumber}`);
+			} else {
+				console.error(`  ❌ Greška pri kreiranju narudžbine ${order.orderNumber}: ${result.error?.message || "Nepoznata greška"}`);
+			}
 		} catch (error: any) {
 			console.error(`  ❌ Greška pri kreiranju narudžbine ${order.orderNumber}:`, error.message);
-			throw error;
 		}
 	}
 }
@@ -662,18 +724,69 @@ export async function resetAndSeedData(): Promise<void> {
 		// Step 2: Delete all users and companies
 		await deleteAllUsersAndCompanies();
 
-		// Step 3: Generate and create 50 Serbian companies
+		// Step 3: Create demo company (TechCorp) first
+		console.log("🏢 Kreiranje demo kompanije...\n");
+		const techCorp = await companyQueries.create({
+			name: "TechCorp",
+			industry: "Technology",
+			address: "123 Tech Street, Beograd",
+			email: "info@techcorp.com",
+			phone: "+381-11-123-4567",
+			city: "Beograd",
+			country: "Srbija",
+			countryCode: "RS",
+			createdAt: pastDate(365),
+			updatedAt: now(),
+		});
+		console.log(`  ✅ Kreirana demo kompanija: TechCorp\n`);
+
+		// Step 4: Generate and create 50 Serbian companies
 		const companies = generateSerbianCompanies(50);
 		const companyIds = await seedCompanies(companies);
 		console.log(`\n  📊 Kreirano kompanija: ${companyIds.length}\n`);
+		
+		// Add TechCorp to the list
+		const allCompanyIds = [techCorp.id, ...companyIds];
 
-		// Step 4: Generate and create users (1-5 per company)
-		const totalUsers = companyIds.reduce((sum) => sum + randomNumber(1, 5), 0);
-		const users = generateSerbianUsers(totalUsers, companyIds);
-		const userIds = await seedUsers(users);
-		console.log(`\n  📊 Kreirano korisnika: ${userIds.length}\n`);
+		// Step 5: Create demo users first (admin and sarah)
+		const demoUsers: User[] = [
+			{
+				id: generateUUID(),
+				firstName: "Admin",
+				lastName: "User",
+				email: "admin@crm.local",
+				role: "admin",
+				companyId: allCompanyIds[0],
+				status: "active",
+				createdAt: pastDate(365),
+				updatedAt: now(),
+			},
+			{
+				id: generateUUID(),
+				firstName: "Sarah",
+				lastName: "Johnson",
+				email: "sarah.johnson@techcorp.com",
+				role: "user",
+				companyId: techCorp.id,
+				status: "active",
+				createdAt: pastDate(300),
+				updatedAt: now(),
+			},
+		];
 
-		// Step 5: Generate and create 50 documents (mixed types)
+		const demoUserIds = await seedUsers(demoUsers);
+		console.log(`\n  📊 Kreirano demo korisnika: ${demoUserIds.length}\n`);
+
+		// Step 6: Generate and create additional users (1-5 per company)
+		const totalUsers = allCompanyIds.reduce((sum) => sum + randomNumber(1, 5), 0);
+		const users = generateSerbianUsers(totalUsers, allCompanyIds);
+		const additionalUserIds = await seedUsers(users);
+		console.log(`\n  📊 Kreirano dodatnih korisnika: ${additionalUserIds.length}\n`);
+
+		// Combine all user IDs
+		const userIds = [...demoUserIds, ...additionalUserIds];
+
+		// Step 7: Generate and create 50 documents (mixed types)
 		// ~12-13 of each type
 		const quoteCount = 13;
 		const invoiceCount = 13;
@@ -681,19 +794,19 @@ export async function resetAndSeedData(): Promise<void> {
 		const orderCount = 12;
 
 		// Create quotes
-		const quotesData = generateQuotes(quoteCount, companyIds, userIds);
+		const quotesData = generateQuotes(quoteCount, allCompanyIds, userIds);
 		const quoteIds = await seedQuotes(quotesData);
 		console.log(`\n  📊 Kreirano ponuda: ${quoteIds.length}\n`);
 
 		// Create invoices
-		const invoicesData = generateInvoices(invoiceCount, companyIds, quoteIds, userIds);
+		const invoicesData = generateInvoices(invoiceCount, allCompanyIds, quoteIds, userIds);
 		const invoiceIds = await seedInvoices(invoicesData);
 		console.log(`\n  📊 Kreirano faktura: ${invoiceIds.length}\n`);
 
 		// Create delivery notes
 		const deliveryNotesData = generateDeliveryNotes(
 			deliveryNoteCount,
-			companyIds,
+			allCompanyIds,
 			invoiceIds,
 			userIds,
 		);
@@ -701,20 +814,26 @@ export async function resetAndSeedData(): Promise<void> {
 		console.log(`\n  📊 Kreirano otpremnica: ${deliveryNoteCount}\n`);
 
 		// Create orders
-		const ordersData = generateOrders(orderCount, companyIds, quoteIds, invoiceIds, userIds);
+		const ordersData = generateOrders(orderCount, allCompanyIds, quoteIds, invoiceIds, userIds);
 		await seedOrders(ordersData);
 		console.log(`\n  📊 Kreirano narudžbina: ${orderCount}\n`);
 
 		// Final summary
 		console.log("\n✅ Reset baze podataka uspešno završen!\n");
 		console.log("═".repeat(50));
-		console.log(`   Kompanije:          ${companyIds.length}`);
+		console.log(`   Kompanije:          ${allCompanyIds.length}`);
 		console.log(`   Korisnici:          ${userIds.length}`);
 		console.log(`   Ponude:             ${quoteIds.length}`);
 		console.log(`   Fakture:            ${invoiceIds.length}`);
 		console.log(`   Otpremnice:         ${deliveryNoteCount}`);
 		console.log(`   Narudžbine:         ${orderCount}`);
 		console.log(`   Ukupno dokumenata:  ${quoteIds.length + invoiceIds.length + deliveryNoteCount + orderCount}`);
+		console.log("═".repeat(50));
+		console.log("\n📋 Demo Credentials:");
+		console.log("═".repeat(50));
+		console.log("   Admin: admin@crm.local");
+		console.log("   User:  sarah.johnson@techcorp.com");
+		console.log("   Password: changeme123");
 		console.log("═".repeat(50));
 		console.log("\n");
 	} catch (error) {

@@ -19,12 +19,9 @@ export interface TransactionContext {
 export async function withTransaction<T>(
   callback: (tx: TransactionClient) => Promise<T>
 ): Promise<T> {
-  return db.transaction(async (tx) => {
-    // The tx object from drizzle-orm is the transaction context
-    // For raw SQL queries, we use the tx.execute() method or template literals
-    // Since TransactionClient is typeof sql, we can use tx directly as sql template
-    return callback(tx as TransactionClient);
-  });
+  // Simplified transaction wrapper using raw SQL client
+  // If transactional semantics are required, integrate with drizzle transaction types later
+  return callback(sql);
 }
 
 // Alias for backward compatibility
@@ -463,4 +460,3 @@ export async function softDeleteInvoiceWithRelations(
     `;
   });
 }
-

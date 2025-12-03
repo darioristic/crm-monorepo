@@ -10,6 +10,7 @@ import { userQueries } from "../db/queries/users";
 import { companyQueries } from "../db/queries/companies";
 import { sql as db } from "../db/client";
 import { emailService } from "./email.service";
+import { serviceLogger } from "../lib/logger";
 
 export type CreateInviteRequest = {
 	email: string;
@@ -189,4 +190,3 @@ class InvitesService {
 }
 
 export const invitesService = new InvitesService();
-

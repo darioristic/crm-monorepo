@@ -1,17 +1,19 @@
 import { pgTable, pgEnum, uuid, varchar, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { tenants } from "./tenants";
 import { companies } from "./companies";
 
-export const userRoleEnum = pgEnum("user_role", ["admin", "user"]);
+export const userRoleEnum = pgEnum("user_role", ["superadmin", "tenant_admin", "crm_user"]);
 
 export const users = pgTable(
 	"users",
 	{
 		id: uuid("id").primaryKey().defaultRandom(),
+		tenantId: uuid("tenant_id").references(() => tenants.id, { onDelete: "cascade" }), // null za superadmin
 		firstName: varchar("first_name", { length: 100 }).notNull(),
 		lastName: varchar("last_name", { length: 100 }).notNull(),
 		email: varchar("email", { length: 255 }).notNull().unique(),
-		role: userRoleEnum("role").notNull().default("user"),
-		companyId: uuid("company_id").references(() => companies.id, { onDelete: "set null" }),
+		role: userRoleEnum("role").notNull().default("crm_user"),
 		status: varchar("status", { length: 50 }).default("active"),
 		avatarUrl: text("avatar_url"),
 		phone: varchar("phone", { length: 50 }),
@@ -21,7 +23,7 @@ export const users = pgTable(
 	},
 	(table) => [
 		uniqueIndex("idx_users_email").on(table.email),
-		index("idx_users_company_id").on(table.companyId),
+		index("idx_users_tenant_id").on(table.tenantId),
 		index("idx_users_role").on(table.role),
 	]
 );
@@ -57,6 +59,12 @@ export const contacts = pgTable(
 	"contacts",
 	{
 		id: uuid("id").primaryKey().defaultRandom(),
+		tenantId: uuid("tenant_id")
+			.notNull()
+			.references(() => tenants.id, { onDelete: "cascade" }),
+		companyId: uuid("company_id")
+			.notNull()
+			.references(() => companies.id, { onDelete: "cascade" }),
 		firstName: varchar("first_name", { length: 100 }).notNull(),
 		lastName: varchar("last_name", { length: 100 }).notNull(),
 		email: varchar("email", { length: 255 }).notNull(),
@@ -74,6 +82,7 @@ export const contacts = pgTable(
 		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
+		index("idx_contacts_tenant_company").on(table.tenantId, table.companyId),
 		index("idx_contacts_email").on(table.email),
 		index("idx_contacts_lead_id").on(table.leadId),
 	]
@@ -111,6 +120,12 @@ export const activities = pgTable(
 	"activities",
 	{
 		id: uuid("id").primaryKey().defaultRandom(),
+		tenantId: uuid("tenant_id")
+			.notNull()
+			.references(() => tenants.id, { onDelete: "cascade" }),
+		companyId: uuid("company_id")
+			.notNull()
+			.references(() => companies.id, { onDelete: "cascade" }),
 		type: varchar("type", { length: 50 }).notNull(),
 		title: varchar("title", { length: 255 }).notNull(),
 		description: text("description"),
@@ -122,6 +137,7 @@ export const activities = pgTable(
 		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 	},
 	(table) => [
+		index("idx_activities_tenant_company").on(table.tenantId, table.companyId),
 		index("idx_activities_entity").on(table.entityType, table.entityId),
 		index("idx_activities_user_id").on(table.userId),
 	]

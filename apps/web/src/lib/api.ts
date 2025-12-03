@@ -108,9 +108,9 @@ async function request<T>(
 ): Promise<ApiResponse<T>> {
 	const url = `${API_URL}${endpoint}`;
 
-	const defaultHeaders: HeadersInit = {
-		"Content-Type": "application/json",
-	};
+  const defaultHeaders: HeadersInit = options.body
+    ? { "Content-Type": "application/json" }
+    : {};
 
 	try {
 		const response = await fetch(url, {
@@ -122,6 +122,11 @@ async function request<T>(
 			},
 		});
 
+		// Check content type - but also try to parse as JSON even if header is missing
+		// (Next.js proxy might not forward headers correctly)
+		const contentType = response.headers.get("content-type");
+		const hasJsonHeader = contentType?.includes("application/json");
+
 		// Handle 401 Unauthorized - try to refresh token and retry ONCE
 		if (response.status === 401 && typeof window !== "undefined") {
 			try {
@@ -130,7 +135,6 @@ async function request<T>(
 				
 				if (refreshResult.success) {
 					// Retry the original request ONCE after successful refresh
-					// Pass retryOn401=false to prevent infinite loop
 					const retryResponse = await fetch(url, {
 						...options,
 						credentials: "include",
@@ -140,19 +144,72 @@ async function request<T>(
 						},
 					});
 					
-					const retryData = await retryResponse.json();
-					return retryData as ApiResponse<T>;
+					// Try to parse as JSON regardless of content-type header
+					try {
+						const retryText = await retryResponse.text();
+						const retryData = JSON.parse(retryText);
+						return retryData as ApiResponse<T>;
+					} catch {
+						// Not JSON, log error
+						const error = new Error("Server returned invalid response format after token refresh");
+						logger.error("API returned non-JSON response (retry)", error, { 
+							status: retryResponse.status, 
+							contentType: retryResponse.headers.get("content-type"),
+							url: endpoint
+						});
+						return {
+							success: false,
+							error: {
+								code: "SERVER_ERROR",
+								message: "Server returned invalid response format",
+							},
+						};
+					}
 				}
 			} catch (refreshError) {
 				logger.error("Token refresh failed", refreshError);
 			}
-			// If refresh failed or didn't succeed, return the original 401 response
-			const data = await response.json();
-			return data as ApiResponse<T>;
 		}
 
-		const data = await response.json();
-		return data as ApiResponse<T>;
+		// Try to parse as JSON - even if content-type header is missing
+		// (Next.js proxy might not forward headers correctly)
+		const text = await response.text();
+		
+		// Try to parse as JSON
+		try {
+			const data = JSON.parse(text);
+			
+			// If parsing succeeded, return the data
+			// Log warning if header was missing (for debugging)
+			if (!hasJsonHeader) {
+				logger.warn("API response parsed as JSON but Content-Type header was missing", {
+					status: response.status,
+					contentType,
+					url: endpoint
+				});
+			}
+			
+			return data as ApiResponse<T>;
+		} catch (parseError) {
+			// Not JSON - log error with preview
+			const errorMessage = `Server returned ${response.status} ${response.statusText}. Expected JSON but got ${contentType || 'unknown'}`;
+			const error = new Error(errorMessage);
+			
+			logger.error("API returned non-JSON response", error, { 
+				status: response.status, 
+				contentType,
+				preview: text.substring(0, 200),
+				url: endpoint
+			});
+			
+			return {
+				success: false,
+				error: {
+					code: response.status >= 500 ? "SERVER_ERROR" : "CLIENT_ERROR",
+					message: errorMessage,
+				},
+			};
+		}
 	} catch (error) {
 		logger.error("API request failed", error);
 		return {

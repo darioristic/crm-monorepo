@@ -42,20 +42,28 @@ export function getCorsConfig(): CorsConfig {
  * Build CORS headers for a given origin
  */
 export function buildCorsHeaders(
-	requestOrigin: string | null,
-	config: CorsConfig
+  requestOrigin: string | null,
+  config: CorsConfig
 ): Record<string, string> {
-	const { origins, methods, headers, credentials, maxAge } = config;
+  const { origins, methods, headers, credentials, maxAge } = config;
 
-	// Determine allowed origin
-	const allowOrigin = requestOrigin && origins.includes(requestOrigin)
-		? requestOrigin
-		: origins[0] || "";
+  // Determine allowed origin
+  const allowOrigin = (() => {
+    if (requestOrigin) {
+      if (origins.length === 0) {
+        return requestOrigin;
+      }
+      if (origins.includes(requestOrigin)) {
+        return requestOrigin;
+      }
+    }
+    return origins[0] || "";
+  })();
 
-	return {
-		"Access-Control-Allow-Origin": allowOrigin,
-		"Access-Control-Allow-Methods": methods.join(", "),
-		"Access-Control-Allow-Headers": headers.join(", "),
+  return {
+    "Access-Control-Allow-Origin": allowOrigin,
+    "Access-Control-Allow-Methods": methods.join(", "),
+    "Access-Control-Allow-Headers": headers.join(", "),
 		"Access-Control-Allow-Credentials": credentials.toString(),
 		"Access-Control-Max-Age": maxAge.toString(),
 	};
@@ -75,20 +83,37 @@ export function handlePreflight(corsHeaders: Record<string, string>): Response {
  * Apply CORS headers to an existing response
  */
 export function applyCorsHeaders(
-	response: Response,
-	corsHeaders: Record<string, string>
+  response: Response,
+  corsHeaders: Record<string, string>
 ): Response {
-	const headers = new Headers(response.headers);
-	
-	for (const [key, value] of Object.entries(corsHeaders)) {
-		headers.set(key, value);
-	}
+  try {
+    const headers = new Headers(response.headers);
+    
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      headers.set(key, value);
+    }
 
-	return new Response(response.body, {
-		status: response.status,
-		statusText: response.statusText,
-		headers,
-	});
+    headers.set("Vary", [headers.get("Vary"), "Origin"].filter(Boolean).join(", "));
+    headers.set(
+      "Access-Control-Expose-Headers",
+      "Content-Type, Authorization, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset"
+    );
+
+    if (!headers.has("Content-Type")) {
+      headers.set("Content-Type", "application/json");
+    }
+
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers,
+    });
+  } catch (error) {
+    // If there's an error applying CORS headers, return the original response
+    // This prevents breaking the entire request
+    console.error("Error applying CORS headers:", error);
+    return response;
+  }
 }
 
 /**
@@ -98,4 +123,3 @@ export function isOriginAllowed(origin: string | null, config: CorsConfig): bool
 	if (!origin) return false;
 	return config.origins.includes(origin);
 }
-

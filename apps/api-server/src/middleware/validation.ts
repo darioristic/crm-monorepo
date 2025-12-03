@@ -267,7 +267,16 @@ import { paginationSchema, filterSchema, type PaginationInput, type FilterInput 
  * Validira i parsira pagination parametre iz URL query-ja
  */
 export function validatePagination(url: URL): ValidationMiddlewareResult<PaginationInput> {
-  return validateQuery(url, paginationSchema);
+  const res = validateQuery(url, paginationSchema);
+  if (!res.success) return res as ValidationMiddlewareResult<PaginationInput>;
+  const data = res.data as Partial<PaginationInput>;
+  const normalized: PaginationInput = {
+    sortOrder: data.sortOrder ?? "desc",
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? 20,
+    sortBy: data.sortBy,
+  };
+  return { success: true, data: normalized };
 }
 
 /**
@@ -367,4 +376,3 @@ export function withValidation<TBody, TQuery, TParams>(options: {
     };
   };
 }
-

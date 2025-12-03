@@ -1,4 +1,5 @@
 import { sql as db } from "../db/client";
+import { serviceLogger } from "../lib/logger";
 
 // ============================================
 // Audit Action Types
@@ -288,10 +289,17 @@ class AuditService {
 		logsByEntityType: Record<string, number>;
 		recentActivity: AuditLogEntry[];
 	}> {
-		const dateFilter = fromDate ? `WHERE created_at >= '${fromDate}'` : "";
+		// Build WHERE clause with parameterized queries (SQL injection safe)
+		let dateFilter = "";
+		const params: any[] = [];
+		if (fromDate) {
+			dateFilter = "WHERE created_at >= $1";
+			params.push(fromDate);
+		}
 
 		const totalResult = await db.unsafe(
 			`SELECT COUNT(*) FROM audit_logs ${dateFilter}`,
+			params,
 		);
 		const totalLogs = Number.parseInt(totalResult[0].count as string, 10);
 
@@ -301,7 +309,7 @@ class AuditService {
       ${dateFilter}
       GROUP BY action
       ORDER BY count DESC
-    `);
+    `, params);
 		const logsByAction: Record<string, number> = {};
 		for (const row of actionResult) {
 			logsByAction[row.action as string] = Number.parseInt(
@@ -316,7 +324,7 @@ class AuditService {
       ${dateFilter}
       GROUP BY entity_type
       ORDER BY count DESC
-    `);
+    `, params);
 		const logsByEntityType: Record<string, number> = {};
 		for (const row of entityResult) {
 			logsByEntityType[row.entity_type as string] = Number.parseInt(
@@ -393,4 +401,3 @@ export function getUserAgent(request: Request): string {
 
 export const auditService = new AuditService();
 export default auditService;
-

@@ -285,7 +285,7 @@ class WorkflowService {
       const fullInvoice = {
         ...result.invoice,
         items: invoiceItems,
-      } as Invoice;
+      } as unknown as Invoice;
 
       logger.info({ quoteId, invoiceId: result.invoiceId, workflowId }, "Quote converted to invoice");
 
@@ -447,7 +447,7 @@ class WorkflowService {
       const fullDeliveryNote = {
         ...result.deliveryNote,
         items: deliveryItems,
-      } as DeliveryNote;
+      } as unknown as DeliveryNote;
 
       logger.info({ invoiceId, deliveryNoteId: result.deliveryNoteId, workflowId }, "Invoice converted to delivery note");
 
@@ -643,4 +643,3 @@ class WorkflowService {
 
 export const workflowService = new WorkflowService();
 export default workflowService;
-

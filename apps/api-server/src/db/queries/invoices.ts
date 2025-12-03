@@ -13,6 +13,7 @@ import {
 	sanitizeSortOrder,
 	type QueryParam,
 } from "../query-builder";
+import { serviceLogger } from "../../lib/logger";
 
 // ============================================
 // Invoice Queries
@@ -20,73 +21,103 @@ import {
 
 export const invoiceQueries = {
 	async findAll(
+		companyId: string | null,
 		pagination: PaginationParams,
 		filters: FilterParams,
 	): Promise<{ data: Invoice[]; total: number }> {
-		const { page = 1, pageSize = 20 } = pagination;
+		try {
+			const { page = 1, pageSize = 20 } = pagination;
 
-		const safePage = Math.max(1, Math.floor(page));
-		const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
-		const safeOffset = (safePage - 1) * safePageSize;
+			const safePage = Math.max(1, Math.floor(page));
+			const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+			const safeOffset = (safePage - 1) * safePageSize;
 
-		// Koristi query builder za sigurne upite
-		const qb = createQueryBuilder("invoices");
-		qb.addSearchCondition(["invoice_number"], filters.search);
-		qb.addEqualCondition("status", filters.status);
-
-		const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
-
-		const countQuery = `SELECT COUNT(*) FROM invoices ${whereClause}`;
-		const countResult = await db.unsafe(
-			countQuery,
-			whereValues as QueryParam[],
-		);
-		const total = parseInt(countResult[0].count, 10);
-
-		const sortBy = sanitizeSortColumn("invoices", pagination.sortBy);
-		const sortOrder = sanitizeSortOrder(pagination.sortOrder);
-
-		const selectQuery = `
-      SELECT * FROM invoices
-      ${whereClause}
-      ORDER BY ${sortBy} ${sortOrder}
-      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
-    `;
-
-		const data = await db.unsafe(selectQuery, [
-			...whereValues,
-			safePageSize,
-			safeOffset,
-		] as QueryParam[]);
-
-		// Fetch all items for all invoices in a single query (fixes N+1 problem)
-		if (data.length === 0) {
-			return { data: [], total };
-		}
-
-		const invoiceIds = data.map((row: Record<string, unknown>) => row.id as string);
-		const allItems = await db`
-			SELECT * FROM invoice_items
-			WHERE invoice_id = ANY(${invoiceIds})
-			ORDER BY invoice_id
-		`;
-
-		// Group items by invoice_id
-		const itemsByInvoiceId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-			if (!acc[item.invoice_id]) {
-				acc[item.invoice_id] = [];
+			// Koristi query builder za sigurne upite
+			const qb = createQueryBuilder("invoices");
+			// Only filter by companyId if provided (admin can see all)
+			if (companyId) {
+				qb.addEqualCondition("company_id", companyId);
 			}
-			acc[item.invoice_id].push(item);
-			return acc;
-		}, {});
+			qb.addSearchCondition(["invoice_number"], filters.search);
+			qb.addEqualCondition("status", filters.status);
 
-		// Map invoices with their items
-		const invoicesWithItems = data.map((row: Record<string, unknown>) => {
-			const items = itemsByInvoiceId[row.id as string] || [];
-			return mapInvoice(row, items);
-		});
+			const { clause: whereClause, values: whereValues } =
+				qb.buildWhereClause();
 
-		return { data: invoicesWithItems, total };
+			// Count query
+			const countQuery = `SELECT COUNT(*) FROM invoices ${whereClause}`;
+			const countResult = await db.unsafe(
+				countQuery,
+				whereValues as QueryParam[],
+			);
+			const total = parseInt(countResult[0].count, 10);
+
+			const sortBy = sanitizeSortColumn("invoices", pagination.sortBy);
+			const sortOrder = sanitizeSortOrder(pagination.sortOrder);
+
+			// Select query
+			let data: Record<string, unknown>[] = [];
+			try {
+				const selectQuery = `
+					SELECT * FROM invoices
+					${whereClause}
+					ORDER BY ${sortBy} ${sortOrder}
+					LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+				`;
+				data = await db.unsafe(selectQuery, [
+					...whereValues,
+					safePageSize,
+					safeOffset,
+				] as QueryParam[]);
+			} catch (selectError) {
+				serviceLogger.error(
+					{ error: selectError, companyId, pagination, filters },
+					"Error selecting invoices",
+				);
+				data = [];
+			}
+
+			// Fetch all items for all invoices in a single query (fixes N+1 problem)
+			if (data.length === 0) {
+				return { data: [], total };
+			}
+
+			const invoiceIds = data.map(
+				(row: Record<string, unknown>) => row.id as string,
+			);
+			const allItems = await db`
+				SELECT * FROM invoice_items
+				WHERE invoice_id = ANY(${invoiceIds})
+				ORDER BY invoice_id
+			`;
+
+			// Group items by invoice_id
+			const itemsByInvoiceId = allItems.reduce(
+				(acc: Record<string, any[]>, item: any) => {
+					if (!acc[item.invoice_id]) {
+						acc[item.invoice_id] = [];
+					}
+					acc[item.invoice_id].push(item);
+					return acc;
+				},
+				{},
+			);
+
+			// Map invoices with their items
+			const invoicesWithItems = data.map((row: Record<string, unknown>) => {
+				const items = itemsByInvoiceId[row.id as string] || [];
+				return mapInvoice(row, items);
+			});
+
+			return { data: invoicesWithItems, total };
+		} catch (error) {
+			serviceLogger.error(
+				{ error, companyId, pagination, filters },
+				"Error in invoiceQueries.findAll",
+			);
+			// Always return a valid response, never throw
+			return { data: [], total: 0 };
+		}
 	},
 
 	async findById(id: string): Promise<InvoiceWithRelations | null> {
@@ -305,12 +336,12 @@ export const invoiceQueries = {
 		}
 
 		const generatedNumber = `${yearPrefix}${String(nextNumber).padStart(5, "0")}`;
-		
+
 		// Double-check that this number doesn't exist (race condition protection)
 		const exists = await db`
       SELECT id FROM invoices WHERE invoice_number = ${generatedNumber} LIMIT 1
     `;
-		
+
 		if (exists.length > 0) {
 			// If it exists, try next number
 			nextNumber += 1;
@@ -378,13 +409,25 @@ export const invoiceQueries = {
 		});
 	},
 
-	async getOverdue(): Promise<Invoice[]> {
-		const result = await db`
-      SELECT * FROM invoices
-      WHERE status IN ('sent', 'partial')
-        AND due_date < NOW()
-      ORDER BY due_date ASC
-    `;
+	async getOverdue(companyId: string | null): Promise<Invoice[]> {
+		let query;
+		if (companyId) {
+			query = db`
+        SELECT * FROM invoices
+        WHERE company_id = ${companyId}
+          AND status IN ('sent', 'partial')
+          AND due_date < NOW()
+        ORDER BY due_date ASC
+      `;
+		} else {
+			query = db`
+        SELECT * FROM invoices
+        WHERE status IN ('sent', 'partial')
+          AND due_date < NOW()
+        ORDER BY due_date ASC
+      `;
+		}
+		const result = await query;
 		return Promise.all(
 			result.map(async (row) => {
 				const items =

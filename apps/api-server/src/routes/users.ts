@@ -11,11 +11,38 @@ import {
   parseBody,
   parsePagination,
   parseFilters,
+  json,
 } from "./helpers";
 import type { CreateUserRequest, UpdateUserRequest, UserRole } from "@crm/types";
 import { hasCompanyAccess } from "../db/queries/companies-members";
 import { userQueries } from "../db/queries/users";
 import { sql } from "../db/client";
+import { generateJWT } from "../services/auth.service";
+import { cache } from "../cache/redis";
+import type { SessionData } from "../services/auth.service";
+
+// Import cookie helper from auth routes
+function getNodeEnv(): string {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const env = (globalThis as any).Bun?.env || process.env;
+	return String(env.NODE_ENV || "development");
+}
+
+function getCookieDomain(): string {
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const env = (globalThis as any).Bun?.env || process.env;
+	return env.COOKIE_DOMAIN || "";
+}
+
+function setAccessTokenCookie(accessToken: string): Record<string, string> {
+	const isProduction = getNodeEnv() === "production";
+	const sameSite = isProduction ? "None" : "Lax";
+	const secure = isProduction ? "Secure; " : "";
+	const cookieDomain = getCookieDomain();
+	const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
+	const accessCookie = `access_token=${accessToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=900`;
+	return { "Set-Cookie": accessCookie };
+}
 
 const router = new RouteBuilder();
 
@@ -82,7 +109,7 @@ router.put("/api/v1/users/me", async (request) => {
       if (body.companyId !== undefined && body.companyId !== null && body.companyId !== "") {
         console.log("✅ CompanyId provided:", body.companyId);
         
-        if (auth.role === "admin") {
+        if (auth.role === "tenant_admin" || auth.role === "superadmin") {
           // Admin can switch to any company - verify it exists
           console.log("🔍 Admin user - verifying company exists");
           const companyExists = await sql`
@@ -120,10 +147,71 @@ router.put("/api/v1/users/me", async (request) => {
           companyId: result.data?.companyId,
         });
 
-        return successResponse({
+        // Invalidate additional caches that depend on companyId
+        console.log("🔄 Invalidating company-dependent caches...");
+        try {
+          // Invalidate documents cache for the user
+          await cache.invalidatePattern(`documents:*:${auth.userId}*`);
+          // Invalidate invoices cache
+          await cache.invalidatePattern(`invoices:*:${body.companyId}*`);
+          // Invalidate delivery notes cache
+          await cache.invalidatePattern(`delivery_notes:*:${body.companyId}*`);
+          // Invalidate orders cache
+          await cache.invalidatePattern(`orders:*:${body.companyId}*`);
+          // Invalidate quotes cache
+          await cache.invalidatePattern(`quotes:*:${body.companyId}*`);
+          console.log("✅ Company-dependent caches invalidated");
+        } catch (cacheError) {
+          console.error("⚠️ Error invalidating caches:", cacheError);
+          // Continue anyway - cache invalidation is not critical
+        }
+
+        // Update session in Redis with new companyId
+        console.log("🔄 Updating session with new companyId...");
+        try {
+          const session = await cache.getSession<SessionData>(auth.sessionId);
+          if (session) {
+            session.companyId = body.companyId;
+            const JWT_REFRESH_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
+            await cache.setSession(auth.sessionId, (session as unknown) as Record<string, unknown>, JWT_REFRESH_EXPIRY);
+            console.log("✅ Session updated in Redis");
+          } else {
+            console.warn("⚠️ Session not found in Redis, continuing anyway");
+          }
+        } catch (error) {
+          console.error("❌ Error updating session:", error);
+          // Continue anyway - token will still be generated
+        }
+
+        // Generate new JWT token with updated companyId
+        console.log("🔄 Generating new JWT token...");
+        const newAccessToken = await generateJWT(
+          auth.userId,
+          auth.role,
+          auth.tenantId,
+          body.companyId,
+          auth.sessionId
+        );
+        console.log("✅ New JWT token generated");
+
+        // Set new access token as cookie
+        const cookieHeaders = setAccessTokenCookie(newAccessToken);
+
+        // Create ApiResponse with new token
+        const apiResponse = successResponse({
           id: result.data?.id || auth.userId,
           companyId: result.data?.companyId || body.companyId,
+          accessToken: newAccessToken,
         });
+
+        // Create Response with cookie headers
+        // withAuth will detect it's a Response and return it directly
+        const response = json(apiResponse, 200);
+        Object.entries(cookieHeaders).forEach(([key, value]) => {
+          response.headers.set(key, value);
+        });
+        
+        return response;
       }
 
       console.error("❌ CompanyId not provided or empty");
@@ -148,7 +236,7 @@ router.put("/api/v1/users/me", async (request) => {
 router.put("/api/v1/users/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
     // Users can only update themselves unless they're admin
-    if (auth.userId !== params.id && auth.role !== "admin") {
+    if (auth.userId !== params.id && auth.role !== "tenant_admin" && auth.role !== "superadmin") {
       return errorResponse("FORBIDDEN", "Cannot update other users");
     }
     const body = await parseBody<UpdateUserRequest & { companyId?: string }>(request);
@@ -165,7 +253,7 @@ router.put("/api/v1/users/:id", async (request, _url, params) => {
     }
     
     // Non-admins cannot change their role
-    if (auth.role !== "admin" && body.role) {
+    if (auth.role !== "tenant_admin" && auth.role !== "superadmin" && body.role) {
       delete (body as { role?: string }).role;
     }
     return usersService.updateUser(params.id, body);
@@ -174,7 +262,7 @@ router.put("/api/v1/users/:id", async (request, _url, params) => {
 
 router.patch("/api/v1/users/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    if (auth.userId !== params.id && auth.role !== "admin") {
+    if (auth.userId !== params.id && auth.role !== "tenant_admin" && auth.role !== "superadmin") {
       return errorResponse("FORBIDDEN", "Cannot update other users");
     }
     const body = await parseBody<UpdateUserRequest & { companyId?: string }>(request);
@@ -190,7 +278,7 @@ router.patch("/api/v1/users/:id", async (request, _url, params) => {
       }
     }
     
-    if (auth.role !== "admin" && body.role) {
+    if (auth.role !== "tenant_admin" && auth.role !== "superadmin" && body.role) {
       delete (body as { role?: string }).role;
     }
     return usersService.updateUser(params.id, body);

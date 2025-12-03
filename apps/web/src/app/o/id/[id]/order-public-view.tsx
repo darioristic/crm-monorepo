@@ -17,8 +17,60 @@ import type { Order, EditorDoc } from "@/types/order";
 import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
 import { useAuth } from "@/contexts/auth-context";
 
+// API Order Response Type
+interface OrderApiResponse {
+  id: string;
+  orderNumber: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  total: number;
+  currency?: string | null;
+  items?: Array<{
+    productName?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    discount?: number;
+    vat?: number;
+    vatRate?: number;
+  }>;
+  terms?: string;
+  notes?: string;
+  companyId: string;
+  companyName?: string;
+  company?: {
+    name?: string;
+    addressLine1?: string;
+    address?: string;
+    addressLine2?: string;
+    city?: string;
+    zip?: string;
+    postalCode?: string;
+    country?: string;
+    email?: string;
+    billingEmail?: string;
+    phone?: string;
+    vatNumber?: string;
+    website?: string;
+  };
+  vat?: number | null;
+  tax?: number | null;
+  discount?: number | null;
+  subtotal: number;
+  status: string;
+  taxRate?: number;
+  vatRate?: number;
+  completedAt?: string | null;
+  viewedAt?: string | null;
+  cancelledAt?: string | null;
+  refundedAt?: string | null;
+  quoteId?: string | null;
+  invoiceId?: string | null;
+}
+
 type OrderPublicViewProps = {
-  order: any;
+  order: OrderApiResponse;
 };
 
 // Order Status Component

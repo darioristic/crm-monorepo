@@ -24,7 +24,9 @@ import { fileRoutes } from "./files";
 import { inviteRoutes } from "./invites";
 import { orderRoutes } from "./orders";
 import { connectedAccountRoutes } from "./connected-accounts";
-import { inviteRoutes } from "./invites";
+import { superadminRoutes } from "./superadmin";
+import { tenantAdminRoutes } from "./tenant-admin";
+import { crmApiRoutes } from "./crm-api";
 
 // Auth routes
 import {
@@ -60,6 +62,15 @@ import { verifyAndGetUser } from "../middleware/auth";
 const routes: Route[] = [
 	// Health & Info
 	...healthRoutes,
+
+	// Superadmin (must be before other routes for proper matching)
+	...superadminRoutes,
+
+	// Tenant Admin (must be before other routes for proper matching)
+	...tenantAdminRoutes,
+
+	// CRM API (must be before other routes for proper matching)
+	...crmApiRoutes,
 
 	// Core Entities
 	...companyRoutes,
@@ -317,7 +328,7 @@ routes.push({
 				401,
 			);
 		}
-		if (auth.role !== "admin") {
+		if (auth.role !== "tenant_admin" && auth.role !== "superadmin") {
 			return json(errorResponse("FORBIDDEN", "Admin access required"), 403);
 		}
 
@@ -388,6 +399,16 @@ export async function handleRequest(
 ): Promise<Response> {
 	const path = url.pathname;
 	const method = request.method;
+	
+	// Debug: Log delivery-notes requests
+	if (path.includes("delivery-notes")) {
+		logger.info({
+			path,
+			method,
+			totalRoutes: routes.length,
+			deliveryNoteRoutes: routes.filter(r => r.pattern.source.includes("delivery-notes")).length,
+		}, "Delivery notes request received");
+	}
 
 	// Sort routes by specificity: routes without params first, then by number of params
 	// This ensures /api/v1/users/me matches before /api/v1/users/:id
@@ -425,11 +446,53 @@ export async function handleRequest(
 			params[name] = match[index + 1];
 		});
 
-		return route.handler(request, url, params);
+		// Wrap handler in try-catch to ensure JSON error responses
+		try {
+			const response = await route.handler(request, url, params);
+			// Ensure response is always JSON
+			if (!response) {
+				return json(
+					errorResponse("INTERNAL_ERROR", "No response from handler"),
+					500
+				);
+			}
+			// Check if response is already JSON
+			const contentType = response.headers.get("Content-Type");
+			if (!contentType || !contentType.includes("application/json")) {
+				// If not JSON, wrap it in a JSON error response
+				logger.warn({ path, method, contentType }, "Non-JSON response detected, converting to JSON");
+				return json(
+					errorResponse("INTERNAL_ERROR", "Invalid response format"),
+					500
+				);
+			}
+			return response;
+		} catch (error) {
+			logger.error({ error, path, method }, "Error in route handler");
+			// Always return JSON error response, never plain text
+			const errorMessage = error instanceof Error ? error.message : "Internal server error";
+			return json(
+				errorResponse("INTERNAL_ERROR", errorMessage),
+				500
+			);
+		}
 	}
 
+	// Log 404 for delivery-notes to help debug
+	if (path.includes("delivery-notes")) {
+		logger.warn({
+			path,
+			method,
+			availableMethods: [...new Set(routes.filter(r => r.pattern.source.includes("delivery-notes")).map(r => r.method))],
+			matchingRoutes: routes.filter(r => r.method === method && r.pattern.source.includes("delivery-notes")).map(r => ({
+				pattern: r.pattern.source,
+				params: r.params,
+			})),
+		}, "Delivery notes endpoint not found");
+	}
+	
 	return notFoundResponse();
-}
+	}
 
 // Export withApiAuth for use in other modules
 export { withApiAuth };
