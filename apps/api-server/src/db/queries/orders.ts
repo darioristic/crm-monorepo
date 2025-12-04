@@ -7,6 +7,8 @@ import type {
     ApiResponse,
 } from "@crm/types";
 import { sql as db } from "../client";
+import { companyQueries } from "./companies";
+import { userQueries } from "./users";
 import { successResponse } from "@crm/utils";
 import {
 	createQueryBuilder,
@@ -15,24 +17,34 @@ import {
 	type QueryParam,
 } from "../query-builder";
 
-function mapOrder(row: any): Order {
-	return {
-		id: row.id,
-		orderNumber: row.order_number,
-		companyId: row.company_id,
-		contactId: row.contact_id,
-		quoteId: row.quote_id,
-		invoiceId: row.invoice_id,
-		status: row.status,
-		subtotal: parseFloat(row.subtotal || 0),
-		tax: parseFloat(row.tax || 0),
-		total: parseFloat(row.total || 0),
-		currency: row.currency,
-		notes: row.notes,
-		createdBy: row.created_by,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at,
-	};
+function mapOrder(row: Record<string, unknown>): Order {
+  let fromDetails = null;
+  if (row.from_details) {
+    fromDetails = typeof row.from_details === "string" ? JSON.parse(row.from_details as string) : row.from_details;
+  }
+  let customerDetails = null;
+  if (row.customer_details) {
+    customerDetails = typeof row.customer_details === "string" ? JSON.parse(row.customer_details as string) : row.customer_details;
+  }
+  return {
+    id: row.id as string,
+    orderNumber: row.order_number as string,
+    companyId: row.company_id as string,
+    contactId: row.contact_id as string,
+    quoteId: row.quote_id as string | null,
+    invoiceId: row.invoice_id as string | null,
+    status: row.status as Order["status"],
+    subtotal: parseFloat((row.subtotal as string) || "0"),
+    tax: parseFloat((row.tax as string) || "0"),
+    total: parseFloat((row.total as string) || "0"),
+    currency: row.currency as string,
+    notes: row.notes as string | null,
+    createdBy: row.created_by as string,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+    fromDetails,
+    customerDetails,
+  };
 }
 
 export const orderQueries = {
@@ -55,7 +67,7 @@ export const orderQueries = {
 			qb.addEqualCondition("company_id", companyId);
 			}
 			qb.addSearchCondition(["order_number"], filters.search);
-			qb.addEqualCondition("status", filters.status);
+        qb.addEqualCondition("status", filters.status);
 
 			const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
@@ -119,31 +131,59 @@ export const orderQueries = {
 		return result.length > 0 ? mapOrder(result[0]) : null;
 	},
 
-	async create(
-		order: CreateOrderRequest & { createdBy: string },
-		items?: Array<{
-			productName: string;
-			description?: string | null;
-			quantity: number;
-			unitPrice: number;
-			discount?: number;
-			total: number;
-		}>
-	): Promise<{ success: boolean; data?: Order; error?: { code: string; message: string } }> {
-		try {
-			// Generate order number if not provided
-			const orderNumber = order.orderNumber || `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+    async create(
+      order: CreateOrderRequest & { createdBy: string },
+      items?: Array<{
+        productName: string;
+        description?: string | null;
+        quantity: number;
+        unitPrice: number;
+        discount?: number;
+        total: number;
+      }>
+    ): Promise<{ success: boolean; data?: Order; error?: { code: string; message: string } }> {
+      try {
+        // Generate order number if not provided
+            const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+
+        const userCompanyId = await userQueries.getUserCompanyId(order.createdBy);
+        const sellerCompany = userCompanyId ? await companyQueries.findById(userCompanyId) : null;
+        const sellerLines: string[] = [];
+        if (sellerCompany?.name) sellerLines.push(sellerCompany.name);
+        if (sellerCompany?.address) sellerLines.push(sellerCompany.address);
+        const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country].filter(Boolean).join(", ");
+        if (sellerCityLine) sellerLines.push(sellerCityLine);
+        if (sellerCompany?.email) sellerLines.push(sellerCompany.email);
+        if (sellerCompany?.phone) sellerLines.push(sellerCompany.phone);
+        if (sellerCompany?.website) sellerLines.push(sellerCompany.website);
+        if (sellerCompany?.vatNumber) sellerLines.push(`PIB: ${sellerCompany.vatNumber}`);
+        const builtFromDetails = sellerLines.length > 0
+          ? { type: "doc", content: sellerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
+          : null;
+
+        const customerCompany = await companyQueries.findById(order.companyId);
+        const customerLines: string[] = [];
+        if (customerCompany?.name) customerLines.push(customerCompany.name);
+        if (customerCompany?.address) customerLines.push(customerCompany.address);
+        const customerCityLine = [customerCompany?.city, customerCompany?.zip, customerCompany?.country].filter(Boolean).join(", ");
+        if (customerCityLine) customerLines.push(customerCityLine);
+        if (customerCompany?.email) customerLines.push(customerCompany.email);
+        if (customerCompany?.phone) customerLines.push(customerCompany.phone);
+        if (customerCompany?.vatNumber) customerLines.push(`PIB: ${customerCompany.vatNumber}`);
+        const builtCustomerDetails = customerLines.length > 0
+          ? { type: "doc", content: customerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
+          : null;
 
 			const result = await db`
-        INSERT INTO orders (
+            INSERT INTO orders (
           id, order_number, company_id, contact_id, quote_id, invoice_id,
-          status, subtotal, tax, total, currency, notes, created_by,
+          status, subtotal, tax, total, currency, notes, from_details, customer_details, created_by,
           created_at, updated_at
         ) VALUES (
           gen_random_uuid(), ${orderNumber}, ${order.companyId},
           ${order.contactId || null}, ${order.quoteId || null}, ${order.invoiceId || null},
           ${order.status}, ${order.subtotal}, ${order.tax}, ${order.total},
-          ${order.currency}, ${order.notes || null}, ${order.createdBy},
+          ${order.currency}, ${order.notes || null}, ${builtFromDetails ? JSON.stringify(builtFromDetails) : null}, ${builtCustomerDetails ? JSON.stringify(builtCustomerDetails) : null}, ${order.createdBy},
           NOW(), NOW()
         )
         RETURNING *
@@ -174,11 +214,11 @@ export const orderQueries = {
 		}
 	},
 
-	async update(id: string, order: UpdateOrderRequest): Promise<{ success: boolean; data?: Order; error?: { code: string; message: string } }> {
-		try {
-			const updates: string[] = [];
-			const values: QueryParam[] = [];
-			let paramIndex = 1;
+    async update(id: string, order: UpdateOrderRequest): Promise<{ success: boolean; data?: Order; error?: { code: string; message: string } }> {
+      try {
+        const updates: string[] = [];
+        const values: QueryParam[] = [];
+        let paramIndex = 1;
 
 			if (order.status !== undefined) {
 				updates.push(`status = $${paramIndex}`);
@@ -205,16 +245,26 @@ export const orderQueries = {
 				values.push(order.currency);
 				paramIndex++;
 			}
-			if (order.notes !== undefined) {
-				updates.push(`notes = $${paramIndex}`);
-				values.push(order.notes);
-				paramIndex++;
-			}
-			if (order.contactId !== undefined) {
-				updates.push(`contact_id = $${paramIndex}`);
-				values.push(order.contactId);
-				paramIndex++;
-			}
+        if (order.notes !== undefined) {
+          updates.push(`notes = $${paramIndex}`);
+          values.push(order.notes);
+          paramIndex++;
+        }
+        if ((order as any).fromDetails !== undefined) {
+          updates.push(`from_details = $${paramIndex}`);
+          values.push((order as any).fromDetails ? JSON.stringify((order as any).fromDetails) : null);
+          paramIndex++;
+        }
+        if ((order as any).customerDetails !== undefined) {
+          updates.push(`customer_details = $${paramIndex}`);
+          values.push((order as any).customerDetails ? JSON.stringify((order as any).customerDetails) : null);
+          paramIndex++;
+        }
+        if (order.contactId !== undefined) {
+          updates.push(`contact_id = $${paramIndex}`);
+          values.push(order.contactId);
+          paramIndex++;
+        }
 			if (order.quoteId !== undefined) {
 				updates.push(`quote_id = $${paramIndex}`);
 				values.push(order.quoteId);

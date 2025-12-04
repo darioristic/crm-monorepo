@@ -1,12 +1,4 @@
-import {
-	pgTable,
-	uuid,
-	varchar,
-	text,
-	timestamp,
-	index,
-	jsonb,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, timestamp, index, jsonb } from "drizzle-orm/pg-core";
 import { tenants } from "./tenants";
 
 export const locations = pgTable(
@@ -34,4 +26,3 @@ export const locations = pgTable(
 
 export type Location = typeof locations.$inferSelect;
 export type NewLocation = typeof locations.$inferInsert;
-

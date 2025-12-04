@@ -29,7 +29,7 @@ describe('Invoices API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(Array.isArray(data.data)).toBe(true);
 	});
@@ -54,7 +54,7 @@ describe('Invoices API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(201);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data.invoice).toHaveProperty('id');
 		expect(data.data.invoice.amount).toBe(invoiceData.amount);
@@ -82,7 +82,7 @@ describe('Invoices API Integration Tests', () => {
 			}),
 		});
 
-		const createData = await createResponse.json();
+    const createData: any = await createResponse.json();
 		const invoiceId = createData.data.invoice.id;
 
 		// Get the invoice
@@ -92,7 +92,7 @@ describe('Invoices API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data.invoice.id).toBe(invoiceId);
 
@@ -117,7 +117,7 @@ describe('Invoices API Integration Tests', () => {
 			}),
 		});
 
-		const createData = await createResponse.json();
+    const createData: any = await createResponse.json();
 		const invoiceId = createData.data.invoice.id;
 
 		// Update the invoice
@@ -134,7 +134,7 @@ describe('Invoices API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data.invoice.amount).toBe(1500.0);
 		expect(data.data.invoice.status).toBe('sent');
@@ -150,9 +150,8 @@ describe('Invoices API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(Array.isArray(data.data)).toBe(true);
 	});
 });
-

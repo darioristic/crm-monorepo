@@ -51,6 +51,12 @@ export function requireCompanyContext(
 			companyId = url.searchParams.get("companyId") || undefined;
 		}
 
+		// Check header X-Company-Id
+		if (!companyId) {
+			const headerCompanyId = request.headers.get("x-company-id") || undefined;
+			companyId = headerCompanyId;
+		}
+
 		// Check request body (for POST/PUT requests)
 		if (!companyId && (request.method === "POST" || request.method === "PUT")) {
             try {

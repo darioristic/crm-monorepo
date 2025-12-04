@@ -1,4 +1,4 @@
-import { db, sql } from "./client";
+import { sql } from "./client";
 import type { ApiResponse } from "@crm/types";
 import { errorResponse } from "@crm/utils";
 
@@ -166,35 +166,35 @@ export async function updateInvoiceWithItems(
     const updateValues: unknown[] = [];
 
     if (updates.status !== undefined) {
-      updateFields.push("status = $" + (updateValues.length + 1));
+      updateFields.push(`status = $${updateValues.length + 1}`);
       updateValues.push(updates.status);
     }
     if (updates.dueDate !== undefined) {
-      updateFields.push("due_date = $" + (updateValues.length + 1));
+      updateFields.push(`due_date = $${updateValues.length + 1}`);
       updateValues.push(updates.dueDate);
     }
     if (updates.subtotal !== undefined) {
-      updateFields.push("subtotal = $" + (updateValues.length + 1));
+      updateFields.push(`subtotal = $${updateValues.length + 1}`);
       updateValues.push(updates.subtotal);
     }
     if (updates.taxRate !== undefined) {
-      updateFields.push("tax_rate = $" + (updateValues.length + 1));
+      updateFields.push(`tax_rate = $${updateValues.length + 1}`);
       updateValues.push(updates.taxRate);
     }
     if (updates.tax !== undefined) {
-      updateFields.push("tax = $" + (updateValues.length + 1));
+      updateFields.push(`tax = $${updateValues.length + 1}`);
       updateValues.push(updates.tax);
     }
     if (updates.total !== undefined) {
-      updateFields.push("total = $" + (updateValues.length + 1));
+      updateFields.push(`total = $${updateValues.length + 1}`);
       updateValues.push(updates.total);
     }
     if (updates.notes !== undefined) {
-      updateFields.push("notes = $" + (updateValues.length + 1));
+      updateFields.push(`notes = $${updateValues.length + 1}`);
       updateValues.push(updates.notes);
     }
     if (updates.terms !== undefined) {
-      updateFields.push("terms = $" + (updateValues.length + 1));
+      updateFields.push(`terms = $${updateValues.length + 1}`);
       updateValues.push(updates.terms);
     }
 

@@ -44,16 +44,46 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
     const apiDeliveryNote = data.data;
 
-    // Build from details (seller info) - similar to invoice
-    // For now, we'll use a simple fallback since delivery notes don't have seller/team data
-    // In the future, this could be stored in localStorage or database
     let fromDetails = null;
-    
-    // Try to get from stored settings (this would need to be passed from client or stored in DB)
-    // For now, we'll leave it null and let the PDF template handle it
+    if (apiDeliveryNote.fromDetails) {
+      fromDetails = typeof apiDeliveryNote.fromDetails === 'string'
+        ? JSON.parse(apiDeliveryNote.fromDetails)
+        : apiDeliveryNote.fromDetails;
+    } else {
+      try {
+        const userRes = await fetch(
+          `${baseUrl}/api/v1/users/${apiDeliveryNote.createdBy}`,
+          fetchOptions,
+        );
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          const company = userData.data?.company;
+          const lines: string[] = [];
+          if (company?.name) lines.push(company.name);
+          if (company?.address) lines.push(company.address);
+          const cityLine = [company?.city, company?.zip, company?.country]
+            .filter(Boolean)
+            .join(", ");
+          if (cityLine) lines.push(cityLine);
+          if (company?.email) lines.push(company.email);
+          if (company?.phone) lines.push(company.phone);
+
+          fromDetails =
+            lines.length > 0
+              ? {
+                  type: "doc",
+                  content: lines.map((line) => ({
+                    type: "paragraph",
+                    content: [{ type: "text", text: line }],
+                  })),
+                }
+              : null;
+        }
+      } catch {}
+    }
 
     // Dynamically import PDF components
-    const { renderToStream } = await import("@react-pdf/renderer");
+    const { renderToBuffer } = await import("@react-pdf/renderer");
     const { PdfTemplate } = await import(
       "@/components/delivery-note/templates/pdf-template"
     );
@@ -63,10 +93,7 @@ export async function GET(request: NextRequest) {
       deliveryNote: apiDeliveryNote,
       fromDetails: fromDetails,
     });
-    const stream = await renderToStream(pdfDocument as any);
-
-    // Convert stream to blob
-    const blob = await new Response(stream).blob();
+    const buffer = await renderToBuffer(pdfDocument as any);
 
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",
@@ -74,7 +101,9 @@ export async function GET(request: NextRequest) {
       "Content-Disposition": `attachment; filename="${apiDeliveryNote.deliveryNumber || token || deliveryNoteId}.pdf"`,
     };
 
-    return new Response(blob, { headers });
+    const uint8 = new Uint8Array(buffer);
+    const arrayBuffer = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength);
+    return new Response(arrayBuffer, { headers });
   } catch (error) {
     console.error("Error generating PDF:", error);
     const errorMessage =
@@ -85,4 +114,3 @@ export async function GET(request: NextRequest) {
     );
   }
 }
-

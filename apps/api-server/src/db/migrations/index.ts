@@ -17,6 +17,9 @@ import * as migration017 from "./017_add_performance_indexes";
 import * as migration018 from "./018_create_orders_table";
 import * as migration019 from "./019_add_delivery_note_fields";
 import * as migration020 from "./020_create_multitenant_schema";
+import * as migration021 from "./021_add_from_details_quotes_delivery_notes";
+import * as migration022 from "./022_add_from_details_orders";
+import * as migration023 from "./023_add_customer_details_orders";
 
 interface Migration {
 	name: string;
@@ -42,8 +45,11 @@ const migrations: Migration[] = [
 	migration016,
 	migration017,
 	migration018,
-	migration019,
-	migration020,
+  migration019,
+  migration020,
+  migration021,
+  migration022,
+  migration023,
 ];
 
 // Migrations tracking table

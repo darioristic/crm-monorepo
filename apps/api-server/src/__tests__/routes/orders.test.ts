@@ -12,6 +12,7 @@ describe("Orders Routes", () => {
 	const mockAuth = {
 		userId: "user-123",
 		role: "admin" as const,
+		sessionId: "session-123",
 	};
 
 	const mockCompanyId = "company-123";
@@ -46,7 +47,7 @@ describe("Orders Routes", () => {
 		options: RequestInit = {},
 	): Promise<Response> => {
 		const url = new URL(`http://localhost${path}`);
-		const request = new Request(url, { method, ...options });
+		const request = new Request(url.toString(), { method, ...options });
 
 		const route = orderRoutes.find(
 			(r) => r.method === method && r.pattern.test(path),
@@ -72,7 +73,7 @@ describe("Orders Routes", () => {
 			vi.mocked(orderQueries.findByCompany).mockResolvedValue([mockOrder]);
 
 			const response = await callRoute("/api/v1/orders");
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -88,7 +89,7 @@ describe("Orders Routes", () => {
 			vi.mocked(userQueries.getUserCompanyId).mockResolvedValue(null);
 
 			const response = await callRoute("/api/v1/orders");
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(404);
 			expect(data.error.code).toBe("NOT_FOUND");
@@ -98,11 +99,10 @@ describe("Orders Routes", () => {
 			vi.mocked(authMiddleware.verifyAndGetUser).mockResolvedValue(null);
 
 			const response = await callRoute("/api/v1/orders");
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(401);
 			expect(data.error.code).toBe("UNAUTHORIZED");
 		});
 	});
 });
-

@@ -139,6 +139,10 @@ router.put("/api/v1/users/me", async (request) => {
 
         if (!result.success) {
           console.error("❌ Failed to update user company:", result.error);
+          // Ensure we return a non-empty error object
+          if (!result.error || (typeof result.error === "object" && Object.keys(result.error).length === 0)) {
+            return errorResponse("UPDATE_FAILED", "Failed to update user company");
+          }
           return result;
         }
 
@@ -166,12 +170,29 @@ router.put("/api/v1/users/me", async (request) => {
           // Continue anyway - cache invalidation is not critical
         }
 
-        // Update session in Redis with new companyId
-        console.log("🔄 Updating session with new companyId...");
+        // Update session in Redis with new companyId and ensure tenantId is set
+        console.log("🔄 Updating session with new companyId and tenantId...");
         try {
           const session = await cache.getSession<SessionData>(auth.sessionId);
           if (session) {
             session.companyId = body.companyId;
+            // Ensure tenantId is present; if missing, derive from company or user
+            if (!session.tenantId) {
+              try {
+                const tenantRows = await sql`SELECT tenant_id FROM companies WHERE id = ${body.companyId} LIMIT 1`;
+                const derivedTenantId = tenantRows[0]?.tenant_id as string | undefined;
+                if (derivedTenantId) {
+                  session.tenantId = derivedTenantId;
+                } else {
+                  const user = await userQueries.findById(auth.userId);
+                  if (user?.tenantId) {
+                    session.tenantId = user.tenantId;
+                  }
+                }
+              } catch (deriveError) {
+                console.warn("⚠️ Could not derive tenantId during session update:", deriveError);
+              }
+            }
             const JWT_REFRESH_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
             await cache.setSession(auth.sessionId, (session as unknown) as Record<string, unknown>, JWT_REFRESH_EXPIRY);
             console.log("✅ Session updated in Redis");
@@ -185,14 +206,36 @@ router.put("/api/v1/users/me", async (request) => {
 
         // Generate new JWT token with updated companyId
         console.log("🔄 Generating new JWT token...");
-        const newAccessToken = await generateJWT(
-          auth.userId,
-          auth.role,
-          auth.tenantId,
-          body.companyId,
-          auth.sessionId
-        );
-        console.log("✅ New JWT token generated");
+        let newAccessToken: string;
+        try {
+          // Determine effective tenantId for the new token
+          let effectiveTenantId = auth.tenantId;
+          if (!effectiveTenantId) {
+            try {
+              const tenantRows = await sql`SELECT tenant_id FROM companies WHERE id = ${body.companyId} LIMIT 1`;
+              effectiveTenantId = (tenantRows[0]?.tenant_id as string | undefined) ?? effectiveTenantId;
+            } catch {}
+            if (!effectiveTenantId) {
+              const user = await userQueries.findById(auth.userId);
+              effectiveTenantId = user?.tenantId;
+            }
+          }
+
+          newAccessToken = await generateJWT(
+            auth.userId,
+            auth.role,
+            effectiveTenantId,
+            body.companyId,
+            auth.sessionId
+          );
+          console.log("✅ New JWT token generated");
+        } catch (tokenError) {
+          console.error("❌ Error generating JWT token:", tokenError);
+          return errorResponse(
+            "TOKEN_GENERATION_FAILED",
+            tokenError instanceof Error ? tokenError.message : "Failed to generate access token"
+          );
+        }
 
         // Set new access token as cookie
         const cookieHeaders = setAccessTokenCookie(newAccessToken);
@@ -227,6 +270,38 @@ router.put("/api/v1/users/me", async (request) => {
       );
     }
   });
+});
+
+// ============================================
+// Seed: Create two account companies for current admin user
+// ============================================
+
+router.post("/api/v1/users/me/seed-admin-companies", async (request) => {
+  return withAuth(request, async (auth) => {
+    // Only admins can seed
+    if (auth.role !== "tenant_admin" && auth.role !== "superadmin") {
+      return errorResponse("FORBIDDEN", "Requires admin role");
+    }
+
+    const names = ["Admin Company A", "Admin Company B"];
+    const created: string[] = [];
+    for (const name of names) {
+      const id = await (async () => {
+        const { createCompany } = await import("../db/queries/companies-members");
+        return createCompany({
+          name,
+          industry: "General",
+          address: "N/A",
+          userId: auth.userId,
+          source: "account",
+          switchCompany: false,
+        });
+      })();
+      created.push(id);
+    }
+
+    return successResponse({ userId: auth.userId, companyIds: created });
+  }, 201);
 });
 
 // ============================================

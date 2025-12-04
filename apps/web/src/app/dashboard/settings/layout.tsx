@@ -28,6 +28,8 @@ export default function SettingsLayout({
 			<SecondaryMenu
 				items={[
 					{ path: "/dashboard/settings", label: "General" },
+					{ path: "/dashboard/settings/companies", label: "Companies" },
+					{ path: "/dashboard/settings/users", label: "Users" },
 					{ path: "/dashboard/settings/billing", label: "Billing" },
 					{ path: "/dashboard/settings/accounts", label: "Bank Connections" },
 					{ path: "/dashboard/settings/members", label: "Members" },

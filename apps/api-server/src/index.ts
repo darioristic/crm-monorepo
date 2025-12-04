@@ -1,6 +1,7 @@
 import { env } from "./config/env";
 import { handleRequest } from "./routes";
-import { sql, closeConnection } from "./db/client";
+import { closeConnection } from "./db/client";
+import { closeTenantConnection } from "./tenant-mgmt/db/client";
 import { redis } from "./cache/redis";
 import { logger, createRequestLogger, logRequest } from "./lib/logger";
 import { initSentry } from "./lib/sentry";
@@ -32,7 +33,7 @@ if (ENABLE_WORKERS) {
 }
 
 // Graceful shutdown handler
-async function shutdown() {
+  async function shutdown() {
 	logger.info("Shutting down server...");
 	try {
 		// Stop workers first
@@ -41,7 +42,8 @@ async function shutdown() {
 			await closeQueues();
 		}
 
-		await closeConnection();
+    await closeConnection();
+    await closeTenantConnection();
 		redis.disconnect();
 		logger.info("Database and cache connections closed");
 		process.exit(0);
@@ -107,9 +109,9 @@ const server = Bun.serve({
 						durationMs: duration,
 					});
 				}
-			} catch (sentryError) {
-				// Ignore Sentry errors
-			}
+      } catch (_sentryError) {
+        // Ignore Sentry errors
+      }
 
 			const errorResponse = new Response(
 				JSON.stringify({
@@ -128,10 +130,10 @@ const server = Bun.serve({
 			try {
 				const corsErrorResponse = applyCorsHeaders(errorResponse, corsHeaders);
 				return applySecurityHeaders(corsErrorResponse);
-			} catch (middlewareError) {
-				// If middleware fails, return error response without CORS/security headers
-				return errorResponse;
-			}
+      } catch (_middlewareError) {
+        // If middleware fails, return error response without CORS/security headers
+        return errorResponse;
+      }
 		}
 	},
 
@@ -141,7 +143,7 @@ const server = Bun.serve({
     try {
       const { captureException } = await import("./lib/sentry");
       captureException(error, { context: "unhandled_server_error" });
-    } catch (sentryError) {
+    } catch (_sentryError) {
       // Ignore Sentry errors to prevent recursive errors
     }
 

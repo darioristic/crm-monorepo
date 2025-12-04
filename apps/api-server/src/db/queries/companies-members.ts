@@ -17,7 +17,10 @@ export async function hasCompanyAccess(
 	return result.length > 0;
 }
 
-export async function getCompaniesByUserId(userId: string): Promise<
+export async function getCompaniesByUserId(
+	userId: string,
+	tenantId?: string | null,
+): Promise<
 	Array<{
 		id: string;
 		name: string;
@@ -29,6 +32,15 @@ export async function getCompaniesByUserId(userId: string): Promise<
 		createdAt: string;
 	}>
 > {
+	// Get user's tenantId if not provided
+	let effectiveTenantId = tenantId;
+	if (effectiveTenantId === undefined) {
+		const userResult = await sql`
+      SELECT tenant_id FROM users WHERE id = ${userId} LIMIT 1
+    `;
+		effectiveTenantId = userResult.length > 0 ? (userResult[0].tenant_id as string | null) : null;
+	}
+
 	const result = await sql`
     SELECT 
       c.id,
@@ -43,6 +55,9 @@ export async function getCompaniesByUserId(userId: string): Promise<
     INNER JOIN companies c ON uoc.company_id = c.id
     WHERE uoc.user_id = ${userId}
       AND (c.source IS NULL OR c.source != 'customer')
+      ${effectiveTenantId 
+        ? sql`AND c.tenant_id = ${effectiveTenantId}` 
+        : sql`AND c.tenant_id IS NULL`}
     ORDER BY c.name ASC
   `;
 
@@ -193,6 +208,18 @@ export async function createCompany(
 			if (userRow.length > 0) {
 				tenantId = (userRow[0].tenant_id as string | null) ?? null;
 			}
+			
+			// If user doesn't have tenantId, get or create default tenant
+			if (!tenantId) {
+				const { getOrCreateDefaultTenant } = await import("./tenants");
+				tenantId = await getOrCreateDefaultTenant();
+				// Also update user with tenantId for future use
+				await tx`
+					UPDATE users 
+					SET tenant_id = ${tenantId}, updated_at = NOW()
+					WHERE id = ${userId}
+				`;
+			}
 		} catch {}
 
 		// Create the company using sql template within transaction
@@ -291,61 +318,143 @@ export async function deleteCompany(
 ): Promise<{ id: string } | null> {
 	const { companyId, userId } = params;
 
-	// Verify user has access and is owner
-	const accessCheck = await sql`
-    SELECT role FROM users_on_company
-    WHERE company_id = ${companyId} AND user_id = ${userId}
-  `;
+	try {
+		// Get user's tenantId for tenant isolation check
+		const userResult = await sql`
+      SELECT tenant_id FROM users WHERE id = ${userId} LIMIT 1
+    `;
+		const userTenantId = userResult.length > 0 ? (userResult[0].tenant_id as string | null) : null;
 
-	if (accessCheck.length === 0) {
-		throw new Error("User is not a member of this company");
+		// Verify user has access and is owner
+		const accessCheck = await sql`
+      SELECT role FROM users_on_company
+      WHERE company_id = ${companyId} AND user_id = ${userId}
+    `;
+
+		if (accessCheck.length === 0) {
+			throw new Error("User is not a member of this company");
+		}
+
+		const userRole = accessCheck[0].role as string;
+		if (userRole !== "owner") {
+			throw new Error("Only company owner can delete the company");
+		}
+
+		// Check if company exists and verify tenant isolation
+		const companyCheck = await sql`
+      SELECT id, tenant_id FROM companies WHERE id = ${companyId}
+    `;
+
+		if (companyCheck.length === 0) {
+			throw new Error("Company not found");
+		}
+
+		const companyTenantId = companyCheck[0].tenant_id as string | null;
+		
+		// Enforce tenant isolation: user can only delete companies from their tenant
+		// Allow deletion if company has no tenant (legacy data) or matches user's tenant
+		if (userTenantId && companyTenantId && companyTenantId !== userTenantId) {
+			throw new Error("Cannot delete company from different tenant");
+		}
+
+		// Check if company has related data that would be deleted by CASCADE
+		// Using separate queries for better error handling
+		let invoiceCount = 0;
+		let quoteCount = 0;
+		let deliveryNoteCount = 0;
+		let projectCount = 0;
+		let memberCount = 0;
+
+		try {
+			const invoiceResult = await sql`
+        SELECT COUNT(*) as count FROM invoices 
+        WHERE company_id = ${companyId} AND deleted_at IS NULL
+      `;
+			invoiceCount = Number(invoiceResult[0]?.count || 0);
+		} catch (error) {
+			console.error("Error checking invoices:", error);
+		}
+
+		try {
+			const quoteResult = await sql`
+        SELECT COUNT(*) as count FROM quotes 
+        WHERE company_id = ${companyId} AND deleted_at IS NULL
+      `;
+			quoteCount = Number(quoteResult[0]?.count || 0);
+		} catch (error) {
+			console.error("Error checking quotes:", error);
+		}
+
+		try {
+			const deliveryNoteResult = await sql`
+        SELECT COUNT(*) as count FROM delivery_notes 
+        WHERE company_id = ${companyId} AND deleted_at IS NULL
+      `;
+			deliveryNoteCount = Number(deliveryNoteResult[0]?.count || 0);
+		} catch (error) {
+			console.error("Error checking delivery notes:", error);
+		}
+
+		try {
+			// Check projects - use companyId from contacts table for more accurate matching
+			const projectResult = await sql`
+        SELECT COUNT(*) as count FROM projects 
+        WHERE client_id IN (
+          SELECT id FROM contacts 
+          WHERE company_id = ${companyId}
+        )
+      `;
+			projectCount = Number(projectResult[0]?.count || 0);
+		} catch (error) {
+			console.error("Error checking projects:", error);
+			// If there's an error checking projects, we'll skip it to avoid blocking deletion
+		}
+
+		try {
+			const memberResult = await sql`
+        SELECT COUNT(*) as count FROM users_on_company 
+        WHERE company_id = ${companyId}
+      `;
+			memberCount = Number(memberResult[0]?.count || 0);
+		} catch (error) {
+			console.error("Error checking members:", error);
+		}
+
+		// Build detailed error message
+		const relatedItems: string[] = [];
+		if (invoiceCount > 0) relatedItems.push(`${invoiceCount} invoice(s)`);
+		if (quoteCount > 0) relatedItems.push(`${quoteCount} quote(s)`);
+		if (deliveryNoteCount > 0)
+			relatedItems.push(`${deliveryNoteCount} delivery note(s)`);
+		if (projectCount > 0) relatedItems.push(`${projectCount} project(s)`);
+		if (memberCount > 1) relatedItems.push(`${memberCount} member(s)`);
+
+		if (relatedItems.length > 0) {
+			throw new Error(
+				`Cannot delete company: it has ${relatedItems.join(", ")}. ` +
+					`Please delete or reassign these records first, or remove all members except yourself.`,
+			);
+		}
+
+		// Delete the company
+		const [result] = await sql`
+      DELETE FROM companies
+      WHERE id = ${companyId}
+      RETURNING id
+    `;
+
+		if (!result) {
+			throw new Error("Failed to delete company");
+		}
+
+		return { id: result.id as string };
+	} catch (error) {
+		// Re-throw the error with more context
+		if (error instanceof Error) {
+			throw error;
+		}
+		throw new Error("Failed to delete company: " + String(error));
 	}
-
-	const userRole = accessCheck[0].role as string;
-	if (userRole !== "owner") {
-		throw new Error("Only company owner can delete the company");
-	}
-
-	// Check if company has related data that would be deleted by CASCADE
-	const relatedDataCheck = await sql`
-    SELECT 
-      (SELECT COUNT(*) FROM invoices WHERE company_id = ${companyId} AND deleted_at IS NULL) as invoice_count,
-      (SELECT COUNT(*) FROM quotes WHERE company_id = ${companyId} AND deleted_at IS NULL) as quote_count,
-      (SELECT COUNT(*) FROM delivery_notes WHERE company_id = ${companyId} AND deleted_at IS NULL) as delivery_note_count,
-      (SELECT COUNT(*) FROM projects WHERE client_id IN (SELECT id FROM contacts WHERE company = (SELECT name FROM companies WHERE id = ${companyId}))) as project_count,
-      (SELECT COUNT(*) FROM users_on_company WHERE company_id = ${companyId}) as member_count
-  `;
-
-	const counts = relatedDataCheck[0];
-	const invoiceCount = Number(counts.invoice_count || 0);
-	const quoteCount = Number(counts.quote_count || 0);
-	const deliveryNoteCount = Number(counts.delivery_note_count || 0);
-	const projectCount = Number(counts.project_count || 0);
-	const memberCount = Number(counts.member_count || 0);
-
-	// Build detailed error message
-	const relatedItems: string[] = [];
-	if (invoiceCount > 0) relatedItems.push(`${invoiceCount} invoice(s)`);
-	if (quoteCount > 0) relatedItems.push(`${quoteCount} quote(s)`);
-	if (deliveryNoteCount > 0)
-		relatedItems.push(`${deliveryNoteCount} delivery note(s)`);
-	if (projectCount > 0) relatedItems.push(`${projectCount} project(s)`);
-	if (memberCount > 1) relatedItems.push(`${memberCount} member(s)`);
-
-	if (relatedItems.length > 0) {
-		throw new Error(
-			`Cannot delete company: it has ${relatedItems.join(", ")}. ` +
-				`Please delete or reassign these records first, or remove all members except yourself.`,
-		);
-	}
-
-	const [result] = await sql`
-    DELETE FROM companies
-    WHERE id = ${companyId}
-    RETURNING id
-  `;
-
-	return result ? { id: result.id as string } : null;
 }
 
 type LeaveCompanyParams = {

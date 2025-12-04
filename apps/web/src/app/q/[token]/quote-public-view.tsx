@@ -174,7 +174,8 @@ function buildCustomerDetails(quote: QuoteApiResponse): EditorDoc | null {
 
     // Email
     if (quote.company.email || quote.company.billingEmail) {
-      lines.push(quote.company.billingEmail || quote.company.email);
+      const email = quote.company.billingEmail || quote.company.email;
+      if (email) lines.push(email);
     }
 
     // Phone
@@ -287,13 +288,18 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
           ],
         }
       : null,
-    note: quote.notes,
+    note: quote.notes ?? null,
     internalNote: null,
     vat: quote.vat || null,
     tax: quote.tax || null,
     discount: quote.discount || null,
     subtotal: quote.subtotal,
-    status: quote.status,
+    status:
+      ["draft", "sent", "accepted", "rejected", "expired"].includes(
+        quote.status,
+      )
+        ? (quote.status as Quote["status"]) 
+        : "draft",
     template: {
       ...DEFAULT_QUOTE_TEMPLATE,
       logoUrl: logoUrl,
@@ -307,10 +313,10 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
     },
     token: token,
     filePath: null,
-    sentAt: quote.sentAt,
-    viewedAt: quote.viewedAt,
-    acceptedAt: quote.acceptedAt,
-    rejectedAt: quote.rejectedAt,
+    sentAt: quote.sentAt ?? null,
+    viewedAt: quote.viewedAt ?? null,
+    acceptedAt: quote.acceptedAt ?? null,
+    rejectedAt: quote.rejectedAt ?? null,
     sentTo: null,
     topBlock: null,
     bottomBlock: null,
@@ -475,4 +481,3 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
     </div>
   );
 }
-

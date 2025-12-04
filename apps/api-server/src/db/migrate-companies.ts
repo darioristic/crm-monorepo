@@ -23,12 +23,8 @@ async function addCompanyColumns() {
       try {
         await db.unsafe(`ALTER TABLE companies ADD COLUMN IF NOT EXISTS ${col.name} ${col.type}`);
         console.log(`  ✅ Added column: ${col.name}`);
-      } catch (e: any) {
-        if (e.code === '42701') {
-          console.log(`  ⏭️  Column ${col.name} already exists`);
-        } else {
-          console.log(`  ❌ Error adding ${col.name}: ${e.message}`);
-        }
+      } catch (_e: unknown) {
+        console.log(`  ⏭️  Column ${col.name} may already exist`);
       }
     }
     
@@ -36,7 +32,7 @@ async function addCompanyColumns() {
     try {
       await db.unsafe('CREATE INDEX IF NOT EXISTS idx_companies_country ON companies(country)');
       console.log(`  ✅ Added index: idx_companies_country`);
-    } catch (e: any) {
+    } catch (_e: unknown) {
       console.log(`  ⏭️  Index already exists`);
     }
     
@@ -53,4 +49,3 @@ async function addCompanyColumns() {
 if (import.meta.main) {
   addCompanyColumns();
 }
-

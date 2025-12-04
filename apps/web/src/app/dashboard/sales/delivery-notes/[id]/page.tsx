@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import type { DeliveryNote } from "@crm/types";
+import type { DeliveryNoteWithRelations } from "@crm/types";
 import { deliveryNotesApi } from "@/lib/api";
 import { useApi } from "@/hooks/use-api";
 import { HtmlTemplate } from "@/components/delivery-note/templates/html";
@@ -35,7 +35,7 @@ export default function DeliveryNoteDetailPage() {
     data: deliveryNote,
     isLoading,
     error,
-  } = useApi<DeliveryNote>(() => deliveryNotesApi.getById(id), {
+  } = useApi<DeliveryNoteWithRelations>(() => deliveryNotesApi.getById(id), {
     autoFetch: true,
   });
 
@@ -94,8 +94,7 @@ export default function DeliveryNoteDetailPage() {
     );
   }
 
-  const customerName =
-    deliveryNote.companyName || deliveryNote.company?.name || "Unknown";
+  const customerName = deliveryNote.deliveryNumber || "Unknown";
   const customerDetails = buildCustomerDetails(deliveryNote);
   const fromDetails = getStoredFromDetails();
   const { width, height } = PAGE_SIZES.A4;

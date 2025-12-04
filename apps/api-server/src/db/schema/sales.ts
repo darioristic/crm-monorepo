@@ -4,8 +4,8 @@ import { users, contacts } from "./users";
 
 // Quotes (Ponude) table
 export const quotes = pgTable(
-	"quotes",
-	{
+  "quotes",
+  {
 		id: uuid("id").primaryKey().defaultRandom(),
 		quoteNumber: varchar("quote_number", { length: 50 }).notNull().unique(),
 		companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
@@ -16,7 +16,9 @@ export const quotes = pgTable(
 		subtotal: text("subtotal").notNull().default("0"),
 		taxRate: text("tax_rate").notNull().default("0"),
 		tax: text("tax").notNull().default("0"),
-		total: text("total").notNull().default("0"),
+    total: text("total").notNull().default("0"),
+    // Template data stored as JSON (optional)
+    fromDetails: text("from_details"),
 		notes: text("notes"),
 		terms: text("terms"),
 		createdBy: uuid("created_by").notNull().references(() => users.id),
@@ -123,8 +125,8 @@ export const invoiceItems = pgTable(
 
 // Delivery Notes (Otpremnice) table
 export const deliveryNotes = pgTable(
-	"delivery_notes",
-	{
+  "delivery_notes",
+  {
 		id: uuid("id").primaryKey().defaultRandom(),
 		deliveryNumber: varchar("delivery_number", { length: 50 }).notNull().unique(),
 		invoiceId: uuid("invoice_id").references(() => invoices.id, { onDelete: "set null" }),
@@ -135,12 +137,14 @@ export const deliveryNotes = pgTable(
 		deliveryDate: timestamp("delivery_date", { withTimezone: true }),
 		shippingAddress: text("shipping_address").notNull(),
 		trackingNumber: varchar("tracking_number", { length: 100 }),
-		carrier: varchar("carrier", { length: 100 }),
-		notes: text("notes"),
-		createdBy: uuid("created_by").notNull().references(() => users.id),
-		createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-		updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-	},
+    carrier: varchar("carrier", { length: 100 }),
+    notes: text("notes"),
+    // Template data stored as JSON (optional)
+    fromDetails: text("from_details"),
+    createdBy: uuid("created_by").notNull().references(() => users.id),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
 	(table) => [
 		index("idx_delivery_notes_company_id").on(table.companyId),
 		index("idx_delivery_notes_invoice_id").on(table.invoiceId),
@@ -179,4 +183,3 @@ export type DeliveryNote = typeof deliveryNotes.$inferSelect;
 export type NewDeliveryNote = typeof deliveryNotes.$inferInsert;
 export type DeliveryNoteItem = typeof deliveryNoteItems.$inferSelect;
 export type NewDeliveryNoteItem = typeof deliveryNoteItems.$inferInsert;
-

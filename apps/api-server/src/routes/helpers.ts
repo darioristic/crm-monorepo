@@ -215,10 +215,9 @@ export async function getCompanyIdForFilter(
 		}
 	} else {
 		// No query parameter - use user's current active company
-		const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+		const userCompanyId = auth.companyId ?? (await userQueries.getUserCompanyId(auth.userId));
 
         if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-			// Admin users can see all data if no company filter is specified
 			companyId = allowAllForAdmin ? null : userCompanyId;
 		} else {
 			// Regular users need an active company
@@ -318,6 +317,14 @@ export function parseFilters(url: URL): {
 	});
 
 	return filters;
+}
+
+export function applyCompanyIdFromHeader(request: Request, url: URL): URL {
+    const headerCompanyId = request.headers.get("x-company-id");
+    if (!headerCompanyId) return url;
+    const effectiveUrl = new URL(url.toString());
+    effectiveUrl.searchParams.set("companyId", headerCompanyId);
+    return effectiveUrl;
 }
 
 // ============================================

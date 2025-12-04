@@ -1,6 +1,5 @@
-import { Queue, Worker, Job, QueueEvents } from "bullmq";
-import type IORedis from "ioredis";
-import { redis } from "../cache/redis";
+import { Queue } from "bullmq";
+import type { Job } from "bullmq";
 import { logger } from "../lib/logger";
 
 // ============================================

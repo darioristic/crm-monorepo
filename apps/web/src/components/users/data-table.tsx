@@ -45,6 +45,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { generateAvatarFallback } from "@/lib/utils";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 
 export type User = {
   id: number;
@@ -313,18 +314,19 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                 <CommandList>
                   <CommandEmpty>No status found.</CommandEmpty>
                   <CommandGroup>
-                    {statuses.map((status) => (
-                      <CommandItem key={status.value} value={status.value}>
-                        <div className="flex items-center space-x-3 py-1">
-                          <Checkbox id={status.value} />
-                          <label
-                            htmlFor={status.value}
-                            className="leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {status.label}
-                          </label>
-                        </div>
-                      </CommandItem>
-                    ))}
+                    {statuses.map((status) => {
+                      const checkboxId = `user-status-filter-${status.value}`;
+                      return (
+                        <CommandItem key={status.value} value={status.value}>
+                          <Label
+                            htmlFor={checkboxId}
+                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <Checkbox id={checkboxId} />
+                            <span>{status.label}</span>
+                          </Label>
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                 </CommandList>
               </Command>
@@ -343,18 +345,19 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                 <CommandList>
                   <CommandEmpty>No plan found.</CommandEmpty>
                   <CommandGroup>
-                    {plans.map((plan) => (
-                      <CommandItem key={plan.value} value={plan.value}>
-                        <div className="flex items-center space-x-3 py-1">
-                          <Checkbox id={plan.value} />
-                          <label
-                            htmlFor={plan.value}
-                            className="leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {plan.label}
-                          </label>
-                        </div>
-                      </CommandItem>
-                    ))}
+                    {plans.map((plan) => {
+                      const checkboxId = `user-plan-filter-${plan.value}`;
+                      return (
+                        <CommandItem key={plan.value} value={plan.value}>
+                          <Label
+                            htmlFor={checkboxId}
+                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <Checkbox id={checkboxId} />
+                            <span>{plan.label}</span>
+                          </Label>
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                 </CommandList>
               </Command>
@@ -373,24 +376,25 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                 <CommandList>
                   <CommandEmpty>No role found.</CommandEmpty>
                   <CommandGroup>
-                    {roles.map((role) => (
-                      <CommandItem
-                        key={role.value}
-                        value={role.value}
-                        onSelect={(currentValue) => {
-                          // setValue(currentValue === value ? "" : currentValue);
-                          // setOpen(false);
-                        }}>
-                        <div className="flex items-center space-x-3 py-1">
-                          <Checkbox id={role.value} />
-                          <label
-                            htmlFor={role.value}
-                            className="leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                            {role.label}
-                          </label>
-                        </div>
-                      </CommandItem>
-                    ))}
+                    {roles.map((role) => {
+                      const checkboxId = `user-role-filter-${role.value}`;
+                      return (
+                        <CommandItem
+                          key={role.value}
+                          value={role.value}
+                          onSelect={(currentValue) => {
+                            // setValue(currentValue === value ? "" : currentValue);
+                            // setOpen(false);
+                          }}>
+                          <Label
+                            htmlFor={checkboxId}
+                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            <Checkbox id={checkboxId} />
+                            <span>{role.label}</span>
+                          </Label>
+                        </CommandItem>
+                      );
+                    })}
                   </CommandGroup>
                 </CommandList>
               </Command>

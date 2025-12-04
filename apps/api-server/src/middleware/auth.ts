@@ -1,6 +1,6 @@
 import type { UserRole } from "@crm/types";
 import { errorResponse } from "@crm/utils";
-import { validateJWT, type JWTPayload } from "../services/auth.service";
+import { validateJWT, type JWTPayload, type SessionData } from "../services/auth.service";
 import { cache } from "../cache/redis";
 import { logger } from "../lib/logger";
 
@@ -55,7 +55,7 @@ function parseCookies(cookieHeader: string): Record<string, string> {
 // ============================================
 
 export async function verifyAndGetUser(
-	request: Request,
+    request: Request,
 ): Promise<AuthContext | null> {
 	try {
 		const token = extractJWT(request);
@@ -70,7 +70,7 @@ export async function verifyAndGetUser(
 
 		// Verify session still exists in Redis
 		// Wrap in try-catch to handle Redis connection errors gracefully
-		let session;
+		let session: SessionData | null;
 		try {
 			session = await cache.getSession(payload.sessionId);
 		} catch (redisError) {
@@ -84,15 +84,49 @@ export async function verifyAndGetUser(
 			return null;
 		}
 
-		// Return auth context with tenantId and companyId from payload
-		// These may be undefined for old tokens, which is OK
-		return {
-			userId: payload.userId,
-			role: payload.role,
-			tenantId: payload.tenantId,
-			companyId: payload.companyId,
-			sessionId: payload.sessionId,
-		};
+		// Get tenantId from payload, or fallback to database if not in token (for old tokens)
+		let tenantId = payload.tenantId;
+		if (!tenantId && payload.role !== "superadmin") {
+			try {
+				const { userQueries } = await import("../db/queries/users");
+				const user = await userQueries.findById(payload.userId);
+				if (user?.tenantId) {
+					tenantId = user.tenantId;
+					// Optionally update session with tenantId for future requests
+            if (session) {
+                session.tenantId = tenantId;
+                await cache.setSession(payload.sessionId, (session as unknown) as Record<string, unknown>);
+            }
+				}
+			} catch (error) {
+				logger.error({ error, userId: payload.userId }, "Failed to fetch tenantId from database");
+			}
+		}
+
+        // Build auth context with tenantId and companyId from payload
+        // tenantId is now populated from database if not in token
+        const authContext: AuthContext = {
+            userId: payload.userId,
+            role: payload.role,
+            tenantId: tenantId,
+            companyId: payload.companyId,
+            sessionId: payload.sessionId,
+        };
+
+        // Override companyId from header if provided and allowed
+        const headerCompanyId = request.headers.get("x-company-id");
+        if (headerCompanyId) {
+            try {
+                const allowed = await canAccessCompany(authContext, headerCompanyId);
+                if (allowed) {
+                    authContext.companyId = headerCompanyId;
+                }
+            } catch {
+                // Ignore errors in access check; fallback to payload companyId
+            }
+        }
+
+        return authContext;
 	} catch (error) {
 		logger.error({ error }, "Error in verifyAndGetUser");
 		return null;
@@ -200,7 +234,16 @@ export function isTenantAdmin(auth: AuthContext): boolean {
 }
 
 export function isCrmUser(auth: AuthContext): boolean {
-	return auth.role === "crm_user";
+  return auth.role === "crm_user";
+}
+
+// Compatibility helpers used in tests
+export function isAdmin(auth: AuthContext): boolean {
+  return auth.role === "admin" || auth.role === "tenant_admin" || auth.role === "superadmin";
+}
+
+export function isUser(auth: AuthContext): boolean {
+  return auth.role === "user" || auth.role === "crm_user";
 }
 
 export async function canAccessCompany(

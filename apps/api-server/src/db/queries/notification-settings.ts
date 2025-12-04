@@ -17,15 +17,15 @@ export type CreateNotificationSettingParams = {
 	enabled: boolean;
 };
 
-function mapNotificationSetting(row: any): NotificationSetting {
+function mapNotificationSetting(row: Record<string, unknown>): NotificationSetting {
 	return {
-		id: row.id,
-		userId: row.user_id,
-		notificationType: row.notification_type,
-		channel: row.channel,
-		enabled: row.enabled,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at,
+		id: row.id as string,
+		userId: row.user_id as string,
+		notificationType: row.notification_type as string,
+		channel: row.channel as "in_app" | "email" | "push",
+		enabled: row.enabled as boolean,
+		createdAt: row.created_at as string,
+		updatedAt: row.updated_at as string,
 	};
 }
 
@@ -64,4 +64,3 @@ export const notificationSettingsQueries = {
 		return mapNotificationSetting(result[0]);
 	},
 };
-

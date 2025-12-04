@@ -5,7 +5,8 @@ import {
 	getClientIp,
 	getUserAgent,
 } from "../services/audit.service";
-import { verifyAndGetUser, type AuthContext } from "../middleware/auth";
+import { verifyAndGetUser } from "../middleware/auth";
+import type { LoginResult } from "../services/auth.service";
 import {
 	checkRateLimitByIp,
 	RATE_LIMITS,
@@ -122,8 +123,8 @@ function getRefreshTokenFromCookie(request: Request): string | null {
  * POST /api/v1/auth/login
  */
 export async function loginHandler(
-	request: Request,
-	url: URL,
+    request: Request,
+    _url: URL,
 ): Promise<Response> {
 	// Rate limiting - strict for login
 	const rateLimitResult = await checkRateLimitByIp(
@@ -153,7 +154,7 @@ export async function loginHandler(
 		);
 	}
 
-	let result;
+    let result: import("@crm/types").ApiResponse<LoginResult>;
 	try {
 		result = await authService.login(body.email, body.password);
 	} catch (error) {
@@ -212,8 +213,8 @@ export async function loginHandler(
  * POST /api/v1/auth/logout
  */
 export async function logoutHandler(
-	request: Request,
-	url: URL,
+    request: Request,
+    _url: URL,
 ): Promise<Response> {
 	const auth = await verifyAndGetUser(request);
 
@@ -240,8 +241,8 @@ export async function logoutHandler(
  * POST /api/v1/auth/refresh
  */
 export async function refreshHandler(
-	request: Request,
-	url: URL,
+    request: Request,
+    _url: URL,
 ): Promise<Response> {
 	// Rate limiting for refresh
 	const rateLimitResult = await checkRateLimitByIp(
@@ -303,7 +304,7 @@ export async function refreshHandler(
 /**
  * GET /api/v1/auth/me
  */
-export async function meHandler(request: Request, url: URL): Promise<Response> {
+export async function meHandler(request: Request, _url: URL): Promise<Response> {
 	const auth = await verifyAndGetUser(request);
 
 	if (!auth) {
@@ -359,8 +360,8 @@ export async function meHandler(request: Request, url: URL): Promise<Response> {
  * POST /api/v1/auth/change-password
  */
 export async function changePasswordHandler(
-	request: Request,
-	url: URL,
+    request: Request,
+    _url: URL,
 ): Promise<Response> {
 	const auth = await verifyAndGetUser(request);
 

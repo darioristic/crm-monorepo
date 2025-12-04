@@ -5,7 +5,7 @@
 
 import type { ApiResponse, Quote, Invoice, DeliveryNote } from "@crm/types";
 import { successResponse, errorResponse } from "@crm/utils";
-import { sql, db } from "../db/client";
+import { sql } from "../db/client";
 import { runInTransaction } from "../db/transaction";
 import { emailService } from "./email.service";
 import { logger } from "../lib/logger";
@@ -71,7 +71,7 @@ async function generateInvoiceNumber(): Promise<string> {
   // Get the last invoice number for this year
   const result = await sql`
     SELECT invoice_number FROM invoices 
-    WHERE invoice_number LIKE ${prefix + '%'}
+    WHERE invoice_number LIKE ${`${prefix}%`}
     ORDER BY created_at DESC
     LIMIT 1
   `;
@@ -80,7 +80,7 @@ async function generateInvoiceNumber(): Promise<string> {
   if (result.length > 0) {
     const lastNumber = result[0].invoice_number;
     const numPart = parseInt(lastNumber.replace(prefix, ""), 10);
-    if (!isNaN(numPart)) {
+    if (!Number.isNaN(numPart)) {
       nextNumber = numPart + 1;
     }
   }
@@ -94,7 +94,7 @@ async function generateDeliveryNoteNumber(): Promise<string> {
   
   const result = await sql`
     SELECT delivery_note_number FROM delivery_notes 
-    WHERE delivery_note_number LIKE ${prefix + '%'}
+    WHERE delivery_note_number LIKE ${`${prefix}%`}
     ORDER BY created_at DESC
     LIMIT 1
   `;
@@ -103,7 +103,7 @@ async function generateDeliveryNoteNumber(): Promise<string> {
   if (result.length > 0) {
     const lastNumber = result[0].delivery_note_number;
     const numPart = parseInt(lastNumber.replace(prefix, ""), 10);
-    if (!isNaN(numPart)) {
+    if (!Number.isNaN(numPart)) {
       nextNumber = numPart + 1;
     }
   }
@@ -175,7 +175,7 @@ class WorkflowService {
       steps[0].completedAt = new Date().toISOString();
 
       // Run the conversion in a transaction
-      const result = await runInTransaction(async (tx) => {
+      const result = await runInTransaction(async (_tx) => {
         // Step 2: Create Invoice
         steps[1].status = "in_progress";
         steps[1].startedAt = new Date().toISOString();
@@ -361,7 +361,7 @@ class WorkflowService {
       steps[0].status = "completed";
       steps[0].completedAt = new Date().toISOString();
 
-      const result = await runInTransaction(async (tx) => {
+      const result = await runInTransaction(async (_tx) => {
         // Step 2: Create Delivery Note
         steps[1].status = "in_progress";
         steps[1].startedAt = new Date().toISOString();
@@ -488,7 +488,7 @@ class WorkflowService {
     });
 
     if (!invoiceResult.success) {
-      return invoiceResult as ApiResponse<any>;
+      return invoiceResult as ApiResponse<{ invoice?: Invoice; deliveryNote?: DeliveryNote; workflow: WorkflowInstance }>;
     }
 
     const { invoice } = invoiceResult.data!;

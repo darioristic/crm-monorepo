@@ -29,18 +29,17 @@ export const companyQueries = {
 			["name", "industry", "city", "country"],
 			filters.search,
 		);
-		
-		// Filter out customer companies (only show account companies in /dashboard/companies)
-		// Customer companies are created through forms (e.g., invoice form) and should not appear in the main list
-		// Account companies are the companies that use the app (account holders)
-		// If source filter is explicitly set, use it; otherwise exclude customer companies
+
+		// Scope to tenant if provided
+		if (filters.tenantId) {
+			qb.addUuidCondition("tenant_id", String(filters.tenantId));
+		}
+
+		// Show only customer companies unless overridden by explicit source filter
 		if (filters.source) {
-			qb.addEqualCondition("source", filters.source);
+			qb.addEqualCondition("source", String(filters.source));
 		} else {
-			// Exclude customer companies - show only account companies or companies without source (legacy)
-			// This ensures backward compatibility with existing companies
-			// Use NOT EQUAL to explicitly exclude customer companies
-			qb.addCondition("(source IS NULL OR source != 'customer')");
+			qb.addEqualCondition("source", "customer");
 		}
 
 		const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
@@ -108,7 +107,7 @@ export const companyQueries = {
         ${company.countryCode ?? null},
         ${company.vatNumber ?? null},
         ${company.companyNumber ?? null},
-        ${(company as any).logoUrl ?? null},
+        ${company.logoUrl ?? null},
         ${company.note ?? null}
       )
       RETURNING *
@@ -116,10 +115,10 @@ export const companyQueries = {
 		return mapCompany(result[0]);
 	},
 
-	async createWithId(company: Company): Promise<Company> {
+	async createWithId(company: Company, tenantId?: string | null): Promise<Company> {
 		const result = await db`
       INSERT INTO companies (
-        id, name, industry, address,
+        id, tenant_id, name, industry, address,
         email, phone, website, contact,
         city, zip, country, country_code,
         vat_number, company_number, logo_url, note,
@@ -127,6 +126,7 @@ export const companyQueries = {
       )
       VALUES (
         ${company.id},
+        ${tenantId ?? null},
         ${company.name},
         ${company.industry},
         ${company.address},
@@ -140,7 +140,7 @@ export const companyQueries = {
         ${company.countryCode ?? null},
         ${company.vatNumber ?? null},
         ${company.companyNumber ?? null},
-        ${(company as any).logoUrl ?? null},
+        ${company.logoUrl ?? null},
         ${company.note ?? null},
         ${company.createdAt},
         ${company.updatedAt}
@@ -166,7 +166,7 @@ export const companyQueries = {
         country_code = COALESCE(${data.countryCode ?? null}, country_code),
         vat_number = COALESCE(${data.vatNumber ?? null}, vat_number),
         company_number = COALESCE(${data.companyNumber ?? null}, company_number),
-        logo_url = COALESCE(${(data as any).logoUrl ?? null}, logo_url),
+        logo_url = COALESCE(${data.logoUrl ?? null}, logo_url),
         note = COALESCE(${data.note ?? null}, note),
         updated_at = NOW()
       WHERE id = ${id}

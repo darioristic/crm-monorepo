@@ -25,7 +25,7 @@ export class ProvisioningService {
 		request: ProvisioningRequest,
 	): Promise<ApiResponse<ProvisioningResult>> {
 		const tenantId = generateUUID();
-		const statusKey = `${PROVISIONING_STATUS_KEY_PREFIX}${tenantId}`;
+    const _statusKey = `${PROVISIONING_STATUS_KEY_PREFIX}${tenantId}`;
 
 		try {
 			// Check if tenant with this slug already exists (idempotency)
@@ -215,4 +215,3 @@ export class ProvisioningService {
 }
 
 export const provisioningService = new ProvisioningService();
-

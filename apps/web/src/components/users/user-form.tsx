@@ -1,362 +1,356 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { Contact, CreateContactRequest, UpdateContactRequest } from "@crm/types";
-import { contactsApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Textarea } from "@/components/ui/textarea";
 import { Loader2, AlertCircle } from "lucide-react";
+import {
+	Form,
+	FormControl,
+	FormField,
+	FormItem,
+	FormLabel,
+	FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { tenantAdminApi, type TenantUser } from "@/lib/api";
 
-const contactFormSchema = z.object({
-  firstName: z.string().min(2, "First name must be at least 2 characters"),
-  lastName: z.string().min(2, "Last name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().optional(),
-  company: z.string().optional(),
-  position: z.string().optional(),
-  street: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  postalCode: z.string().optional(),
-  country: z.string().optional(),
-  notes: z.string().optional(),
+const formSchema = z.object({
+	firstName: z.string().min(2, {
+		message: "First name must be at least 2 characters.",
+	}),
+	lastName: z.string().min(2, {
+		message: "Last name must be at least 2 characters.",
+	}),
+	email: z.string().email({
+		message: "Please enter a valid email address.",
+	}),
+	password: z.string().min(8, {
+		message: "Password must be at least 8 characters.",
+	}).optional().or(z.literal("")),
+	role: z.enum(["tenant_admin", "crm_user"]).default("crm_user"),
+	phone: z.string().optional().or(z.literal("")),
+	status: z.string().optional().or(z.literal("")),
 });
 
-type ContactFormValues = z.infer<typeof contactFormSchema>;
+type Props = {
+	user?: TenantUser;
+	onSuccess?: () => void;
+};
 
-interface UserFormProps {
-  contact?: Contact;
-  mode: "create" | "edit";
+export function UserForm({ user, onSuccess }: Props) {
+	const isEdit = !!user;
+	const queryClient = useQueryClient();
+
+	const form = useForm<z.infer<typeof formSchema>>({
+		resolver: zodResolver(formSchema),
+		defaultValues: {
+			firstName: user?.firstName || "",
+			lastName: user?.lastName || "",
+			email: user?.email || "",
+			password: "",
+			role: (user?.role === "tenant_admin" ? "tenant_admin" : "crm_user") as "tenant_admin" | "crm_user",
+			phone: user?.phone || "",
+			status: user?.status || "active",
+		},
+	});
+
+	const createMutation = useMutation({
+		mutationFn: async (values: z.infer<typeof formSchema>) => {
+			const result = await tenantAdminApi.users.create({
+				firstName: values.firstName,
+				lastName: values.lastName,
+				email: values.email,
+				password: values.password || undefined,
+				role: values.role,
+				phone: values.phone || undefined,
+			});
+			if (!result.success) {
+				throw new Error(result.error?.message || "Failed to create user");
+			}
+			return result.data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["tenant-admin", "users"] });
+			toast.success("User created successfully");
+			form.reset();
+			onSuccess?.();
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to create user"
+			);
+		},
+	});
+
+	const updateMutation = useMutation({
+		mutationFn: async (values: z.infer<typeof formSchema>) => {
+			if (!user) throw new Error("User ID is required");
+			const result = await tenantAdminApi.users.update(user.id, {
+				firstName: values.firstName,
+				lastName: values.lastName,
+				email: values.email,
+				role: values.role,
+				phone: values.phone || undefined,
+				status: values.status || undefined,
+			});
+			if (!result.success) {
+				throw new Error(result.error?.message || "Failed to update user");
+			}
+			return result.data;
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ["tenant-admin", "users"] });
+			toast.success("User updated successfully");
+			onSuccess?.();
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Failed to update user"
+			);
+		},
+	});
+
+	const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+		if (isEdit) {
+			updateMutation.mutate(values);
+		} else {
+			// Password is required for new users
+			if (!values.password) {
+				form.setError("password", {
+					message: "Password is required for new users",
+				});
+				return;
+			}
+			createMutation.mutate(values);
+		}
+	};
+
+	const isSubmitting = createMutation.isPending || updateMutation.isPending;
+	const error = createMutation.error
+		? (createMutation.error instanceof Error
+				? createMutation.error.message
+				: String(createMutation.error))
+		: updateMutation.error
+			? (updateMutation.error instanceof Error
+					? updateMutation.error.message
+					: String(updateMutation.error))
+			: undefined;
+
+	return (
+		<Form {...form}>
+			<form onSubmit={form.handleSubmit(handleSubmit)}>
+				<div className="h-[calc(100vh-180px)] scrollbar-hide overflow-auto">
+					{error && (
+						<Alert variant="destructive" className="mb-4">
+							<AlertCircle className="h-4 w-4" />
+							<AlertDescription>{error}</AlertDescription>
+						</Alert>
+					)}
+					<div className="space-y-4">
+						<div className="grid grid-cols-2 gap-4">
+							<FormField
+								control={form.control}
+								name="firstName"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="text-xs text-[#878787] font-normal">
+											First Name *
+										</FormLabel>
+										<FormControl>
+											<Input
+												{...field}
+												value={field.value ?? ""}
+												autoFocus
+												placeholder="John"
+												autoComplete="off"
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="lastName"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="text-xs text-[#878787] font-normal">
+											Last Name *
+										</FormLabel>
+										<FormControl>
+											<Input
+												{...field}
+												value={field.value ?? ""}
+												placeholder="Doe"
+												autoComplete="off"
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+
+						<FormField
+							control={form.control}
+							name="email"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel className="text-xs text-[#878787] font-normal">
+										Email *
+									</FormLabel>
+									<FormControl>
+										<Input
+											{...field}
+											value={field.value ?? ""}
+											placeholder="john.doe@example.com"
+											type="email"
+											autoComplete="off"
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+
+						{!isEdit && (
+							<FormField
+								control={form.control}
+								name="password"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="text-xs text-[#878787] font-normal">
+											Password *
+										</FormLabel>
+										<FormControl>
+											<Input
+												{...field}
+												value={field.value ?? ""}
+												placeholder="••••••••"
+												type="password"
+												autoComplete="new-password"
+											/>
+										</FormControl>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						)}
+
+						<div className="grid grid-cols-2 gap-4">
+							<FormField
+								control={form.control}
+								name="role"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="text-xs text-[#878787] font-normal">
+											Role *
+										</FormLabel>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value}
+										>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select role" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value="crm_user">CRM User</SelectItem>
+												<SelectItem value="tenant_admin">Tenant Admin</SelectItem>
+											</SelectContent>
+										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+
+							<FormField
+								control={form.control}
+								name="status"
+								render={({ field }) => (
+									<FormItem>
+										<FormLabel className="text-xs text-[#878787] font-normal">
+											Status
+										</FormLabel>
+										<Select
+											onValueChange={field.onChange}
+											defaultValue={field.value || "active"}
+										>
+											<FormControl>
+												<SelectTrigger>
+													<SelectValue placeholder="Select status" />
+												</SelectTrigger>
+											</FormControl>
+											<SelectContent>
+												<SelectItem value="active">Active</SelectItem>
+												<SelectItem value="inactive">Inactive</SelectItem>
+												<SelectItem value="suspended">Suspended</SelectItem>
+											</SelectContent>
+										</Select>
+										<FormMessage />
+									</FormItem>
+								)}
+							/>
+						</div>
+
+						<FormField
+							control={form.control}
+							name="phone"
+							render={({ field }) => (
+								<FormItem>
+									<FormLabel className="text-xs text-[#878787] font-normal">
+										Phone
+									</FormLabel>
+									<FormControl>
+										<Input
+											{...field}
+											value={field.value ?? ""}
+											placeholder="+381 11 123 4567"
+											type="tel"
+											autoComplete="off"
+										/>
+									</FormControl>
+									<FormMessage />
+								</FormItem>
+							)}
+						/>
+					</div>
+				</div>
+
+				<div className="absolute bottom-0 left-0 right-0 p-4 bg-background">
+					<div className="flex justify-end mt-auto space-x-4">
+						<Button
+							variant="outline"
+							onClick={() => onSuccess?.()}
+							type="button"
+						>
+							Cancel
+						</Button>
+
+						<Button
+							type="submit"
+							disabled={isSubmitting || !form.formState.isDirty}
+						>
+							{isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+							{isEdit ? "Update" : "Create"}
+						</Button>
+					</div>
+				</div>
+			</form>
+		</Form>
+	);
 }
-
-export function UserForm({ contact, mode }: UserFormProps) {
-  const router = useRouter();
-
-  const createMutation = useMutation<Contact, CreateContactRequest>((data) =>
-    contactsApi.create(data)
-  );
-
-  const updateMutation = useMutation<Contact, UpdateContactRequest>((data) =>
-    contactsApi.update(contact?.id || "", data)
-  );
-
-  const form = useForm<ContactFormValues>({
-    resolver: zodResolver(contactFormSchema) as any,
-    defaultValues: {
-      firstName: contact?.firstName || "",
-      lastName: contact?.lastName || "",
-      email: contact?.email || "",
-      phone: contact?.phone || "",
-      company: contact?.company || "",
-      position: contact?.position || "",
-      street: contact?.address?.street || "",
-      city: contact?.address?.city || "",
-      state: contact?.address?.state || "",
-      postalCode: contact?.address?.postalCode || "",
-      country: contact?.address?.country || "",
-      notes: contact?.notes || "",
-    },
-  });
-
-  useEffect(() => {
-    if (contact) {
-      form.reset({
-        firstName: contact.firstName,
-        lastName: contact.lastName,
-        email: contact.email,
-        phone: contact.phone || "",
-        company: contact.company || "",
-        position: contact.position || "",
-        street: contact.address?.street || "",
-        city: contact.address?.city || "",
-        state: contact.address?.state || "",
-        postalCode: contact.address?.postalCode || "",
-        country: contact.address?.country || "",
-        notes: contact.notes || "",
-      });
-    }
-  }, [contact, form]);
-
-  const onSubmit = async (values: ContactFormValues) => {
-    const data: CreateContactRequest | UpdateContactRequest = {
-      firstName: values.firstName,
-      lastName: values.lastName,
-      email: values.email,
-      phone: values.phone || undefined,
-      company: values.company || undefined,
-      position: values.position || undefined,
-      address: values.street || values.city || values.state || values.postalCode || values.country
-        ? {
-            street: values.street || undefined,
-            city: values.city || undefined,
-            state: values.state || undefined,
-            postalCode: values.postalCode || undefined,
-            country: values.country || undefined,
-          }
-        : undefined,
-      notes: values.notes || undefined,
-    };
-
-    let result;
-    if (mode === "create") {
-      result = await createMutation.mutate(data as CreateContactRequest);
-    } else {
-      result = await updateMutation.mutate(data as UpdateContactRequest);
-    }
-
-    if (result.success) {
-      router.push("/dashboard/users");
-      router.refresh();
-    }
-  };
-
-  const isLoading = createMutation.isLoading || updateMutation.isLoading;
-  const error = createMutation.error || updateMutation.error;
-
-  return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>{mode === "create" ? "Create Contact" : "Edit Contact"}</CardTitle>
-        <CardDescription>
-          {mode === "create"
-            ? "Add a new contact (customer or employee)"
-            : "Update contact information"}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Doe" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="john.doe@company.com"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+1 (555) 123-4567" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="company"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Company (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Company name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="position"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Position (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Job title or position" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="space-y-4">
-              <h3 className="text-sm font-medium">Address (Optional)</h3>
-              <FormField
-                control={form.control}
-                name="street"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Street</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Street address" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="city"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>City</FormLabel>
-                      <FormControl>
-                        <Input placeholder="City" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="state"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>State/Province</FormLabel>
-                      <FormControl>
-                        <Input placeholder="State or Province" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="postalCode"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Postal Code</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Postal code" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="country"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Country</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Country" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Notes (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Additional notes about this contact"
-                      className="min-h-[100px]"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex gap-4">
-              <Button type="submit" disabled={isLoading}>
-                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {mode === "create" ? "Create Contact" : "Update Contact"}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-              >
-                Cancel
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
-  );
-}
-

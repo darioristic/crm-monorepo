@@ -28,7 +28,7 @@ describe('Companies API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data).toHaveProperty('company');
 	});
@@ -40,7 +40,7 @@ describe('Companies API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(Array.isArray(data.data)).toBe(true);
 	});
@@ -61,7 +61,7 @@ describe('Companies API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(201);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data.company.name).toBe(companyData.name);
 
@@ -81,7 +81,7 @@ describe('Companies API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data.company.id).toBe(company.id);
 
@@ -105,7 +105,7 @@ describe('Companies API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data.company.name).toBe(updatedName);
 
@@ -122,7 +122,7 @@ describe('Companies API Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+		const data: any = await response.json();
 		expect(data.success).toBe(true);
 
 		// Verify company is deleted
@@ -133,4 +133,3 @@ describe('Companies API Integration Tests', () => {
 		expect(getResponse.status).toBe(404);
 	});
 });
-

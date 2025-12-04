@@ -3,7 +3,7 @@
  */
 
 import { successResponse, errorResponse } from "@crm/utils";
-import { RouteBuilder, withAuth, parsePagination, parseFilters, parseBody } from "./helpers";
+import { RouteBuilder, withAuth, parsePagination, parseFilters, parseBody, applyCompanyIdFromHeader } from "./helpers";
 import { orderQueries } from "../db/queries/orders";
 import { userQueries } from "../db/queries/users";
 import { hasCompanyAccess } from "../db/queries/companies-members";
@@ -13,11 +13,12 @@ const router = new RouteBuilder();
 
 router.get("/api/v1/orders", async (request, url) => {
 	return withAuth(request, async (auth) => {
-		const pagination = parsePagination(url);
-		const filters = parseFilters(url);
+		const effectiveUrl = applyCompanyIdFromHeader(request, url);
+		const pagination = parsePagination(effectiveUrl);
+		const filters = parseFilters(effectiveUrl);
 		
 		// Check if companyId query parameter is provided (for admin to filter by company)
-		const queryCompanyId = url.searchParams.get("companyId");
+		const queryCompanyId = effectiveUrl.searchParams.get("companyId");
 		
 		let companyId: string | null = null;
 
@@ -36,11 +37,10 @@ router.get("/api/v1/orders", async (request, url) => {
 			}
 		} else {
 			// No query parameter - use user's current active company
-			const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+			const userCompanyId = auth.companyId ?? (await userQueries.getUserCompanyId(auth.userId));
 			
 			if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-				// Admin users can see all orders if no company filter is specified
-				companyId = null;
+				companyId = userCompanyId;
 			} else {
 				// Regular users need an active company
 				if (!userCompanyId) {

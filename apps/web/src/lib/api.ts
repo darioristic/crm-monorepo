@@ -103,24 +103,67 @@ export type FilterParams = {
 };
 
 async function request<T>(
-	endpoint: string,
-	options: RequestInit = {},
+    endpoint: string,
+    options: RequestInit = {},
 ): Promise<ApiResponse<T>> {
-	const url = `${API_URL}${endpoint}`;
+    const url = `${API_URL}${endpoint}`;
 
   const defaultHeaders: HeadersInit = options.body
     ? { "Content-Type": "application/json" }
     : {};
 
+  let companyHeader: Record<string, string> = {};
+  if (typeof window !== "undefined") {
+    try {
+      const cookie = document.cookie || "";
+      const token = cookie
+        .split(";")
+        .map((c) => c.trim())
+        .find((c) => c.startsWith("access_token="))
+        ?.split("=")[1];
+      if (token) {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1]));
+          if (payload && payload.companyId) {
+            companyHeader = { "X-Company-Id": String(payload.companyId) };
+          }
+        }
+      }
+      if (!companyHeader["X-Company-Id"]) {
+        const lsCompany = window.localStorage?.getItem("selectedCompanyId");
+        if (lsCompany) {
+          companyHeader = { "X-Company-Id": lsCompany };
+        }
+      }
+    } catch {}
+  } else {
+    try {
+      const { cookies } = await import("next/headers");
+      const cookieStore = cookies();
+      const token = cookieStore.get("access_token")?.value;
+      if (token) {
+        const parts = token.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf8"));
+          if (payload?.companyId) {
+            companyHeader = { "X-Company-Id": String(payload.companyId) };
+          }
+        }
+      }
+    } catch {}
+  }
+
 	try {
-		const response = await fetch(url, {
-			...options,
-			credentials: "include", // Important: send cookies with requests
-			headers: {
-				...defaultHeaders,
-				...options.headers,
-			},
-		});
+        const response = await fetch(url, {
+            ...options,
+            credentials: "include", // Important: send cookies with requests
+            headers: {
+                ...defaultHeaders,
+                ...companyHeader,
+                ...options.headers,
+            },
+        });
 
 		// Check content type - but also try to parse as JSON even if header is missing
 		// (Next.js proxy might not forward headers correctly)
@@ -135,14 +178,15 @@ async function request<T>(
 				
 				if (refreshResult.success) {
 					// Retry the original request ONCE after successful refresh
-					const retryResponse = await fetch(url, {
-						...options,
-						credentials: "include",
-						headers: {
-							...defaultHeaders,
-							...options.headers,
-						},
-					});
+                    const retryResponse = await fetch(url, {
+                        ...options,
+                        credentials: "include",
+                        headers: {
+                            ...defaultHeaders,
+                            ...companyHeader,
+                            ...options.headers,
+                        },
+                    });
 					
 					// Try to parse as JSON regardless of content-type header
 					try {
@@ -999,6 +1043,108 @@ export const invitesApi = {
 		request<void>(`/api/v1/invites/accept/${token}`, {
 			method: "POST",
 		}),
+};
+
+// Tenant Admin API
+// ============================================
+
+export type TenantUser = {
+	id: string;
+	tenantId: string | null;
+	firstName: string;
+	lastName: string;
+	email: string;
+	role: "superadmin" | "tenant_admin" | "crm_user";
+	status: string | null;
+	avatarUrl: string | null;
+	phone: string | null;
+	lastLoginAt: string | null;
+	createdAt: string;
+	updatedAt: string;
+};
+
+export type TenantCompany = Company;
+
+export type CreateTenantUserRequest = {
+	firstName: string;
+	lastName: string;
+	email: string;
+	password?: string;
+	role?: "tenant_admin" | "crm_user";
+	phone?: string;
+};
+
+export type UpdateTenantUserRequest = {
+	firstName?: string;
+	lastName?: string;
+	email?: string;
+	phone?: string;
+	role?: "tenant_admin" | "crm_user";
+	status?: string;
+};
+
+export type CreateTenantCompanyRequest = {
+	name: string;
+	industry: string;
+	address: string;
+	locationId?: string;
+	email?: string;
+	phone?: string;
+	website?: string;
+	contact?: string;
+	city?: string;
+	zip?: string;
+	country?: string;
+	countryCode?: string;
+	vatNumber?: string;
+	companyNumber?: string;
+	logoUrl?: string;
+	note?: string;
+};
+
+export type UpdateTenantCompanyRequest = Partial<CreateTenantCompanyRequest>;
+
+export const tenantAdminApi = {
+	// Users
+	users: {
+		getAll: () => request<TenantUser[]>("/api/tenant-admin/users"),
+		getById: (id: string) => request<TenantUser>(`/api/tenant-admin/users/${id}`),
+		create: (data: CreateTenantUserRequest) =>
+			request<TenantUser>("/api/tenant-admin/users", {
+				method: "POST",
+				body: JSON.stringify(data),
+			}),
+		update: (id: string, data: UpdateTenantUserRequest) =>
+			request<TenantUser>(`/api/tenant-admin/users/${id}`, {
+				method: "PUT",
+				body: JSON.stringify(data),
+			}),
+		delete: (id: string) =>
+			request<{ message: string }>(`/api/tenant-admin/users/${id}`, {
+				method: "DELETE",
+			}),
+	},
+
+	// Companies
+	companies: {
+		getAll: () => request<TenantCompany[]>("/api/tenant-admin/companies"),
+		getById: (id: string) =>
+			request<TenantCompany>(`/api/tenant-admin/companies/${id}`),
+		create: (data: CreateTenantCompanyRequest) =>
+			request<TenantCompany>("/api/tenant-admin/companies", {
+				method: "POST",
+				body: JSON.stringify(data),
+			}),
+		update: (id: string, data: UpdateTenantCompanyRequest) =>
+			request<TenantCompany>(`/api/tenant-admin/companies/${id}`, {
+				method: "PUT",
+				body: JSON.stringify(data),
+			}),
+		delete: (id: string) =>
+			request<{ message: string }>(`/api/tenant-admin/companies/${id}`, {
+				method: "DELETE",
+			}),
+	},
 };
 
 export { request, buildQueryString };

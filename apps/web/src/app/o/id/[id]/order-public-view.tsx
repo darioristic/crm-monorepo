@@ -270,13 +270,18 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
           ],
         }
       : null,
-    note: order.notes,
+    note: order.notes ?? null,
     internalNote: null,
     vat: order.vat || null,
     tax: order.tax || null,
     discount: order.discount || null,
     subtotal: order.subtotal,
-    status: order.status,
+    status:
+      ["pending", "processing", "completed", "cancelled", "refunded"].includes(
+        order.status,
+      )
+        ? (order.status as Order["status"]) 
+        : "pending",
     template: {
       ...DEFAULT_ORDER_TEMPLATE,
       logoUrl: logoUrl,
@@ -290,17 +295,17 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
     },
     token: order.id,
     filePath: null,
-    completedAt: order.completedAt,
-    viewedAt: order.viewedAt,
-    cancelledAt: order.cancelledAt,
-    refundedAt: order.refundedAt,
+    completedAt: order.completedAt ?? null,
+    viewedAt: order.viewedAt ?? null,
+    cancelledAt: order.cancelledAt ?? null,
+    refundedAt: order.refundedAt ?? null,
     sentTo: null,
     topBlock: null,
     bottomBlock: null,
     customerId: order.companyId,
     customerName: customerName,
-    quoteId: order.quoteId,
-    invoiceId: order.invoiceId,
+    quoteId: order.quoteId ?? null,
+    invoiceId: order.invoiceId ?? null,
     customer: {
       id: order.companyId,
       name: customerName,

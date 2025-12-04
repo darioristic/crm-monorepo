@@ -5,12 +5,7 @@
  */
 
 import { sql as db } from "../client";
-import {
-	createQueryBuilder,
-	sanitizeSortColumn,
-	sanitizeSortOrder,
-	type QueryParam,
-} from "../query-builder";
+import type { QueryParam } from "../query-builder";
 
 // ============================================
 // Types

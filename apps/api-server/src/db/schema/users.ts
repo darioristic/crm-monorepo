@@ -1,5 +1,4 @@
 import { pgTable, pgEnum, uuid, varchar, text, timestamp, index, uniqueIndex } from "drizzle-orm/pg-core";
-import { sql } from "drizzle-orm";
 import { tenants } from "./tenants";
 import { companies } from "./companies";
 
@@ -153,4 +152,3 @@ export type Deal = typeof deals.$inferSelect;
 export type NewDeal = typeof deals.$inferInsert;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
-

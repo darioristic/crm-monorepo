@@ -142,9 +142,8 @@ export async function saveWorkingMemory(
 }
 
 // Default model configurations
-export const models = {
+export const models: Record<string, unknown> = {
   fast: openai("gpt-4o-mini"),
   smart: openai("gpt-4o"),
   embedding: openai.embedding("text-embedding-3-small"),
 };
-

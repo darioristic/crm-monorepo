@@ -28,10 +28,12 @@ import { toast } from "sonner";
 import { getErrorMessage } from "@/lib/utils";
 import { getQuotesColumns, type QuoteWithCompany } from "@/components/sales/quotes/QuotesColumns";
 import { QuotesToolbar } from "@/components/sales/quotes/QuotesToolbar";
+import { useAuth } from "@/contexts/auth-context";
 
 export function QuotesDataTable() {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
   const [searchValue, setSearchValue] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -77,10 +79,18 @@ export function QuotesDataTable() {
     totalCount,
     totalPages,
     setPage,
+    filters,
     setFilters
   } = usePaginatedApi<Quote>(
     (params) => quotesApi.getAll(params),
-    { search: searchValue, status: statusFilter === "all" ? undefined : statusFilter }
+    {
+      search: searchValue,
+      status: statusFilter === "all" ? undefined : statusFilter,
+      companyId:
+        typeof window !== "undefined"
+          ? window.localStorage?.getItem("selectedCompanyId") || undefined
+          : undefined,
+    }
   );
 
   // Delete mutation
@@ -104,6 +114,15 @@ export function QuotesDataTable() {
     }, 300);
     return () => clearTimeout(timer);
   }, [searchValue, statusFilter, setFilters]);
+
+  React.useEffect(() => {
+    const lsCompany =
+      typeof window !== "undefined"
+        ? window.localStorage?.getItem("selectedCompanyId") || undefined
+        : undefined;
+    const companyId = user?.companyId || lsCompany;
+    setFilters({ ...filters, companyId });
+  }, [user?.companyId, setFilters, filters]);
 
   // Handle delete
   const handleDelete = async () => {

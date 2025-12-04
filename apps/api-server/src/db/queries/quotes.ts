@@ -124,12 +124,12 @@ export const quoteQueries = {
     const result = await db`
       INSERT INTO quotes (
         id, quote_number, company_id, contact_id, status, issue_date, valid_until,
-        subtotal, tax_rate, tax, total, notes, terms, created_by, created_at, updated_at
+        subtotal, tax_rate, tax, total, notes, terms, from_details, created_by, created_at, updated_at
       ) VALUES (
         ${quote.id}, ${quote.quoteNumber}, ${quote.companyId}, ${quote.contactId || null},
         ${quote.status}, ${quote.issueDate}, ${quote.validUntil},
         ${quote.subtotal}, ${quote.taxRate}, ${quote.tax}, ${quote.total},
-        ${quote.notes || null}, ${quote.terms || null}, ${quote.createdBy},
+        ${quote.notes || null}, ${quote.terms || null}, ${quote.fromDetails ? JSON.stringify(quote.fromDetails) : null}, ${quote.createdBy},
         ${quote.createdAt}, ${quote.updatedAt}
       )
       RETURNING *
@@ -162,6 +162,7 @@ export const quoteQueries = {
         total = COALESCE(${data.total ?? null}, total),
         notes = COALESCE(${data.notes ?? null}, notes),
         terms = COALESCE(${data.terms ?? null}, terms),
+        from_details = COALESCE(${data.fromDetails ? JSON.stringify(data.fromDetails) : null}, from_details),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -253,6 +254,10 @@ function mapQuoteItem(row: Record<string, unknown>): QuoteItem {
 }
 
 function mapQuote(row: Record<string, unknown>, items: unknown[]): Quote {
+  let fromDetails = null;
+  if (row.from_details) {
+    fromDetails = typeof row.from_details === "string" ? JSON.parse(row.from_details as string) : row.from_details;
+  }
   return {
     id: row.id as string,
     createdAt: toISOString(row.created_at),
@@ -270,6 +275,7 @@ function mapQuote(row: Record<string, unknown>, items: unknown[]): Quote {
     total: parseFloat(row.total as string),
     notes: row.notes as string | undefined,
     terms: row.terms as string | undefined,
+    fromDetails,
     createdBy: row.created_by as string,
   };
 }

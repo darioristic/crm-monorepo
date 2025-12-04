@@ -12,9 +12,9 @@ export default defineConfig({
 	retries: process.env.CI ? 2 : 0,
 	workers: process.env.CI ? 1 : undefined,
 	reporter: [
-		['html'],
-		['list'],
-		...(process.env.CI ? [['github']] : []),
+		'html',
+		'list',
+		...(process.env.CI ? ['github'] : []),
 	],
 	use: {
 		baseURL: BASE_URL,
@@ -51,4 +51,3 @@ export default defineConfig({
 		},
 	],
 });
-

@@ -4,7 +4,7 @@ export { getProductsTool, getProductCategoriesSummaryTool } from "./get-products
 export { getQuotesTool, getQuoteConversionRateTool } from "./get-quotes";
 
 // All tools registry for easy access
-export const allTools = {
+export const allTools: Record<string, () => Promise<unknown>> = {
   getInvoices: () => import("./get-invoices").then((m) => m.getInvoicesTool),
   getOverdueInvoices: () => import("./get-invoices").then((m) => m.getOverdueInvoicesTool),
   getCustomers: () => import("./get-customers").then((m) => m.getCustomersTool),
@@ -15,4 +15,3 @@ export const allTools = {
   getQuotes: () => import("./get-quotes").then((m) => m.getQuotesTool),
   getQuoteConversion: () => import("./get-quotes").then((m) => m.getQuoteConversionRateTool),
 };
-

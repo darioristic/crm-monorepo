@@ -1,4 +1,4 @@
-import { eq, and, SQL } from "drizzle-orm";
+import { eq, and, type SQL } from "drizzle-orm";
 import {
 	companies,
 	documents,

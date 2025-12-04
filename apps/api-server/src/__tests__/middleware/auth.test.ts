@@ -233,7 +233,7 @@ describe('Auth Middleware', () => {
       expect(mockHandler).not.toHaveBeenCalled();
       expect(response.status).toBe(401);
 
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.error.code).toBe('UNAUTHORIZED');
       expect(response.headers.get('WWW-Authenticate')).toContain('Bearer');
     });
@@ -324,7 +324,7 @@ describe('Auth Middleware', () => {
       expect(mockHandler).not.toHaveBeenCalled();
       expect(response.status).toBe(403);
 
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.error.code).toBe('FORBIDDEN');
     });
 
@@ -387,7 +387,7 @@ describe('Auth Middleware', () => {
       expect(mockHandler).not.toHaveBeenCalled();
       expect(response.status).toBe(403);
 
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.error.code).toBe('FORBIDDEN');
       expect(data.error.message).toContain('Admin');
     });

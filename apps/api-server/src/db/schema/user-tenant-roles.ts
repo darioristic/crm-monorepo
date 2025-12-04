@@ -1,12 +1,4 @@
-import {
-	pgTable,
-	uuid,
-	varchar,
-	timestamp,
-	index,
-	pgEnum,
-	jsonb,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, timestamp, index, pgEnum, jsonb } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { tenants } from "./tenants";
 
@@ -40,4 +32,3 @@ export const userTenantRoles = pgTable(
 
 export type UserTenantRole = typeof userTenantRoles.$inferSelect;
 export type NewUserTenantRole = typeof userTenantRoles.$inferInsert;
-

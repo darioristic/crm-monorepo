@@ -183,13 +183,13 @@ function generateUsers(count: number, companyIds: string[]): User[] {
   const users: User[] = [];
   const usedEmails = new Set<string>();
 
-  // First user is always admin
+  // First user is always tenant_admin
   users.push({
     id: generateUUID(),
     firstName: "Admin",
     lastName: "User",
     email: "admin@crm.local",
-    role: "admin",
+    role: "tenant_admin",
     companyId: companyIds[0],
     status: "active",
     createdAt: pastDate(365),
@@ -214,7 +214,7 @@ function generateUsers(count: number, companyIds: string[]): User[] {
       firstName,
       lastName,
       email,
-      role: i < 5 ? "admin" : "user",
+      role: i < 5 ? "tenant_admin" : "crm_user",
       companyId: randomElement(companyIds),
       status: randomElement(["active", "active", "active", "inactive"]),
       phone: `+1-555-${String(randomNumber(1000, 9999)).padStart(4, "0")}`,
@@ -368,7 +368,7 @@ function generateQuotes(count: number, companyIds: string[], userIds: string[]):
 
 function generateInvoices(count: number, companyIds: string[], quoteIds: string[], userIds: string[]): { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[] {
   const invoices: { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[] = [];
-  const statuses: Invoice["status"][] = ["draft", "sent", "paid", "partially_paid", "overdue", "cancelled"];
+  const statuses: Invoice["status"][] = ["draft", "sent", "paid", "partial", "overdue", "cancelled"];
 
   for (let i = 0; i < count; i++) {
     const itemCount = randomNumber(1, 5);
@@ -399,7 +399,7 @@ function generateInvoices(count: number, companyIds: string[], quoteIds: string[
     
     let paidAmount = 0;
     if (status === "paid") paidAmount = total;
-    else if (status === "partially_paid") paidAmount = total * (randomNumber(20, 80) / 100);
+    else if (status === "partial") paidAmount = total * (randomNumber(20, 80) / 100);
 
     invoices.push({
       invoice: {
@@ -484,7 +484,7 @@ function generateOrders(count: number, companyIds: string[], quoteIds: string[],
 
 function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: string[], userIds: string[]): { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] {
   const notes: { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] = [];
-  const statuses: DeliveryNote["status"][] = ["pending", "shipped", "in_transit", "delivered", "cancelled"];
+  const statuses: DeliveryNote["status"][] = ["pending", "in_transit", "delivered", "returned"];
   const carriers = ["FedEx", "UPS", "DHL", "USPS", "Local Courier"];
 
   for (let i = 0; i < count; i++) {
@@ -492,11 +492,16 @@ function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: 
     const items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] = [];
 
     for (let j = 0; j < itemCount; j++) {
+      const quantity = randomNumber(1, 10);
+      const unitPrice = randomNumber(100, 10000);
+      const discount = Math.random() > 0.8 ? randomNumber(5, 15) : 0;
       items.push({
         productName: randomElement(PRODUCT_NAMES),
         description: `Delivery item ${j + 1} description`,
-        quantity: randomNumber(1, 10),
+        quantity,
         unit: randomElement(["pcs", "set", "box", "pack"]),
+        unitPrice,
+        discount,
       });
     }
 
@@ -509,6 +514,10 @@ function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: 
         invoiceId: Math.random() > 0.3 && invoiceIds.length > 0 ? randomElement(invoiceIds) : undefined,
         companyId: randomElement(companyIds),
         status,
+        subtotal: 0,
+        taxRate: 0,
+        tax: 0,
+        total: 0,
         shipDate: status !== "pending" ? pastDate(randomNumber(1, 30)) : undefined,
         deliveryDate: status === "delivered" ? pastDate(randomNumber(1, 14)) : undefined,
         shippingAddress: `${randomNumber(100, 9999)} ${randomElement(["Main St", "Oak Ave", "Park Blvd"])}, ${randomElement(CITIES)}`,
@@ -598,6 +607,10 @@ function generateProducts(count: number, categoryIds: string[]): Product[] {
       stockQuantity: randomNumber(0, 500),
       minStockLevel: randomNumber(5, 20),
       unit: randomElement(["pcs", "license", "hour", "month", "year"]),
+      taxRate: 0.2,
+      isService: ["hour", "month", "year"].includes(
+        ((products[products.length] as unknown) as { unit?: string })?.unit ?? "pcs"
+      ) || false,
       isActive: Math.random() > 0.1,
       createdAt: pastDate(randomNumber(30, 365)),
       updatedAt: now(),
@@ -666,6 +679,7 @@ function generateNotifications(count: number, userIds: string[]): Notification[]
       link: Math.random() > 0.5 ? `/dashboard/${randomElement(["invoices", "quotes", "projects", "tasks"])}` : undefined,
       isRead: Math.random() > 0.6,
       readAt: Math.random() > 0.6 ? pastDate(randomNumber(1, 14)) : undefined,
+      emailSent: false,
       createdAt: pastDate(randomNumber(1, 30)),
     });
   }
@@ -806,10 +820,11 @@ async function seedQuotes(quotes: { quote: Omit<Quote, "items">; items: Omit<Quo
       const created = await quoteQueries.create(quote, items);
       console.log(`  ✅ Created quote: ${created.quoteNumber}`);
       ids.push(created.id);
-    } catch (error: any) {
-      console.error(`  ❌ Failed to create quote ${quote.quoteNumber}: ${error?.message || error}`);
-      if (error?.code) console.error(`     Error code: ${error.code}`);
-      if (error?.detail) console.error(`     Detail: ${error.detail}`);
+    } catch (error: unknown) {
+      const e = (error as { message?: string; code?: string; detail?: string }) || {};
+      console.error(`  ❌ Failed to create quote ${quote.quoteNumber}: ${e.message || error}`);
+      if (e.code) console.error(`     Error code: ${e.code}`);
+      if (e.detail) console.error(`     Detail: ${e.detail}`);
     }
   }
 
@@ -846,10 +861,11 @@ async function seedOrders(orders: { order: Omit<Order, "items">; items: Array<{ 
       } else {
         console.error(`  ❌ Failed to create order ${order.orderNumber}: ${result.error?.message || "Unknown error"}`);
       }
-    } catch (error: any) {
-      console.error(`  ❌ Failed to create order ${order.orderNumber}: ${error?.message || error}`);
-      if (error?.code) console.error(`     Error code: ${error.code}`);
-      if (error?.detail) console.error(`     Detail: ${error.detail}`);
+    } catch (error: unknown) {
+      const e = (error as { message?: string; code?: string; detail?: string }) || {};
+      console.error(`  ❌ Failed to create order ${order.orderNumber}: ${e.message || error}`);
+      if (e.code) console.error(`     Error code: ${e.code}`);
+      if (e.detail) console.error(`     Detail: ${e.detail}`);
     }
   }
 
@@ -881,7 +897,6 @@ async function seedProductCategories(categories: ProductCategory[]): Promise<str
         name: category.name,
         description: category.description,
         parentId: undefined,
-        sortOrder: category.sortOrder,
         isActive: category.isActive,
       });
       console.log(`  ✅ Created category: ${created.name}`);
@@ -903,7 +918,6 @@ async function seedProductCategories(categories: ProductCategory[]): Promise<str
         name: category.name,
         description: category.description,
         parentId,
-        sortOrder: category.sortOrder,
         isActive: category.isActive,
       });
       console.log(`  ✅ Created category: ${created.name}`);
@@ -939,6 +953,8 @@ async function seedProducts(products: Product[], categoryIds: string[]): Promise
         stockQuantity: productData.stockQuantity,
         minStockLevel: productData.minStockLevel,
         unit: productData.unit,
+        taxRate: 0.2,
+        isService: ["hour", "month", "year"].includes(productData.unit),
         isActive: productData.isActive,
       });
       console.log(`  ✅ Created product: ${created.name}`);

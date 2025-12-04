@@ -1,10 +1,11 @@
 "use client";
 
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, useEffect } from "react";
 import { useApi, useMutation } from "@/hooks/use-api";
 import { quotesApi } from "@/lib/api";
 import type { QuoteFormValues } from "@/types/quote";
 import { toast } from "sonner";
+import { useAuth } from "@/contexts/auth-context";
 
 // Hook for fetching quotes list
 export function useQuotes(params?: {
@@ -12,8 +13,25 @@ export function useQuotes(params?: {
   customerId?: string;
   page?: number;
   limit?: number;
+  companyId?: string;
 }) {
-  return useApi(() => quotesApi.getAll(params), { autoFetch: true });
+  const { user } = useAuth();
+  const lsCompany =
+    typeof window !== "undefined"
+      ? window.localStorage?.getItem("selectedCompanyId") || undefined
+      : undefined;
+  const effectiveCompanyId = params?.companyId ?? user?.companyId ?? lsCompany;
+
+  const result = useApi(
+    () => quotesApi.getAll({ ...(params || {}), companyId: effectiveCompanyId }),
+    { autoFetch: true },
+  );
+
+  useEffect(() => {
+    result.refetch();
+  }, [effectiveCompanyId]);
+
+  return result;
 }
 
 // Hook for fetching single quote
@@ -116,4 +134,3 @@ export function useQuoteStats() {
 
   return { stats, isLoading };
 }
-

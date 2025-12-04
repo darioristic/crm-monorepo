@@ -10,6 +10,7 @@ import { documentsApi, type DocumentWithTags } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
 import {
 	flexRender,
 	getCoreRowModel,
@@ -28,6 +29,7 @@ export function DataTable() {
 	const { filter, hasFilters } = useDocumentFilterParams();
 	const { setParams } = useDocumentParams();
 	const { rowSelection, setRowSelection, clearSelection } = useDocumentsStore();
+  const { user } = useAuth();
 
 	const {
 		data,
@@ -37,7 +39,7 @@ export function DataTable() {
 		isFetchingNextPage,
 		isLoading,
 	} = useInfiniteQuery({
-		queryKey: ["documents", filter],
+		queryKey: ["documents", filter, user?.companyId],
 		queryFn: async ({ pageParam }) => {
 			const response = await documentsApi.getAll({
 				pageSize: 20,
@@ -168,4 +170,3 @@ export function DataTable() {
 		</div>
 	);
 }
-

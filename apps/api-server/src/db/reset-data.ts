@@ -143,14 +143,15 @@ async function deleteAllDocuments(): Promise<void> {
 		try {
 			await db.unsafe(`DELETE FROM ${table}`);
 			console.log(`  ✅ Obrisano: ${name}`);
-		} catch (error: any) {
-			if (error?.code === "42P01") {
-				console.log(`  ⏭️  Tabela ${table} ne postoji, preskačem`);
-			} else {
-				console.error(`  ❌ Greška pri brisanju ${table}:`, error.message);
-				throw error;
-			}
-		}
+        } catch (error: unknown) {
+            const code = (error as { code?: string } | null)?.code;
+            if (code === "42P01") {
+                console.log(`  ⏭️  Tabela ${table} ne postoji, preskačem`);
+            } else {
+                console.error(`  ❌ Greška pri brisanju ${table}`);
+                throw error as Error;
+            }
+        }
 	};
 
 	// Delete in reverse order of dependencies
@@ -177,14 +178,15 @@ async function deleteAllUsersAndCompanies(): Promise<void> {
 		try {
 			await db.unsafe(`DELETE FROM ${table}`);
 			console.log(`  ✅ Obrisano: ${name}`);
-		} catch (error: any) {
-			if (error?.code === "42P01") {
-				console.log(`  ⏭️  Tabela ${table} ne postoji, preskačem`);
-			} else {
-				console.error(`  ❌ Greška pri brisanju ${table}:`, error.message);
-				throw error;
-			}
-		}
+        } catch (error: unknown) {
+            const code = typeof error === "object" && error && (error as { code?: string }).code;
+            if (code === "42P01") {
+                console.log(`  ⏭️  Tabela ${table} ne postoji, preskačem`);
+            } else {
+                console.error(`  ❌ Greška pri brisanju ${table}`);
+                throw error as Error;
+            }
+        }
 	};
 
 	// Delete in reverse order of dependencies
@@ -271,7 +273,7 @@ function generateSerbianUsers(count: number, companyIds: string[]): User[] {
 			firstName,
 			lastName,
 			email,
-			role: i < 5 ? "admin" : "user",
+			role: i < 5 ? "tenant_admin" : "crm_user",
 			companyId: randomElement(companyIds),
 			status: randomElement(["active", "active", "active", "inactive"]),
 			phone: `+381-${randomNumber(60, 69)}-${randomNumber(100, 999)}-${randomNumber(100, 9999)}`,
@@ -570,10 +572,10 @@ async function seedCompanies(companies: Company[]): Promise<string[]> {
 			const created = await companyQueries.create(company);
 			companyIds.push(created.id);
 			console.log(`  ✅ Kreirana kompanija: ${created.name}`);
-		} catch (error: any) {
-			console.error(`  ❌ Greška pri kreiranju kompanije ${company.name}:`, error.message);
-			throw error;
-		}
+        } catch (error: unknown) {
+            console.error(`  ❌ Greška pri kreiranju kompanije ${company.name}`);
+            throw error as Error;
+        }
 	}
 
 	return companyIds;
@@ -602,10 +604,10 @@ async function seedUsers(users: User[]): Promise<string[]> {
 			}
 
 			console.log(`  ✅ Kreiran korisnik: ${user.firstName} ${user.lastName} (${user.email})`);
-		} catch (error: any) {
-			console.error(`  ❌ Greška pri kreiranju korisnika ${user.email}:`, error.message);
-			throw error;
-		}
+        } catch (error: unknown) {
+            console.error(`  ❌ Greška pri kreiranju korisnika ${user.email}`);
+            throw error as Error;
+        }
 	}
 
 	console.log(`\n  ℹ️  Podrazumevana lozinka za sve korisnike: "${DEFAULT_PASSWORD}"`);
@@ -627,10 +629,10 @@ async function seedQuotes(
 			const created = await quoteQueries.create(quote, items);
 			quoteIds.push(created.id);
 			console.log(`  ✅ Kreirana ponuda: ${created.quoteNumber}`);
-		} catch (error: any) {
-			console.error(`  ❌ Greška pri kreiranju ponude ${quote.quoteNumber}:`, error.message);
-			throw error;
-		}
+        } catch (error: unknown) {
+            console.error(`  ❌ Greška pri kreiranju ponude ${quote.quoteNumber}`);
+            throw error as Error;
+        }
 	}
 
 	return quoteIds;
@@ -650,10 +652,10 @@ async function seedInvoices(
 			const created = await invoiceQueries.create(invoice, items);
 			invoiceIds.push(created.id);
 			console.log(`  ✅ Kreirana faktura: ${created.invoiceNumber}`);
-		} catch (error: any) {
-			console.error(`  ❌ Greška pri kreiranju fakture ${invoice.invoiceNumber}:`, error.message);
-			throw error;
-		}
+        } catch (error: unknown) {
+            console.error(`  ❌ Greška pri kreiranju fakture ${invoice.invoiceNumber}`);
+            throw error as Error;
+        }
 	}
 
 	return invoiceIds;
@@ -671,10 +673,10 @@ async function seedDeliveryNotes(
 		try {
 			const created = await deliveryNoteQueries.create(note, items);
 			console.log(`  ✅ Kreirana otpremnica: ${created.deliveryNumber}`);
-		} catch (error: any) {
-			console.error(`  ❌ Greška pri kreiranju otpremnice ${note.deliveryNumber}:`, error.message);
-			throw error;
-		}
+        } catch (error: unknown) {
+            console.error(`  ❌ Greška pri kreiranju otpremnice ${note.deliveryNumber}`);
+            throw error as Error;
+        }
 	}
 }
 
@@ -704,9 +706,9 @@ async function seedOrders(
 			} else {
 				console.error(`  ❌ Greška pri kreiranju narudžbine ${order.orderNumber}: ${result.error?.message || "Nepoznata greška"}`);
 			}
-		} catch (error: any) {
-			console.error(`  ❌ Greška pri kreiranju narudžbine ${order.orderNumber}:`, error.message);
-		}
+        } catch (_error: unknown) {
+            console.error(`  ❌ Greška pri kreiranju narudžbine ${order.orderNumber}`);
+        }
 	}
 }
 
@@ -735,8 +737,6 @@ export async function resetAndSeedData(): Promise<void> {
 			city: "Beograd",
 			country: "Srbija",
 			countryCode: "RS",
-			createdAt: pastDate(365),
-			updatedAt: now(),
 		});
 		console.log(`  ✅ Kreirana demo kompanija: TechCorp\n`);
 
@@ -755,7 +755,7 @@ export async function resetAndSeedData(): Promise<void> {
 				firstName: "Admin",
 				lastName: "User",
 				email: "admin@crm.local",
-				role: "admin",
+				role: "tenant_admin",
 				companyId: allCompanyIds[0],
 				status: "active",
 				createdAt: pastDate(365),
@@ -766,7 +766,7 @@ export async function resetAndSeedData(): Promise<void> {
 				firstName: "Sarah",
 				lastName: "Johnson",
 				email: "sarah.johnson@techcorp.com",
-				role: "user",
+				role: "crm_user",
 				companyId: techCorp.id,
 				status: "active",
 				createdAt: pastDate(300),
@@ -854,4 +854,3 @@ if (import.meta.main) {
 		process.exit(1);
 	}
 }
-

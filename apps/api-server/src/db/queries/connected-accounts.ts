@@ -19,24 +19,24 @@ export type ConnectedAccount = {
 	updatedAt: string;
 };
 
-function mapConnectedAccount(row: any): ConnectedAccount {
+function mapConnectedAccount(row: Record<string, unknown>): ConnectedAccount {
 	return {
-		id: row.id,
-		companyId: row.company_id,
-		accountType: row.account_type,
-		accountName: row.account_name,
-		accountNumber: row.account_number,
-		bankName: row.bank_name,
-		iban: row.iban,
-		swift: row.swift,
-		currency: row.currency,
-		balance: parseFloat(row.balance || 0),
-		isActive: row.is_active,
-		connectedBy: row.connected_by,
-		connectedAt: row.connected_at,
-		lastSyncedAt: row.last_synced_at,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at,
+		id: row.id as string,
+		companyId: row.company_id as string,
+		accountType: row.account_type as string,
+		accountName: row.account_name as string,
+		accountNumber: row.account_number as string | null,
+		bankName: row.bank_name as string | null,
+		iban: row.iban as string | null,
+		swift: row.swift as string | null,
+		currency: row.currency as string,
+		balance: parseFloat((row.balance as string) || "0"),
+		isActive: row.is_active as boolean,
+		connectedBy: row.connected_by as string,
+		connectedAt: row.connected_at as string,
+		lastSyncedAt: row.last_synced_at as string | null,
+		createdAt: row.created_at as string,
+		updatedAt: row.updated_at as string,
 	};
 }
 
@@ -56,4 +56,3 @@ export const connectedAccountQueries = {
 		return result.length > 0 ? mapConnectedAccount(result[0]) : null;
 	},
 };
-

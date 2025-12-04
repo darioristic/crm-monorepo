@@ -78,7 +78,7 @@ const myWallet = [
   }
 ];
 
-export default function MyWallet() {
+export default function CreditCards() {
   return (
     <Card>
       <CardHeader>

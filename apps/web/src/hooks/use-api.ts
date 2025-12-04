@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { ApiResponse, FilterParams, PaginationParams } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
+import { useAuth } from "@/contexts/auth-context";
 
 type UseApiOptions<T> = {
 	initialData?: T;
@@ -23,14 +24,15 @@ type UseApiResult<T> = {
 };
 
 export function useApi<T>(
-	fetchFn: () => Promise<ApiResponse<T>>,
-	options: UseApiOptions<T> = {},
+    fetchFn: () => Promise<ApiResponse<T>>,
+    options: UseApiOptions<T> = {},
 ): UseApiResult<T> {
-	const { initialData, autoFetch = true } = options;
-	const [data, setData] = useState<T | undefined>(initialData);
-	const [error, setError] = useState<string | undefined>();
-	const [isLoading, setIsLoading] = useState(autoFetch);
-	const [meta, setMeta] = useState<UseApiResult<T>["meta"]>();
+    const { initialData, autoFetch = true } = options;
+    const { user } = useAuth();
+    const [data, setData] = useState<T | undefined>(initialData);
+    const [error, setError] = useState<string | undefined>();
+    const [isLoading, setIsLoading] = useState(autoFetch);
+    const [meta, setMeta] = useState<UseApiResult<T>["meta"]>();
 
 	// Store fetchFn in a ref to avoid dependency changes
 	const fetchFnRef = useRef(fetchFn);
@@ -56,11 +58,17 @@ export function useApi<T>(
 		}
 	}, []);
 
-	useEffect(() => {
-		if (autoFetch) {
-			fetchData();
-		}
-	}, [autoFetch, fetchData]);
+    useEffect(() => {
+        if (autoFetch) {
+            fetchData();
+        }
+    }, [autoFetch, fetchData]);
+
+    useEffect(() => {
+        if (autoFetch) {
+            fetchData();
+        }
+    }, [user?.companyId]);
 
 	return {
 		data,
@@ -83,19 +91,28 @@ type UsePaginatedApiResult<T> = UseApiResult<T[]> & {
 };
 
 export function usePaginatedApi<T>(
-	fetchFn: (
-		params: FilterParams & PaginationParams,
-	) => Promise<ApiResponse<T[]>>,
-	initialFilters: FilterParams = {},
+    fetchFn: (
+        params: FilterParams & PaginationParams,
+    ) => Promise<ApiResponse<T[]>>,
+    initialFilters: FilterParams = {},
 ): UsePaginatedApiResult<T> {
-	const [page, setPage] = useState(1);
-	const [pageSize, setPageSize] = useState(20);
-	const [filters, setFilters] = useState<FilterParams>(initialFilters);
-	const [data, setData] = useState<T[]>([]);
-	const [error, setError] = useState<string | undefined>();
-	const [isLoading, setIsLoading] = useState(true);
-	const [totalCount, setTotalCount] = useState(0);
-	const [totalPages, setTotalPages] = useState(0);
+    const { user } = useAuth();
+    const lsCompany =
+        typeof window !== "undefined"
+            ? window.localStorage?.getItem("selectedCompanyId") || undefined
+            : undefined;
+    const effectiveCompanyId = user?.companyId ?? lsCompany;
+    const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(20);
+    const [filters, setFilters] = useState<FilterParams>({
+        ...initialFilters,
+        companyId: effectiveCompanyId,
+    });
+    const [data, setData] = useState<T[]>([]);
+    const [error, setError] = useState<string | undefined>();
+    const [isLoading, setIsLoading] = useState(true);
+    const [totalCount, setTotalCount] = useState(0);
+    const [totalPages, setTotalPages] = useState(0);
 
 	// Store fetchFn in a ref to avoid dependency changes
 	const fetchFnRef = useRef(fetchFn);
@@ -109,8 +126,13 @@ export function usePaginatedApi<T>(
 		setIsLoading(true);
 		setError(undefined);
 
-		try {
-			const response = await fetchFnRef.current({ ...filters, page, pageSize });
+        try {
+            const response = await fetchFnRef.current({
+                ...filters,
+                companyId: effectiveCompanyId,
+                page,
+                pageSize,
+            });
 
 			// Only update state if this is still the latest fetch
 			if (currentFetchId !== fetchIdRef.current) {
@@ -141,9 +163,18 @@ export function usePaginatedApi<T>(
 		}
 	}, [filters, page, pageSize]);
 
-	useEffect(() => {
-		fetchData();
-	}, [fetchData]);
+    useEffect(() => {
+        fetchData();
+    }, [fetchData]);
+
+    useEffect(() => {
+        const nextCompanyId = effectiveCompanyId;
+        const prevCompanyId = (filters as any).companyId as string | undefined;
+        if (nextCompanyId !== prevCompanyId) {
+            setFilters({ ...filters, companyId: nextCompanyId });
+            setPage(1);
+        }
+    }, [effectiveCompanyId]);
 
 	const handleSetPage = useCallback((newPage: number) => {
 		setPage(newPage);

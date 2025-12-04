@@ -10,7 +10,11 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { ChevronsUpDown, Check } from "lucide-react";
 import * as React from "react";
 import { useEffect } from "react";
@@ -81,9 +85,10 @@ const countries = [
 type Props = {
   defaultValue: string;
   onSelect: (countryCode: string, countryName: string) => void;
+  id?: string;
 };
 
-export function CountrySelector({ defaultValue, onSelect }: Props) {
+export function CountrySelector({ defaultValue, onSelect, id }: Props) {
   const [open, setOpen] = React.useState(false);
   const [value, setValue] = React.useState(defaultValue);
 
@@ -94,13 +99,14 @@ export function CountrySelector({ defaultValue, onSelect }: Props) {
   }, [defaultValue, value]);
 
   const selected = countries.find(
-    (country) => country.code === value || country.name === value,
+    (country) => country.code === value || country.name === value
   );
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id={id}
           variant="outline"
           aria-expanded={open}
           className="w-full justify-between font-normal truncate"
@@ -109,10 +115,7 @@ export function CountrySelector({ defaultValue, onSelect }: Props) {
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent
-        className="w-[225px] p-0 z-[60]"
-        align="start"
-      >
+      <PopoverContent className="w-[225px] p-0 z-[60]" align="start">
         <Command loop>
           <CommandInput
             placeholder="Search country..."
@@ -136,7 +139,7 @@ export function CountrySelector({ defaultValue, onSelect }: Props) {
                   <Check
                     className={cn(
                       "ml-auto h-4 w-4",
-                      value === country.code ? "opacity-100" : "opacity-0",
+                      value === country.code ? "opacity-100" : "opacity-0"
                     )}
                   />
                 </CommandItem>

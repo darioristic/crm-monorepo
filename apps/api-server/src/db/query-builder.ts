@@ -11,7 +11,6 @@ import { sql as db } from "./client";
 // Types
 // ============================================
 
-// biome-ignore lint: postgres.js uses any[] for parameters internally
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type QueryParam = any;
 
@@ -188,7 +187,7 @@ export class SafeQueryBuilder {
       return { clause: "", values: [] };
     }
 
-    const clause = "WHERE " + this.conditions.map((c) => c.sql).join(" AND ");
+    const clause = `WHERE ${this.conditions.map((c) => c.sql).join(" AND ")}`;
     const values = this.conditions.flatMap((c) => c.values);
 
     return { clause, values };
@@ -282,7 +281,7 @@ async function executeRawQuery(query: string, values: unknown[]): Promise<Record
   // Koristimo prepared statement pristup
   // postgres.js podržava pozicione parametre kada se koristi sa nizom
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return db.unsafe(query, [...values] as any);
+  return db.unsafe(query, [...values] as any[]);
 }
 
 // ============================================
@@ -326,4 +325,3 @@ export function sanitizeSortColumn(table: string, column: string | undefined): s
 export function sanitizeSortOrder(order: string | undefined): "ASC" | "DESC" {
   return order?.toLowerCase() === "asc" ? "ASC" : "DESC";
 }
-

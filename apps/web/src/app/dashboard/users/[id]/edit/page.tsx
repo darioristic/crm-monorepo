@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { ChevronLeft, Loader2 } from "lucide-react";
-import type { Contact } from "@crm/types";
-import { contactsApi } from "@/lib/api";
+import type { TenantUser } from "@/lib/api";
+import { tenantAdminApi } from "@/lib/api";
 import { UserForm } from "@/components/users/user-form";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -14,17 +14,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function EditUserPage() {
   const params = useParams();
   const id = params.id as string;
-  const [contact, setContact] = useState<Contact | null>(null);
+  const [user, setUser] = useState<TenantUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchContact() {
+    async function fetchUser() {
       setIsLoading(true);
       try {
-        const response = await contactsApi.getById(id);
+        const response = await tenantAdminApi.users.getById(id);
         if (response.success && response.data) {
-          setContact(response.data);
+          setUser(response.data);
         } else {
           const errorMsg = typeof response.error === 'object' && response.error?.message 
             ? response.error.message 
@@ -34,13 +34,13 @@ export default function EditUserPage() {
           setError(errorMsg);
         }
       } catch (e) {
-        setError("Failed to load contact");
+        setError("Failed to load user");
       } finally {
         setIsLoading(false);
       }
     }
 
-    fetchContact();
+    fetchUser();
   }, [id]);
 
   if (isLoading) {
@@ -58,7 +58,7 @@ export default function EditUserPage() {
     );
   }
 
-  if (error || !contact) {
+  if (error || !user) {
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-4">
@@ -67,13 +67,13 @@ export default function EditUserPage() {
               <ChevronLeft className="h-4 w-4" />
             </Link>
           </Button>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Contact</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Edit User</h1>
         </div>
         <Alert variant="destructive">
           <AlertDescription>
-            {error || "Contact not found"}
+            {error || "User not found"}
             <Button variant="link" asChild className="ml-2">
-              <Link href="/dashboard/users">Go back to contacts</Link>
+              <Link href="/dashboard/users">Go back to users</Link>
             </Button>
           </AlertDescription>
         </Alert>
@@ -90,14 +90,13 @@ export default function EditUserPage() {
           </Link>
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Edit Contact</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Edit User</h1>
           <p className="text-muted-foreground">
-            Update information for {contact.firstName} {contact.lastName}
+            Update information for {user.firstName} {user.lastName}
           </p>
         </div>
       </div>
-      <UserForm mode="edit" contact={contact} />
+      <UserForm user={user} />
     </div>
   );
 }
-

@@ -29,7 +29,7 @@ import {
   now,
   Errors,
 } from "@crm/utils";
-import { dealQueries, quoteQueries, invoiceQueries, deliveryNoteQueries } from "../db/queries";
+import { dealQueries, quoteQueries, invoiceQueries, deliveryNoteQueries, companyQueries, userQueries } from "../db/queries";
 import { cache } from "../cache/redis";
 import { serviceLogger } from "../lib/logger";
 
@@ -290,6 +290,23 @@ class SalesService {
 
       const quoteNumber = await quoteQueries.generateNumber();
 
+      const userCompanyId = await userQueries.getUserCompanyId(data.createdBy);
+      const sellerCompany = userCompanyId ? await companyQueries.findById(userCompanyId) : null;
+
+      const sellerLines: string[] = [];
+      if (sellerCompany?.name) sellerLines.push(sellerCompany.name);
+      if (sellerCompany?.address) sellerLines.push(sellerCompany.address);
+      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country].filter(Boolean).join(", ");
+      if (sellerCityLine) sellerLines.push(sellerCityLine);
+      if (sellerCompany?.email) sellerLines.push(sellerCompany.email);
+      if (sellerCompany?.phone) sellerLines.push(sellerCompany.phone);
+      if (sellerCompany?.website) sellerLines.push(sellerCompany.website);
+      if (sellerCompany?.vatNumber) sellerLines.push(`PIB: ${sellerCompany.vatNumber}`);
+
+      const builtFromDetails = sellerLines.length > 0
+        ? { type: "doc", content: sellerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
+        : null;
+
       const quote: Omit<Quote, "items"> = {
         id: generateUUID(),
         createdAt: now(),
@@ -306,6 +323,7 @@ class SalesService {
         total,
         notes: data.notes,
         terms: data.terms,
+        fromDetails: data.fromDetails ?? builtFromDetails,
         createdBy: data.createdBy,
       };
 
@@ -490,6 +508,37 @@ class SalesService {
       const vat = subtotal * (vatRate / 100);
       const total = subtotal + tax + vat;
 
+      const userCompanyId = await userQueries.getUserCompanyId(data.createdBy);
+      const sellerCompany = userCompanyId ? await companyQueries.findById(userCompanyId) : null;
+
+      const sellerLines: string[] = [];
+      if (sellerCompany?.name) sellerLines.push(sellerCompany.name);
+      if (sellerCompany?.address) sellerLines.push(sellerCompany.address);
+      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country].filter(Boolean).join(", ");
+      if (sellerCityLine) sellerLines.push(sellerCityLine);
+      if (sellerCompany?.email) sellerLines.push(sellerCompany.email);
+      if (sellerCompany?.phone) sellerLines.push(sellerCompany.phone);
+      if (sellerCompany?.website) sellerLines.push(sellerCompany.website);
+      if (sellerCompany?.vatNumber) sellerLines.push(`PIB: ${sellerCompany.vatNumber}`);
+
+      const builtFromDetails = sellerLines.length > 0
+        ? { type: "doc", content: sellerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
+        : null;
+
+      const customerCompany = await companyQueries.findById(data.companyId);
+      const customerLines: string[] = [];
+      if (customerCompany?.name) customerLines.push(customerCompany.name);
+      if (customerCompany?.address) customerLines.push(customerCompany.address);
+      const customerCityLine = [customerCompany?.city, customerCompany?.zip, customerCompany?.country].filter(Boolean).join(", ");
+      if (customerCityLine) customerLines.push(customerCityLine);
+      if (customerCompany?.email) customerLines.push(customerCompany.email);
+      if (customerCompany?.phone) customerLines.push(customerCompany.phone);
+      if (customerCompany?.vatNumber) customerLines.push(`PIB: ${customerCompany.vatNumber}`);
+
+      const builtCustomerDetails = customerLines.length > 0
+        ? { type: "doc", content: customerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
+        : null;
+
       // Retry logic for duplicate invoice numbers (race condition protection)
       let retries = 5;
       let created: Invoice | null = null;
@@ -517,10 +566,9 @@ class SalesService {
             notes: data.notes,
             terms: data.terms,
             createdBy: data.createdBy,
-            // New fields for PDF generation
-            fromDetails: data.fromDetails || null,
-            customerDetails: data.customerDetails || null,
-            logoUrl: data.logoUrl ?? undefined,
+            fromDetails: data.fromDetails ?? builtFromDetails,
+            customerDetails: data.customerDetails ?? builtCustomerDetails,
+            logoUrl: (data.logoUrl ?? sellerCompany?.logoUrl) || undefined,
             vatRate: vatRate,
             currency: data.currency || "EUR",
             templateSettings: data.templateSettings || null,
@@ -757,6 +805,23 @@ class SalesService {
 
       const deliveryNumber = await deliveryNoteQueries.generateNumber();
 
+      const userCompanyId = await userQueries.getUserCompanyId(data.createdBy);
+      const sellerCompany = userCompanyId ? await companyQueries.findById(userCompanyId) : null;
+
+      const sellerLines: string[] = [];
+      if (sellerCompany?.name) sellerLines.push(sellerCompany.name);
+      if (sellerCompany?.address) sellerLines.push(sellerCompany.address);
+      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country].filter(Boolean).join(", ");
+      if (sellerCityLine) sellerLines.push(sellerCityLine);
+      if (sellerCompany?.email) sellerLines.push(sellerCompany.email);
+      if (sellerCompany?.phone) sellerLines.push(sellerCompany.phone);
+      if (sellerCompany?.website) sellerLines.push(sellerCompany.website);
+      if (sellerCompany?.vatNumber) sellerLines.push(`PIB: ${sellerCompany.vatNumber}`);
+
+      const builtFromDetails = sellerLines.length > 0
+        ? { type: "doc", content: sellerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
+        : null;
+
       const note: Omit<DeliveryNote, "items"> = {
         id: generateUUID(),
         createdAt: now(),
@@ -778,6 +843,7 @@ class SalesService {
         notes: data.notes,
         terms: data.terms,
         customerDetails: data.customerDetails || null,
+        fromDetails: data.fromDetails ?? builtFromDetails,
         createdBy: data.createdBy,
       };
 

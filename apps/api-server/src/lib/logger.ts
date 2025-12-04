@@ -1,12 +1,12 @@
 import pino from "pino";
-import { captureException, captureMessage } from "./sentry";
+//
 
 // ============================================
 // Logger Configuration
 // ============================================
 
 const LOG_LEVEL = process.env.LOG_LEVEL || "info";
-const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const _IS_PRODUCTION = process.env.NODE_ENV === "production";
 
 // Create base logger configuration
 const loggerConfig: pino.LoggerOptions = {
@@ -131,4 +131,3 @@ export function logAuditEvent(
 }
 
 export default logger;
-

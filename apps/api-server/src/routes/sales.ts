@@ -4,7 +4,7 @@
 
 import { errorResponse, successResponse } from "@crm/utils";
 import { salesService } from "../services/sales.service";
-import { RouteBuilder, withAuth, parseBody, parsePagination, parseFilters, json } from "./helpers";
+import { RouteBuilder, withAuth, parseBody, parsePagination, parseFilters, json, applyCompanyIdFromHeader } from "./helpers";
 import { invoiceQueries } from "../db/queries";
 import { userQueries } from "../db/queries/users";
 import { hasCompanyAccess } from "../db/queries/companies-members";
@@ -59,11 +59,12 @@ router.post("/api/invoices/token/:token/viewed", async (_request, _url, params) 
 
 router.get("/api/v1/quotes", async (request, url) => {
   return withAuth(request, async (auth) => {
-    const pagination = parsePagination(url);
-    const filters = parseFilters(url);
+    const effectiveUrl = applyCompanyIdFromHeader(request, url);
+    const pagination = parsePagination(effectiveUrl);
+    const filters = parseFilters(effectiveUrl);
     
     // Check if companyId query parameter is provided (for admin to filter by company)
-    const queryCompanyId = url.searchParams.get("companyId");
+    const queryCompanyId = effectiveUrl.searchParams.get("companyId");
     
     let companyId: string | null = null;
 
@@ -82,11 +83,10 @@ router.get("/api/v1/quotes", async (request, url) => {
       }
     } else {
       // No query parameter - use user's current active company
-      const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+      const userCompanyId = auth.companyId ?? (await userQueries.getUserCompanyId(auth.userId));
       
       if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-        // Admin users can see all quotes if no company filter is specified
-        companyId = null;
+        companyId = userCompanyId;
       } else {
         // Regular users need an active company
         if (!userCompanyId) {
@@ -153,11 +153,12 @@ router.delete("/api/v1/quotes/:id", async (request, _url, params) => {
 router.get("/api/v1/invoices", async (request, url) => {
   return withAuth(request, async (auth) => {
     try {
-      const pagination = parsePagination(url);
-      const filters = parseFilters(url);
+      const effectiveUrl = applyCompanyIdFromHeader(request, url);
+      const pagination = parsePagination(effectiveUrl);
+      const filters = parseFilters(effectiveUrl);
       
       // Check if companyId query parameter is provided (for admin to filter by company)
-      const queryCompanyId = url.searchParams.get("companyId");
+      const queryCompanyId = effectiveUrl.searchParams.get("companyId");
       
       let companyId: string | null = null;
 
@@ -176,11 +177,10 @@ router.get("/api/v1/invoices", async (request, url) => {
         }
       } else {
         // No query parameter - use user's current active company
-        const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+        const userCompanyId = auth.companyId ?? (await userQueries.getUserCompanyId(auth.userId));
         
         if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-          // Admin users can see all invoices if no company filter is specified
-          companyId = null;
+          companyId = userCompanyId;
         } else {
           // Regular users need an active company
           if (!userCompanyId) {
@@ -201,7 +201,8 @@ router.get("/api/v1/invoices", async (request, url) => {
 router.get("/api/v1/invoices/overdue", async (request, url) => {
   return withAuth(request, async (auth) => {
     // Check if companyId query parameter is provided (for admin to filter by company)
-    const queryCompanyId = url.searchParams.get("companyId");
+    const effectiveUrl = applyCompanyIdFromHeader(request, url);
+    const queryCompanyId = effectiveUrl.searchParams.get("companyId");
     
     let companyId: string | null = null;
 
@@ -218,11 +219,10 @@ router.get("/api/v1/invoices/overdue", async (request, url) => {
       }
     } else {
       // No query parameter - use user's current active company
-      const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+      const userCompanyId = auth.companyId ?? (await userQueries.getUserCompanyId(auth.userId));
       
       if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-        // Admin users can see all overdue invoices if no company filter is specified
-        companyId = null;
+        companyId = userCompanyId;
       } else {
         if (!userCompanyId) {
           return errorResponse("NOT_FOUND", "No active company found for user");
@@ -297,11 +297,12 @@ router.post("/api/v1/invoices/:id/payment", async (request, _url, params) => {
 
 router.get("/api/v1/delivery-notes", async (request, url) => {
   return withAuth(request, async (auth) => {
-    const pagination = parsePagination(url);
-    const filters = parseFilters(url);
+    const effectiveUrl = applyCompanyIdFromHeader(request, url);
+    const pagination = parsePagination(effectiveUrl);
+    const filters = parseFilters(effectiveUrl);
     
     // Check if companyId query parameter is provided (for admin to filter by company)
-    const queryCompanyId = url.searchParams.get("companyId");
+    const queryCompanyId = effectiveUrl.searchParams.get("companyId");
     
     let companyId: string | null = null;
 
@@ -320,11 +321,10 @@ router.get("/api/v1/delivery-notes", async (request, url) => {
       }
     } else {
       // No query parameter - use user's current active company
-      const userCompanyId = await userQueries.getUserCompanyId(auth.userId);
+      const userCompanyId = auth.companyId ?? (await userQueries.getUserCompanyId(auth.userId));
       
       if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-        // Admin users can see all delivery notes if no company filter is specified
-        companyId = null;
+        companyId = userCompanyId;
       } else {
         // Regular users need an active company
         if (!userCompanyId) {

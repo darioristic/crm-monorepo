@@ -1,6 +1,7 @@
 import { errorResponse } from "@crm/utils";
 import { cache } from "../cache/redis";
 import type { AuthContext } from "./auth";
+export type { AuthContext } from "./auth";
 
 // ============================================
 // Rate Limit Configuration
@@ -76,20 +77,20 @@ export async function checkRateLimitByUser(
  * Check rate limit by both IP and user (combined)
  */
 export async function checkRateLimitCombined(
-	request: Request,
-	auth: AuthContext | undefined,
-	route: string,
-	config: RateLimitConfig = RATE_LIMITS.default,
+  request: Request,
+  auth: AuthContext | undefined,
+  route: string,
+  config: RateLimitConfig = RATE_LIMITS.default,
 ): Promise<RateLimitResult> {
-	const ip = getClientIp(request);
+  const _ip = getClientIp(request);
 
 	// If authenticated, use user-based limiting (more generous)
 	if (auth) {
 		return checkRateLimitByUser(auth.userId, route, config);
 	}
 
-	// Otherwise use IP-based limiting
-	return checkRateLimitByIp(request, route, config);
+  // Otherwise use IP-based limiting
+  return checkRateLimitByIp(request, route, config);
 }
 
 /**
@@ -255,4 +256,3 @@ export function getClientIp(request: Request): string {
 		"unknown"
 	);
 }
-

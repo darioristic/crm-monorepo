@@ -16,26 +16,28 @@ export interface BaseEntity {
 // ============================================
 
 export interface Company extends BaseEntity {
-	name: string;
-	industry: string;
-	address: string;
-	// Contact information
-	email?: string | null;
-	phone?: string | null;
-	website?: string | null;
-	contact?: string | null;
-	// Address details
-	city?: string | null;
-	zip?: string | null;
-	country?: string | null;
-	countryCode?: string | null;
-	// Business identifiers
-	vatNumber?: string | null;
-	companyNumber?: string | null;
-	// Additional
-	note?: string | null;
-	// Source: 'account' = account companies (companies that use the app), 'customer' = customer companies (clients created through forms)
-	source?: "account" | "customer";
+  name: string;
+  industry: string;
+  address: string;
+  // Contact information
+  email?: string | null;
+  phone?: string | null;
+  website?: string | null;
+  contact?: string | null;
+  // Address details
+  city?: string | null;
+  zip?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  // Business identifiers
+  vatNumber?: string | null;
+  companyNumber?: string | null;
+  // Branding
+  logoUrl?: string | null;
+  // Additional
+  note?: string | null;
+  // Source: 'account' = account companies (companies that use the app), 'customer' = customer companies (clients created through forms)
+  source?: "account" | "customer";
 }
 
 // Enhanced Company type with additional fields (inspired by midday-main)
@@ -82,7 +84,7 @@ export interface UpsertCompanyParams {
 // User & Auth Types
 // ============================================
 
-export type UserRole = "superadmin" | "tenant_admin" | "crm_user";
+export type UserRole = "superadmin" | "tenant_admin" | "crm_user" | "admin" | "user";
 export type UserStatus = "active" | "inactive" | "pending";
 
 export interface User extends BaseEntity {
@@ -243,10 +245,12 @@ export interface Quote extends BaseEntity {
 	subtotal: number;
 	taxRate: number;
 	tax: number;
-	total: number;
-	notes?: string;
-	terms?: string;
-	createdBy: UUID;
+  total: number;
+  notes?: string;
+  terms?: string;
+  /** Seller/From details as JSON object */
+  fromDetails?: unknown;
+  createdBy: UUID;
 }
 
 export interface QuoteWithRelations extends Quote {
@@ -352,10 +356,12 @@ export interface DeliveryNote extends BaseEntity {
 	tax: number;
 	total: number;
 	notes?: string;
-	terms?: string;
-	/** Customer/Bill to details as JSON object */
-	customerDetails?: unknown;
-	createdBy: UUID;
+  terms?: string;
+  /** Seller/From details as JSON object */
+  fromDetails?: unknown;
+  /** Customer/Bill to details as JSON object */
+  customerDetails?: unknown;
+  createdBy: UUID;
 }
 
 export interface DeliveryNoteWithRelations extends DeliveryNote {
@@ -373,18 +379,22 @@ export type OrderStatus =
 	| "refunded";
 
 export interface Order extends BaseEntity {
-	orderNumber: string;
-	companyId: UUID;
-	contactId?: UUID | null;
-	quoteId?: UUID | null;
-	invoiceId?: UUID | null;
-	status: OrderStatus;
-	subtotal: number;
-	tax: number;
-	total: number;
-	currency: string;
-	notes?: string | null;
-	createdBy: UUID;
+  orderNumber: string;
+  companyId: UUID;
+  contactId?: UUID | null;
+  quoteId?: UUID | null;
+  invoiceId?: UUID | null;
+  status: OrderStatus;
+  subtotal: number;
+  tax: number;
+  total: number;
+  currency: string;
+  notes?: string | null;
+  /** Seller/From details as JSON object */
+  fromDetails?: unknown;
+  /** Customer/Bill to details as JSON object */
+  customerDetails?: unknown;
+  createdBy: UUID;
 }
 
 export interface OrderWithRelations extends Order {
@@ -667,6 +677,10 @@ export interface FilterParams {
 	dateFrom?: Timestamp;
 	dateTo?: Timestamp;
 	tags?: string[];
+  /** Company source filter */
+  source?: "account" | "customer";
+  /** Tenant scoping */
+  tenantId?: UUID;
 }
 
 // ============================================

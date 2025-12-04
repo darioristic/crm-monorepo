@@ -68,19 +68,22 @@ export function CompanyDropdown({ isExpanded = false }: Props) {
 			console.log("🔄 Frontend: Switching to company:", companyId);
 			const result = await switchCompany(companyId);
 			
-			if (!result.success) {
-				// Ensure we have a valid error message before throwing
-				const errorMessage = result.error?.message || 
-					result.error?.code || 
-					"Failed to switch company";
-				
-				console.error("❌ Frontend: Switch failed:", {
-					error: result.error || { code: "UNKNOWN", message: errorMessage },
-					message: errorMessage,
-				});
-				
-				throw new Error(errorMessage);
-			}
+            if (!result.success) {
+                const errorMessage = result.error?.message || 
+                    result.error?.code || 
+                    "Failed to switch company";
+
+                const structuredError = !result.error || (typeof result.error === "object" && Object.keys(result.error).length === 0)
+                    ? { code: "UNKNOWN", message: errorMessage }
+                    : result.error;
+
+                console.error("❌ Frontend: Switch failed:", {
+                    error: structuredError,
+                    message: errorMessage,
+                });
+
+                throw new Error(errorMessage);
+            }
 			
 			console.log("✅ Frontend: Switch successful");
 			return result;
@@ -306,4 +309,3 @@ export function CompanyDropdown({ isExpanded = false }: Props) {
 		</DropdownMenu>
 	);
 }
-

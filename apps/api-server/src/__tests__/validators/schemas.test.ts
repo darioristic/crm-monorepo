@@ -99,7 +99,7 @@ describe('Common Validators', () => {
     });
 
     it('should reject too long passwords', () => {
-      const longPassword = 'A1!' + 'a'.repeat(130);
+      const longPassword = `A1!${'a'.repeat(130)}`;
       const result = passwordSchema.safeParse(longPassword);
       expect(result.success).toBe(false);
     });

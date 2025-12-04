@@ -1,13 +1,4 @@
-import {
-	pgTable,
-	uuid,
-	varchar,
-	text,
-	timestamp,
-	pgEnum,
-	index,
-	jsonb,
-} from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, timestamp, pgEnum, index, jsonb } from "drizzle-orm/pg-core";
 
 export const tenantStatusEnum = pgEnum("tenant_status", [
 	"active",
@@ -40,4 +31,3 @@ export const tenants = pgTable(
 
 export type Tenant = typeof tenants.$inferSelect;
 export type NewTenant = typeof tenants.$inferInsert;
-

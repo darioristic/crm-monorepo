@@ -172,6 +172,8 @@ const ROLE_PERMISSIONS: Record<UserRole, PermissionRule[]> = {
   superadmin: ADMIN_PERMISSIONS,
   tenant_admin: ADMIN_PERMISSIONS,
   crm_user: USER_PERMISSIONS,
+  admin: ADMIN_PERMISSIONS,
+  user: USER_PERMISSIONS,
 };
 
 // ============================================

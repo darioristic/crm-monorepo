@@ -27,6 +27,7 @@ import { connectedAccountRoutes } from "./connected-accounts";
 import { superadminRoutes } from "./superadmin";
 import { tenantAdminRoutes } from "./tenant-admin";
 import { crmApiRoutes } from "./crm-api";
+import { tenantMgmtRoutes } from "../tenant-mgmt/routes";
 
 // Auth routes
 import {
@@ -62,6 +63,9 @@ import { verifyAndGetUser } from "../middleware/auth";
 const routes: Route[] = [
 	// Health & Info
 	...healthRoutes,
+
+	// Tenant Management (independent module)
+	...tenantMgmtRoutes,
 
 	// Superadmin (must be before other routes for proper matching)
 	...superadminRoutes,

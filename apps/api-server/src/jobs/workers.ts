@@ -1,4 +1,4 @@
-import { Worker, Job } from "bullmq";
+import { Worker, type Job } from "bullmq";
 import { logger } from "../lib/logger";
 import { emailService } from "../integrations/email.service";
 import { notificationQueries } from "../db/queries/notifications";
@@ -8,7 +8,6 @@ import {
 	QUEUES,
 	type EmailJobData,
 	type NotificationCleanupJobData,
-	type InvoiceReminderJobData,
 	type WebhookDeliveryJobData,
 	type DocumentProcessingJobData,
 } from "./queue";
@@ -34,7 +33,7 @@ function createEmailWorker(): Worker {
 	const worker = new Worker<EmailJobData>(
 		QUEUES.EMAIL,
 		async (job: Job<EmailJobData>) => {
-			const { to, subject, text, html, templateId, templateData } = job.data;
+			const { to, subject, text, html } = job.data;
 
 			logger.info({ jobId: job.id, to, subject }, "Processing email job");
 

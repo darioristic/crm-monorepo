@@ -228,8 +228,8 @@ export async function down(): Promise<void> {
 	for (const indexName of indexes) {
 		// Extract table name from index name (e.g., idx_invoices_status -> invoices)
 		const tableMatch = indexName.match(/idx_(\w+)_/);
-		if (tableMatch) {
-			const tableName = tableMatch[1];
+    if (tableMatch) {
+      const _tableName = tableMatch[1];
 			try {
 				await db.unsafe(`DROP INDEX IF EXISTS ${indexName}`);
 				console.log(`Dropped index: ${indexName}`);
@@ -241,4 +241,3 @@ export async function down(): Promise<void> {
 
 	console.log("Performance indexes dropped");
 }
-

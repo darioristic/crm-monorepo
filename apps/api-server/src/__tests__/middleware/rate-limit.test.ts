@@ -324,7 +324,7 @@ describe('Rate Limit Middleware', () => {
       expect(response.headers.get('Content-Type')).toBe('application/json');
       expect(response.headers.get('Retry-After')).toBe('45');
 
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.error.code).toBe('RATE_LIMITED');
       expect(data.error.message).toContain('45 seconds');
     });

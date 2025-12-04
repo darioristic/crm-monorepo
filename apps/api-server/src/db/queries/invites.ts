@@ -23,19 +23,19 @@ export type CreateInviteParams = {
 	expiresInDays?: number;
 };
 
-function mapInvite(row: any): TeamInvite {
+function mapInvite(row: Record<string, unknown>): TeamInvite {
 	return {
-		id: row.id,
-		email: row.email,
-		companyId: row.company_id,
-		role: row.role,
-		status: row.status,
-		invitedBy: row.invited_by,
-		token: row.token,
-		expiresAt: row.expires_at,
-		acceptedAt: row.accepted_at,
-		createdAt: row.created_at,
-		updatedAt: row.updated_at,
+		id: row.id as string,
+		email: row.email as string,
+		companyId: row.company_id as string,
+		role: row.role as "owner" | "member" | "admin",
+		status: row.status as "pending" | "accepted" | "rejected" | "expired" | "cancelled",
+		invitedBy: row.invited_by as string,
+		token: row.token as string,
+		expiresAt: row.expires_at as string,
+		acceptedAt: row.accepted_at as string | null,
+		createdAt: row.created_at as string,
+		updatedAt: row.updated_at as string,
 	};
 }
 
@@ -143,4 +143,3 @@ export const inviteQueries = {
 		return result.length;
 	},
 };
-

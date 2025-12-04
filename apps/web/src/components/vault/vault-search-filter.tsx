@@ -43,7 +43,13 @@ interface AIFilterResponse {
 export function VaultSearchFilter() {
 	const inputRef = useRef<HTMLInputElement>(null);
 	const [isOpen, setIsOpen] = useState(false);
+	const [isMounted, setIsMounted] = useState(false);
 	const [isAILoading, setIsAILoading] = useState(false);
+
+	// Prevent hydration mismatch by only setting state after mount
+	useEffect(() => {
+		setIsMounted(true);
+	}, []);
 
 	const { filter, setFilter } = useDocumentFilterParams();
 	const [input, setInput] = useState(filter.q ?? "");
@@ -203,8 +209,12 @@ export function VaultSearchFilter() {
 
 	return (
 		<div className="flex flex-col gap-2">
-			<DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
-				<div className="flex space-x-2 items-center">
+			<DropdownMenu 
+				open={isMounted ? isOpen : false} 
+				onOpenChange={setIsOpen}
+				modal={isMounted}
+			>
+				<div className="flex space-x-2 items-center" suppressHydrationWarning>
 					<form
 						className="relative"
 						onSubmit={(e) => {
@@ -249,6 +259,7 @@ export function VaultSearchFilter() {
 							<DropdownMenuTrigger asChild>
 								<button
 									type="button"
+									suppressHydrationWarning
 									className={cn(
 										"p-1 rounded transition-opacity duration-300",
 										"opacity-50 hover:opacity-100",

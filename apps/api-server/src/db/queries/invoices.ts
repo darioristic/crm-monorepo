@@ -308,9 +308,9 @@ export const invoiceQueries = {
 		// Get all invoice numbers for this year
 		// We'll extract and sort numerically in code to ensure correct ordering
 		const result = await db`
-      SELECT invoice_number 
-      FROM invoices 
-      WHERE invoice_number LIKE ${yearPrefix + "%"}
+		      SELECT invoice_number 
+		      FROM invoices 
+		      WHERE invoice_number LIKE ${`${yearPrefix}%`}
         AND LENGTH(invoice_number) = ${yearPrefix.length + 5}
       ORDER BY invoice_number DESC
       LIMIT 100
@@ -409,25 +409,21 @@ export const invoiceQueries = {
 		});
 	},
 
-	async getOverdue(companyId: string | null): Promise<Invoice[]> {
-		let query;
-		if (companyId) {
-			query = db`
+  async getOverdue(companyId: string | null): Promise<Invoice[]> {
+    const result = companyId
+      ? await db`
         SELECT * FROM invoices
         WHERE company_id = ${companyId}
           AND status IN ('sent', 'partial')
           AND due_date < NOW()
         ORDER BY due_date ASC
-      `;
-		} else {
-			query = db`
+      `
+      : await db`
         SELECT * FROM invoices
         WHERE status IN ('sent', 'partial')
           AND due_date < NOW()
         ORDER BY due_date ASC
       `;
-		}
-		const result = await query;
 		return Promise.all(
 			result.map(async (row) => {
 				const items =
@@ -542,17 +538,27 @@ function mapInvoice(row: Record<string, unknown>, items: unknown[]): Invoice {
 }
 
 function mapInvoiceWithRelations(
-	row: Record<string, unknown>,
-	items: unknown[],
+  row: Record<string, unknown>,
+  items: unknown[],
 ): InvoiceWithRelations {
-	const invoice = mapInvoice(row, items);
-	return {
-		...invoice,
-		company: row.company_id_join
-			? {
-					id: row.company_id_join as string,
-					createdAt: "",
-					updatedAt: "",
+  const invoice = mapInvoice(row, items);
+  const hasCustomerDetails = invoice.customerDetails && typeof invoice.customerDetails === "object";
+  const customerDetails = hasCustomerDetails
+    ? invoice.customerDetails
+    : row.contact_id_join
+      ? {
+          name: `${(row.contact_first_name as string) || ""} ${(row.contact_last_name as string) || ""}`.trim(),
+          email: row.contact_email as string,
+        }
+      : undefined;
+  return {
+    ...invoice,
+    customerDetails,
+    company: row.company_id_join
+      ? {
+        id: row.company_id_join as string,
+        createdAt: "",
+        updatedAt: "",
 					name: row.company_name as string,
 					industry: row.company_industry as string,
 					address: row.company_address as string,

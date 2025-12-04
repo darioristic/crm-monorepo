@@ -17,7 +17,7 @@ type GetQuotesParams = z.infer<typeof getQuotesSchema>;
 export const getQuotesTool = tool({
   description: "Retrieve and filter sales quotes with pagination and status filtering",
   parameters: getQuotesSchema,
-  execute: async (params: GetQuotesParams): Promise<ToolResponse> => {
+  execute: (async (params: GetQuotesParams): Promise<ToolResponse> => {
     const { pageSize = 10, status, search } = params;
     try {
       let query = `
@@ -94,8 +94,8 @@ ${tableRows}
         text: `Failed to retrieve quotes: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  },
-});
+  }) as any,
+} as any);
 
 const getQuoteConversionSchema = z.object({
   period: z
@@ -109,7 +109,7 @@ type GetQuoteConversionParams = z.infer<typeof getQuoteConversionSchema>;
 export const getQuoteConversionRateTool = tool({
   description: "Get quote to invoice conversion rate and statistics",
   parameters: getQuoteConversionSchema,
-  execute: async (params: GetQuoteConversionParams): Promise<ToolResponse> => {
+  execute: (async (params: GetQuoteConversionParams): Promise<ToolResponse> => {
     const { period } = params;
     try {
       const periodDaysMap: Record<string, number> = {
@@ -174,5 +174,5 @@ export const getQuoteConversionRateTool = tool({
         text: `Failed to calculate conversion rate: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  },
-});
+  }) as any,
+} as any);

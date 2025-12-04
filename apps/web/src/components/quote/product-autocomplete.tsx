@@ -8,6 +8,7 @@ import type { FormValues } from "./form-context";
 import { formatQuoteAmount } from "@/utils/quote-calculate";
 import { useProductEdit } from "./product-edit-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/auth-context";
 
 type Product = {
   id: string;
@@ -26,8 +27,7 @@ type Props = {
   disabled?: boolean;
 };
 
-// Query key for products - shared across all ProductAutocomplete instances
-const PRODUCTS_QUERY_KEY = ["quote-products"];
+// Query key for products - include companyId to refresh on company switch
 
 export function ProductAutocomplete({
   index,
@@ -45,6 +45,13 @@ export function ProductAutocomplete({
   const { openProductEdit, setOnProductUpdated } = useProductEdit();
   const { setValue, watch, control } = useFormContext<FormValues>();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const lsCompany =
+    typeof window !== "undefined"
+      ? window.localStorage?.getItem("selectedCompanyId") || undefined
+      : undefined;
+  const effectiveCompanyId = user?.companyId ?? lsCompany;
+  const PRODUCTS_QUERY_KEY = ["quote-products", effectiveCompanyId];
 
   const currentProductId = watch(`lineItems.${index}.productId`);
   const currentPrice = watch(`lineItems.${index}.price`);

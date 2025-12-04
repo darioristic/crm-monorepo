@@ -74,6 +74,264 @@ router.get(
 	),
 );
 
+// Create user in tenant
+router.post(
+	"/api/tenant-admin/users",
+	requireAuth(
+		requireTenantContext(async (request, url, params, auth, tenantContext) => {
+			try {
+				const body = (await request.json()) as {
+					firstName: string;
+					lastName: string;
+					email: string;
+					password?: string;
+					role?: "tenant_admin" | "crm_user";
+					phone?: string;
+				};
+
+				if (!body.firstName || !body.lastName || !body.email) {
+					return json(
+						errorResponse(
+							"VALIDATION_ERROR",
+							"First name, last name, and email are required",
+						),
+						400,
+					);
+				}
+
+				// Check if user with email already exists
+				const existingUser = await db
+					.select()
+					.from(users)
+					.where(eq(users.email, body.email))
+					.limit(1);
+
+				if (existingUser.length > 0) {
+					return json(
+						errorResponse("CONFLICT", "User with this email already exists"),
+						409,
+					);
+				}
+
+				// Import auth service for user creation
+				const { authService } = await import("../services/auth.service");
+
+				const registerResult = await authService.registerUser({
+					firstName: body.firstName,
+					lastName: body.lastName,
+					email: body.email,
+					password: body.password || crypto.randomUUID(), // Generate random password if not provided
+					role: body.role || "crm_user",
+				});
+
+				if (!registerResult.success || !registerResult.data) {
+					return json(
+						errorResponse(
+							"INTERNAL_ERROR",
+							registerResult.error?.message || "Failed to create user",
+						),
+						500,
+					);
+				}
+
+				// Update user with tenantId
+				await db
+					.update(users)
+					.set({ tenantId: tenantContext.tenantId })
+					.where(eq(users.id, registerResult.data.id));
+
+				// Create user-tenant role relationship
+				await db.insert(userTenantRoles).values({
+					id: crypto.randomUUID(),
+					userId: registerResult.data.id,
+					tenantId: tenantContext.tenantId,
+					role: "user",
+					permissions: {},
+					createdAt: new Date(),
+					updatedAt: new Date(),
+				});
+
+				// Fetch the created user with tenantId
+				const [createdUser] = await db
+					.select()
+					.from(users)
+					.where(eq(users.id, registerResult.data.id))
+					.limit(1);
+
+				return json(successResponse(createdUser), 201);
+			} catch (error) {
+				logger.error({ error }, "Error creating user");
+				return json(
+					errorResponse("INTERNAL_ERROR", "Failed to create user"),
+					500,
+				);
+			}
+		}),
+	),
+);
+
+// Update user in tenant
+router.put(
+	"/api/tenant-admin/users/:id",
+	requireAuth(
+		requireTenantContext(async (request, url, params, auth, tenantContext) => {
+			try {
+				const body = (await request.json()) as {
+					firstName?: string;
+					lastName?: string;
+					email?: string;
+					phone?: string;
+					role?: "tenant_admin" | "crm_user";
+					status?: string;
+				};
+
+				// Verify user belongs to tenant
+				const existingUser = await db
+					.select()
+					.from(users)
+					.where(
+						and(
+							eq(users.id, params.id),
+							eq(users.tenantId, tenantContext.tenantId),
+						),
+					)
+					.limit(1);
+
+				if (existingUser.length === 0) {
+					return json(errorResponse("NOT_FOUND", "User not found"), 404);
+				}
+
+				// Check if email is being changed and if it's already taken
+				if (body.email && body.email !== existingUser[0].email) {
+					const emailExists = await db
+						.select()
+						.from(users)
+						.where(eq(users.email, body.email))
+						.limit(1);
+
+					if (emailExists.length > 0) {
+						return json(
+							errorResponse("CONFLICT", "Email already in use"),
+							409,
+						);
+					}
+				}
+
+				// Update user
+				const updateData: Record<string, unknown> = {
+					updatedAt: new Date(),
+				};
+
+				if (body.firstName !== undefined) updateData.firstName = body.firstName;
+				if (body.lastName !== undefined) updateData.lastName = body.lastName;
+				if (body.email !== undefined) updateData.email = body.email;
+				if (body.phone !== undefined) updateData.phone = body.phone;
+				if (body.role !== undefined) updateData.role = body.role;
+				if (body.status !== undefined) updateData.status = body.status;
+
+				await db
+					.update(users)
+					.set(updateData)
+					.where(eq(users.id, params.id));
+
+				// Update user-tenant role if role changed
+				if (body.role !== undefined) {
+					await db
+						.update(userTenantRoles)
+						.set({
+							role:
+								body.role === "tenant_admin"
+									? "admin"
+									: body.role === "crm_user"
+										? "user"
+										: "user",
+							updatedAt: new Date(),
+						})
+						.where(
+							and(
+								eq(userTenantRoles.userId, params.id),
+								eq(userTenantRoles.tenantId, tenantContext.tenantId),
+							),
+						);
+				}
+
+				// Fetch updated user
+				const [updatedUser] = await db
+					.select()
+					.from(users)
+					.where(eq(users.id, params.id))
+					.limit(1);
+
+				return json(successResponse(updatedUser));
+			} catch (error) {
+				logger.error({ error }, "Error updating user");
+				return json(
+					errorResponse("INTERNAL_ERROR", "Failed to update user"),
+					500,
+				);
+			}
+		}),
+	),
+);
+
+// Delete user from tenant
+router.delete(
+	"/api/tenant-admin/users/:id",
+	requireAuth(
+		requireTenantContext(async (request, url, params, auth, tenantContext) => {
+			try {
+				// Verify user belongs to tenant
+				const existingUser = await db
+					.select()
+					.from(users)
+					.where(
+						and(
+							eq(users.id, params.id),
+							eq(users.tenantId, tenantContext.tenantId),
+						),
+					)
+					.limit(1);
+
+				if (existingUser.length === 0) {
+					return json(errorResponse("NOT_FOUND", "User not found"), 404);
+				}
+
+				// Prevent deleting yourself
+				if (params.id === auth.userId) {
+					return json(
+						errorResponse("FORBIDDEN", "Cannot delete your own account"),
+						403,
+					);
+				}
+
+				// Delete user-tenant role relationship
+				await db
+					.delete(userTenantRoles)
+					.where(
+						and(
+							eq(userTenantRoles.userId, params.id),
+							eq(userTenantRoles.tenantId, tenantContext.tenantId),
+						),
+					);
+
+				// Soft delete user (set tenantId to null instead of hard delete)
+				await db
+					.update(users)
+					.set({ tenantId: null, updatedAt: new Date() })
+					.where(eq(users.id, params.id));
+
+				return json(successResponse({ message: "User deleted successfully" }));
+			} catch (error) {
+				logger.error({ error }, "Error deleting user");
+				return json(
+					errorResponse("INTERNAL_ERROR", "Failed to delete user"),
+					500,
+				);
+			}
+		}),
+	),
+);
+
 // ============================================
 // Companies Management
 // ============================================
@@ -127,6 +385,255 @@ router.get(
 				logger.error({ error }, "Error getting company");
 				return json(
 					errorResponse("INTERNAL_ERROR", "Failed to get company"),
+					500,
+				);
+			}
+		}),
+	),
+);
+
+// Create company in tenant
+router.post(
+	"/api/tenant-admin/companies",
+	requireAuth(
+		requireTenantContext(async (request, url, params, auth, tenantContext) => {
+			try {
+				const body = (await request.json()) as {
+					name: string;
+					industry: string;
+					address: string;
+					locationId?: string;
+					email?: string;
+					phone?: string;
+					website?: string;
+					contact?: string;
+					city?: string;
+					zip?: string;
+					country?: string;
+					countryCode?: string;
+					vatNumber?: string;
+					companyNumber?: string;
+					logoUrl?: string;
+					note?: string;
+				};
+
+				if (!body.name || !body.industry || !body.address) {
+					return json(
+						errorResponse(
+							"VALIDATION_ERROR",
+							"Name, industry, and address are required",
+						),
+						400,
+					);
+				}
+
+				// Validate locationId if provided
+				if (body.locationId) {
+					const location = await db
+						.select()
+						.from(locations)
+						.where(
+							and(
+								eq(locations.id, body.locationId),
+								eq(locations.tenantId, tenantContext.tenantId),
+							),
+						)
+						.limit(1);
+
+					if (location.length === 0) {
+						return json(
+							errorResponse("NOT_FOUND", "Location not found"),
+							404,
+						);
+					}
+				}
+
+				const [newCompany] = await db
+					.insert(companies)
+					.values({
+						id: crypto.randomUUID(),
+						tenantId: tenantContext.tenantId,
+						locationId: body.locationId || null,
+						name: body.name,
+						industry: body.industry,
+						address: body.address,
+						email: body.email || null,
+						phone: body.phone || null,
+						website: body.website || null,
+						contact: body.contact || null,
+						city: body.city || null,
+						zip: body.zip || null,
+						country: body.country || null,
+						countryCode: body.countryCode || null,
+						vatNumber: body.vatNumber || null,
+						companyNumber: body.companyNumber || null,
+						logoUrl: body.logoUrl || null,
+						note: body.note || null,
+						createdAt: new Date(),
+						updatedAt: new Date(),
+					})
+					.returning();
+
+				return json(successResponse(newCompany), 201);
+			} catch (error) {
+				logger.error({ error }, "Error creating company");
+				return json(
+					errorResponse("INTERNAL_ERROR", "Failed to create company"),
+					500,
+				);
+			}
+		}),
+	),
+);
+
+// Update company in tenant
+router.put(
+	"/api/tenant-admin/companies/:id",
+	requireAuth(
+		requireTenantContext(async (request, url, params, auth, tenantContext) => {
+			try {
+				const body = (await request.json()) as {
+					name?: string;
+					industry?: string;
+					address?: string;
+					locationId?: string;
+					email?: string;
+					phone?: string;
+					website?: string;
+					contact?: string;
+					city?: string;
+					zip?: string;
+					country?: string;
+					countryCode?: string;
+					vatNumber?: string;
+					companyNumber?: string;
+					logoUrl?: string;
+					note?: string;
+				};
+
+				// Verify company belongs to tenant
+				const existingCompany = await db
+					.select()
+					.from(companies)
+					.where(
+						and(
+							eq(companies.id, params.id),
+							eq(companies.tenantId, tenantContext.tenantId),
+						),
+					)
+					.limit(1);
+
+				if (existingCompany.length === 0) {
+					return json(errorResponse("NOT_FOUND", "Company not found"), 404);
+				}
+
+				// Validate locationId if provided
+				if (body.locationId) {
+					const location = await db
+						.select()
+						.from(locations)
+						.where(
+							and(
+								eq(locations.id, body.locationId),
+								eq(locations.tenantId, tenantContext.tenantId),
+							),
+						)
+						.limit(1);
+
+					if (location.length === 0) {
+						return json(
+							errorResponse("NOT_FOUND", "Location not found"),
+							404,
+						);
+					}
+				}
+
+				// Build update data
+				const updateData: Record<string, unknown> = {
+					updatedAt: new Date(),
+				};
+
+				if (body.name !== undefined) updateData.name = body.name;
+				if (body.industry !== undefined) updateData.industry = body.industry;
+				if (body.address !== undefined) updateData.address = body.address;
+				if (body.locationId !== undefined)
+					updateData.locationId = body.locationId || null;
+				if (body.email !== undefined) updateData.email = body.email || null;
+				if (body.phone !== undefined) updateData.phone = body.phone || null;
+				if (body.website !== undefined)
+					updateData.website = body.website || null;
+				if (body.contact !== undefined)
+					updateData.contact = body.contact || null;
+				if (body.city !== undefined) updateData.city = body.city || null;
+				if (body.zip !== undefined) updateData.zip = body.zip || null;
+				if (body.country !== undefined)
+					updateData.country = body.country || null;
+				if (body.countryCode !== undefined)
+					updateData.countryCode = body.countryCode || null;
+				if (body.vatNumber !== undefined)
+					updateData.vatNumber = body.vatNumber || null;
+				if (body.companyNumber !== undefined)
+					updateData.companyNumber = body.companyNumber || null;
+				if (body.logoUrl !== undefined)
+					updateData.logoUrl = body.logoUrl || null;
+				if (body.note !== undefined) updateData.note = body.note || null;
+
+				await db
+					.update(companies)
+					.set(updateData)
+					.where(eq(companies.id, params.id));
+
+				// Fetch updated company
+				const [updatedCompany] = await db
+					.select()
+					.from(companies)
+					.where(eq(companies.id, params.id))
+					.limit(1);
+
+				return json(successResponse(updatedCompany));
+			} catch (error) {
+				logger.error({ error }, "Error updating company");
+				return json(
+					errorResponse("INTERNAL_ERROR", "Failed to update company"),
+					500,
+				);
+			}
+		}),
+	),
+);
+
+// Delete company from tenant
+router.delete(
+	"/api/tenant-admin/companies/:id",
+	requireAuth(
+		requireTenantContext(async (request, url, params, auth, tenantContext) => {
+			try {
+				// Verify company belongs to tenant
+				const existingCompany = await db
+					.select()
+					.from(companies)
+					.where(
+						and(
+							eq(companies.id, params.id),
+							eq(companies.tenantId, tenantContext.tenantId),
+						),
+					)
+					.limit(1);
+
+				if (existingCompany.length === 0) {
+					return json(errorResponse("NOT_FOUND", "Company not found"), 404);
+				}
+
+				// Soft delete company (cascade will handle related records)
+				await db.delete(companies).where(eq(companies.id, params.id));
+
+				return json(
+					successResponse({ message: "Company deleted successfully" }),
+				);
+			} catch (error) {
+				logger.error({ error }, "Error deleting company");
+				return json(
+					errorResponse("INTERNAL_ERROR", "Failed to delete company"),
 					500,
 				);
 			}

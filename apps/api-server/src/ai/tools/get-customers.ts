@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { companyQueries } from "../../db/queries/companies";
+import type { Company } from "@crm/types";
 import type { ToolResponse } from "../types";
 
 const getCustomersSchema = z.object({
@@ -15,10 +16,10 @@ type GetCustomersParams = z.infer<typeof getCustomersSchema>;
 export const getCustomersTool = tool({
   description: "Search and retrieve customers (companies) with filtering options",
   parameters: getCustomersSchema,
-  execute: async (params: GetCustomersParams): Promise<ToolResponse> => {
+  execute: (async (params: GetCustomersParams): Promise<ToolResponse> => {
     const { pageSize = 10, search, industry, country } = params;
     try {
-      let result;
+      let result: { data: Company[]; total: number };
 
       if (industry) {
         const companies = await companyQueries.findByIndustry(industry);
@@ -62,8 +63,8 @@ ${tableRows}
         text: `Failed to retrieve customers: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  },
-});
+  }) as any,
+} as any);
 
 const getCustomerByIdSchema = z.object({
   customerId: z.string().describe("The customer/company ID"),
@@ -74,7 +75,7 @@ type GetCustomerByIdParams = z.infer<typeof getCustomerByIdSchema>;
 export const getCustomerByIdTool = tool({
   description: "Get detailed information about a specific customer by ID",
   parameters: getCustomerByIdSchema,
-  execute: async (params: GetCustomerByIdParams): Promise<ToolResponse> => {
+  execute: (async (params: GetCustomerByIdParams): Promise<ToolResponse> => {
     const { customerId } = params;
     try {
       const company = await companyQueries.findById(customerId);
@@ -111,8 +112,8 @@ export const getCustomerByIdTool = tool({
         text: `Failed to retrieve customer: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  },
-});
+  }) as any,
+} as any);
 
 const emptySchema = z.object({});
 type EmptyParams = z.infer<typeof emptySchema>;
@@ -120,7 +121,7 @@ type EmptyParams = z.infer<typeof emptySchema>;
 export const getIndustriesSummaryTool = tool({
   description: "Get a summary of customers grouped by industry",
   parameters: emptySchema,
-  execute: async (_params: EmptyParams): Promise<ToolResponse> => {
+  execute: (async (_params: EmptyParams): Promise<ToolResponse> => {
     try {
       const industries = await companyQueries.getIndustries();
       const totalCustomers = await companyQueries.count();
@@ -150,5 +151,5 @@ ${industryList}`;
         text: `Failed to retrieve industries: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  },
-});
+  }) as any,
+} as any);

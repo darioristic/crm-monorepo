@@ -24,8 +24,9 @@ async function checkAdminUsers() {
     `;
     
     console.log(`    Kompanije (${companies.length}):`);
-    companies.forEach((c: any) => {
-      console.log(`      - ${c.name} (${c.source || 'legacy'}) - ${c.role}`);
+    companies.forEach((c) => {
+      const company = c as { name: string; source?: string | null; role: string };
+      console.log(`      - ${company.name} (${company.source || 'legacy'}) - ${company.role}`);
     });
     console.log("");
   }
@@ -41,4 +42,3 @@ if (import.meta.main) {
       process.exit(1);
     });
 }
-

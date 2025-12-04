@@ -64,7 +64,7 @@ export interface UpsertCompanyParams {
 
 // Get company by ID with related counts and tags
 export async function getCompanyById(id: string): Promise<EnhancedCompany | null> {
-  const [company] = await db<EnhancedCompany[]>`
+  const result = await db`
     SELECT 
       c.id,
       c.name,
@@ -111,7 +111,7 @@ export async function getCompanyById(id: string): Promise<EnhancedCompany | null
     FROM companies c
     WHERE c.id = ${id}
   `;
-
+  const company = (result as unknown as EnhancedCompany[])[0];
   return company || null;
 }
 
@@ -148,11 +148,11 @@ export async function getCompanies(params: GetCompaniesParams): Promise<{
   if (q) {
     whereClause = db`(
       c.fts @@ to_tsquery('english', ${q.split(' ').join(' & ')}) 
-      OR c.name ILIKE ${'%' + q + '%'}
+      OR c.name ILIKE ${`%${q}%`}
     )`;
   }
 
-  const data = await db<EnhancedCompany[]>`
+  const dataRows = await db`
     SELECT 
       c.id,
       c.name,
@@ -197,8 +197,8 @@ export async function getCompanies(params: GetCompaniesParams): Promise<{
     OFFSET ${offset}
   `;
 
+  const data = dataRows as unknown as EnhancedCompany[];
   const nextCursor = data.length === pageSize ? (offset + pageSize).toString() : null;
-
   return {
     meta: {
       cursor: nextCursor,
@@ -222,7 +222,7 @@ export async function upsertCompany(params: UpsertCompanyParams): Promise<Enhanc
   let company: EnhancedCompany;
 
   if (isNew) {
-    const [created] = await db<EnhancedCompany[]>`
+    const createdRows = await db`
       INSERT INTO companies (
         name, email, billing_email, phone, website, contact,
         industry, address, address_line_1, address_line_2,
@@ -245,7 +245,7 @@ export async function upsertCompany(params: UpsertCompanyParams): Promise<Enhanc
         ${rest.countryCode || null},
         ${rest.vatNumber || null},
         ${rest.note || null},
-        ${token}
+        ${token ?? null}
       )
       RETURNING 
         id, name, email, 
@@ -260,9 +260,9 @@ export async function upsertCompany(params: UpsertCompanyParams): Promise<Enhanc
         created_at as "createdAt",
         updated_at as "updatedAt"
     `;
-    company = created;
+    company = (createdRows as unknown as EnhancedCompany[])[0];
   } else {
-    const [updated] = await db<EnhancedCompany[]>`
+    const updatedRows = await db`
       UPDATE companies SET
         name = ${rest.name},
         email = ${rest.email || null},
@@ -296,7 +296,7 @@ export async function upsertCompany(params: UpsertCompanyParams): Promise<Enhanc
         created_at as "createdAt",
         updated_at as "updatedAt"
     `;
-    company = updated;
+    company = (updatedRows as unknown as EnhancedCompany[])[0];
   }
 
   // Handle tags
@@ -353,8 +353,8 @@ export async function searchCompanies(query: string, limit = 10): Promise<Enhanc
     SELECT 
       id, name, email, industry, city, country
     FROM companies
-    WHERE name ILIKE ${'%' + query + '%'}
-    OR email ILIKE ${'%' + query + '%'}
+    WHERE name ILIKE ${`%${query}%`}
+    OR email ILIKE ${`%${query}%`}
     ORDER BY name ASC
     LIMIT ${limit}
   `;
@@ -385,4 +385,3 @@ export async function updateTag(id: string, name: string): Promise<CompanyTag> {
 export async function deleteTag(id: string): Promise<void> {
   await db`DELETE FROM tags WHERE id = ${id}`;
 }
-

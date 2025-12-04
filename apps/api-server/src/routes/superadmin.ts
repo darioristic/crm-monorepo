@@ -8,7 +8,9 @@ import { RouteBuilder, json } from "./helpers";
 import { requireAdmin } from "../middleware/auth";
 import { db } from "../db/client";
 import { tenants } from "../db/schema/index";
-import { eq } from "drizzle-orm";
+import { eq, isNull, ne } from "drizzle-orm";
+import { users, companies } from "../db/schema/index";
+import { cache } from "../cache/redis";
 import { provisioningService } from "../system/provisioning/provisioning.service";
 import { logger } from "../lib/logger";
 import type { ProvisioningRequest } from "../system/provisioning/types";
@@ -292,6 +294,78 @@ router.get(
 			);
 		}
 	}),
+);
+
+// ============================================
+// Admin Setup: Initialize Default Tenant
+// ============================================
+
+router.post(
+  "/api/superadmin/setup/init-default-tenant",
+  requireAdmin(async (_request, _url, _params, _auth) => {
+    try {
+      // Check if any tenant exists
+      const existing = await db.select().from(tenants).limit(1);
+      if (existing.length > 0) {
+        return json(
+          successResponse({
+            tenantId: existing[0].id,
+            created: false,
+            message: "Tenant already exists",
+          }),
+        );
+      }
+
+      // Create default tenant
+      const [createdTenant] = await db
+        .insert(tenants)
+        .values({
+          name: "Default Tenant",
+          slug: "default",
+          status: "active",
+          metadata: { initializedBy: "superadmin", timestamp: new Date().toISOString() },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning();
+
+      const defaultTenantId = createdTenant.id;
+
+      // Assign tenantId to companies without tenantId
+      const companiesUpdated = await db
+        .update(companies)
+        .set({ tenantId: defaultTenantId, updatedAt: new Date() })
+        .where(isNull(companies.tenantId))
+        .returning({ id: companies.id });
+
+      // Assign tenantId to users without tenantId (excluding superadmin)
+      const usersUpdated = await db
+        .update(users)
+        .set({ tenantId: defaultTenantId, updatedAt: new Date() })
+        .where(isNull(users.tenantId))
+        .returning({ id: users.id, role: users.role });
+
+      // Invalidate caches
+      await cache.invalidatePattern("users:*");
+      await cache.invalidatePattern("companies:*");
+
+      return json(
+        successResponse({
+          tenantId: defaultTenantId,
+          created: true,
+          companiesUpdated: companiesUpdated.length,
+          usersUpdated: usersUpdated.length,
+        }),
+        201,
+      );
+    } catch (error) {
+      logger.error({ error }, "Error initializing default tenant");
+      return json(
+        errorResponse("INTERNAL_ERROR", "Failed to initialize default tenant"),
+        500,
+      );
+    }
+  }),
 );
 
 export const superadminRoutes = router.getRoutes();

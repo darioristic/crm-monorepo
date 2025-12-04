@@ -121,24 +121,53 @@ async function verifyHmacSignature(
 }
 
 export async function generateJWT(
-	userId: string,
-	role: UserRole,
-	tenantId: string | undefined,
-	companyId: string | undefined,
-	sessionId: string,
+    userId: string,
+    role: UserRole,
+    companyId: string | undefined,
+    sessionId: string,
+): Promise<string>;
+
+export async function generateJWT(
+    userId: string,
+    role: UserRole,
+    tenantId: string | undefined,
+    companyId: string | undefined,
+    sessionId: string,
+): Promise<string>;
+
+export async function generateJWT(
+    userId: string,
+    role: UserRole,
+    p3?: string,
+    p4?: string,
+    p5?: string,
 ): Promise<string> {
 	const header = { alg: "HS256", typ: "JWT" };
 	const now = Math.floor(Date.now() / 1000);
 
-	const payload: JWTPayload = {
-		userId,
-		role,
-		tenantId,
-		companyId,
-		sessionId,
-		iat: now,
-		exp: now + JWT_ACCESS_EXPIRY,
-	};
+    let tenantId: string | undefined;
+    let companyId: string | undefined;
+    let sessionId: string;
+
+    if (p5 !== undefined) {
+        tenantId = p3;
+        companyId = p4;
+        sessionId = p5;
+    } else {
+        tenantId = undefined;
+        companyId = p3;
+        sessionId = p4 as string;
+    }
+
+    const payload: JWTPayload = {
+        userId,
+        role,
+        tenantId,
+        companyId,
+        sessionId,
+        iat: now,
+        exp: now + JWT_ACCESS_EXPIRY,
+    };
 
 	const encodedHeader = base64UrlEncode(JSON.stringify(header));
 	const encodedPayload = base64UrlEncode(JSON.stringify(payload));
@@ -296,8 +325,57 @@ class AuthService {
 				return errorResponse("UNAUTHORIZED", "Invalid email or password");
 			}
 
-			// Get tenantId from user (user.tenantId will be added in user queries)
-			const tenantId = (user as User & { tenantId?: string }).tenantId;
+			// Get tenantId from user
+			let tenantId = user.tenantId;
+
+			// If user doesn't have tenantId, try to get it from their company or assign default
+			if (!tenantId && user.role !== "superadmin") {
+				try {
+					const { db } = await import("../db/client");
+					const { companies, tenants, users: usersTable } = await import("../db/schema/index");
+					const { eq } = await import("drizzle-orm");
+					
+					// Try to get tenantId from user's company
+					if (user.companyId) {
+						const userCompany = await db
+							.select({ tenantId: companies.tenantId })
+							.from(companies)
+							.where(eq(companies.id, user.companyId))
+							.limit(1);
+
+						if (userCompany.length > 0 && userCompany[0].tenantId) {
+							tenantId = userCompany[0].tenantId;
+							// Update user with tenantId for future logins
+							await db
+								.update(usersTable)
+								.set({ tenantId, updatedAt: new Date() })
+								.where(eq(usersTable.id, user.id));
+							logger.info({ userId: user.id, tenantId }, "Assigned tenantId from company");
+						}
+					}
+
+					// If still no tenantId, get first available tenant
+					if (!tenantId) {
+						const firstTenant = await db
+							.select()
+							.from(tenants)
+							.where(eq(tenants.status, "active"))
+							.limit(1);
+
+						if (firstTenant.length > 0) {
+							tenantId = firstTenant[0].id;
+							// Update user with tenantId
+							await db
+								.update(usersTable)
+								.set({ tenantId, updatedAt: new Date() })
+								.where(eq(usersTable.id, user.id));
+							logger.info({ userId: user.id, tenantId }, "Assigned default tenantId");
+						}
+					}
+				} catch (error) {
+					logger.error({ error, userId: user.id }, "Failed to assign tenantId during login");
+				}
+			}
 
 			// Create session
 			const sessionId = await createSession(
@@ -397,7 +475,7 @@ class AuthService {
 			await authQueries.revokeRefreshToken(tokenHash);
 
 			// Get tenantId from user
-			const tenantId = (user as User & { tenantId?: string }).tenantId;
+			const tenantId = user.tenantId;
 
 			// Create new session
 			const sessionId = await createSession(

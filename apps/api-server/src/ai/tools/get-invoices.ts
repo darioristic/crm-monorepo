@@ -17,10 +17,11 @@ type GetInvoicesParams = z.infer<typeof getInvoicesSchema>;
 export const getInvoicesTool = tool({
   description: "Retrieve and filter invoices with pagination and status filtering",
   parameters: getInvoicesSchema,
-  execute: async (params: GetInvoicesParams): Promise<ToolResponse> => {
+  execute: (async (params: GetInvoicesParams): Promise<ToolResponse> => {
     const { pageSize = 10, status, search } = params;
     try {
       const result = await invoiceQueries.findAll(
+        null,
         { page: 1, pageSize },
         { status, search }
       );
@@ -82,8 +83,8 @@ ${tableRows}
         text: `Failed to retrieve invoices: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  },
-});
+  }) as any,
+} as any);
 
 const emptySchema = z.object({});
 type EmptyParams = z.infer<typeof emptySchema>;
@@ -91,9 +92,9 @@ type EmptyParams = z.infer<typeof emptySchema>;
 export const getOverdueInvoicesTool = tool({
   description: "Get all overdue invoices that need attention",
   parameters: emptySchema,
-  execute: async (_params: EmptyParams): Promise<ToolResponse> => {
+  execute: (async (_params: EmptyParams): Promise<ToolResponse> => {
     try {
-      const overdueInvoices = await invoiceQueries.getOverdue();
+      const overdueInvoices = await invoiceQueries.getOverdue(null);
 
       if (overdueInvoices.length === 0) {
         return { text: "Great news! No overdue invoices found." };
@@ -147,5 +148,5 @@ ${tableRows}
         text: `Failed to retrieve overdue invoices: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  },
-});
+  }) as any,
+} as any);

@@ -10,6 +10,7 @@ describe("Notification Settings Routes", () => {
 	const mockAuth = {
 		userId: "user-123",
 		role: "admin" as const,
+		sessionId: "session-123",
 	};
 
 	const mockSettings = [
@@ -35,7 +36,7 @@ describe("Notification Settings Routes", () => {
 		options: RequestInit = {},
 	): Promise<Response> => {
 		const url = new URL(`http://localhost${path}`);
-		const request = new Request(url, { method, ...options });
+		const request = new Request(url.toString(), { method, ...options });
 
 		const route = notificationRoutes.find(
 			(r) => r.method === method && r.pattern.test(path),
@@ -63,7 +64,7 @@ describe("Notification Settings Routes", () => {
 			);
 
 			const response = await callRoute("/api/v1/notification-settings");
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -77,7 +78,7 @@ describe("Notification Settings Routes", () => {
 			vi.mocked(authMiddleware.verifyAndGetUser).mockResolvedValue(null);
 
 			const response = await callRoute("/api/v1/notification-settings");
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(401);
 			expect(data.error.code).toBe("UNAUTHORIZED");
@@ -106,7 +107,7 @@ describe("Notification Settings Routes", () => {
 					}),
 				},
 			);
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -126,11 +127,10 @@ describe("Notification Settings Routes", () => {
 					}),
 				},
 			);
-			const data = await response.json();
+            const data: any = await response.json();
 
 			expect(response.status).toBe(400);
 			expect(data.error.code).toBe("VALIDATION_ERROR");
 		});
 	});
 });
-

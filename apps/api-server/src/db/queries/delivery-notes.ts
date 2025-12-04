@@ -130,7 +130,7 @@ export const deliveryNoteQueries = {
       INSERT INTO delivery_notes (
         id, delivery_number, invoice_id, company_id, contact_id, status,
         ship_date, delivery_date, shipping_address, tracking_number, carrier,
-        tax_rate, subtotal, tax, total, notes, terms, customer_details,
+        tax_rate, subtotal, tax, total, notes, terms, customer_details, from_details,
         created_by, created_at, updated_at
       ) VALUES (
         ${note.id}, ${note.deliveryNumber}, ${note.invoiceId || null},
@@ -140,6 +140,7 @@ export const deliveryNoteQueries = {
         ${note.taxRate || 0}, ${note.subtotal || 0}, ${note.tax || 0}, ${note.total || 0},
         ${note.notes || null}, ${note.terms || null},
         ${note.customerDetails ? JSON.stringify(note.customerDetails) : null},
+        ${note.fromDetails ? JSON.stringify(note.fromDetails) : null},
         ${note.createdBy}, ${note.createdAt}, ${note.updatedAt}
       )
       RETURNING *
@@ -182,6 +183,7 @@ export const deliveryNoteQueries = {
         notes = COALESCE(${data.notes ?? null}, notes),
         terms = COALESCE(${data.terms ?? null}, terms),
         customer_details = COALESCE(${data.customerDetails ? JSON.stringify(data.customerDetails) : null}, customer_details),
+        from_details = COALESCE(${data.fromDetails ? JSON.stringify(data.fromDetails) : null}, from_details),
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -312,22 +314,18 @@ export const deliveryNoteQueries = {
   },
 
   async getPending(companyId: string | null): Promise<DeliveryNote[]> {
-    let query;
-    if (companyId) {
-      query = db`
+    const result = companyId
+      ? await db`
         SELECT * FROM delivery_notes
         WHERE company_id = ${companyId}
           AND status = 'pending'
         ORDER BY created_at ASC
-      `;
-    } else {
-      query = db`
+      `
+      : await db`
         SELECT * FROM delivery_notes
         WHERE status = 'pending'
         ORDER BY created_at ASC
       `;
-    }
-    const result = await query;
 
     if (result.length === 0) return [];
 
@@ -353,22 +351,18 @@ export const deliveryNoteQueries = {
   },
 
   async getInTransit(companyId: string | null): Promise<DeliveryNote[]> {
-    let query;
-    if (companyId) {
-      query = db`
+    const result = companyId
+      ? await db`
         SELECT * FROM delivery_notes
         WHERE company_id = ${companyId}
           AND status = 'in_transit'
         ORDER BY ship_date ASC
-      `;
-    } else {
-      query = db`
+      `
+      : await db`
         SELECT * FROM delivery_notes
         WHERE status = 'in_transit'
         ORDER BY ship_date ASC
       `;
-    }
-    const result = await query;
 
     if (result.length === 0) return [];
 
@@ -430,6 +424,13 @@ function mapDeliveryNote(row: Record<string, unknown>, items: unknown[]): Delive
         ? JSON.parse(row.customer_details as string)
         : row.customer_details;
   }
+  let fromDetails = null;
+  if (row.from_details) {
+    fromDetails =
+      typeof row.from_details === "string"
+        ? JSON.parse(row.from_details as string)
+        : row.from_details;
+  }
 
   return {
     id: row.id as string,
@@ -453,6 +454,7 @@ function mapDeliveryNote(row: Record<string, unknown>, items: unknown[]): Delive
     notes: row.notes as string | undefined,
     terms: row.terms as string | undefined,
     customerDetails,
+    fromDetails,
     createdBy: row.created_by as string,
   };
 }

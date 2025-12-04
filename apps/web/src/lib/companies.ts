@@ -235,22 +235,23 @@ export async function getCompanies(): Promise<CompaniesResponse> {
  * Create a new company
  */
 export async function createCompany(data: {
-	name: string;
-	industry: string;
-	address: string;
-	email?: string;
-	phone?: string | null;
-	website?: string | null;
-	contact?: string | null;
-	city?: string | null;
-	zip?: string | null;
-	country?: string | null;
-	countryCode?: string | null;
-	vatNumber?: string | null;
-	companyNumber?: string | null;
-	note?: string | null;
-	logoUrl?: string;
-	switchCompany?: boolean;
+    name: string;
+    industry: string;
+    address: string;
+    email?: string;
+    phone?: string | null;
+    website?: string | null;
+    contact?: string | null;
+    city?: string | null;
+    zip?: string | null;
+    country?: string | null;
+    countryCode?: string | null;
+    vatNumber?: string | null;
+    companyNumber?: string | null;
+    note?: string | null;
+    logoUrl?: string;
+    switchCompany?: boolean;
+    source?: "account" | "customer";
 }): Promise<CompanyResponse> {
 	try {
 		const response = await fetch(`${API_URL}/api/v1/companies`, {
@@ -558,4 +559,3 @@ export async function deleteCompanyMember(
 		};
 	}
 }
-

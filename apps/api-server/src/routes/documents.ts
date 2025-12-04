@@ -10,7 +10,7 @@ import {
 	documentTagsService,
 	documentTagAssignmentsService,
 } from "../services/documents.service";
-import { RouteBuilder, withAuth, parseBody, json } from "./helpers";
+import { RouteBuilder, withAuth, parseBody, json, getCompanyIdForFilter } from "./helpers";
 import * as fileStorage from "../services/file-storage.service";
 import { createReadStream } from "node:fs";
 
@@ -24,98 +24,128 @@ const router = new RouteBuilder();
  * GET /api/v1/documents - List documents with pagination and filters
  */
 router.get("/api/v1/documents", async (request, url) => {
-	return withAuth(request, async (auth) => {
-		const companyId = auth.companyId;
-		if (!companyId) {
-			return errorResponse("VALIDATION_ERROR", "Company ID required");
-		}
+    return withAuth(request, async (auth) => {
+        const headerCompanyId = request.headers.get("x-company-id");
+        const effectiveUrl = headerCompanyId
+            ? new URL(url.toString())
+            : url;
+        if (headerCompanyId) effectiveUrl.searchParams.set("companyId", headerCompanyId);
+        const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+        if (error) return error;
+        if (!companyId) {
+            return errorResponse("VALIDATION_ERROR", "Company ID required");
+        }
 
-		const pagination = {
-			cursor: url.searchParams.get("cursor") || undefined,
-			pageSize: url.searchParams.get("pageSize")
-				? parseInt(url.searchParams.get("pageSize")!, 10)
-				: 20,
-		};
+        const pagination = {
+            cursor: url.searchParams.get("cursor") || undefined,
+            pageSize: url.searchParams.get("pageSize")
+                ? parseInt(url.searchParams.get("pageSize")!, 10)
+                : 20,
+        };
 
-		const filters = {
-			q: url.searchParams.get("q") || undefined,
-			tags: url.searchParams.getAll("tags").filter(Boolean) || undefined,
-			start: url.searchParams.get("start") || undefined,
-			end: url.searchParams.get("end") || undefined,
-		};
+        const filters = {
+            q: url.searchParams.get("q") || undefined,
+            tags: url.searchParams.getAll("tags").filter(Boolean) || undefined,
+            start: url.searchParams.get("start") || undefined,
+            end: url.searchParams.get("end") || undefined,
+        };
 
-		return documentsService.getDocuments(companyId, pagination, filters);
-	});
+        return documentsService.getDocuments(companyId, pagination, filters);
+    });
 });
 
 /**
  * GET /api/v1/documents/recent - Get recent documents
  */
 router.get("/api/v1/documents/recent", async (request, url) => {
-	return withAuth(request, async (auth) => {
-		const companyId = auth.companyId;
-		if (!companyId) {
-			return errorResponse("VALIDATION_ERROR", "Company ID required");
-		}
+    return withAuth(request, async (auth) => {
+        const headerCompanyId = request.headers.get("x-company-id");
+        const effectiveUrl = headerCompanyId
+            ? new URL(url.toString())
+            : url;
+        if (headerCompanyId) effectiveUrl.searchParams.set("companyId", headerCompanyId);
+        const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+        if (error) return error;
+        if (!companyId) {
+            return errorResponse("VALIDATION_ERROR", "Company ID required");
+        }
 
-		const limit = url.searchParams.get("limit")
-			? parseInt(url.searchParams.get("limit")!, 10)
-			: 5;
+        const limit = url.searchParams.get("limit")
+            ? parseInt(url.searchParams.get("limit")!, 10)
+            : 5;
 
-		return documentsService.getRecentDocuments(companyId, limit);
-	});
+        return documentsService.getRecentDocuments(companyId, limit);
+    });
 });
 
 /**
  * GET /api/v1/documents/count - Get document count
  */
-router.get("/api/v1/documents/count", async (request) => {
-	return withAuth(request, async (auth) => {
-		const companyId = auth.companyId;
-		if (!companyId) {
-			return errorResponse("VALIDATION_ERROR", "Company ID required");
-		}
+router.get("/api/v1/documents/count", async (request, url) => {
+    return withAuth(request, async (auth) => {
+        const headerCompanyId = request.headers.get("x-company-id");
+        const effectiveUrl = headerCompanyId
+            ? new URL(url.toString())
+            : url;
+        if (headerCompanyId) effectiveUrl.searchParams.set("companyId", headerCompanyId);
+        const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+        if (error) return error;
+        if (!companyId) {
+            return errorResponse("VALIDATION_ERROR", "Company ID required");
+        }
 
-		return documentsService.getDocumentCount(companyId);
-	});
+        return documentsService.getDocumentCount(companyId);
+    });
 });
 
 /**
  * GET /api/v1/documents/:id - Get document by ID
  */
-router.get("/api/v1/documents/:id", async (request, _url, params) => {
-	return withAuth(request, async (auth) => {
-		const companyId = auth.companyId;
-		if (!companyId) {
-			return errorResponse("VALIDATION_ERROR", "Company ID required");
-		}
+router.get("/api/v1/documents/:id", async (request, url, params) => {
+    return withAuth(request, async (auth) => {
+        const headerCompanyId = request.headers.get("x-company-id");
+        const effectiveUrl = headerCompanyId
+            ? new URL(url.toString())
+            : url;
+        if (headerCompanyId) effectiveUrl.searchParams.set("companyId", headerCompanyId);
+        const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+        if (error) return error;
+        if (!companyId) {
+            return errorResponse("VALIDATION_ERROR", "Company ID required");
+        }
 
-		return documentsService.getDocumentById(params.id, companyId);
-	});
+        return documentsService.getDocumentById(params.id, companyId);
+    });
 });
 
 /**
  * GET /api/v1/documents/:id/related - Get related documents
  */
 router.get("/api/v1/documents/:id/related", async (request, url, params) => {
-	return withAuth(request, async (auth) => {
-		const companyId = auth.companyId;
-		if (!companyId) {
-			return errorResponse("VALIDATION_ERROR", "Company ID required");
-		}
+    return withAuth(request, async (auth) => {
+        const headerCompanyId = request.headers.get("x-company-id");
+        const effectiveUrl = headerCompanyId
+            ? new URL(url.toString())
+            : url;
+        if (headerCompanyId) effectiveUrl.searchParams.set("companyId", headerCompanyId);
+        const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+        if (error) return error;
+        if (!companyId) {
+            return errorResponse("VALIDATION_ERROR", "Company ID required");
+        }
 
-		const threshold = url.searchParams.get("threshold")
-			? parseFloat(url.searchParams.get("threshold")!)
-			: 0.3;
-		const limit = url.searchParams.get("limit")
-			? parseInt(url.searchParams.get("limit")!, 10)
-			: 5;
+        const threshold = url.searchParams.get("threshold")
+            ? parseFloat(url.searchParams.get("threshold")!)
+            : 0.3;
+        const limit = url.searchParams.get("limit")
+            ? parseInt(url.searchParams.get("limit")!, 10)
+            : 5;
 
-		return documentsService.getRelatedDocuments(params.id, companyId, {
-			threshold,
-			limit,
-		});
-	});
+        return documentsService.getRelatedDocuments(params.id, companyId, {
+            threshold,
+            limit,
+        });
+    });
 });
 
 /**

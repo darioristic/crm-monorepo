@@ -104,6 +104,9 @@ export function CompanyHeaderDropdown() {
 			// Invalidate team/company queries used in Settings page
 			await queryClient.invalidateQueries({ queryKey: ["team", "current"] });
 			await queryClient.invalidateQueries({ queryKey: ["company", "current"] });
+			await queryClient.invalidateQueries({ queryKey: ["company"] });
+			await queryClient.invalidateQueries({ queryKey: ["company", "members"] });
+			await queryClient.invalidateQueries({ queryKey: ["company", "invites"] });
 			
 			// Invalidate all company-dependent data queries
 			await queryClient.invalidateQueries({ queryKey: ["documents"] });
@@ -113,12 +116,17 @@ export function CompanyHeaderDropdown() {
 			await queryClient.invalidateQueries({ queryKey: ["quotes"] });
 			await queryClient.invalidateQueries({ queryKey: ["contacts"] });
 			await queryClient.invalidateQueries({ queryKey: ["products"] });
+			await queryClient.invalidateQueries({ queryKey: ["quote-products"] });
+			await queryClient.invalidateQueries({ queryKey: ["invoice-products"] });
+			await queryClient.invalidateQueries({ queryKey: ["order-products"] });
 			await queryClient.invalidateQueries({ queryKey: ["payments"] });
 			
 			// Refetch all data immediately
 			await Promise.all([
 				queryClient.refetchQueries({ queryKey: ["team", "current"] }),
 				queryClient.refetchQueries({ queryKey: ["companies"] }),
+				queryClient.refetchQueries({ queryKey: ["company", "members"] }),
+				queryClient.refetchQueries({ queryKey: ["company", "invites"] }),
 			]);
 			
 			setIsChangingCompany(false);
@@ -292,4 +300,3 @@ export function CompanyHeaderDropdown() {
 		</DropdownMenu>
 	);
 }
-

@@ -6,12 +6,7 @@ import type {
   MilestoneStatus,
 } from "@crm/types";
 import { sql as db } from "../client";
-import {
-  createQueryBuilder,
-  sanitizeSortColumn,
-  sanitizeSortOrder,
-  type QueryParam,
-} from "../query-builder";
+import { createQueryBuilder, sanitizeSortOrder, type QueryParam } from "../query-builder";
 
 // ============================================
 // Milestone Queries

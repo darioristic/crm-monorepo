@@ -177,7 +177,8 @@ function buildCustomerDetails(invoice: InvoiceApiResponse): EditorDoc | null {
 
     // Email
     if (invoice.company.email || invoice.company.billingEmail) {
-      lines.push(invoice.company.billingEmail || invoice.company.email);
+      const email = invoice.company.billingEmail || invoice.company.email;
+      if (email) lines.push(email);
     }
 
     // Phone
@@ -290,13 +291,18 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
           ],
         }
       : null,
-    note: invoice.notes,
+    note: invoice.notes ?? null,
     internalNote: null,
     vat: invoice.vat || null,
     tax: invoice.tax || null,
     discount: invoice.discount || null,
     subtotal: invoice.subtotal,
-    status: invoice.status,
+    status:
+      ["draft", "sent", "paid", "partial", "overdue", "cancelled"].includes(
+        invoice.status,
+      )
+        ? (invoice.status as Invoice["status"]) 
+        : "draft",
     template: {
       ...DEFAULT_INVOICE_TEMPLATE,
       logoUrl: logoUrl,
@@ -310,9 +316,9 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
     },
     token: token,
     filePath: null,
-    paidAt: invoice.paidAt,
-    sentAt: invoice.sentAt,
-    viewedAt: invoice.viewedAt,
+    paidAt: invoice.paidAt ?? null,
+    sentAt: invoice.sentAt ?? null,
+    viewedAt: invoice.viewedAt ?? null,
     reminderSentAt: null,
     sentTo: null,
     topBlock: null,

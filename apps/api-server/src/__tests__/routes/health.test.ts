@@ -22,7 +22,7 @@ describe('Health API Endpoints - Integration Tests', () => {
     options: RequestInit = {}
   ): Promise<Response> => {
     const url = new URL(`http://localhost${path}`);
-    const request = new Request(url, { method, ...options });
+    const request = new Request(url.toString(), { method, ...options });
 
     // Find matching route using RegExp pattern
     const route = healthRoutes.find(
@@ -59,7 +59,7 @@ describe('Health API Endpoints - Integration Tests', () => {
 
     it('should return healthy status', async () => {
       const response = await callRoute('/health');
-      const data = await response.json();
+      const data: any = await response.json();
 
       expect(data.success).toBe(true);
       expect(data.data.status).toBe('healthy');
@@ -67,7 +67,7 @@ describe('Health API Endpoints - Integration Tests', () => {
 
     it('should return timestamp', async () => {
       const response = await callRoute('/health');
-      const data = await response.json();
+      const data: any = await response.json();
 
       expect(data.data.timestamp).toBeDefined();
       expect(typeof data.data.timestamp).toBe('string');
@@ -79,7 +79,7 @@ describe('Health API Endpoints - Integration Tests', () => {
 
     it('should return version number', async () => {
       const response = await callRoute('/health');
-      const data = await response.json();
+      const data: any = await response.json();
 
       expect(data.data.version).toBe('1.0.0');
     });
@@ -92,7 +92,7 @@ describe('Health API Endpoints - Integration Tests', () => {
 
     it('should have correct response structure', async () => {
       const response = await callRoute('/health');
-      const data = await response.json();
+      const data: any = await response.json();
 
       expect(data).toHaveProperty('success');
       expect(data).toHaveProperty('data');
@@ -119,7 +119,7 @@ describe('Health API Endpoints - Integration Tests', () => {
   describe('GET /api/v1', () => {
     it('should return API information', async () => {
       const response = await callRoute('/api/v1');
-      const data = await response.json();
+      const data: any = await response.json();
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
@@ -129,7 +129,7 @@ describe('Health API Endpoints - Integration Tests', () => {
 
     it('should list all available endpoints', async () => {
       const response = await callRoute('/api/v1');
-      const data = await response.json();
+      const data: any = await response.json();
 
       const endpoints = data.data.endpoints;
 
@@ -146,7 +146,7 @@ describe('Health API Endpoints - Integration Tests', () => {
 
     it('should include auth endpoints', async () => {
       const response = await callRoute('/api/v1');
-      const data = await response.json();
+      const data: any = await response.json();
 
       const authEndpoints = data.data.endpoints.auth;
 
@@ -162,8 +162,8 @@ describe('Health API Endpoints - Integration Tests', () => {
       const response1 = await callRoute('/api/v1');
       const response2 = await callRoute('/api/v1');
 
-      const data1 = await response1.json();
-      const data2 = await response2.json();
+      const data1: any = await response1.json();
+      const data2: any = await response2.json();
 
       expect(data1.data.name).toBe(data2.data.name);
       expect(data1.data.version).toBe(data2.data.version);

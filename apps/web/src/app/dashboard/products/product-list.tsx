@@ -53,6 +53,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -326,24 +327,25 @@ export default function ProductList({ data }: { data: Product[] }) {
               <CommandList>
                 <CommandEmpty>No status found.</CommandEmpty>
                 <CommandGroup>
-                  {statuses.map((status) => (
-                    <CommandItem
-                      key={status.value}
-                      value={status.value}
-                      onSelect={(currentValue) => {
-                        // setValue(currentValue === value ? "" : currentValue);
-                        // setOpen(false);
-                      }}>
-                      <div className="flex items-center space-x-3 py-1">
-                        <Checkbox id={status.value} />
-                        <label
-                          htmlFor={status.value}
-                          className="leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          {status.label}
-                        </label>
-                      </div>
-                    </CommandItem>
-                  ))}
+                  {statuses.map((status) => {
+                    const checkboxId = `product-status-filter-${status.value}`;
+                    return (
+                      <CommandItem
+                        key={status.value}
+                        value={status.value}
+                        onSelect={(currentValue) => {
+                          // setValue(currentValue === value ? "" : currentValue);
+                          // setOpen(false);
+                        }}>
+                        <Label
+                          htmlFor={checkboxId}
+                          className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          <Checkbox id={checkboxId} />
+                          <span>{status.label}</span>
+                        </Label>
+                      </CommandItem>
+                    );
+                  })}
                 </CommandGroup>
               </CommandList>
             </Command>
@@ -362,18 +364,19 @@ export default function ProductList({ data }: { data: Product[] }) {
               <CommandList>
                 <CommandEmpty>No category found.</CommandEmpty>
                 <CommandGroup>
-                  {categories.map((category) => (
-                    <CommandItem key={category.value} value={category.label}>
-                      <div className="flex items-center space-x-3 py-1">
-                        <Checkbox id={category.value} />
-                        <label
-                          htmlFor={category.value}
-                          className="leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                          {category.label}
-                        </label>
-                      </div>
-                    </CommandItem>
-                  ))}
+                  {categories.map((category) => {
+                    const checkboxId = `product-category-filter-${category.value}`;
+                    return (
+                      <CommandItem key={category.value} value={category.label}>
+                        <Label
+                          htmlFor={checkboxId}
+                          className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          <Checkbox id={checkboxId} />
+                          <span>{category.label}</span>
+                        </Label>
+                      </CommandItem>
+                    );
+                  })}
                 </CommandGroup>
               </CommandList>
             </Command>

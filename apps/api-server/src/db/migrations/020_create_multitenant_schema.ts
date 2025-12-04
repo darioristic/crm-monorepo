@@ -46,30 +46,19 @@ export async function up(): Promise<void> {
 		)
 	`;
 
-	// Create user_role enum (update existing if needed)
+	// Create user_role enum (idempotent)
 	await db`
 		DO $$ BEGIN
 			CREATE TYPE user_role AS ENUM ('superadmin', 'tenant_admin', 'crm_user');
 		EXCEPTION
-			WHEN duplicate_object THEN 
-				-- If enum exists, add new values if they don't exist
-				DO $$ BEGIN
-					ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'superadmin';
-				EXCEPTION
-					WHEN duplicate_object THEN null;
-				END $$;
-				DO $$ BEGIN
-					ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'tenant_admin';
-				EXCEPTION
-					WHEN duplicate_object THEN null;
-				END $$;
-				DO $$ BEGIN
-					ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'crm_user';
-				EXCEPTION
-					WHEN duplicate_object THEN null;
-				END $$;
+			WHEN duplicate_object THEN null;
 		END $$
 	`;
+
+	// Ensure enum values exist (idempotent; supported on modern PostgreSQL)
+	await db`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'superadmin'`;
+	await db`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'tenant_admin'`;
+	await db`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'crm_user'`;
 
 	// Create tenant_role enum
 	await db`
@@ -106,7 +95,6 @@ export async function up(): Promise<void> {
 	await db`
 		DO $$ BEGIN
 			ALTER TABLE companies ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
-			ALTER TABLE companies ALTER COLUMN tenant_id SET NOT NULL;
 		EXCEPTION
 			WHEN duplicate_column THEN null;
 		END $$
@@ -134,9 +122,9 @@ export async function up(): Promise<void> {
 	await db`
 		CREATE TABLE IF NOT EXISTS documents (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-			tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-			company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
-			created_by UUID NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+			tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+			company_id UUID REFERENCES companies(id) ON DELETE CASCADE,
+			created_by UUID REFERENCES users(id) ON DELETE RESTRICT,
 			content TEXT,
 			metadata JSONB,
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -144,13 +132,35 @@ export async function up(): Promise<void> {
 		)
 	`;
 
+	// Ensure documents table has required columns when pre-existing
+	await db`
+		DO $$ BEGIN
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'documents' AND column_name = 'tenant_id'
+			) THEN
+				ALTER TABLE documents ADD COLUMN tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
+			END IF;
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'documents' AND column_name = 'company_id'
+			) THEN
+				ALTER TABLE documents ADD COLUMN company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
+			END IF;
+			IF NOT EXISTS (
+				SELECT 1 FROM information_schema.columns
+				WHERE table_name = 'documents' AND column_name = 'created_by'
+			) THEN
+				ALTER TABLE documents ADD COLUMN created_by UUID REFERENCES users(id) ON DELETE RESTRICT;
+			END IF;
+		END $$
+	`;
+
 	// Add tenant_id and company_id to contacts table (if not exists)
 	await db`
 		DO $$ BEGIN
 			ALTER TABLE contacts ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
 			ALTER TABLE contacts ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
-			ALTER TABLE contacts ALTER COLUMN tenant_id SET NOT NULL;
-			ALTER TABLE contacts ALTER COLUMN company_id SET NOT NULL;
 		EXCEPTION
 			WHEN duplicate_column THEN null;
 		END $$
@@ -161,8 +171,6 @@ export async function up(): Promise<void> {
 		DO $$ BEGIN
 			ALTER TABLE activities ADD COLUMN IF NOT EXISTS tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE;
 			ALTER TABLE activities ADD COLUMN IF NOT EXISTS company_id UUID REFERENCES companies(id) ON DELETE CASCADE;
-			ALTER TABLE activities ALTER COLUMN tenant_id SET NOT NULL;
-			ALTER TABLE activities ALTER COLUMN company_id SET NOT NULL;
 		EXCEPTION
 			WHEN duplicate_column THEN null;
 		END $$
@@ -239,4 +247,3 @@ export async function down(): Promise<void> {
 
 	console.log("✅ Multitenant schema rolled back");
 }
-

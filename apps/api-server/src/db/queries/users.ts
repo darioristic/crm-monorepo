@@ -6,7 +6,7 @@ import type {
   PaginationParams,
   FilterParams,
 } from "@crm/types";
-import { sql as db } from "../client";
+import { sql as db, sql } from "../client";
 import {
   createQueryBuilder,
   sanitizeSortColumn,
@@ -71,7 +71,7 @@ export const userQueries = {
     return { data: data.map(mapUserWithCompany), total };
   },
 
-  async findById(id: string): Promise<UserWithCompany | null> {
+  async findById(id: string): Promise<(UserWithCompany & { tenantId?: string }) | null> {
     const result = await db`
       SELECT 
         u.*,
@@ -88,7 +88,7 @@ export const userQueries = {
     return result.length > 0 ? mapUserWithCompany(result[0]) : null;
   },
 
-  async findByEmail(email: string): Promise<UserWithCompany | null> {
+  async findByEmail(email: string): Promise<(UserWithCompany & { tenantId?: string }) | null> {
     const result = await db`
       SELECT 
         u.*,
@@ -144,45 +144,92 @@ export const userQueries = {
     return mapUser(result[0]);
   },
 
-  async update(id: string, data: Partial<User>): Promise<User> {
+  async update(id: string, data: Partial<User & { tenantId?: string }>): Promise<User> {
     // If companyId is being updated, we need to invalidate cache
     const shouldInvalidateCache = data.companyId !== undefined;
     
     // Build the update query conditionally
     // For companyId: if undefined, use COALESCE to keep current value; if set, update it
-    let result;
+    let result: Array<Record<string, unknown>>;
+    
+    const tenantId = (data as { tenantId?: string }).tenantId;
+
+    // Detect if tenant_id column exists to avoid errors on legacy schemas
+    let hasTenantIdColumn = true;
+    try {
+      const columnCheck = await db`SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'tenant_id' LIMIT 1`;
+      hasTenantIdColumn = columnCheck.length > 0;
+    } catch {
+      // If check fails, assume column exists to avoid accidental schema drift; subsequent error will be caught
+      hasTenantIdColumn = true;
+    }
     
     if (data.companyId !== undefined) {
       // companyId is explicitly provided - update it (can be null to clear it)
-      result = await db`
-        UPDATE users SET
-          first_name = COALESCE(${data.firstName ?? null}, first_name),
-          last_name = COALESCE(${data.lastName ?? null}, last_name),
-          email = COALESCE(${data.email ?? null}, email),
-          role = COALESCE(${data.role ?? null}, role),
-          company_id = ${data.companyId || null},
-          status = COALESCE(${data.status ?? null}, status),
-          avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
-          phone = COALESCE(${data.phone ?? null}, phone),
-          updated_at = NOW()
-        WHERE id = ${id}
-        RETURNING *
-      `;
+      if (hasTenantIdColumn) {
+        result = await db`
+          UPDATE users SET
+            first_name = COALESCE(${data.firstName ?? null}, first_name),
+            last_name = COALESCE(${data.lastName ?? null}, last_name),
+            email = COALESCE(${data.email ?? null}, email),
+            role = COALESCE(${data.role ?? null}, role),
+            company_id = ${data.companyId || null},
+            tenant_id = ${tenantId !== undefined ? (tenantId || null) : sql`tenant_id`},
+            status = COALESCE(${data.status ?? null}, status),
+            avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
+            phone = COALESCE(${data.phone ?? null}, phone),
+            updated_at = NOW()
+          WHERE id = ${id}
+          RETURNING *
+        `;
+      } else {
+        result = await db`
+          UPDATE users SET
+            first_name = COALESCE(${data.firstName ?? null}, first_name),
+            last_name = COALESCE(${data.lastName ?? null}, last_name),
+            email = COALESCE(${data.email ?? null}, email),
+            role = COALESCE(${data.role ?? null}, role),
+            company_id = ${data.companyId || null},
+            status = COALESCE(${data.status ?? null}, status),
+            avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
+            phone = COALESCE(${data.phone ?? null}, phone),
+            updated_at = NOW()
+          WHERE id = ${id}
+          RETURNING *
+        `;
+      }
     } else {
       // companyId is not provided - keep current value
-      result = await db`
-        UPDATE users SET
-          first_name = COALESCE(${data.firstName ?? null}, first_name),
-          last_name = COALESCE(${data.lastName ?? null}, last_name),
-          email = COALESCE(${data.email ?? null}, email),
-          role = COALESCE(${data.role ?? null}, role),
-          status = COALESCE(${data.status ?? null}, status),
-          avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
-          phone = COALESCE(${data.phone ?? null}, phone),
-          updated_at = NOW()
-        WHERE id = ${id}
-        RETURNING *
-      `;
+      if (hasTenantIdColumn) {
+        result = await db`
+          UPDATE users SET
+            first_name = COALESCE(${data.firstName ?? null}, first_name),
+            last_name = COALESCE(${data.lastName ?? null}, last_name),
+            email = COALESCE(${data.email ?? null}, email),
+            role = COALESCE(${data.role ?? null}, role),
+            tenant_id = ${tenantId !== undefined ? (tenantId || null) : sql`tenant_id`},
+            status = COALESCE(${data.status ?? null}, status),
+            avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
+            phone = COALESCE(${data.phone ?? null}, phone),
+            updated_at = NOW()
+          WHERE id = ${id}
+          RETURNING *
+        `;
+      } else {
+        result = await db`
+          UPDATE users SET
+            first_name = COALESCE(${data.firstName ?? null}, first_name),
+            last_name = COALESCE(${data.lastName ?? null}, last_name),
+            email = COALESCE(${data.email ?? null}, email),
+            role = COALESCE(${data.role ?? null}, role),
+            status = COALESCE(${data.status ?? null}, status),
+            avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
+            phone = COALESCE(${data.phone ?? null}, phone),
+            updated_at = NOW()
+          WHERE id = ${id}
+          RETURNING *
+        `;
+      }
     }
     
     if (result.length === 0) {
@@ -264,7 +311,7 @@ function toISOString(value: unknown): string {
   return new Date().toISOString();
 }
 
-function mapUser(row: Record<string, unknown>): User {
+function mapUser(row: Record<string, unknown>): User & { tenantId?: string } {
   return {
     id: row.id as string,
     createdAt: toISOString(row.created_at),
@@ -274,6 +321,7 @@ function mapUser(row: Record<string, unknown>): User {
     email: row.email as string,
     role: row.role as UserRole,
     companyId: row.company_id as string | undefined,
+    tenantId: row.tenant_id as string | undefined,
     status: row.status as User["status"],
     avatarUrl: row.avatar_url as string | undefined,
     phone: row.phone as string | undefined,

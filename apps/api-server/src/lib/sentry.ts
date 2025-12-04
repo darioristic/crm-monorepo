@@ -23,7 +23,7 @@ export function initSentry() {
 		// Capture unhandled promise rejections
 		// Minimal initialization without explicit integrations to satisfy type constraints
 		// Filter out health check requests
-		beforeSend(event, hint) {
+    beforeSend(event, _hint) {
 			// Don't send events for health check endpoints
 			if (event.request?.url?.includes("/health")) {
 				return null;

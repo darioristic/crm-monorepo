@@ -21,6 +21,7 @@ describe("Invite Routes", () => {
 	const mockAuth = {
 		userId: "user-123",
 		role: "admin" as const,
+		sessionId: "session-123",
 	};
 
 	const mockCompanyId = "company-123";
@@ -52,7 +53,7 @@ describe("Invite Routes", () => {
 		options: RequestInit = {},
 	): Promise<Response> => {
 		const url = new URL(`http://localhost${path}`);
-		const request = new Request(url, { method, ...options });
+		const request = new Request(url.toString(), { method, ...options });
 
 		const route = inviteRoutes.find(
 			(r) => r.method === method && r.pattern.test(path),
@@ -80,7 +81,7 @@ describe("Invite Routes", () => {
 			]);
 
 			const response = await callRoute("/api/v1/invites");
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -99,7 +100,7 @@ describe("Invite Routes", () => {
 			vi.mocked(userQueries.getUserCompanyId).mockResolvedValue(null);
 
 			const response = await callRoute("/api/v1/invites");
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(404);
 			expect(data.success).toBe(false);
@@ -110,7 +111,7 @@ describe("Invite Routes", () => {
 			vi.mocked(authMiddleware.verifyAndGetUser).mockResolvedValue(null);
 
 			const response = await callRoute("/api/v1/invites");
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(401);
 			expect(data.error.code).toBe("UNAUTHORIZED");
@@ -135,7 +136,7 @@ describe("Invite Routes", () => {
 					role: "member",
 				}),
 			});
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(201);
 			expect(data.success).toBe(true);
@@ -152,7 +153,7 @@ describe("Invite Routes", () => {
 					// missing role
 				}),
 			});
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(400);
 			expect(data.error.code).toBe("VALIDATION_ERROR");
@@ -175,7 +176,7 @@ describe("Invite Routes", () => {
 					role: "member",
 				}),
 			});
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(409);
 			expect(data.error.code).toBe("CONFLICT");
@@ -204,7 +205,7 @@ describe("Invite Routes", () => {
 					role: "member",
 				}),
 			});
-			const data = await response.json();
+			const data: any = await response.json();
 
 			expect(response.status).toBe(409);
 			expect(data.error.code).toBe("CONFLICT");
@@ -217,7 +218,7 @@ describe("Invite Routes", () => {
 			vi.mocked(inviteQueries.delete).mockResolvedValue(undefined);
 
 			const response = await callRoute("/api/v1/invites/invite-123", "DELETE");
-			const data = await response.json();
+      const data: any = await response.json();
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -228,7 +229,7 @@ describe("Invite Routes", () => {
 			vi.mocked(inviteQueries.findById).mockResolvedValue(null);
 
 			const response = await callRoute("/api/v1/invites/invalid-id", "DELETE");
-			const data = await response.json();
+      const data: any = await response.json();
 
 			expect(response.status).toBe(404);
 			expect(data.error.code).toBe("NOT_FOUND");
@@ -239,7 +240,7 @@ describe("Invite Routes", () => {
 			vi.mocked(inviteQueries.findById).mockResolvedValue(otherCompanyInvite);
 
 			const response = await callRoute("/api/v1/invites/invite-123", "DELETE");
-			const data = await response.json();
+      const data: any = await response.json();
 
 			expect(response.status).toBe(403);
 			expect(data.error.code).toBe("FORBIDDEN");
@@ -266,7 +267,7 @@ describe("Invite Routes", () => {
 				"/api/v1/invites/accept/test-token-123",
 				"POST",
 			);
-			const data = await response.json();
+      const data: any = await response.json();
 
 			expect(response.status).toBe(200);
 			expect(data.success).toBe(true);
@@ -279,7 +280,7 @@ describe("Invite Routes", () => {
 				"/api/v1/invites/accept/invalid-token",
 				"POST",
 			);
-			const data = await response.json();
+      const data: any = await response.json();
 
 			expect(response.status).toBe(404);
 			expect(data.error.code).toBe("NOT_FOUND");
@@ -293,11 +294,10 @@ describe("Invite Routes", () => {
 				"/api/v1/invites/accept/test-token-123",
 				"POST",
 			);
-			const data = await response.json();
+      const data: any = await response.json();
 
 			expect(response.status).toBe(409);
 			expect(data.error.code).toBe("CONFLICT");
 		});
 	});
 });
-

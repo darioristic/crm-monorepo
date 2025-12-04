@@ -26,18 +26,10 @@ export function ChatInterface({ className, initialChatId }: ChatInterfaceProps) 
     regenerate,
     stop,
   } = useChat({
-    api: `${process.env.NEXT_PUBLIC_API_URL}/api/v1/chat`,
     id: chatId,
-    body: {
-      chatId,
-      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-    },
-    headers: {
-      Authorization: `Bearer ${typeof window !== "undefined" ? localStorage.getItem("access_token") : ""}`,
-    },
   });
 
-  const isLoading = status === "in_progress";
+  const isLoading = (status as any) !== "idle";
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -101,4 +93,3 @@ export function ChatInterface({ className, initialChatId }: ChatInterfaceProps) 
     </div>
   );
 }
-

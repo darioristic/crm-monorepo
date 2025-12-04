@@ -28,7 +28,7 @@ describe('Authentication Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(201);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data).toHaveProperty('user');
 		expect(data.data.user).toHaveProperty('email');
@@ -47,7 +47,7 @@ describe('Authentication Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 		expect(data.data).toHaveProperty('accessToken');
 		expect(data.data).toHaveProperty('refreshToken');
@@ -67,7 +67,7 @@ describe('Authentication Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(401);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(false);
 	});
 
@@ -84,7 +84,7 @@ describe('Authentication Integration Tests', () => {
 			}),
 		});
 
-		const loginData = await loginResponse.json();
+    const loginData: any = await loginResponse.json();
 		const refreshToken = loginData.data.refreshToken;
 
 		// Use refresh token
@@ -99,7 +99,7 @@ describe('Authentication Integration Tests', () => {
 		});
 
 		expect(refreshResponse.status).toBe(200);
-		const refreshData = await refreshResponse.json();
+    const refreshData: any = await refreshResponse.json();
 		expect(refreshData.success).toBe(true);
 		expect(refreshData.data).toHaveProperty('accessToken');
 	});
@@ -114,8 +114,7 @@ describe('Authentication Integration Tests', () => {
 		});
 
 		expect(response.status).toBe(200);
-		const data = await response.json();
+    const data: any = await response.json();
 		expect(data.success).toBe(true);
 	});
 });
-

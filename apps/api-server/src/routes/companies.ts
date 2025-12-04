@@ -5,7 +5,7 @@
 import { errorResponse, successResponse } from "@crm/utils";
 import { companiesService } from "../services/companies.service";
 import { RouteBuilder, withAuth, parseBody, parsePagination, parseFilters } from "./helpers";
-import type { CreateCompanyRequest, UpdateCompanyRequest } from "@crm/types";
+import type { CreateCompanyRequest, UpdateCompanyRequest, Company } from "@crm/types";
 import {
 	getCompanyById,
 	getCompaniesByUserId,
@@ -20,6 +20,8 @@ import {
 } from "../db/queries/companies-members";
 import { userQueries } from "../db/queries/users";
 import { uploadFile } from "../services/file-storage.service";
+import { isSuperadmin, isTenantAdmin } from "../middleware/auth";
+import { sql } from "../db/client";
 
 const router = new RouteBuilder();
 
@@ -52,24 +54,139 @@ router.get("/api/v1/companies/current", async (request) => {
 // ============================================
 
 router.get("/api/v1/companies", async (request, url) => {
-	return withAuth(request, async (auth) => {
-		// If no query params, return user's companies
-		const hasQueryParams = url.searchParams.toString().length > 0;
-		
+  return withAuth(request, async (auth) => {
+    // If no query params, return user's companies
+    const hasQueryParams = url.searchParams.toString().length > 0;
+    
     if (!hasQueryParams) {
-      const companies = await getCompaniesByUserId(auth.userId);
-      const detailed = await Promise.all(
-        companies.map((c) => getCompanyById(c.id))
-      );
-      const fullCompanies = detailed.filter(Boolean) as Array<import("@crm/types").Company>;
-      return successResponse(fullCompanies);
+      // For admin users (superadmin, tenant_admin), show all companies from their tenant
+      // For regular users, show only companies they are members of
+      let memberCompanies: Array<{
+        id: string;
+        name: string;
+        industry: string;
+        address: string;
+        logoUrl: string | null;
+        email: string | null;
+        role: "owner" | "member" | "admin";
+        createdAt: string;
+      }>;
+      
+      if (isSuperadmin(auth)) {
+        // Superadmin sees all companies (no tenant filter)
+        const allCompanies = await sql`
+          SELECT 
+            c.id,
+            c.name,
+            c.industry,
+            c.address,
+            c.logo_url as logo_url,
+            c.email,
+            COALESCE(uoc.role, 'admin') as role,
+            c.created_at
+          FROM companies c
+          LEFT JOIN users_on_company uoc ON uoc.company_id = c.id AND uoc.user_id = ${auth.userId}
+          WHERE (c.source IS NULL OR c.source != 'customer')
+          ORDER BY c.name ASC
+        `;
+        memberCompanies = allCompanies.map((row: any) => ({
+          id: row.id as string,
+          name: row.name as string,
+          industry: row.industry as string,
+          address: row.address as string,
+          logoUrl: (row.logo_url as string) || null,
+          email: (row.email as string) || null,
+          role: (row.role as "owner" | "member" | "admin") || "admin",
+          createdAt: new Date(row.created_at as Date).toISOString(),
+        }));
+      } else if (isTenantAdmin(auth)) {
+        // Tenant admin sees all companies from their tenant (not just member companies)
+        let effectiveTenantId = auth.tenantId;
+        
+        if (!effectiveTenantId) {
+          // If tenant admin has no tenantId, create/get default tenant and assign it
+          const { getOrCreateDefaultTenant } = await import("../db/queries/tenants");
+          effectiveTenantId = await getOrCreateDefaultTenant();
+          
+          // Update user with tenantId for future requests
+          const { sql } = await import("../db/client");
+          await sql`
+            UPDATE users 
+            SET tenant_id = ${effectiveTenantId}, updated_at = NOW()
+            WHERE id = ${auth.userId}
+          `;
+          
+          console.log(`Assigned default tenant ${effectiveTenantId} to user ${auth.userId}`);
+        }
+        
+        if (effectiveTenantId) {
+          const allTenantCompanies = await sql`
+            SELECT 
+              c.id,
+              c.name,
+              c.industry,
+              c.address,
+              c.logo_url as logo_url,
+              c.email,
+              COALESCE(uoc.role, 'admin') as role,
+              c.created_at
+            FROM companies c
+            LEFT JOIN users_on_company uoc ON uoc.company_id = c.id AND uoc.user_id = ${auth.userId}
+            WHERE (c.source IS NULL OR c.source != 'customer')
+              AND c.tenant_id = ${effectiveTenantId}
+            ORDER BY c.name ASC
+          `;
+          memberCompanies = allTenantCompanies.map((row: any) => ({
+            id: row.id as string,
+            name: row.name as string,
+            industry: row.industry as string,
+            address: row.address as string,
+            logoUrl: (row.logo_url as string) || null,
+            email: (row.email as string) || null,
+            role: (row.role as "owner" | "member" | "admin") || "admin",
+            createdAt: new Date(row.created_at as Date).toISOString(),
+          }));
+        } else {
+          // Fallback: if we still don't have tenantId, get member companies only
+          memberCompanies = await getCompaniesByUserId(auth.userId, null);
+        }
+      } else {
+        // Regular users see only companies they are members of
+        // If user doesn't have tenantId, get or create default tenant
+        let effectiveTenantId = auth.tenantId;
+        if (!effectiveTenantId) {
+          const { getOrCreateDefaultTenant } = await import("../db/queries/tenants");
+          effectiveTenantId = await getOrCreateDefaultTenant();
+          
+          // Update user with tenantId for future requests
+          const { sql } = await import("../db/client");
+          await sql`
+            UPDATE users 
+            SET tenant_id = ${effectiveTenantId}, updated_at = NOW()
+            WHERE id = ${auth.userId}
+          `;
+        }
+        memberCompanies = await getCompaniesByUserId(auth.userId, effectiveTenantId);
+      }
+      
+      const companies: Company[] = memberCompanies.map((c) => ({
+        id: c.id,
+        name: c.name,
+        industry: c.industry,
+        address: c.address,
+        logoUrl: c.logoUrl || null,
+        email: c.email || null,
+        createdAt: c.createdAt,
+        updatedAt: c.createdAt,
+      }));
+      return successResponse(companies);
     }
 
 		// Otherwise use the existing service for paginated/filtered list
 		const pagination = parsePagination(url);
-		const filters = parseFilters(url);
-		return companiesService.getCompanies(pagination, filters);
-	});
+    const filters = { ...parseFilters(url), tenantId: auth.tenantId, source: "customer" } as Record<string, unknown>;
+    return companiesService.getCompanies(pagination, filters);
+  });
 });
 
 // ============================================
@@ -258,10 +375,22 @@ router.delete("/api/v1/companies/:id", async (request, _url, params) => {
 
 			return successResponse({ id: result.id });
 		} catch (error) {
-			return errorResponse(
-				"BAD_REQUEST",
-				error instanceof Error ? error.message : "Failed to delete company",
-			);
+			// Determine error code based on error message
+			const errorMessage = error instanceof Error ? error.message : "Failed to delete company";
+			let errorCode = "BAD_REQUEST";
+			
+			if (errorMessage.includes("not a member")) {
+				errorCode = "FORBIDDEN";
+			} else if (errorMessage.includes("not found")) {
+				errorCode = "NOT_FOUND";
+			} else if (errorMessage.includes("Only company owner")) {
+				errorCode = "FORBIDDEN";
+			} else if (errorMessage.includes("Cannot delete company")) {
+				errorCode = "CONFLICT";
+			}
+			
+			console.error("Error deleting company:", error);
+			return errorResponse(errorCode, errorMessage);
 		}
 	});
 });
