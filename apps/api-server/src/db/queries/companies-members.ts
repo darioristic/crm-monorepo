@@ -17,18 +17,18 @@ export async function hasCompanyAccess(
 	return result.length > 0;
 }
 
-export async function getCompaniesByUserId(
-	userId: string,
-): Promise<Array<{
-	id: string;
-	name: string;
-	industry: string;
-	address: string;
-	logoUrl: string | null;
-	email: string | null;
-	role: "owner" | "member" | "admin";
-	createdAt: string;
-}>> {
+export async function getCompaniesByUserId(userId: string): Promise<
+	Array<{
+		id: string;
+		name: string;
+		industry: string;
+		address: string;
+		logoUrl: string | null;
+		email: string | null;
+		role: "owner" | "member" | "admin";
+		createdAt: string;
+	}>
+> {
 	const result = await sql`
     SELECT 
       c.id,
@@ -142,6 +142,16 @@ type CreateCompanyParams = {
 	address: string;
 	userId: string;
 	email?: string;
+	phone?: string;
+	website?: string;
+	contact?: string;
+	city?: string;
+	zip?: string;
+	country?: string;
+	countryCode?: string;
+	vatNumber?: string;
+	companyNumber?: string;
+	note?: string;
 	logoUrl?: string;
 	switchCompany?: boolean;
 	source?: "account" | "customer";
@@ -150,16 +160,45 @@ type CreateCompanyParams = {
 export async function createCompany(
 	params: CreateCompanyParams,
 ): Promise<string> {
-	const { name, industry, address, userId, email, logoUrl, switchCompany, source = "account" } =
-		params;
+	const {
+		name,
+		industry,
+		address,
+		userId,
+		email,
+		phone,
+		website,
+		contact,
+		city,
+		zip,
+		country,
+		countryCode,
+		vatNumber,
+		companyNumber,
+		note,
+		logoUrl,
+		switchCompany,
+		source = "account",
+	} = params;
 
 	// Use transaction to ensure atomicity
 	// Using postgres client transaction directly for raw SQL queries
 	const companyId = await sql.begin(async (tx) => {
+		// Derive tenant_id from user if available
+		let tenantId: string | null = null;
+		try {
+			const userRow = await tx`
+			  SELECT tenant_id FROM users WHERE id = ${userId} LIMIT 1
+			`;
+			if (userRow.length > 0) {
+				tenantId = (userRow[0].tenant_id as string | null) ?? null;
+			}
+		} catch {}
+
 		// Create the company using sql template within transaction
 		const [newCompany] = await tx`
-      INSERT INTO companies (name, industry, address, email, logo_url, phone, website, contact, city, zip, country, country_code, vat_number, company_number, note, source)
-      VALUES (${name}, ${industry}, ${address}, ${email || null}, ${logoUrl || null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${null}, ${source || 'account'})
+      INSERT INTO companies (tenant_id, name, industry, address, email, logo_url, phone, website, contact, city, zip, country, country_code, vat_number, company_number, note, source)
+      VALUES (${tenantId}, ${name}, ${industry}, ${address}, ${email || null}, ${logoUrl || null}, ${phone || null}, ${website || null}, ${contact || null}, ${city || null}, ${zip || null}, ${country || null}, ${countryCode || null}, ${vatNumber || null}, ${companyNumber || null}, ${note || null}, ${source || "account"})
       RETURNING id
     `;
 
@@ -169,26 +208,27 @@ export async function createCompany(
 
 		const newCompanyId = newCompany.id as string;
 
-		// Add user to company membership as owner
-		await tx`
-      INSERT INTO users_on_company (user_id, company_id, role)
-      VALUES (${userId}, ${newCompanyId}, 'owner')
-    `;
-
-		// Optionally switch user to the new company
-		if (switchCompany) {
+		// For account companies, add membership and optionally switch
+		if (source !== "customer") {
 			await tx`
-        UPDATE users
-        SET company_id = ${newCompanyId}
-        WHERE id = ${userId}
+        INSERT INTO users_on_company (user_id, company_id, role)
+        VALUES (${userId}, ${newCompanyId}, 'owner')
       `;
+
+			if (switchCompany) {
+				await tx`
+          UPDATE users
+          SET company_id = ${newCompanyId}
+          WHERE id = ${userId}
+        `;
+			}
 		}
 
 		return newCompanyId;
 	});
 
 	// If company switching was enabled, invalidate the cache
-	if (switchCompany) {
+	if (switchCompany && source !== "customer") {
 		const cacheKey = `user:${userId}:company`;
 		await cache.del(cacheKey);
 	}
@@ -205,9 +245,7 @@ type UpdateCompanyParams = {
 	logoUrl?: string;
 };
 
-export async function updateCompanyById(
-	params: UpdateCompanyParams,
-): Promise<{
+export async function updateCompanyById(params: UpdateCompanyParams): Promise<{
 	id: string;
 	name: string;
 	industry: string;
@@ -289,14 +327,15 @@ export async function deleteCompany(
 	const relatedItems: string[] = [];
 	if (invoiceCount > 0) relatedItems.push(`${invoiceCount} invoice(s)`);
 	if (quoteCount > 0) relatedItems.push(`${quoteCount} quote(s)`);
-	if (deliveryNoteCount > 0) relatedItems.push(`${deliveryNoteCount} delivery note(s)`);
+	if (deliveryNoteCount > 0)
+		relatedItems.push(`${deliveryNoteCount} delivery note(s)`);
 	if (projectCount > 0) relatedItems.push(`${projectCount} project(s)`);
 	if (memberCount > 1) relatedItems.push(`${memberCount} member(s)`);
 
 	if (relatedItems.length > 0) {
 		throw new Error(
 			`Cannot delete company: it has ${relatedItems.join(", ")}. ` +
-			`Please delete or reassign these records first, or remove all members except yourself.`
+				`Please delete or reassign these records first, or remove all members except yourself.`,
 		);
 	}
 
@@ -314,9 +353,7 @@ type LeaveCompanyParams = {
 	companyId: string;
 };
 
-export async function leaveCompany(
-	params: LeaveCompanyParams,
-): Promise<void> {
+export async function leaveCompany(params: LeaveCompanyParams): Promise<void> {
 	const { userId, companyId } = params;
 
 	// Verify user is a member
@@ -416,4 +453,3 @@ export async function getUserCompanyId(userId: string): Promise<string | null> {
 
 	return result.length > 0 ? (result[0].company_id as string | null) : null;
 }
-

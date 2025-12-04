@@ -1,15 +1,13 @@
 "use client";
 
 import { useCompanyParams } from "@/hooks/use-company-params";
-import { createCompany, getCurrentCompany } from "@/lib/companies";
+import { createCompany } from "@/lib/companies";
 import { companiesApi } from "@/lib/api";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useEffect } from "react";
 import {
   Accordion,
   AccordionContent,
@@ -83,22 +81,11 @@ type Props = {
 export function CompanyForm({ data }: Props) {
   const isEdit = !!data;
   const { setParams, name: prefillName } = useCompanyParams();
-  const { refreshUser } = useAuth();
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Get current company data to use as defaults when creating new company
-  const { data: currentCompany } = useQuery({
-    queryKey: ["company", "current"],
-    queryFn: async () => {
-      const result = await getCurrentCompany();
-      if (!result.success || !result.data) {
-        return null;
-      }
-      return result.data;
-    },
-    enabled: !isEdit, // Only fetch when creating new company (not editing)
-  });
+  // Note: We don't fetch currentCompany for create mode anymore
+  // because we want to create a new customer company, not copy tenant company data
 
   const createMutation = useMutation({
     mutationFn: async (values: CompanyData) => {
@@ -124,7 +111,9 @@ export function CompanyForm({ data }: Props) {
         companyNumber: values.companyNumber || null,
         note: values.note || null,
         logoUrl: logoUrl, // Use generated logo or provided one
-        switchCompany: true, // Automatically switch to the new company (multi-tenant)
+        // Create customer company and do not switch membership
+        source: "customer",
+        switchCompany: false,
       });
       if (!result.success) {
         throw new Error(result.error?.message || "Failed to create company");
@@ -133,17 +122,16 @@ export function CompanyForm({ data }: Props) {
     },
     onSuccess: async (newCompany) => {
       if (newCompany?.id) {
-        // Backend should have already switched if switchCompany: true was passed
-        // Invalidate all queries to refresh data, including companies list
+        // Invalidate queries to refresh data, including companies list
         await queryClient.invalidateQueries({ queryKey: ["companies"] });
         await queryClient.invalidateQueries({ queryKey: ["team", "current"] });
-        await queryClient.invalidateQueries({ queryKey: ["company", "current"] });
-        // Refresh user data to get new companyId
-        await refreshUser();
+        await queryClient.invalidateQueries({
+          queryKey: ["company", "current"],
+        });
         // Close the sheet
         setParams(null);
         // Show success message
-        toast.success("Company created and switched successfully");
+        toast.success("Company created successfully");
         // Refresh the page to ensure all data is fresh
         router.refresh();
       } else {
@@ -153,7 +141,9 @@ export function CompanyForm({ data }: Props) {
       }
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to create company");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to create company"
+      );
     },
   });
 
@@ -171,7 +161,9 @@ export function CompanyForm({ data }: Props) {
       router.refresh();
     },
     onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to update company");
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update company"
+      );
     },
   });
 
@@ -179,61 +171,25 @@ export function CompanyForm({ data }: Props) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       id: data?.id,
-      // Use prefillName, then data, then current company name, then empty
-      name: prefillName ?? data?.name ?? currentCompany?.name ?? "",
-      // Use data, then current company industry, then empty
-      industry: data?.industry ?? currentCompany?.industry ?? "",
-      // Use data, then current company address, then empty
-      address: data?.address ?? currentCompany?.address ?? "",
-      // Use data, then current company email, then empty
-      email: data?.email ?? currentCompany?.email ?? "",
-      // Use data, then current company phone, then empty
-      phone: data?.phone ?? currentCompany?.phone ?? "",
-      // Use data, then current company website, then empty
-      website: data?.website ?? currentCompany?.website ?? "",
-      // Use data, then current company contact, then empty
-      contact: data?.contact ?? currentCompany?.contact ?? "",
-      // Use data, then current company vatNumber, then empty
-      vatNumber: data?.vatNumber ?? currentCompany?.vatNumber ?? "",
-      // Use data, then current company companyNumber, then empty
-      companyNumber: data?.companyNumber ?? currentCompany?.companyNumber ?? "",
-      // Use data, then current company city, then empty
-      city: data?.city ?? currentCompany?.city ?? "",
-      // Use data, then current company country, then empty
-      country: data?.country ?? currentCompany?.country ?? "",
-      // Use data, then current company countryCode, then empty
-      countryCode: data?.countryCode ?? currentCompany?.countryCode ?? "",
-      // Use data, then current company zip, then empty
-      zip: data?.zip ?? currentCompany?.zip ?? "",
-      // Use data, then current company note, then empty
-      note: data?.note ?? currentCompany?.note ?? "",
-      // Use data, then current company logoUrl, then empty
-      logoUrl: data?.logoUrl ?? currentCompany?.logoUrl ?? "",
+      // For create mode: only use prefillName if provided, otherwise empty
+      // For edit mode: use data values
+      name: isEdit ? data?.name ?? "" : prefillName ?? "",
+      industry: data?.industry ?? "",
+      address: data?.address ?? "",
+      email: data?.email ?? "",
+      phone: data?.phone ?? "",
+      website: data?.website ?? "",
+      contact: data?.contact ?? "",
+      vatNumber: data?.vatNumber ?? "",
+      companyNumber: data?.companyNumber ?? "",
+      city: data?.city ?? "",
+      country: data?.country ?? "",
+      countryCode: data?.countryCode ?? "",
+      zip: data?.zip ?? "",
+      note: data?.note ?? "",
+      logoUrl: data?.logoUrl ?? "",
     },
   });
-
-  // Update form values when currentCompany data is loaded (for create mode)
-  useEffect(() => {
-    if (!isEdit && currentCompany) {
-      form.reset({
-        name: prefillName ?? currentCompany.name ?? "",
-        industry: currentCompany.industry ?? "",
-        address: currentCompany.address ?? "",
-        email: currentCompany.email ?? "",
-        phone: currentCompany.phone ?? "",
-        website: currentCompany.website ?? "",
-        contact: currentCompany.contact ?? "",
-        vatNumber: currentCompany.vatNumber ?? "",
-        companyNumber: currentCompany.companyNumber ?? "",
-        city: currentCompany.city ?? "",
-        country: currentCompany.country ?? "",
-        countryCode: currentCompany.countryCode ?? "",
-        zip: currentCompany.zip ?? "",
-        note: currentCompany.note ?? "",
-        logoUrl: currentCompany.logoUrl ?? "",
-      });
-    }
-  }, [currentCompany, isEdit, prefillName, form]);
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     const formattedData: CompanyData = {
@@ -263,10 +219,14 @@ export function CompanyForm({ data }: Props) {
   };
 
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
-  const error = createMutation.error 
-    ? (createMutation.error instanceof Error ? createMutation.error.message : String(createMutation.error))
+  const error = createMutation.error
+    ? createMutation.error instanceof Error
+      ? createMutation.error.message
+      : String(createMutation.error)
     : updateMutation.error
-    ? (updateMutation.error instanceof Error ? updateMutation.error.message : String(updateMutation.error))
+    ? updateMutation.error instanceof Error
+      ? updateMutation.error.message
+      : String(updateMutation.error)
     : undefined;
 
   return (
@@ -599,7 +559,9 @@ export function CompanyForm({ data }: Props) {
               type="submit"
               disabled={isSubmitting || !form.formState.isDirty}
             >
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {isEdit ? "Update" : "Create"}
             </Button>
           </div>
