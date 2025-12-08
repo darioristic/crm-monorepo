@@ -1,0 +1,26 @@
+# Lefthook configuration for pre-commit hooks
+# https://github.com/evilmartians/lefthook
+
+# Run hooks in color
+colors: true
+
+pre-commit:
+  parallel: true
+  commands:
+    # Run Biome check (linting + formatting) on staged files
+    biome-check:
+      glob: "*.{js,ts,jsx,tsx,json,jsonc}"
+      run: bunx @biomejs/biome check --write --unsafe {staged_files} && git add {staged_files}
+      stage_fixed: true
+
+# Optional: pre-push hook to run tests
+# Uncomment to enable tests before pushing
+# pre-push:
+#   commands:
+#     test:
+#       run: bun test
+#       fail_text: "Tests failed. Fix them before pushing."
+#
+#     typecheck:
+#       run: bun run typecheck
+#       fail_text: "Type errors found. Fix them before pushing."
