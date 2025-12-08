@@ -1,14 +1,15 @@
+import { logger } from "../../lib/logger";
 import { sql } from "../client";
 
 /**
  * Migration: Add soft delete support for financial documents
- * 
+ *
  * This adds deleted_at columns to invoices, quotes, delivery_notes, and payments
  * to support soft deletion instead of permanent removal.
  */
 
 export async function up(): Promise<void> {
-  console.log("Running migration: 005_add_soft_delete");
+  logger.info("Running migration: 005_add_soft_delete");
 
   // Add deleted_at column to invoices
   await sql`
@@ -76,11 +77,11 @@ export async function up(): Promise<void> {
     WHERE deleted_at IS NULL
   `;
 
-  console.log("✅ Migration 005_add_soft_delete completed");
+  logger.info("✅ Migration 005_add_soft_delete completed");
 }
 
 export async function down(): Promise<void> {
-  console.log("Rolling back migration: 005_add_soft_delete");
+  logger.info("Rolling back migration: 005_add_soft_delete");
 
   // Remove indexes
   await sql`DROP INDEX IF EXISTS idx_invoices_deleted_at`;
@@ -98,7 +99,7 @@ export async function down(): Promise<void> {
   await sql`ALTER TABLE payments DROP COLUMN IF EXISTS deleted_at`;
   await sql`ALTER TABLE payments DROP COLUMN IF EXISTS deleted_by`;
 
-  console.log("✅ Rollback 005_add_soft_delete completed");
+  logger.info("✅ Rollback 005_add_soft_delete completed");
 }
 
 // Run migration if this file is executed directly
@@ -111,4 +112,3 @@ if (import.meta.main) {
   }
   process.exit(0);
 }
-

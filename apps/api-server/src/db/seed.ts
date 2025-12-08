@@ -1,29 +1,37 @@
-import type { 
-  Company, 
-  User, 
-  Project, 
-  Task, 
-  Milestone, 
-  Quote, 
-  Invoice, 
+import type {
+  Company,
   DeliveryNote,
-  Order,
-  Product,
-  ProductCategory,
-  Payment,
+  Invoice,
+  Milestone,
   Notification,
   NotificationType,
+  Order,
+  Payment,
+  Product,
+  ProductCategory,
+  Project,
+  Quote,
+  Task,
+  User,
 } from "@crm/types";
 import { generateUUID, now } from "@crm/utils";
-import { companyQueries } from "./queries/companies";
-import { userQueries } from "./queries/users";
-import { authQueries } from "./queries/auth";
-import { projectQueries, taskQueries, milestoneQueries } from "./queries";
-import { quoteQueries, invoiceQueries, deliveryNoteQueries, orderQueries } from "./queries";
-import { productQueries, productCategoryQueries } from "./queries/products";
-import { paymentQueries } from "./queries/payments";
-import { notificationQueries } from "./queries/notifications";
+import { logger } from "../lib/logger";
 import { sql as db } from "./client";
+import {
+  deliveryNoteQueries,
+  invoiceQueries,
+  milestoneQueries,
+  orderQueries,
+  projectQueries,
+  quoteQueries,
+  taskQueries,
+} from "./queries";
+import { authQueries } from "./queries/auth";
+import { companyQueries } from "./queries/companies";
+import { notificationQueries } from "./queries/notifications";
+import { paymentQueries } from "./queries/payments";
+import { productCategoryQueries, productQueries } from "./queries/products";
+import { userQueries } from "./queries/users";
 
 // Default password for seed users (development only)
 const DEFAULT_SEED_PASSWORD = "changeme123";
@@ -60,93 +68,323 @@ function futureDate(daysAhead: number): string {
 // ============================================
 
 const INDUSTRIES = [
-  "Technology", "Finance", "Healthcare", "Manufacturing", "Retail",
-  "Education", "Real Estate", "Consulting", "Logistics", "Media",
-  "Energy", "Telecommunications", "Automotive", "Hospitality", "Agriculture"
+  "Technology",
+  "Finance",
+  "Healthcare",
+  "Manufacturing",
+  "Retail",
+  "Education",
+  "Real Estate",
+  "Consulting",
+  "Logistics",
+  "Media",
+  "Energy",
+  "Telecommunications",
+  "Automotive",
+  "Hospitality",
+  "Agriculture",
 ];
 
 const COMPANY_PREFIXES = [
-  "Tech", "Global", "Prime", "Digital", "Smart", "Alpha", "Beta", "Omega",
-  "Nova", "Quantum", "Apex", "Zenith", "Summit", "Vertex", "Nexus"
+  "Tech",
+  "Global",
+  "Prime",
+  "Digital",
+  "Smart",
+  "Alpha",
+  "Beta",
+  "Omega",
+  "Nova",
+  "Quantum",
+  "Apex",
+  "Zenith",
+  "Summit",
+  "Vertex",
+  "Nexus",
 ];
 
 const COMPANY_SUFFIXES = [
-  "Corp", "Industries", "Solutions", "Partners", "Group", "Systems",
-  "Dynamics", "Ventures", "Holdings", "International", "Labs", "Works"
+  "Corp",
+  "Industries",
+  "Solutions",
+  "Partners",
+  "Group",
+  "Systems",
+  "Dynamics",
+  "Ventures",
+  "Holdings",
+  "International",
+  "Labs",
+  "Works",
 ];
 
 const FIRST_NAMES = [
-  "John", "Sarah", "Michael", "Emily", "James", "Emma", "David", "Olivia",
-  "Daniel", "Sophia", "Matthew", "Isabella", "Andrew", "Mia", "Christopher",
-  "Charlotte", "Joshua", "Amelia", "Ryan", "Harper", "Nathan", "Evelyn",
-  "Brandon", "Abigail", "Kevin", "Elizabeth", "Justin", "Sofia", "Tyler", "Avery",
-  "William", "Ella", "Joseph", "Scarlett", "Benjamin", "Grace", "Samuel", "Chloe",
-  "Jacob", "Victoria", "Anthony", "Riley", "Dylan", "Aria", "Ethan", "Lily",
-  "Alexander", "Aubrey", "Nicholas", "Zoey"
+  "John",
+  "Sarah",
+  "Michael",
+  "Emily",
+  "James",
+  "Emma",
+  "David",
+  "Olivia",
+  "Daniel",
+  "Sophia",
+  "Matthew",
+  "Isabella",
+  "Andrew",
+  "Mia",
+  "Christopher",
+  "Charlotte",
+  "Joshua",
+  "Amelia",
+  "Ryan",
+  "Harper",
+  "Nathan",
+  "Evelyn",
+  "Brandon",
+  "Abigail",
+  "Kevin",
+  "Elizabeth",
+  "Justin",
+  "Sofia",
+  "Tyler",
+  "Avery",
+  "William",
+  "Ella",
+  "Joseph",
+  "Scarlett",
+  "Benjamin",
+  "Grace",
+  "Samuel",
+  "Chloe",
+  "Jacob",
+  "Victoria",
+  "Anthony",
+  "Riley",
+  "Dylan",
+  "Aria",
+  "Ethan",
+  "Lily",
+  "Alexander",
+  "Aubrey",
+  "Nicholas",
+  "Zoey",
 ];
 
 const LAST_NAMES = [
-  "Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis",
-  "Rodriguez", "Martinez", "Hernandez", "Lopez", "Gonzalez", "Wilson", "Anderson",
-  "Thomas", "Taylor", "Moore", "Jackson", "Martin", "Lee", "Perez", "Thompson",
-  "White", "Harris", "Sanchez", "Clark", "Ramirez", "Lewis", "Robinson",
-  "Walker", "Young", "Allen", "King", "Wright", "Scott", "Torres", "Nguyen",
-  "Hill", "Flores", "Green", "Adams", "Nelson", "Baker", "Hall", "Rivera",
-  "Campbell", "Mitchell", "Carter", "Roberts"
+  "Smith",
+  "Johnson",
+  "Williams",
+  "Brown",
+  "Jones",
+  "Garcia",
+  "Miller",
+  "Davis",
+  "Rodriguez",
+  "Martinez",
+  "Hernandez",
+  "Lopez",
+  "Gonzalez",
+  "Wilson",
+  "Anderson",
+  "Thomas",
+  "Taylor",
+  "Moore",
+  "Jackson",
+  "Martin",
+  "Lee",
+  "Perez",
+  "Thompson",
+  "White",
+  "Harris",
+  "Sanchez",
+  "Clark",
+  "Ramirez",
+  "Lewis",
+  "Robinson",
+  "Walker",
+  "Young",
+  "Allen",
+  "King",
+  "Wright",
+  "Scott",
+  "Torres",
+  "Nguyen",
+  "Hill",
+  "Flores",
+  "Green",
+  "Adams",
+  "Nelson",
+  "Baker",
+  "Hall",
+  "Rivera",
+  "Campbell",
+  "Mitchell",
+  "Carter",
+  "Roberts",
 ];
 
 const PROJECT_PREFIXES = [
-  "CRM", "ERP", "Mobile App", "Web Portal", "API", "Dashboard", "Analytics",
-  "Integration", "Migration", "Automation", "Cloud", "Security", "E-commerce",
-  "Platform", "Infrastructure"
+  "CRM",
+  "ERP",
+  "Mobile App",
+  "Web Portal",
+  "API",
+  "Dashboard",
+  "Analytics",
+  "Integration",
+  "Migration",
+  "Automation",
+  "Cloud",
+  "Security",
+  "E-commerce",
+  "Platform",
+  "Infrastructure",
 ];
 
 const PROJECT_ACTIONS = [
-  "Development", "Upgrade", "Implementation", "Redesign", "Optimization",
-  "Modernization", "Enhancement", "Deployment", "Integration", "Migration"
+  "Development",
+  "Upgrade",
+  "Implementation",
+  "Redesign",
+  "Optimization",
+  "Modernization",
+  "Enhancement",
+  "Deployment",
+  "Integration",
+  "Migration",
 ];
 
 const TASK_VERBS = [
-  "Design", "Implement", "Create", "Build", "Develop", "Configure", "Setup",
-  "Write", "Test", "Review", "Optimize", "Debug", "Document", "Deploy", "Migrate"
+  "Design",
+  "Implement",
+  "Create",
+  "Build",
+  "Develop",
+  "Configure",
+  "Setup",
+  "Write",
+  "Test",
+  "Review",
+  "Optimize",
+  "Debug",
+  "Document",
+  "Deploy",
+  "Migrate",
 ];
 
 const TASK_OBJECTS = [
-  "database schema", "API endpoints", "user interface", "authentication system",
-  "dashboard", "reports module", "notification system", "payment gateway",
-  "search functionality", "file upload", "email templates", "admin panel",
-  "mobile views", "analytics tracking", "CI/CD pipeline"
+  "database schema",
+  "API endpoints",
+  "user interface",
+  "authentication system",
+  "dashboard",
+  "reports module",
+  "notification system",
+  "payment gateway",
+  "search functionality",
+  "file upload",
+  "email templates",
+  "admin panel",
+  "mobile views",
+  "analytics tracking",
+  "CI/CD pipeline",
 ];
 
 const PRODUCT_NAMES = [
-  "Enterprise License", "Professional License", "Basic License", "Premium Support",
-  "Training Package", "Consulting Hours", "Custom Development", "Data Migration",
-  "System Integration", "Security Audit", "Performance Optimization", "Cloud Hosting",
-  "API Access", "White Label Solution", "Mobile App Add-on", "Analytics Module",
-  "Reporting Suite", "Backup Service", "Disaster Recovery", "Load Balancing",
-  "SSL Certificate", "Domain Registration", "Email Service", "Storage Upgrade",
-  "Bandwidth Upgrade", "User Seats Pack", "Admin Module", "Workflow Automation",
-  "Document Management", "CRM Module", "Inventory Module", "HR Module",
-  "Accounting Module", "Project Management", "Time Tracking", "Invoice Module",
-  "Quote Generator", "Contract Management", "Customer Portal", "Vendor Portal",
-  "Partner Portal", "Knowledge Base", "Help Desk", "Live Chat", "Video Conferencing",
-  "File Sharing", "Team Collaboration", "Task Management", "Calendar Integration", "API Gateway"
+  "Enterprise License",
+  "Professional License",
+  "Basic License",
+  "Premium Support",
+  "Training Package",
+  "Consulting Hours",
+  "Custom Development",
+  "Data Migration",
+  "System Integration",
+  "Security Audit",
+  "Performance Optimization",
+  "Cloud Hosting",
+  "API Access",
+  "White Label Solution",
+  "Mobile App Add-on",
+  "Analytics Module",
+  "Reporting Suite",
+  "Backup Service",
+  "Disaster Recovery",
+  "Load Balancing",
+  "SSL Certificate",
+  "Domain Registration",
+  "Email Service",
+  "Storage Upgrade",
+  "Bandwidth Upgrade",
+  "User Seats Pack",
+  "Admin Module",
+  "Workflow Automation",
+  "Document Management",
+  "CRM Module",
+  "Inventory Module",
+  "HR Module",
+  "Accounting Module",
+  "Project Management",
+  "Time Tracking",
+  "Invoice Module",
+  "Quote Generator",
+  "Contract Management",
+  "Customer Portal",
+  "Vendor Portal",
+  "Partner Portal",
+  "Knowledge Base",
+  "Help Desk",
+  "Live Chat",
+  "Video Conferencing",
+  "File Sharing",
+  "Team Collaboration",
+  "Task Management",
+  "Calendar Integration",
+  "API Gateway",
 ];
 
-const NOTIFICATION_TYPES: NotificationType[] = [
-  "invoice_created", "invoice_paid", "invoice_overdue",
-  "quote_created", "quote_accepted", "quote_rejected",
-  "project_created", "project_completed",
-  "task_assigned", "task_completed", "task_overdue",
-  "lead_assigned", "deal_won", "deal_lost",
-  "info", "warning", "success"
+const _NOTIFICATION_TYPES: NotificationType[] = [
+  "invoice_created",
+  "invoice_paid",
+  "invoice_overdue",
+  "quote_created",
+  "quote_accepted",
+  "quote_rejected",
+  "project_created",
+  "project_completed",
+  "task_assigned",
+  "task_completed",
+  "task_overdue",
+  "lead_assigned",
+  "deal_won",
+  "deal_lost",
+  "info",
+  "warning",
+  "success",
 ];
 
 const CITIES = [
-  "New York, NY", "Los Angeles, CA", "Chicago, IL", "Houston, TX", "Phoenix, AZ",
-  "Philadelphia, PA", "San Antonio, TX", "San Diego, CA", "Dallas, TX", "San Jose, CA",
-  "Austin, TX", "Jacksonville, FL", "Fort Worth, TX", "Columbus, OH", "Charlotte, NC",
-  "San Francisco, CA", "Indianapolis, IN", "Seattle, WA", "Denver, CO", "Boston, MA"
+  "New York, NY",
+  "Los Angeles, CA",
+  "Chicago, IL",
+  "Houston, TX",
+  "Phoenix, AZ",
+  "Philadelphia, PA",
+  "San Antonio, TX",
+  "San Diego, CA",
+  "Dallas, TX",
+  "San Jose, CA",
+  "Austin, TX",
+  "Jacksonville, FL",
+  "Fort Worth, TX",
+  "Columbus, OH",
+  "Charlotte, NC",
+  "San Francisco, CA",
+  "Indianapolis, IN",
+  "Seattle, WA",
+  "Denver, CO",
+  "Boston, MA",
 ];
 
 // ============================================
@@ -197,6 +435,20 @@ function generateUsers(count: number, companyIds: string[]): User[] {
   });
   usedEmails.add("admin@crm.local");
 
+  // Add a deterministic demo user for TechCorp
+  users.push({
+    id: generateUUID(),
+    firstName: "Sarah",
+    lastName: "Johnson",
+    email: "sarah.johnson@techcorp.com",
+    role: "crm_user",
+    companyId: companyIds[0],
+    status: "active",
+    createdAt: pastDate(300),
+    updatedAt: now(),
+  });
+  usedEmails.add("sarah.johnson@techcorp.com");
+
   for (let i = 1; i < count; i++) {
     const firstName = randomElement(FIRST_NAMES);
     const lastName = randomElement(LAST_NAMES);
@@ -228,7 +480,13 @@ function generateUsers(count: number, companyIds: string[]): User[] {
 
 function generateProjects(count: number, userIds: string[]): Project[] {
   const projects: Project[] = [];
-  const statuses: Project["status"][] = ["planning", "in_progress", "on_hold", "completed", "cancelled"];
+  const statuses: Project["status"][] = [
+    "planning",
+    "in_progress",
+    "on_hold",
+    "completed",
+    "cancelled",
+  ];
 
   for (let i = 0; i < count; i++) {
     const status = randomElement(statuses);
@@ -241,11 +499,14 @@ function generateProjects(count: number, userIds: string[]): Project[] {
       description: `Project for ${randomElement(PROJECT_ACTIONS).toLowerCase()} of ${randomElement(PROJECT_PREFIXES).toLowerCase()} system.`,
       status,
       startDate: pastDate(startDaysAgo),
-      endDate: status === "completed" ? pastDate(startDaysAgo - durationDays) : futureDate(durationDays),
+      endDate:
+        status === "completed" ? pastDate(startDaysAgo - durationDays) : futureDate(durationDays),
       budget: randomNumber(10000, 500000),
       currency: "USD",
       managerId: randomElement(userIds),
-      teamMembers: [randomElement(userIds), randomElement(userIds)].filter((v, i, a) => a.indexOf(v) === i),
+      teamMembers: [randomElement(userIds), randomElement(userIds)].filter(
+        (v, i, a) => a.indexOf(v) === i
+      ),
       createdAt: pastDate(startDaysAgo + 10),
       updatedAt: now(),
     });
@@ -261,9 +522,20 @@ function generateMilestones(count: number, projectIds: string[]): Milestone[] {
   for (let i = 0; i < count; i++) {
     const status = randomElement(statuses);
     const milestoneNames = [
-      "Requirements Analysis", "Design Phase", "Development Sprint 1", "Development Sprint 2",
-      "Testing Phase", "User Acceptance Testing", "Deployment", "Go Live", "Post-Launch Support",
-      "Documentation", "Training", "Performance Optimization", "Security Review", "Final Review"
+      "Requirements Analysis",
+      "Design Phase",
+      "Development Sprint 1",
+      "Development Sprint 2",
+      "Testing Phase",
+      "User Acceptance Testing",
+      "Deployment",
+      "Go Live",
+      "Post-Launch Support",
+      "Documentation",
+      "Training",
+      "Performance Optimization",
+      "Security Review",
+      "Final Review",
     ];
 
     milestones.push({
@@ -283,7 +555,12 @@ function generateMilestones(count: number, projectIds: string[]): Milestone[] {
   return milestones;
 }
 
-function generateTasks(count: number, projectIds: string[], milestoneIds: string[], userIds: string[]): Task[] {
+function generateTasks(
+  count: number,
+  projectIds: string[],
+  milestoneIds: string[],
+  userIds: string[]
+): Task[] {
   const tasks: Task[] = [];
   const statuses: Task["status"][] = ["todo", "in_progress", "review", "done"];
   const priorities: Task["priority"][] = ["low", "medium", "high", "urgent"];
@@ -303,7 +580,10 @@ function generateTasks(count: number, projectIds: string[], milestoneIds: string
       assignedTo: Math.random() > 0.2 ? randomElement(userIds) : undefined,
       dueDate: randomDate(-14, 60),
       estimatedHours,
-      actualHours: status === "done" ? randomNumber(Math.floor(estimatedHours * 0.8), Math.floor(estimatedHours * 1.5)) : undefined,
+      actualHours:
+        status === "done"
+          ? randomNumber(Math.floor(estimatedHours * 0.8), Math.floor(estimatedHours * 1.5))
+          : undefined,
       createdAt: pastDate(randomNumber(1, 90)),
       updatedAt: now(),
     });
@@ -312,8 +592,15 @@ function generateTasks(count: number, projectIds: string[], milestoneIds: string
   return tasks;
 }
 
-function generateQuotes(count: number, companyIds: string[], userIds: string[]): { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[] {
-  const quotes: { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[] = [];
+function generateQuotes(
+  count: number,
+  companyIds: string[],
+  userIds: string[]
+): { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[] {
+  const quotes: {
+    quote: Omit<Quote, "items">;
+    items: Omit<Quote["items"][0], "id" | "quoteId">[];
+  }[] = [];
   const statuses: Quote["status"][] = ["draft", "sent", "accepted", "rejected", "expired"];
 
   for (let i = 0; i < count; i++) {
@@ -366,9 +653,24 @@ function generateQuotes(count: number, companyIds: string[], userIds: string[]):
   return quotes;
 }
 
-function generateInvoices(count: number, companyIds: string[], quoteIds: string[], userIds: string[]): { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[] {
-  const invoices: { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[] = [];
-  const statuses: Invoice["status"][] = ["draft", "sent", "paid", "partial", "overdue", "cancelled"];
+function generateInvoices(
+  count: number,
+  companyIds: string[],
+  quoteIds: string[],
+  userIds: string[]
+): { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[] {
+  const invoices: {
+    invoice: Omit<Invoice, "items">;
+    items: Omit<Invoice["items"][0], "id" | "invoiceId">[];
+  }[] = [];
+  const statuses: Invoice["status"][] = [
+    "draft",
+    "sent",
+    "paid",
+    "partial",
+    "overdue",
+    "cancelled",
+  ];
 
   for (let i = 0; i < count; i++) {
     const itemCount = randomNumber(1, 5);
@@ -396,7 +698,7 @@ function generateInvoices(count: number, companyIds: string[], quoteIds: string[
     const tax = subtotal * (taxRate / 100);
     const total = subtotal + tax;
     const status = randomElement(statuses);
-    
+
     let paidAmount = 0;
     if (status === "paid") paidAmount = total;
     else if (status === "partial") paidAmount = total * (randomNumber(20, 80) / 100);
@@ -427,13 +729,52 @@ function generateInvoices(count: number, companyIds: string[], quoteIds: string[
   return invoices;
 }
 
-function generateOrders(count: number, companyIds: string[], quoteIds: string[], invoiceIds: string[], userIds: string[]): { order: Omit<Order, "items">; items: Array<{ productName: string; description?: string | null; quantity: number; unitPrice: number; discount?: number; total: number }> }[] {
-  const orders: { order: Omit<Order, "items">; items: Array<{ productName: string; description?: string | null; quantity: number; unitPrice: number; discount?: number; total: number }> }[] = [];
-  const statuses: Order["status"][] = ["pending", "processing", "completed", "cancelled", "refunded"];
+function generateOrders(
+  count: number,
+  companyIds: string[],
+  quoteIds: string[],
+  invoiceIds: string[],
+  userIds: string[]
+): {
+  order: Omit<Order, "items">;
+  items: Array<{
+    productName: string;
+    description?: string | null;
+    quantity: number;
+    unitPrice: number;
+    discount?: number;
+    total: number;
+  }>;
+}[] {
+  const orders: {
+    order: Omit<Order, "items">;
+    items: Array<{
+      productName: string;
+      description?: string | null;
+      quantity: number;
+      unitPrice: number;
+      discount?: number;
+      total: number;
+    }>;
+  }[] = [];
+  const statuses: Order["status"][] = [
+    "pending",
+    "processing",
+    "completed",
+    "cancelled",
+    "refunded",
+  ];
 
   for (let i = 0; i < count; i++) {
     const itemCount = randomNumber(1, 5);
-    const items: Array<{ productName: string; description?: string | null; quantity: number; unitPrice: number; discount?: number; total: number }> = [];
+    const items: Array<{
+      productName: string;
+      description?: string | null;
+      quantity: number;
+      unitPrice: number;
+      discount?: number;
+      total: number;
+    }> = [];
     let subtotal = 0;
 
     for (let j = 0; j < itemCount; j++) {
@@ -464,7 +805,8 @@ function generateOrders(count: number, companyIds: string[], quoteIds: string[],
         orderNumber: `ORD-2025-${String(i + 1).padStart(5, "0")}`,
         companyId: randomElement(companyIds),
         quoteId: Math.random() > 0.5 && quoteIds.length > 0 ? randomElement(quoteIds) : undefined,
-        invoiceId: Math.random() > 0.5 && invoiceIds.length > 0 ? randomElement(invoiceIds) : undefined,
+        invoiceId:
+          Math.random() > 0.5 && invoiceIds.length > 0 ? randomElement(invoiceIds) : undefined,
         status,
         subtotal,
         tax,
@@ -482,8 +824,19 @@ function generateOrders(count: number, companyIds: string[], quoteIds: string[],
   return orders;
 }
 
-function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: string[], userIds: string[]): { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] {
-  const notes: { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[] = [];
+function generateDeliveryNotes(
+  count: number,
+  companyIds: string[],
+  invoiceIds: string[],
+  userIds: string[]
+): {
+  note: Omit<DeliveryNote, "items">;
+  items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[];
+}[] {
+  const notes: {
+    note: Omit<DeliveryNote, "items">;
+    items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[];
+  }[] = [];
   const statuses: DeliveryNote["status"][] = ["pending", "in_transit", "delivered", "returned"];
   const carriers = ["FedEx", "UPS", "DHL", "USPS", "Local Courier"];
 
@@ -511,7 +864,8 @@ function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: 
       note: {
         id: generateUUID(),
         deliveryNumber: `DEL-2025-${String(i + 1).padStart(5, "0")}`,
-        invoiceId: Math.random() > 0.3 && invoiceIds.length > 0 ? randomElement(invoiceIds) : undefined,
+        invoiceId:
+          Math.random() > 0.3 && invoiceIds.length > 0 ? randomElement(invoiceIds) : undefined,
         companyId: randomElement(companyIds),
         status,
         subtotal: 0,
@@ -521,7 +875,8 @@ function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: 
         shipDate: status !== "pending" ? pastDate(randomNumber(1, 30)) : undefined,
         deliveryDate: status === "delivered" ? pastDate(randomNumber(1, 14)) : undefined,
         shippingAddress: `${randomNumber(100, 9999)} ${randomElement(["Main St", "Oak Ave", "Park Blvd"])}, ${randomElement(CITIES)}`,
-        trackingNumber: status !== "pending" ? `TRK${randomNumber(100000000, 999999999)}` : undefined,
+        trackingNumber:
+          status !== "pending" ? `TRK${randomNumber(100000000, 999999999)}` : undefined,
         carrier: status !== "pending" ? randomElement(carriers) : undefined,
         notes: Math.random() > 0.6 ? `Delivery notes - reference ${i + 1}` : undefined,
         createdBy: randomElement(userIds),
@@ -537,7 +892,7 @@ function generateDeliveryNotes(count: number, companyIds: string[], invoiceIds: 
 
 function generateProductCategories(): ProductCategory[] {
   const categories: ProductCategory[] = [];
-  
+
   // Parent categories
   const parentCategories = [
     { name: "Software", description: "Software products and licenses" },
@@ -548,7 +903,7 @@ function generateProductCategories(): ProductCategory[] {
   ];
 
   const parentIds: string[] = [];
-  
+
   parentCategories.forEach((cat, i) => {
     const id = generateUUID();
     parentIds.push(id);
@@ -591,10 +946,10 @@ function generateProductCategories(): ProductCategory[] {
 
 function generateProducts(count: number, categoryIds: string[]): Product[] {
   const products: Product[] = [];
-  
+
   for (let i = 0; i < count; i++) {
     const basePrice = randomNumber(100, 50000);
-    
+
     products.push({
       id: generateUUID(),
       sku: `PRD-${String(i + 1).padStart(5, "0")}`,
@@ -608,9 +963,10 @@ function generateProducts(count: number, categoryIds: string[]): Product[] {
       minStockLevel: randomNumber(5, 20),
       unit: randomElement(["pcs", "license", "hour", "month", "year"]),
       taxRate: 0.2,
-      isService: ["hour", "month", "year"].includes(
-        ((products[products.length] as unknown) as { unit?: string })?.unit ?? "pcs"
-      ) || false,
+      isService:
+        ["hour", "month", "year"].includes(
+          (products[products.length] as unknown as { unit?: string })?.unit ?? "pcs"
+        ) || false,
       isActive: Math.random() > 0.1,
       createdAt: pastDate(randomNumber(30, 365)),
       updatedAt: now(),
@@ -622,7 +978,13 @@ function generateProducts(count: number, categoryIds: string[]): Product[] {
 
 function generatePayments(count: number, invoiceIds: string[], userIds: string[]): Payment[] {
   const payments: Payment[] = [];
-  const methods: Payment["paymentMethod"][] = ["bank_transfer", "credit_card", "cash", "check", "other"];
+  const methods: Payment["paymentMethod"][] = [
+    "bank_transfer",
+    "credit_card",
+    "cash",
+    "check",
+    "other",
+  ];
   const statuses: Payment["status"][] = ["completed", "pending", "failed", "refunded"];
 
   for (let i = 0; i < count; i++) {
@@ -649,26 +1011,86 @@ function generatePayments(count: number, invoiceIds: string[], userIds: string[]
 function generateNotifications(count: number, userIds: string[]): Notification[] {
   const notifications: Notification[] = [];
   const messages = [
-    { type: "invoice_created" as NotificationType, title: "New Invoice Created", message: "Invoice has been created and is ready for review." },
-    { type: "invoice_paid" as NotificationType, title: "Invoice Paid", message: "Payment has been received for your invoice." },
-    { type: "invoice_overdue" as NotificationType, title: "Invoice Overdue", message: "Invoice is overdue. Please follow up with the customer." },
-    { type: "quote_created" as NotificationType, title: "New Quote Created", message: "A new quote has been created for review." },
-    { type: "quote_accepted" as NotificationType, title: "Quote Accepted", message: "Your quote has been accepted by the customer." },
-    { type: "quote_rejected" as NotificationType, title: "Quote Rejected", message: "Unfortunately, your quote was rejected." },
-    { type: "project_created" as NotificationType, title: "New Project Started", message: "A new project has been created and assigned." },
-    { type: "project_completed" as NotificationType, title: "Project Completed", message: "Congratulations! The project has been completed." },
-    { type: "task_assigned" as NotificationType, title: "New Task Assigned", message: "You have been assigned a new task." },
-    { type: "task_completed" as NotificationType, title: "Task Completed", message: "A task has been marked as completed." },
-    { type: "task_overdue" as NotificationType, title: "Task Overdue", message: "A task is overdue and needs attention." },
-    { type: "deal_won" as NotificationType, title: "Deal Won!", message: "Congratulations! A deal has been won." },
-    { type: "info" as NotificationType, title: "System Update", message: "System maintenance scheduled for this weekend." },
-    { type: "warning" as NotificationType, title: "Action Required", message: "Your attention is required on a pending item." },
-    { type: "success" as NotificationType, title: "Success", message: "Operation completed successfully." },
+    {
+      type: "invoice_created" as NotificationType,
+      title: "New Invoice Created",
+      message: "Invoice has been created and is ready for review.",
+    },
+    {
+      type: "invoice_paid" as NotificationType,
+      title: "Invoice Paid",
+      message: "Payment has been received for your invoice.",
+    },
+    {
+      type: "invoice_overdue" as NotificationType,
+      title: "Invoice Overdue",
+      message: "Invoice is overdue. Please follow up with the customer.",
+    },
+    {
+      type: "quote_created" as NotificationType,
+      title: "New Quote Created",
+      message: "A new quote has been created for review.",
+    },
+    {
+      type: "quote_accepted" as NotificationType,
+      title: "Quote Accepted",
+      message: "Your quote has been accepted by the customer.",
+    },
+    {
+      type: "quote_rejected" as NotificationType,
+      title: "Quote Rejected",
+      message: "Unfortunately, your quote was rejected.",
+    },
+    {
+      type: "project_created" as NotificationType,
+      title: "New Project Started",
+      message: "A new project has been created and assigned.",
+    },
+    {
+      type: "project_completed" as NotificationType,
+      title: "Project Completed",
+      message: "Congratulations! The project has been completed.",
+    },
+    {
+      type: "task_assigned" as NotificationType,
+      title: "New Task Assigned",
+      message: "You have been assigned a new task.",
+    },
+    {
+      type: "task_completed" as NotificationType,
+      title: "Task Completed",
+      message: "A task has been marked as completed.",
+    },
+    {
+      type: "task_overdue" as NotificationType,
+      title: "Task Overdue",
+      message: "A task is overdue and needs attention.",
+    },
+    {
+      type: "deal_won" as NotificationType,
+      title: "Deal Won!",
+      message: "Congratulations! A deal has been won.",
+    },
+    {
+      type: "info" as NotificationType,
+      title: "System Update",
+      message: "System maintenance scheduled for this weekend.",
+    },
+    {
+      type: "warning" as NotificationType,
+      title: "Action Required",
+      message: "Your attention is required on a pending item.",
+    },
+    {
+      type: "success" as NotificationType,
+      title: "Success",
+      message: "Operation completed successfully.",
+    },
   ];
 
   for (let i = 0; i < count; i++) {
     const template = randomElement(messages);
-    
+
     notifications.push({
       id: generateUUID(),
       userId: randomElement(userIds),
@@ -676,7 +1098,10 @@ function generateNotifications(count: number, userIds: string[]): Notification[]
       channel: randomElement(["in_app", "email", "both"]) as "in_app" | "email" | "both",
       title: `${template.title} #${i + 1}`,
       message: template.message,
-      link: Math.random() > 0.5 ? `/dashboard/${randomElement(["invoices", "quotes", "projects", "tasks"])}` : undefined,
+      link:
+        Math.random() > 0.5
+          ? `/dashboard/${randomElement(["invoices", "quotes", "projects", "tasks"])}`
+          : undefined,
       isRead: Math.random() > 0.6,
       readAt: Math.random() > 0.6 ? pastDate(randomNumber(1, 14)) : undefined,
       emailSent: false,
@@ -692,22 +1117,22 @@ function generateNotifications(count: number, userIds: string[]): Notification[]
 // ============================================
 
 async function seedCompanies(companies: Company[]): Promise<string[]> {
-  console.log("📦 Seeding companies...");
+  logger.info("📦 Seeding companies...");
   const ids: string[] = [];
 
   for (const company of companies) {
     try {
       const existing = await companyQueries.findByName(company.name);
       if (existing) {
-        console.log(`  ⏭️  Company "${company.name}" already exists`);
+        logger.info(`  ⏭️  Company "${company.name}" already exists`);
         ids.push(existing.id);
       } else {
         const created = await companyQueries.createWithId(company);
-        console.log(`  ✅ Created company: ${created.name}`);
+        logger.info(`  ✅ Created company: ${created.name}`);
         ids.push(created.id);
       }
     } catch (error) {
-      console.error(`  ❌ Failed to create company ${company.name}:`, error);
+      logger.error(`  ❌ Failed to create company ${company.name}:`, error);
     }
   }
 
@@ -715,22 +1140,22 @@ async function seedCompanies(companies: Company[]): Promise<string[]> {
 }
 
 async function seedUsers(users: User[]): Promise<string[]> {
-  console.log("👥 Seeding users...");
+  logger.info("👥 Seeding users...");
   const ids: string[] = [];
 
   for (const user of users) {
     try {
       const existing = await userQueries.findByEmail(user.email);
       if (existing) {
-        console.log(`  ⏭️  User "${user.email}" already exists`);
+        logger.info(`  ⏭️  User "${user.email}" already exists`);
         ids.push(existing.id);
       } else {
         const created = await userQueries.createWithId(user);
-        console.log(`  ✅ Created user: ${created.firstName} ${created.lastName}`);
+        logger.info(`  ✅ Created user: ${created.firstName} ${created.lastName}`);
         ids.push(created.id);
       }
     } catch (error) {
-      console.error(`  ❌ Failed to create user ${user.email}:`, error);
+      logger.error(`  ❌ Failed to create user ${user.email}:`, error);
     }
   }
 
@@ -738,43 +1163,43 @@ async function seedUsers(users: User[]): Promise<string[]> {
 }
 
 async function seedAuthCredentials(): Promise<void> {
-  console.log("🔐 Seeding auth credentials...");
-  
+  logger.info("🔐 Seeding auth credentials...");
+
   const passwordHash = await Bun.password.hash(DEFAULT_SEED_PASSWORD, {
     algorithm: "bcrypt",
     cost: 12,
   });
-  
+
   const users = await db`SELECT id, email FROM users`;
-  
+
   for (const user of users) {
     try {
       const exists = await authQueries.credentialsExist(user.id as string);
       if (exists) {
-        console.log(`  ⏭️  Credentials for "${user.email}" already exist`);
+        logger.info(`  ⏭️  Credentials for "${user.email}" already exist`);
       } else {
         await authQueries.createCredentials(user.id as string, passwordHash);
-        console.log(`  ✅ Created credentials for: ${user.email}`);
+        logger.info(`  ✅ Created credentials for: ${user.email}`);
       }
     } catch (error) {
-      console.error(`  ❌ Failed to create credentials for ${user.email}:`, error);
+      logger.error(`  ❌ Failed to create credentials for ${user.email}:`, error);
     }
   }
-  
-  console.log(`\n  ℹ️  Default password for all seed users: "${DEFAULT_SEED_PASSWORD}"`);
+
+  logger.info(`\n  ℹ️  Default password for all seed users: "${DEFAULT_SEED_PASSWORD}"`);
 }
 
 async function seedProjects(projects: Project[]): Promise<string[]> {
-  console.log("📁 Seeding projects...");
+  logger.info("📁 Seeding projects...");
   const ids: string[] = [];
 
   for (const project of projects) {
     try {
       const created = await projectQueries.create(project);
-      console.log(`  ✅ Created project: ${created.name}`);
+      logger.info(`  ✅ Created project: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      console.error(`  ❌ Failed to create project ${project.name}:`, error);
+      logger.error(`  ❌ Failed to create project ${project.name}:`, error);
     }
   }
 
@@ -782,16 +1207,16 @@ async function seedProjects(projects: Project[]): Promise<string[]> {
 }
 
 async function seedMilestones(milestones: Milestone[]): Promise<string[]> {
-  console.log("🎯 Seeding milestones...");
+  logger.info("🎯 Seeding milestones...");
   const ids: string[] = [];
 
   for (const milestone of milestones) {
     try {
       const created = await milestoneQueries.create(milestone);
-      console.log(`  ✅ Created milestone: ${created.name}`);
+      logger.info(`  ✅ Created milestone: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      console.error(`  ❌ Failed to create milestone ${milestone.name}:`, error);
+      logger.error(`  ❌ Failed to create milestone ${milestone.name}:`, error);
     }
   }
 
@@ -799,98 +1224,124 @@ async function seedMilestones(milestones: Milestone[]): Promise<string[]> {
 }
 
 async function seedTasks(tasks: Task[]): Promise<void> {
-  console.log("✅ Seeding tasks...");
+  logger.info("✅ Seeding tasks...");
 
   for (const task of tasks) {
     try {
       const created = await taskQueries.create(task);
-      console.log(`  ✅ Created task: ${created.title}`);
+      logger.info(`  ✅ Created task: ${created.title}`);
     } catch (error) {
-      console.error(`  ❌ Failed to create task ${task.title}:`, error);
+      logger.error(`  ❌ Failed to create task ${task.title}:`, error);
     }
   }
 }
 
-async function seedQuotes(quotes: { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[]): Promise<string[]> {
-  console.log("📝 Seeding quotes...");
+async function seedQuotes(
+  quotes: { quote: Omit<Quote, "items">; items: Omit<Quote["items"][0], "id" | "quoteId">[] }[]
+): Promise<string[]> {
+  logger.info("📝 Seeding quotes...");
   const ids: string[] = [];
 
   for (const { quote, items } of quotes) {
     try {
       const created = await quoteQueries.create(quote, items);
-      console.log(`  ✅ Created quote: ${created.quoteNumber}`);
+      logger.info(`  ✅ Created quote: ${created.quoteNumber}`);
       ids.push(created.id);
     } catch (error: unknown) {
       const e = (error as { message?: string; code?: string; detail?: string }) || {};
-      console.error(`  ❌ Failed to create quote ${quote.quoteNumber}: ${e.message || error}`);
-      if (e.code) console.error(`     Error code: ${e.code}`);
-      if (e.detail) console.error(`     Detail: ${e.detail}`);
+      logger.error(`  ❌ Failed to create quote ${quote.quoteNumber}: ${e.message || error}`);
+      if (e.code) logger.error(`     Error code: ${e.code}`);
+      if (e.detail) logger.error(`     Detail: ${e.detail}`);
     }
   }
 
   return ids;
 }
 
-async function seedInvoices(invoices: { invoice: Omit<Invoice, "items">; items: Omit<Invoice["items"][0], "id" | "invoiceId">[] }[]): Promise<string[]> {
-  console.log("💵 Seeding invoices...");
+async function seedInvoices(
+  invoices: {
+    invoice: Omit<Invoice, "items">;
+    items: Omit<Invoice["items"][0], "id" | "invoiceId">[];
+  }[]
+): Promise<string[]> {
+  logger.info("💵 Seeding invoices...");
   const ids: string[] = [];
 
   for (const { invoice, items } of invoices) {
     try {
       const created = await invoiceQueries.create(invoice, items);
-      console.log(`  ✅ Created invoice: ${created.invoiceNumber}`);
+      logger.info(`  ✅ Created invoice: ${created.invoiceNumber}`);
       ids.push(created.id);
     } catch (error) {
-      console.error(`  ❌ Failed to create invoice ${invoice.invoiceNumber}:`, error);
+      logger.error(`  ❌ Failed to create invoice ${invoice.invoiceNumber}:`, error);
     }
   }
 
   return ids;
 }
 
-async function seedOrders(orders: { order: Omit<Order, "items">; items: Array<{ productName: string; description?: string | null; quantity: number; unitPrice: number; discount?: number; total: number }> }[]): Promise<string[]> {
-  console.log("🛒 Seeding orders...");
+async function seedOrders(
+  orders: {
+    order: Omit<Order, "items">;
+    items: Array<{
+      productName: string;
+      description?: string | null;
+      quantity: number;
+      unitPrice: number;
+      discount?: number;
+      total: number;
+    }>;
+  }[]
+): Promise<string[]> {
+  logger.info("🛒 Seeding orders...");
   const ids: string[] = [];
 
   for (const { order, items } of orders) {
     try {
       const result = await orderQueries.create(order, items);
       if (result.success && result.data) {
-        console.log(`  ✅ Created order: ${result.data.orderNumber}`);
+        logger.info(`  ✅ Created order: ${result.data.orderNumber}`);
         ids.push(result.data.id);
       } else {
-        console.error(`  ❌ Failed to create order ${order.orderNumber}: ${result.error?.message || "Unknown error"}`);
+        logger.error(
+          `  ❌ Failed to create order ${order.orderNumber}: ${result.error?.message || "Unknown error"}`
+        );
       }
     } catch (error: unknown) {
       const e = (error as { message?: string; code?: string; detail?: string }) || {};
-      console.error(`  ❌ Failed to create order ${order.orderNumber}: ${e.message || error}`);
-      if (e.code) console.error(`     Error code: ${e.code}`);
-      if (e.detail) console.error(`     Detail: ${e.detail}`);
+      logger.error(`  ❌ Failed to create order ${order.orderNumber}: ${e.message || error}`);
+      if (e.code) logger.error(`     Error code: ${e.code}`);
+      if (e.detail) logger.error(`     Detail: ${e.detail}`);
     }
   }
 
   return ids;
 }
 
-async function seedDeliveryNotes(notes: { note: Omit<DeliveryNote, "items">; items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[] }[]): Promise<void> {
-  console.log("📦 Seeding delivery notes...");
+async function seedDeliveryNotes(
+  notes: {
+    note: Omit<DeliveryNote, "items">;
+    items: Omit<DeliveryNote["items"][0], "id" | "deliveryNoteId">[];
+  }[]
+): Promise<void> {
+  logger.info("📦 Seeding delivery notes...");
 
   for (const { note, items } of notes) {
     try {
       const created = await deliveryNoteQueries.create(note, items);
-      console.log(`  ✅ Created delivery note: ${created.deliveryNumber}`);
+      logger.info(`  ✅ Created delivery note: ${created.deliveryNumber}`);
     } catch (error) {
-      console.error(`  ❌ Failed to create delivery note ${note.deliveryNumber}:`, error);
+      logger.error(`  ❌ Failed to create delivery note ${note.deliveryNumber}:`, error);
     }
   }
 }
 
 async function seedProductCategories(categories: ProductCategory[]): Promise<string[]> {
-  console.log("📂 Seeding product categories...");
+  logger.info("📂 Seeding product categories...");
   const ids: string[] = [];
 
   // First seed parent categories (no parentId)
-  const parents = categories.filter(c => !c.parentId);
+  const parents = categories.filter((c) => !c.parentId);
   for (const category of parents) {
     try {
       const created = await productCategoryQueries.create({
@@ -899,31 +1350,33 @@ async function seedProductCategories(categories: ProductCategory[]): Promise<str
         parentId: undefined,
         isActive: category.isActive,
       });
-      console.log(`  ✅ Created category: ${created.name}`);
+      logger.info(`  ✅ Created category: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      console.error(`  ❌ Failed to create category ${category.name}:`, error);
+      logger.error(`  ❌ Failed to create category ${category.name}:`, error);
     }
   }
 
   // Then seed child categories
-  const children = categories.filter(c => c.parentId);
+  const children = categories.filter((c) => c.parentId);
   for (const category of children) {
     try {
       // Find parent ID from our created categories
-      const parentIndex = parents.findIndex(p => categories.find(c => c.id === category.parentId)?.name === p.name);
+      const parentIndex = parents.findIndex(
+        (p) => categories.find((c) => c.id === category.parentId)?.name === p.name
+      );
       const parentId = parentIndex >= 0 ? ids[parentIndex] : undefined;
-      
+
       const created = await productCategoryQueries.create({
         name: category.name,
         description: category.description,
         parentId,
         isActive: category.isActive,
       });
-      console.log(`  ✅ Created category: ${created.name}`);
+      logger.info(`  ✅ Created category: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      console.error(`  ❌ Failed to create category ${category.name}:`, error);
+      logger.error(`  ❌ Failed to create category ${category.name}:`, error);
     }
   }
 
@@ -931,7 +1384,7 @@ async function seedProductCategories(categories: ProductCategory[]): Promise<str
 }
 
 async function seedProducts(products: Product[], categoryIds: string[]): Promise<string[]> {
-  console.log("🛍️  Seeding products...");
+  logger.info("🛍️  Seeding products...");
   const ids: string[] = [];
 
   for (const product of products) {
@@ -941,7 +1394,7 @@ async function seedProducts(products: Product[], categoryIds: string[]): Promise
         ...product,
         categoryId: randomElement(categoryIds),
       };
-      
+
       const created = await productQueries.create({
         sku: productData.sku,
         name: productData.name,
@@ -957,10 +1410,10 @@ async function seedProducts(products: Product[], categoryIds: string[]): Promise
         isService: ["hour", "month", "year"].includes(productData.unit),
         isActive: productData.isActive,
       });
-      console.log(`  ✅ Created product: ${created.name}`);
+      logger.info(`  ✅ Created product: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      console.error(`  ❌ Failed to create product ${product.name}:`, error);
+      logger.error(`  ❌ Failed to create product ${product.name}:`, error);
     }
   }
 
@@ -968,38 +1421,43 @@ async function seedProducts(products: Product[], categoryIds: string[]): Promise
 }
 
 async function seedPayments(payments: Payment[]): Promise<void> {
-  console.log("💳 Seeding payments...");
+  logger.info("💳 Seeding payments...");
 
   for (const payment of payments) {
     try {
       if (!payment.invoiceId) {
-        console.log(`  ⏭️  Skipping payment ${payment.reference}: No invoice ID`);
+        logger.info(`  ⏭️  Skipping payment ${payment.reference}: No invoice ID`);
         continue;
       }
       if (!payment.recordedBy) {
-        console.log(`  ⏭️  Skipping payment ${payment.reference}: No recorded by user`);
+        logger.info(`  ⏭️  Skipping payment ${payment.reference}: No recorded by user`);
         continue;
       }
-      const created = await paymentQueries.create({
-        invoiceId: payment.invoiceId,
-        amount: payment.amount,
-        currency: payment.currency,
-        paymentMethod: payment.paymentMethod,
-        paymentDate: payment.paymentDate,
-        reference: payment.reference,
-        transactionId: payment.transactionId,
-        notes: payment.notes,
-      }, payment.recordedBy);
-      console.log(`  ✅ Created payment: ${created.reference}`);
+      const created = await paymentQueries.create(
+        {
+          invoiceId: payment.invoiceId,
+          amount: payment.amount,
+          currency: payment.currency,
+          paymentMethod: payment.paymentMethod,
+          paymentDate: payment.paymentDate,
+          reference: payment.reference,
+          transactionId: payment.transactionId,
+          notes: payment.notes,
+        },
+        payment.recordedBy
+      );
+      logger.info(`  ✅ Created payment: ${created.reference}`);
     } catch (error: any) {
-      console.error(`  ❌ Failed to create payment ${payment.reference}: ${error?.message || error}`);
-      if (error?.code) console.error(`     Error code: ${error.code}`);
+      logger.error(
+        `  ❌ Failed to create payment ${payment.reference}: ${error?.message || error}`
+      );
+      if (error?.code) logger.error(`     Error code: ${error.code}`);
     }
   }
 }
 
 async function seedNotifications(notifications: Notification[]): Promise<void> {
-  console.log("🔔 Seeding notifications...");
+  logger.info("🔔 Seeding notifications...");
 
   for (const notification of notifications) {
     try {
@@ -1013,9 +1471,9 @@ async function seedNotifications(notifications: Notification[]): Promise<void> {
         entityType: notification.entityType,
         entityId: notification.entityId,
       });
-      console.log(`  ✅ Created notification: ${created.title}`);
+      logger.info(`  ✅ Created notification: ${created.title}`);
     } catch (error) {
-      console.error(`  ❌ Failed to create notification ${notification.title}:`, error);
+      logger.error(`  ❌ Failed to create notification ${notification.title}:`, error);
     }
   }
 }
@@ -1025,24 +1483,33 @@ async function seedNotifications(notifications: Notification[]): Promise<void> {
 // ============================================
 
 export async function seed(): Promise<void> {
-  console.log("\n🌱 Starting database seed with 50 objects per module...\n");
+  logger.info("\n🌱 Starting database seed with 50 objects per module...\n");
 
   try {
     // Generate all data
     const companiesData = generateCompanies(50);
-    
+    // Ensure TechCorp exists as the first company for predictable demo accounts
+    companiesData.unshift({
+      id: generateUUID(),
+      name: "TechCorp",
+      industry: "Technology",
+      address: "123 Tech Street, Beograd",
+      createdAt: pastDate(365),
+      updatedAt: now(),
+    });
+
     // Seed companies first
     const companyIds = await seedCompanies(companiesData);
-    console.log(`\n  📊 Companies seeded: ${companyIds.length}\n`);
+    logger.info(`\n  📊 Companies seeded: ${companyIds.length}\n`);
 
     // Generate and seed users
     const usersData = generateUsers(50, companyIds);
     const userIds = await seedUsers(usersData);
-    console.log(`\n  📊 Users seeded: ${userIds.length}\n`);
+    logger.info(`\n  📊 Users seeded: ${userIds.length}\n`);
 
     // Seed auth credentials
     await seedAuthCredentials();
-    console.log("");
+    logger.info("");
 
     // Get all user IDs from database
     const dbUsers = await db`SELECT id FROM users ORDER BY created_at ASC`;
@@ -1051,27 +1518,27 @@ export async function seed(): Promise<void> {
     // Generate and seed projects
     const projectsData = generateProjects(50, allUserIds);
     const projectIds = await seedProjects(projectsData);
-    console.log(`\n  📊 Projects seeded: ${projectIds.length}\n`);
+    logger.info(`\n  📊 Projects seeded: ${projectIds.length}\n`);
 
     // Generate and seed milestones
     const milestonesData = generateMilestones(50, projectIds);
     const milestoneIds = await seedMilestones(milestonesData);
-    console.log(`\n  📊 Milestones seeded: ${milestoneIds.length}\n`);
+    logger.info(`\n  📊 Milestones seeded: ${milestoneIds.length}\n`);
 
     // Generate and seed tasks
     const tasksData = generateTasks(50, projectIds, milestoneIds, allUserIds);
     await seedTasks(tasksData);
-    console.log(`\n  📊 Tasks seeded: 50\n`);
+    logger.info(`\n  📊 Tasks seeded: 50\n`);
 
     // Generate and seed quotes
     const quotesData = generateQuotes(50, companyIds, allUserIds);
     const quoteIds = await seedQuotes(quotesData);
-    console.log(`\n  📊 Quotes seeded: ${quoteIds.length}\n`);
+    logger.info(`\n  📊 Quotes seeded: ${quoteIds.length}\n`);
 
     // Generate and seed invoices
     const invoicesData = generateInvoices(50, companyIds, quoteIds, allUserIds);
     const invoiceIds = await seedInvoices(invoicesData);
-    console.log(`\n  📊 Invoices seeded: ${invoiceIds.length}\n`);
+    logger.info(`\n  📊 Invoices seeded: ${invoiceIds.length}\n`);
 
     // Get companies that have users (for orders to be visible)
     // Use the same companyIds that were used for users to ensure orders are visible
@@ -1080,37 +1547,43 @@ export async function seed(): Promise<void> {
       SELECT DISTINCT company_id FROM users WHERE company_id IS NOT NULL
     `;
     const companyIdsWithUsers = companiesWithUsers.map((row: any) => row.company_id as string);
-    
+
     // Generate and seed orders only for companies that have users
     // This ensures orders will be visible when users log in
-    const ordersData = generateOrders(50, companyIdsWithUsers.length > 0 ? companyIdsWithUsers : companyIds, quoteIds, invoiceIds, allUserIds);
+    const ordersData = generateOrders(
+      50,
+      companyIdsWithUsers.length > 0 ? companyIdsWithUsers : companyIds,
+      quoteIds,
+      invoiceIds,
+      allUserIds
+    );
     const orderIds = await seedOrders(ordersData);
-    console.log(`\n  📊 Orders seeded: ${orderIds.length}\n`);
+    logger.info(`\n  📊 Orders seeded: ${orderIds.length}\n`);
 
     // Generate and seed delivery notes
     const deliveryNotesData = generateDeliveryNotes(50, companyIds, invoiceIds, allUserIds);
     await seedDeliveryNotes(deliveryNotesData);
-    console.log(`\n  📊 Delivery Notes seeded: 50\n`);
+    logger.info(`\n  📊 Delivery Notes seeded: 50\n`);
 
     // Generate and seed product categories
     const categoriesData = generateProductCategories();
     const categoryIds = await seedProductCategories(categoriesData);
-    console.log(`\n  📊 Product Categories seeded: ${categoryIds.length}\n`);
+    logger.info(`\n  📊 Product Categories seeded: ${categoryIds.length}\n`);
 
     // Generate and seed products
     const productsData = generateProducts(50, categoryIds);
     await seedProducts(productsData, categoryIds);
-    console.log(`\n  📊 Products seeded: 50\n`);
+    logger.info(`\n  📊 Products seeded: 50\n`);
 
     // Generate and seed payments
     const paymentsData = generatePayments(50, invoiceIds, allUserIds);
     await seedPayments(paymentsData);
-    console.log(`\n  📊 Payments seeded: 50\n`);
+    logger.info(`\n  📊 Payments seeded: 50\n`);
 
     // Generate and seed notifications
     const notificationsData = generateNotifications(50, allUserIds);
     await seedNotifications(notificationsData);
-    console.log(`\n  📊 Notifications seeded: 50\n`);
+    logger.info(`\n  📊 Notifications seeded: 50\n`);
 
     // Summary
     const companyCount = await companyQueries.count();
@@ -1127,39 +1600,39 @@ export async function seed(): Promise<void> {
     const paymentCount = await db`SELECT COUNT(*) FROM payments`;
     const notificationCount = await db`SELECT COUNT(*) FROM notifications`;
 
-    console.log("\n📊 Final Seed Summary:");
-    console.log("═".repeat(40));
-    console.log(`   Companies:          ${companyCount}`);
-    console.log(`   Users:              ${userCount}`);
-    console.log(`   Projects:           ${parseInt(projectCount[0].count as string, 10)}`);
-    console.log(`   Tasks:              ${taskCount}`);
-    console.log(`   Milestones:         ${milestoneCount}`);
-    console.log(`   Quotes:             ${quoteCount}`);
-    console.log(`   Invoices:           ${invoiceCount}`);
-    console.log(`   Orders:             ${parseInt(orderCount[0].count as string, 10)}`);
-    console.log(`   Delivery Notes:     ${deliveryCount}`);
-    console.log(`   Product Categories: ${parseInt(categoryCount[0].count as string, 10)}`);
-    console.log(`   Products:           ${parseInt(productCount[0].count as string, 10)}`);
-    console.log(`   Payments:           ${parseInt(paymentCount[0].count as string, 10)}`);
-    console.log(`   Notifications:      ${parseInt(notificationCount[0].count as string, 10)}`);
-    console.log("═".repeat(40));
-    console.log("\n✅ Database seeding completed!\n");
+    logger.info("\n📊 Final Seed Summary:");
+    logger.info("═".repeat(40));
+    logger.info(`   Companies:          ${companyCount}`);
+    logger.info(`   Users:              ${userCount}`);
+    logger.info(`   Projects:           ${parseInt(projectCount[0].count as string, 10)}`);
+    logger.info(`   Tasks:              ${taskCount}`);
+    logger.info(`   Milestones:         ${milestoneCount}`);
+    logger.info(`   Quotes:             ${quoteCount}`);
+    logger.info(`   Invoices:           ${invoiceCount}`);
+    logger.info(`   Orders:             ${parseInt(orderCount[0].count as string, 10)}`);
+    logger.info(`   Delivery Notes:     ${deliveryCount}`);
+    logger.info(`   Product Categories: ${parseInt(categoryCount[0].count as string, 10)}`);
+    logger.info(`   Products:           ${parseInt(productCount[0].count as string, 10)}`);
+    logger.info(`   Payments:           ${parseInt(paymentCount[0].count as string, 10)}`);
+    logger.info(`   Notifications:      ${parseInt(notificationCount[0].count as string, 10)}`);
+    logger.info("═".repeat(40));
+    logger.info("\n✅ Database seeding completed!\n");
   } catch (error) {
-    console.error("\n❌ Seed failed:", error);
+    logger.error("\n❌ Seed failed:", error);
     throw error;
   }
 }
 
 export async function unseed(): Promise<void> {
-  console.log("\n🧹 Clearing all data...\n");
+  logger.info("\n🧹 Clearing all data...\n");
 
   const safeDelete = async (table: string, name: string) => {
     try {
       await db.unsafe(`DELETE FROM ${table}`);
-      console.log(`  ✅ Deleted ${name}`);
+      logger.info(`  ✅ Deleted ${name}`);
     } catch (error: any) {
       if (error?.code === "42P01") {
-        console.log(`  ⏭️  Table ${table} does not exist, skipping`);
+        logger.info(`  ⏭️  Table ${table} does not exist, skipping`);
       } else {
         throw error;
       }
@@ -1188,9 +1661,9 @@ export async function unseed(): Promise<void> {
     await safeDelete("users", "users");
     await safeDelete("companies", "companies");
 
-    console.log("\n✅ All data cleared!\n");
+    logger.info("\n✅ All data cleared!\n");
   } catch (error) {
-    console.error("\n❌ Unseed failed:", error);
+    logger.error("\n❌ Unseed failed:", error);
     throw error;
   }
 }
@@ -1213,14 +1686,14 @@ if (import.meta.main) {
         await seed();
         break;
       default:
-        console.log(`Unknown command: ${command}`);
-        console.log("Available commands: seed, unseed, clear, reseed");
+        logger.info(`Unknown command: ${command}`);
+        logger.info("Available commands: seed, unseed, clear, reseed");
         process.exit(1);
     }
     await db.end();
     process.exit(0);
   } catch (error) {
-    console.error("Seed error:", error);
+    logger.error("Seed error:", error);
     await db.end();
     process.exit(1);
   }

@@ -3,26 +3,26 @@
 import type { LineItem } from "@/types/invoice";
 
 export interface CalculateTotalParams {
-	lineItems: LineItem[];
-	taxRate?: number;
-	vatRate?: number;
-	includeVat?: boolean;
-	includeTax?: boolean;
+  lineItems: LineItem[];
+  taxRate?: number;
+  vatRate?: number;
+  includeVat?: boolean;
+  includeTax?: boolean;
 }
 
 export interface CalculateTotalResult {
-	/** Sum of all line items (before any item discounts) - Amount before discount */
-	grossTotal: number;
-	/** Amount after all line item discounts are applied - Subtotal */
-	subTotal: number;
-	/** Final total including VAT and tax */
-	total: number;
-	/** VAT amount (calculated on subtotal after discounts) */
-	vat: number;
-	/** Tax amount (calculated on subtotal after discounts) */
-	tax: number;
-	/** Total discount amount (sum of all line item discounts) */
-	discountAmount: number;
+  /** Sum of all line items (before any item discounts) - Amount before discount */
+  grossTotal: number;
+  /** Amount after all line item discounts are applied - Subtotal */
+  subTotal: number;
+  /** Final total including VAT and tax */
+  total: number;
+  /** VAT amount (calculated on subtotal after discounts) */
+  vat: number;
+  /** Tax amount (calculated on subtotal after discounts) */
+  tax: number;
+  /** Total discount amount (sum of all line item discounts) */
+  discountAmount: number;
 }
 
 /**
@@ -43,150 +43,148 @@ export interface CalculateTotalResult {
  * 7. total = subTotal + vat + tax
  */
 export function calculateTotal({
-	lineItems,
-	taxRate = 0,
-	vatRate = 0,
-	includeVat = true,
-	includeTax = false,
+  lineItems,
+  taxRate = 0,
+  vatRate = 0,
+  includeVat = true,
+  includeTax = false,
 }: CalculateTotalParams): CalculateTotalResult {
-	const safeLineItems = lineItems || [];
-	const safeTaxRate = taxRate ?? 0;
-	const safeVatRate = vatRate ?? 0;
+  const safeLineItems = lineItems || [];
+  const safeTaxRate = taxRate ?? 0;
+  const safeVatRate = vatRate ?? 0;
 
-	let grossTotal = 0;
-	let totalDiscount = 0;
-	let subTotal = 0;
+  let grossTotal = 0;
+  let totalDiscount = 0;
+  let subTotal = 0;
 
-	// Calculate totals from line items
-	for (const item of safeLineItems) {
-		if (!item) continue;
+  // Calculate totals from line items
+  for (const item of safeLineItems) {
+    if (!item) continue;
 
-		const safePrice = item.price ?? 0;
-		const safeQuantity = item.quantity ?? 0;
-		const itemDiscountPercent = item.discount ?? 0;
+    const safePrice = Number.isNaN(item.price) ? 0 : (item.price ?? 0);
+    const safeQuantity = Number.isNaN(item.quantity) ? 0 : (item.quantity ?? 0);
+    const itemDiscountPercent = Number.isNaN(item.discount) ? 0 : (item.discount ?? 0);
 
-		// Line total before discount
-		const lineTotal = safePrice * safeQuantity;
-		grossTotal += lineTotal;
+    // Line total before discount
+    const lineTotal = safePrice * safeQuantity;
+    grossTotal += lineTotal;
 
-		// Calculate item discount amount
-		const lineDiscountAmount = lineTotal * (itemDiscountPercent / 100);
-		totalDiscount += lineDiscountAmount;
+    // Calculate item discount amount
+    const lineDiscountAmount = lineTotal * (itemDiscountPercent / 100);
+    totalDiscount += lineDiscountAmount;
 
-		// Line net after discount
-		const lineNet = lineTotal - lineDiscountAmount;
-		subTotal += lineNet;
-	}
+    // Line net after discount
+    const lineNet = lineTotal - lineDiscountAmount;
+    subTotal += lineNet;
+  }
 
-	// Calculate VAT on subtotal (after all discounts)
-	const totalVAT = includeVat ? (subTotal * safeVatRate) / 100 : 0;
+  // Calculate VAT on subtotal (after all discounts)
+  const totalVAT = includeVat ? (subTotal * safeVatRate) / 100 : 0;
 
-	// Calculate tax on subtotal
-	const tax = includeTax ? (subTotal * safeTaxRate) / 100 : 0;
+  // Calculate tax on subtotal
+  const tax = includeTax ? (subTotal * safeTaxRate) / 100 : 0;
 
-	// Calculate final total
-	const total = subTotal + totalVAT + tax;
+  // Calculate final total
+  const total = subTotal + totalVAT + tax;
 
-	return {
-		grossTotal,
-		subTotal,
-		total,
-		vat: totalVAT,
-		tax,
-		discountAmount: totalDiscount,
-	};
+  return {
+    grossTotal,
+    subTotal,
+    total,
+    vat: totalVAT,
+    tax,
+    discountAmount: totalDiscount,
+  };
 }
 
 /**
  * Calculate total for a single line item
  */
 export function calculateLineItemTotal({
-	price = 0,
-	quantity = 0,
+  price = 0,
+  quantity = 0,
 }: {
-	price?: number;
-	quantity?: number;
+  price?: number;
+  quantity?: number;
 }): number {
-	// Handle cases where undefined is explicitly passed
-	const safePrice = price ?? 0;
-	const safeQuantity = quantity ?? 0;
+  // Handle cases where undefined is explicitly passed
+  const safePrice = price ?? 0;
+  const safeQuantity = quantity ?? 0;
 
-	// Calculate and return total price
-	return safePrice * safeQuantity;
+  // Calculate and return total price
+  return safePrice * safeQuantity;
 }
 
 /**
  * Format amount with currency
  */
 export function formatInvoiceAmount({
-	amount,
-	currency = "EUR",
-	locale = "sr-RS",
-	maximumFractionDigits = 2,
+  amount,
+  currency = "EUR",
+  locale = "sr-RS",
+  maximumFractionDigits = 2,
 }: {
-	amount: number;
-	currency?: string;
-	locale?: string;
-	maximumFractionDigits?: number;
+  amount: number;
+  currency?: string;
+  locale?: string;
+  maximumFractionDigits?: number;
 }): string {
-	return new Intl.NumberFormat(locale, {
-		style: "currency",
-		currency,
-		maximumFractionDigits,
-		minimumFractionDigits: maximumFractionDigits,
-	}).format(amount);
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    maximumFractionDigits,
+    minimumFractionDigits: maximumFractionDigits,
+  }).format(amount);
 }
 
 /**
  * Format number without currency symbol
  */
 export function formatNumber({
-	value,
-	locale = "sr-RS",
-	maximumFractionDigits = 2,
+  value,
+  locale = "sr-RS",
+  maximumFractionDigits = 2,
 }: {
-	value: number;
-	locale?: string;
-	maximumFractionDigits?: number;
+  value: number;
+  locale?: string;
+  maximumFractionDigits?: number;
 }): string {
-	return new Intl.NumberFormat(locale, {
-		maximumFractionDigits,
-		minimumFractionDigits: maximumFractionDigits,
-	}).format(value);
+  return new Intl.NumberFormat(locale, {
+    maximumFractionDigits,
+    minimumFractionDigits: maximumFractionDigits,
+  }).format(value);
 }
 
 /**
  * Parse currency string to number
  */
 export function parseCurrencyString(value: string): number {
-	// Remove all non-numeric characters except decimal point and minus
-	const cleaned = value.replace(/[^\d.,-]/g, "").replace(",", ".");
-	const parsed = parseFloat(cleaned);
-	return Number.isNaN(parsed) ? 0 : parsed;
+  // Remove all non-numeric characters except decimal point and minus
+  const cleaned = value.replace(/[^\d.,-]/g, "").replace(",", ".");
+  const parsed = parseFloat(cleaned);
+  return Number.isNaN(parsed) ? 0 : parsed;
 }
 
 /**
  * Get currency symbol
  */
 export function getCurrencySymbol(currency: string, locale = "sr-RS"): string {
-	const formatter = new Intl.NumberFormat(locale, {
-		style: "currency",
-		currency,
-		currencyDisplay: "symbol",
-	});
+  const formatter = new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    currencyDisplay: "symbol",
+  });
 
-	const parts = formatter.formatToParts(0);
-	const symbolPart = parts.find((part) => part.type === "currency");
-	return symbolPart?.value || currency;
+  const parts = formatter.formatToParts(0);
+  const symbolPart = parts.find((part) => part.type === "currency");
+  return symbolPart?.value || currency;
 }
 
 /**
  * Validate line items have required fields
  */
 export function validateLineItems(lineItems: LineItem[]): boolean {
-	if (!lineItems || lineItems.length === 0) return false;
+  if (!lineItems || lineItems.length === 0) return false;
 
-	return lineItems.some(
-		(item) => item.name && (item.quantity ?? 0) > 0 && (item.price ?? 0) > 0,
-	);
+  return lineItems.some((item) => item.name && (item.quantity ?? 0) > 0 && (item.price ?? 0) > 0);
 }

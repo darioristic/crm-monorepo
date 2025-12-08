@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -24,8 +23,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -35,8 +32,10 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
+import { logger } from '@/lib/logger';
   FileText,
   Save,
   Loader2,
@@ -142,7 +141,7 @@ const locales = [
   { value: "fr-FR", label: "French (Français)" },
 ];
 
-const timezones = [
+const _timezones = [
   { value: "Europe/Belgrade", label: "Belgrade (CET)" },
   { value: "Europe/London", label: "London (GMT)" },
   { value: "Europe/Paris", label: "Paris (CET)" },
@@ -209,7 +208,7 @@ export default function InvoiceTemplateSettingsPage() {
           }
         }
       } catch (error) {
-        console.error("Failed to load template:", error);
+        logger.error("Failed to load template:", error);
       } finally {
         setIsLoading(false);
       }
@@ -237,7 +236,7 @@ export default function InvoiceTemplateSettingsPage() {
       } else {
         throw new Error("Failed to save template");
       }
-    } catch (error) {
+    } catch (_error) {
       toast.error("Failed to save invoice template");
     } finally {
       setIsSaving(false);

@@ -35,10 +35,36 @@ const ALLOWED_SORT_COLUMNS: Record<string, string[]> = {
   deals: ["created_at", "updated_at", "title", "value", "stage", "priority", "probability"],
   projects: ["created_at", "updated_at", "name", "status", "start_date", "end_date", "budget"],
   tasks: ["created_at", "updated_at", "title", "status", "priority", "due_date"],
-  quotes: ["created_at", "updated_at", "quote_number", "status", "issue_date", "valid_until", "total"],
-  invoices: ["created_at", "updated_at", "invoice_number", "status", "issue_date", "due_date", "total"],
+  quotes: [
+    "created_at",
+    "updated_at",
+    "quote_number",
+    "status",
+    "issue_date",
+    "valid_until",
+    "total",
+  ],
+  invoices: [
+    "created_at",
+    "updated_at",
+    "invoice_number",
+    "status",
+    "issue_date",
+    "due_date",
+    "total",
+    "gross_total",
+  ],
   orders: ["created_at", "updated_at", "order_number", "status", "total", "subtotal", "tax"],
-  delivery_notes: ["created_at", "updated_at", "delivery_number", "status", "ship_date", "delivery_date"],
+  delivery_notes: [
+    "created_at",
+    "updated_at",
+    "delivery_number",
+    "status",
+    "ship_date",
+    "delivery_date",
+    "subtotal",
+    "total",
+  ],
   milestones: ["created_at", "updated_at", "name", "status", "due_date"],
   products: ["created_at", "updated_at", "name", "sku", "price", "stock_quantity"],
   product_categories: ["created_at", "updated_at", "name", "sort_order"],
@@ -200,8 +226,9 @@ export class SafeQueryBuilder {
     const allowedColumns = ALLOWED_SORT_COLUMNS[this.table] || ["created_at"];
     const defaultColumn = "created_at";
 
-    // Validiraj sortBy kolonu
-    const safeColumn = sortBy && allowedColumns.includes(sortBy) ? sortBy : defaultColumn;
+    // Convert potential camelCase to snake_case for validation
+    const candidate = sortBy ? toSnakeCase(sortBy) : undefined;
+    const safeColumn = candidate && allowedColumns.includes(candidate) ? candidate : defaultColumn;
 
     // Validiraj sortOrder
     const safeOrder = sortOrder === "asc" ? "ASC" : "DESC";
@@ -212,7 +239,10 @@ export class SafeQueryBuilder {
   /**
    * Gradi LIMIT/OFFSET klauzulu
    */
-  buildPaginationClause(page: number, pageSize: number): { clause: string; values: [number, number] } {
+  buildPaginationClause(
+    page: number,
+    pageSize: number
+  ): { clause: string; values: [number, number] } {
     // Sanitizuj vrednosti
     const safePage = Math.max(1, Math.floor(page));
     const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
@@ -270,7 +300,10 @@ export async function executeSelect<T>(
  * Interno: Izvršava raw upit sa parametrima
  * NAPOMENA: Ovo je jedino mesto gde se koristi dinamički SQL
  */
-async function executeRawQuery(query: string, values: unknown[]): Promise<Record<string, unknown>[]> {
+async function executeRawQuery(
+  query: string,
+  values: unknown[]
+): Promise<Record<string, unknown>[]> {
   // Zameni $1, $2, ... sa tagged template literal sintaksom
   // postgres.js očekuje tagged template literals, ali možemo koristiti i .unsafe sa nizom vrednosti
 
@@ -316,7 +349,9 @@ export function isValidUuid(str: string): boolean {
  */
 export function sanitizeSortColumn(table: string, column: string | undefined): string {
   const allowedColumns = ALLOWED_SORT_COLUMNS[table] || ["created_at"];
-  return column && allowedColumns.includes(column) ? column : "created_at";
+  if (!column) return "created_at";
+  const candidate = toSnakeCase(column);
+  return allowedColumns.includes(candidate) ? candidate : "created_at";
 }
 
 /**
@@ -324,4 +359,17 @@ export function sanitizeSortColumn(table: string, column: string | undefined): s
  */
 export function sanitizeSortOrder(order: string | undefined): "ASC" | "DESC" {
   return order?.toLowerCase() === "asc" ? "ASC" : "DESC";
+}
+
+// ============================================
+// Internal helpers
+// ============================================
+
+function toSnakeCase(input: string): string {
+  // If already contains underscore, treat as snake_case
+  if (input.includes("_")) return input.toLowerCase();
+  return input
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/\s+/g, "_")
+    .toLowerCase();
 }

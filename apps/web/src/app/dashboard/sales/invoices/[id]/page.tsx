@@ -1,25 +1,19 @@
 "use client";
 
-import { use } from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Check, Copy, Download, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { invoicesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { HtmlTemplate } from "@/components/invoice/templates/html";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { motion } from "framer-motion";
-import { Download, Copy, Pencil, ArrowLeft, Check } from "lucide-react";
+import { use, useState } from "react";
 import { toast } from "sonner";
-import { useState } from "react";
-import type { Invoice as InvoiceType, InvoiceTemplate } from "@/types/invoice";
+import { HtmlTemplate } from "@/components/invoice/templates/html";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useApi } from "@/hooks/use-api";
+import { invoicesApi } from "@/lib/api";
+import type { InvoiceTemplate, Invoice as InvoiceType } from "@/types/invoice";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -59,10 +53,11 @@ export default function InvoiceDetailPage({ params }: PageProps) {
   const router = useRouter();
   const [copied, setCopied] = useState(false);
 
-  const { data: invoice, isLoading, error } = useApi<any>(
-    () => invoicesApi.getById(id),
-    { autoFetch: true }
-  );
+  const {
+    data: invoice,
+    isLoading,
+    error,
+  } = useApi<any>(() => invoicesApi.getById(id), { autoFetch: true });
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -123,10 +118,7 @@ export default function InvoiceDetailPage({ params }: PageProps) {
 
   return (
     <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         {/* Customer Header - Identical to Midday */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -192,7 +184,11 @@ export default function InvoiceDetailPage({ params }: PageProps) {
                   className="rounded-full size-8"
                   onClick={handleCopyLink}
                 >
-                  {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                  {copied ? (
+                    <Check className="size-4 text-green-500" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent
@@ -235,7 +231,7 @@ function transformInvoiceToTemplateData(invoice: any): InvoiceType {
   // Default template - identical to Midday
   const defaultTemplate: InvoiceTemplate = {
     title: "Invoice",
-    customerLabel: "Bill to",
+    customerLabel: "To Customer",
     fromLabel: "From",
     invoiceNoLabel: "Invoice No",
     issueDateLabel: "Issue Date",
@@ -243,6 +239,7 @@ function transformInvoiceToTemplateData(invoice: any): InvoiceType {
     descriptionLabel: "Description",
     priceLabel: "Price",
     quantityLabel: "Quantity",
+    unitLabel: "Unit",
     totalLabel: "Total",
     totalSummaryLabel: "Total",
     vatLabel: "VAT",
@@ -261,7 +258,7 @@ function transformInvoiceToTemplateData(invoice: any): InvoiceType {
     includeTax: Boolean(invoice.tax),
     includeDiscount: Boolean(invoice.discount),
     includeDecimals: true,
-    includeUnits: false,
+    includeUnits: true,
     includeQr: false,
     includePdf: true,
     taxRate: invoice.taxRate || 0,
@@ -300,12 +297,14 @@ function transformInvoiceToTemplateData(invoice: any): InvoiceType {
     bottomBlock: null,
     customerId: invoice.companyId || null,
     customerName: invoice.companyName || null,
-    customer: invoice.companyName ? {
-      id: invoice.companyId,
-      name: invoice.companyName,
-      website: null,
-      email: null,
-    } : null,
+    customer: invoice.companyName
+      ? {
+          id: invoice.companyId,
+          name: invoice.companyName,
+          website: null,
+          email: null,
+        }
+      : null,
     team: null,
     scheduledAt: null,
     lineItems: (invoice.items || []).map((item: any) => ({
@@ -315,27 +314,41 @@ function transformInvoiceToTemplateData(invoice: any): InvoiceType {
       unit: item.unit || undefined,
     })),
     fromDetails: getStoredFromDetails(),
-    customerDetails: invoice.companyName ? {
-      type: "doc" as const,
-      content: [{
-        type: "paragraph",
-        content: [{ type: "text", text: invoice.companyName }]
-      }]
-    } : null,
-    paymentDetails: getStoredPaymentDetails() || (invoice.terms ? {
-      type: "doc" as const,
-      content: [{
-        type: "paragraph",
-        content: [{ type: "text", text: invoice.terms }]
-      }]
-    } : null),
-    noteDetails: invoice.notes ? {
-      type: "doc" as const,
-      content: [{
-        type: "paragraph",
-        content: [{ type: "text", text: invoice.notes }]
-      }]
-    } : null,
+    customerDetails: invoice.companyName
+      ? {
+          type: "doc" as const,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: invoice.companyName }],
+            },
+          ],
+        }
+      : null,
+    paymentDetails:
+      getStoredPaymentDetails() ||
+      (invoice.terms
+        ? {
+            type: "doc" as const,
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: invoice.terms }],
+              },
+            ],
+          }
+        : null),
+    noteDetails: invoice.notes
+      ? {
+          type: "doc" as const,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: invoice.notes }],
+            },
+          ],
+        }
+      : null,
   };
 }
 

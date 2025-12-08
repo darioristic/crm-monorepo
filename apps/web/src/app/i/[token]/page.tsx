@@ -1,5 +1,6 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { logger } from "@/lib/logger";
 import { InvoicePublicView } from "./invoice-public-view";
 
 type Props = {
@@ -61,7 +62,7 @@ export default async function InvoicePublicPage({ params }: Props) {
       }).catch(() => {});
     }
   } catch (error) {
-    console.error("Error fetching invoice:", error);
+    logger.error("Error fetching invoice:", error);
   }
 
   if (!invoice) {
@@ -70,4 +71,3 @@ export default async function InvoicePublicPage({ params }: Props) {
 
   return <InvoicePublicView invoice={invoice} token={token} />;
 }
-

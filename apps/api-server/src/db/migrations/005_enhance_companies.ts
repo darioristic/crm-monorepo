@@ -1,8 +1,9 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 // Migration to enhance companies table with fields from midday-main
 export async function enhanceCompaniesTable(): Promise<void> {
-  console.log("Enhancing companies table...");
+  logger.info("Enhancing companies table...");
 
   // Add new columns to companies table
   await db`
@@ -80,17 +81,17 @@ export async function enhanceCompaniesTable(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_companies_email ON companies(email)`;
   await db`CREATE INDEX IF NOT EXISTS idx_companies_vat_number ON companies(vat_number)`;
 
-  console.log("✅ Companies table enhanced successfully");
+  logger.info("✅ Companies table enhanced successfully");
 }
 
 export async function rollbackEnhanceCompaniesTable(): Promise<void> {
-  console.log("Rolling back companies enhancement...");
+  logger.info("Rolling back companies enhancement...");
 
   await db`DROP TABLE IF EXISTS company_tags CASCADE`;
   await db`DROP TABLE IF EXISTS tags CASCADE`;
-  
+
   await db`DROP INDEX IF EXISTS companies_fts_idx`;
-  
+
   await db`
     ALTER TABLE companies
     DROP COLUMN IF EXISTS fts,
@@ -111,11 +112,10 @@ export async function rollbackEnhanceCompaniesTable(): Promise<void> {
     DROP COLUMN IF EXISTS token
   `;
 
-  console.log("✅ Companies enhancement rolled back");
+  logger.info("✅ Companies enhancement rolled back");
 }
 
 if (import.meta.main) {
   await enhanceCompaniesTable();
   process.exit(0);
 }
-

@@ -1,25 +1,23 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCallback, useState } from "react";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { Copy, Download, Loader2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useApi } from "@/hooks/use-api";
+import { invoicesApi } from "@/lib/api";
+import type { InvoiceDefaultSettings, InvoiceFormValues } from "@/types/invoice";
+import { DEFAULT_INVOICE_TEMPLATE, extractTextFromEditorDoc } from "@/types/invoice";
+import { buildCustomerDetails } from "@/utils/customer-details";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
 import { ProductEditProvider } from "./product-edit-context";
 import { ProductEditSheet } from "./product-edit-sheet";
-import { Copy, Download, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type {
-  InvoiceFormValues,
-  InvoiceDefaultSettings,
-} from "@/types/invoice";
-import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
-import { invoicesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { toast } from "sonner";
 
 // API Invoice Response Type
 interface InvoiceApiResponse {
@@ -60,6 +58,7 @@ interface InvoiceApiResponse {
     vatNumber?: string;
     website?: string;
   };
+  customerDetails?: unknown;
   vat?: number | null;
   tax?: number | null;
   discount?: number | null;
@@ -75,9 +74,10 @@ interface InvoiceApiResponse {
 
 type InvoiceSheetProps = {
   defaultSettings?: Partial<InvoiceDefaultSettings>;
+  onInvoiceCreated?: () => void;
 };
 
-export function InvoiceSheet({ defaultSettings }: InvoiceSheetProps) {
+export function InvoiceSheet({ defaultSettings, onInvoiceCreated }: InvoiceSheetProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -94,9 +94,7 @@ export function InvoiceSheet({ defaultSettings }: InvoiceSheetProps) {
   );
 
   // Transform API invoice to form values
-  const formData = invoiceData
-    ? transformInvoiceToFormValues(invoiceData)
-    : undefined;
+  const formData = invoiceData ? transformInvoiceToFormValues(invoiceData) : undefined;
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -115,8 +113,9 @@ export function InvoiceSheet({ defaultSettings }: InvoiceSheetProps) {
       params.set("type", "success");
       params.set("invoiceId", id);
       router.push(`${pathname}?${params.toString()}`);
+      onInvoiceCreated?.();
     },
-    [router, pathname, searchParams]
+    [router, pathname, searchParams, onInvoiceCreated]
   );
 
   return (
@@ -192,7 +191,8 @@ function InvoiceSheetContent({
           invoiceId={invoiceId!}
           invoice={invoiceData}
           onViewInvoice={() => {
-            window.open(`/i/id/${invoiceId}`, "_blank", "noopener,noreferrer");
+            const path = invoiceData?.token ? `/i/${invoiceData.token}` : `/i/id/${invoiceId}`;
+            window.open(path, "_blank", "noopener,noreferrer");
           }}
           onCreateAnother={() => window.location.reload()}
         />
@@ -209,9 +209,7 @@ function InvoiceSheetContent({
       hideCloseButton
     >
       <VisuallyHidden>
-        <SheetTitle>
-          {type === "edit" ? "Edit Invoice" : "New Invoice"}
-        </SheetTitle>
+        <SheetTitle>{type === "edit" ? "Edit Invoice" : "New Invoice"}</SheetTitle>
       </VisuallyHidden>
       <div className="h-full overflow-y-auto">
         <Form invoiceId={invoiceId || undefined} onSuccess={onSuccess} />
@@ -233,9 +231,9 @@ function SuccessContent({
   onViewInvoice,
   onCreateAnother,
 }: SuccessContentProps) {
-  const shareUrl = typeof window !== "undefined" 
-    ? `${window.location.origin}/i/id/${invoiceId}` 
-    : "";
+  const preferredPath = invoice?.token ? `/i/${invoice?.token}` : `/i/id/${invoiceId}`;
+  const shareUrl =
+    typeof window !== "undefined" ? `${window.location.origin}${preferredPath}` : preferredPath;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
@@ -246,11 +244,42 @@ function SuccessContent({
     window.open(`/api/download/invoice?id=${invoiceId}`, "_blank");
   };
 
-  // Get company data
   const company = invoice?.company;
   const companyName = company?.name || invoice?.companyName;
 
-  // Build address line (zip + city) or use full address
+  let toDoc: any = null;
+  if (invoice?.customerDetails) {
+    toDoc = invoice.customerDetails as any;
+    if (typeof toDoc === "string") {
+      try {
+        toDoc = JSON.parse(toDoc);
+      } catch {
+        toDoc = null;
+      }
+    }
+    if (!toDoc || typeof toDoc !== "object" || (toDoc as any).type !== "doc") {
+      toDoc = null;
+    }
+  }
+  let toLines: string[] | null = null;
+  if (toDoc) {
+    toLines = extractTextFromEditorDoc(toDoc)
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+  } else if (invoice?.customerDetails && typeof invoice.customerDetails === "object") {
+    const cd: any = invoice.customerDetails as any;
+    const lines: string[] = [];
+    if (cd.name) lines.push(String(cd.name));
+    if (cd.address) lines.push(String(cd.address));
+    const cityZipCountry = [cd.zip, cd.city, cd.country].filter(Boolean).join(" ");
+    if (cityZipCountry) lines.push(cityZipCountry);
+    if (cd.email) lines.push(String(cd.email));
+    if (cd.phone) lines.push(String(cd.phone));
+    if (cd.vatNumber) lines.push(`PIB: ${String(cd.vatNumber)}`);
+    toLines = lines.length ? lines : null;
+  }
+
   const addressLine = [company?.zip, company?.city].filter(Boolean).join(" ") || company?.address;
 
   return (
@@ -258,9 +287,7 @@ function SuccessContent({
       {/* Header */}
       <div className="p-8 pb-0">
         <h1 className="text-2xl font-semibold mb-1">Created</h1>
-        <p className="text-muted-foreground">
-          Your invoice was created successfully
-        </p>
+        <p className="text-muted-foreground">Your invoice was created successfully</p>
       </div>
 
       {/* Invoice Preview Card */}
@@ -270,47 +297,53 @@ function SuccessContent({
           <div className="flex justify-between items-start mb-6">
             <div>
               <span className="text-xs text-muted-foreground">Invoice No:</span>
-              <span className="text-sm font-medium ml-1">
-                {invoice?.invoiceNumber || "—"}
-              </span>
+              <span className="text-sm font-medium ml-1">{invoice?.invoiceNumber || "—"}</span>
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Due Date:</span>
               <span className="text-sm font-medium ml-1">
-                {invoice?.dueDate ? formatDate(invoice.dueDate) : "—"}
+                {invoice?.dueDate ? formatDateDMY(invoice.dueDate) : "—"}
               </span>
             </div>
           </div>
 
-          {/* Customer Info */}
           <div className="mb-6">
             <p className="text-xs font-medium text-foreground mb-2">To</p>
             <div className="space-y-0.5">
-              {companyName && (
-                <p className="text-sm text-muted-foreground">{companyName}</p>
-              )}
-              {addressLine && (
-                <p className="text-sm text-muted-foreground">{addressLine}</p>
-              )}
-              {company?.country && (
-                <p className="text-sm text-muted-foreground">{company.country}</p>
-              )}
-              {company?.vatNumber && (
-                <p className="text-sm text-muted-foreground">PIB: {company.vatNumber}</p>
-              )}
-              {company?.phone && (
-                <p className="text-sm text-muted-foreground">Tel: {company.phone}</p>
-              )}
-              {(company?.email || company?.billingEmail) && (
-                <p className="text-sm text-muted-foreground">
-                  E-mail:{" "}
-                  <a href={`mailto:${company.email || company.billingEmail}`} className="underline">
-                    {company.email || company.billingEmail}
-                  </a>
-                </p>
-              )}
-              {!companyName && !company && (
-                <p className="text-sm text-muted-foreground">Customer</p>
+              {toLines && toLines.length > 0 ? (
+                toLines.map((line, idx) => (
+                  <p key={idx} className="text-sm text-muted-foreground">
+                    {line}
+                  </p>
+                ))
+              ) : (
+                <>
+                  {companyName && <p className="text-sm text-muted-foreground">{companyName}</p>}
+                  {addressLine && <p className="text-sm text-muted-foreground">{addressLine}</p>}
+                  {company?.country && (
+                    <p className="text-sm text-muted-foreground">{company.country}</p>
+                  )}
+                  {company?.vatNumber && (
+                    <p className="text-sm text-muted-foreground">PIB: {company.vatNumber}</p>
+                  )}
+                  {company?.phone && (
+                    <p className="text-sm text-muted-foreground">Tel: {company.phone}</p>
+                  )}
+                  {(company?.email || company?.billingEmail) && (
+                    <p className="text-sm text-muted-foreground">
+                      E-mail:{" "}
+                      <a
+                        href={`mailto:${company?.email || company?.billingEmail}`}
+                        className="underline"
+                      >
+                        {company?.email || company?.billingEmail}
+                      </a>
+                    </p>
+                  )}
+                  {!companyName && !company && (
+                    <p className="text-sm text-muted-foreground">Customer</p>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -319,7 +352,7 @@ function SuccessContent({
           <div className="flex justify-between items-center mb-6">
             <span className="text-sm text-muted-foreground">Total</span>
             <span className="text-2xl font-semibold">
-              {formatCurrency(invoice?.total || 0, invoice?.currency || "EUR")}
+              {formatCurrency(invoice?.total || 0, invoice?.currency || "EUR", "sr-RS")}
             </span>
           </div>
 
@@ -329,15 +362,19 @@ function SuccessContent({
           {/* Details Section */}
           <div>
             <h3 className="text-base font-medium mb-4">Details</h3>
-            
+
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Share link</p>
               <div className="flex gap-2">
-                <Input
-                  value={shareUrl}
-                  readOnly
-                  className="bg-background text-sm font-mono"
-                />
+                <Input value={shareUrl} readOnly className="bg-background text-sm font-mono" />
+                <a
+                  href={preferredPath}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs underline self-center"
+                >
+                  Open
+                </a>
                 <Button
                   variant="secondary"
                   size="icon"
@@ -364,6 +401,7 @@ function SuccessContent({
               viewBox="0 0 400 20"
               className="w-full h-full text-background"
               preserveAspectRatio="none"
+              aria-hidden="true"
             >
               <path
                 d="M0,20 Q10,0 20,20 T40,20 T60,20 T80,20 T100,20 T120,20 T140,20 T160,20 T180,20 T200,20 T220,20 T240,20 T260,20 T280,20 T300,20 T320,20 T340,20 T360,20 T380,20 T400,20 L400,20 L0,20 Z"
@@ -388,17 +426,31 @@ function SuccessContent({
 }
 
 // Transform API invoice to form values
-function transformInvoiceToFormValues(
-  invoice: InvoiceApiResponse
-): Partial<InvoiceFormValues> {
+function transformInvoiceToFormValues(invoice: InvoiceApiResponse): Partial<InvoiceFormValues> {
+  // Prefer explicit customerDetails from API; fallback to built from company fields
+  let customerDetails: any;
+  if (invoice.customerDetails) {
+    customerDetails = invoice.customerDetails as any;
+    if (typeof customerDetails === "string") {
+      try {
+        customerDetails = JSON.parse(customerDetails);
+      } catch {
+        customerDetails = undefined;
+      }
+    }
+  }
+
+  const builtCustomer = customerDetails ?? buildCustomerDetails(invoice);
+
   return {
     id: invoice.id,
     status: invoice.status,
-    invoiceNumber: invoice.invoiceNumber,
-    issueDate: invoice.issueDate,
-    dueDate: invoice.dueDate,
+    invoiceNumber: invoice.invoiceNumber ?? undefined,
+    issueDate: invoice.issueDate ?? undefined,
+    dueDate: invoice.dueDate ?? undefined,
     customerId: invoice.companyId,
     customerName: invoice.companyName,
+    customerDetails: builtCustomer || null,
     amount: invoice.total || 0,
     subtotal: invoice.subtotal || 0,
     vat: invoice.vat || 0,

@@ -1,135 +1,140 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { sql } from '../../db/client';
+import { beforeAll, describe, expect, it } from "vitest";
 import {
-	createTestUser,
-	createTestCompany,
-	createTestSession,
-	getAuthHeaders,
-	cleanupCompany,
-} from './helpers';
+  cleanupCompany,
+  createTestCompany,
+  createTestSession,
+  createTestUser,
+  getAuthHeaders,
+  integrationEnabled,
+} from "./helpers";
 
-const API_URL = process.env.API_URL || 'http://localhost:3001';
+const API_URL = process.env.API_URL || `http://localhost:${process.env.PORT || "3002"}`;
 
-describe('Companies API Integration Tests', () => {
-	let testUser: { email: string; password: string; id?: string };
-	let authHeaders: Record<string, string>;
-	let sessionToken: string;
+const describeFn = integrationEnabled ? describe : describe.skip;
 
-	beforeAll(async () => {
-		testUser = await createTestUser();
-		sessionToken = await createTestSession(testUser.id!);
-		authHeaders = await getAuthHeaders(sessionToken);
-	});
+describeFn("Companies API Integration Tests", () => {
+  let testUser: {
+    email: string;
+    password: string;
+    id?: string;
+    companyId?: string;
+  };
+  let authHeaders: Record<string, string>;
+  let sessionToken: string;
 
-	it('should get current company', async () => {
-		const response = await fetch(`${API_URL}/api/v1/companies/current`, {
-			method: 'GET',
-			headers: authHeaders,
-		});
+  beforeAll(async () => {
+    testUser = await createTestUser();
+    sessionToken = await createTestSession(testUser.id!);
+    authHeaders = await getAuthHeaders(sessionToken);
+  });
 
-		expect(response.status).toBe(200);
+  it("should get current company", async () => {
+    const response = await fetch(`${API_URL}/api/v1/companies/current`, {
+      method: "GET",
+      headers: authHeaders,
+    });
+
+    expect(response.status).toBe(200);
     const data: any = await response.json();
-		expect(data.success).toBe(true);
-		expect(data.data).toHaveProperty('company');
-	});
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("id");
+  });
 
-	it('should list all companies', async () => {
-		const response = await fetch(`${API_URL}/api/v1/companies`, {
-			method: 'GET',
-			headers: authHeaders,
-		});
+  it("should list all companies", async () => {
+    const response = await fetch(`${API_URL}/api/v1/companies`, {
+      method: "GET",
+      headers: authHeaders,
+    });
 
-		expect(response.status).toBe(200);
+    expect(response.status).toBe(200);
     const data: any = await response.json();
-		expect(data.success).toBe(true);
-		expect(Array.isArray(data.data)).toBe(true);
-	});
+    expect(data.success).toBe(true);
+    expect(Array.isArray(data.data)).toBe(true);
+  });
 
-	it('should create a new company', async () => {
-		const companyData = {
-			name: `Integration Test Company ${Date.now()}`,
-			industry: 'Technology',
-		};
+  it("should create a new company", async () => {
+    const companyData = {
+      name: `Integration Test Company ${Date.now()}`,
+      industry: "Technology",
+      address: "123 Test Street, Test City",
+    };
 
-		const response = await fetch(`${API_URL}/api/v1/companies`, {
-			method: 'POST',
-			headers: {
-				...authHeaders,
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify(companyData),
-		});
+    const response = await fetch(`${API_URL}/api/v1/companies`, {
+      method: "POST",
+      headers: {
+        ...authHeaders,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(companyData),
+    });
 
-		expect(response.status).toBe(201);
+    expect(response.status).toBe(201);
     const data: any = await response.json();
-		expect(data.success).toBe(true);
-		expect(data.data.company.name).toBe(companyData.name);
+    expect(data.success).toBe(true);
+    expect(data.data.name).toBe(companyData.name);
 
-		// Cleanup
-		if (data.data.company.id) {
-			await cleanupCompany(data.data.company.id);
-		}
-	});
+    // Cleanup
+    if (data.data.id) {
+      await cleanupCompany(data.data.id);
+    }
+  });
 
-	it('should get company by ID', async () => {
-		// Create a test company first
-		const company = await createTestCompany();
+  it("should get company by ID", async () => {
+    // Create a test company first
+    const company = await createTestCompany();
 
-		const response = await fetch(`${API_URL}/api/v1/companies/${company.id}`, {
-			method: 'GET',
-			headers: authHeaders,
-		});
+    const response = await fetch(`${API_URL}/api/v1/companies/${company.id}`, {
+      method: "GET",
+      headers: authHeaders,
+    });
 
-		expect(response.status).toBe(200);
+    expect(response.status).toBe(200);
     const data: any = await response.json();
-		expect(data.success).toBe(true);
-		expect(data.data.company.id).toBe(company.id);
+    expect(data.success).toBe(true);
+    expect(data.data.id).toBe(company.id);
 
-		// Cleanup
-		await cleanupCompany(company.id);
-	});
+    // Cleanup
+    await cleanupCompany(company.id);
+  });
 
-	it('should update company', async () => {
-		const company = await createTestCompany();
-		const updatedName = `Updated Company ${Date.now()}`;
+  it("should update company", async () => {
+    const companyId = testUser.companyId!;
+    const updatedName = `Updated Company ${Date.now()}`;
 
-		const response = await fetch(`${API_URL}/api/v1/companies/${company.id}`, {
-			method: 'PUT',
-			headers: {
-				...authHeaders,
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				name: updatedName,
-			}),
-		});
+    const response = await fetch(`${API_URL}/api/v1/companies/${companyId}`, {
+      method: "PUT",
+      headers: {
+        ...authHeaders,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: updatedName,
+      }),
+    });
 
-		expect(response.status).toBe(200);
+    expect(response.status).toBe(200);
     const data: any = await response.json();
-		expect(data.success).toBe(true);
-		expect(data.data.company.name).toBe(updatedName);
+    expect(data.success).toBe(true);
+    expect(data.data.name).toBe(updatedName);
+  });
 
-		// Cleanup
-		await cleanupCompany(company.id);
-	});
+  it("should delete company", async () => {
+    const companyId = testUser.companyId!;
 
-	it('should delete company', async () => {
-		const company = await createTestCompany();
+    const response = await fetch(`${API_URL}/api/v1/companies/${companyId}`, {
+      method: "DELETE",
+      headers: authHeaders,
+    });
 
-		const response = await fetch(`${API_URL}/api/v1/companies/${company.id}`, {
-			method: 'DELETE',
-			headers: authHeaders,
-		});
+    expect(response.status).toBe(200);
+    const data: any = await response.json();
+    expect(data.success).toBe(true);
 
-		expect(response.status).toBe(200);
-		const data: any = await response.json();
-		expect(data.success).toBe(true);
-
-		// Verify company is deleted
-		const getResponse = await fetch(`${API_URL}/api/v1/companies/${company.id}`, {
-			method: 'GET',
-			headers: authHeaders,
-		});
-		expect(getResponse.status).toBe(404);
-	});
+    // Verify company is deleted
+    const getResponse = await fetch(`${API_URL}/api/v1/companies/${companyId}`, {
+      method: "GET",
+      headers: authHeaders,
+    });
+    expect(getResponse.status).toBe(404);
+  });
 });

@@ -1,10 +1,11 @@
+import { logger } from "../lib/logger";
 import { sql as db } from "./client";
 
 // SQL schema for CRM database
 // Run this to initialize the database tables
 
 export async function createSchema(): Promise<void> {
-  console.log("Creating database schema...");
+  logger.info("Creating database schema...");
 
   // Create enum type for user roles
   await db`
@@ -695,11 +696,11 @@ export async function createSchema(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_connected_accounts_account_type ON connected_accounts(account_type)`;
   await db`CREATE INDEX IF NOT EXISTS idx_connected_accounts_is_active ON connected_accounts(is_active)`;
 
-  console.log("✅ Database schema created successfully");
+  logger.info("✅ Database schema created successfully");
 }
 
 export async function dropSchema(): Promise<void> {
-  console.log("Dropping database schema...");
+  logger.info("Dropping database schema...");
 
   // Drop new tables first (due to FK constraints)
   await db`DROP TABLE IF EXISTS connected_accounts CASCADE`;
@@ -746,7 +747,7 @@ export async function dropSchema(): Promise<void> {
   await db`DROP TYPE IF EXISTS company_role`;
   await db`DROP TYPE IF EXISTS user_role`;
 
-  console.log("✅ Database schema dropped");
+  logger.info("✅ Database schema dropped");
 }
 
 // Run schema creation if this file is executed directly

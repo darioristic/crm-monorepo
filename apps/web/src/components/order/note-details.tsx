@@ -1,8 +1,8 @@
 "use client";
 
-import { Editor } from "@/components/order/editor";
 import { Controller, useFormContext } from "react-hook-form";
-import { LabelInput } from "./label-input";
+import { LabelInput } from "@/components/invoice/label-input";
+import { Editor } from "@/components/order/editor";
 
 export function NoteDetails() {
   const { control, watch } = useFormContext();
@@ -10,10 +10,7 @@ export function NoteDetails() {
 
   return (
     <div>
-      <LabelInput
-        name="template.noteLabel"
-        className="mb-2 block"
-      />
+      <LabelInput name="template.noteLabel" className="mb-2 block" />
 
       <Controller
         name="noteDetails"
@@ -31,4 +28,3 @@ export function NoteDetails() {
     </div>
   );
 }
-

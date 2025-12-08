@@ -1,5 +1,5 @@
-import type { EditorDoc } from "@/types/invoice";
 import type { DeliveryNote } from "@crm/types";
+import type { EditorDoc } from "@/types/invoice";
 
 /**
  * Builds customer details as EditorDoc from delivery note data.
@@ -53,29 +53,32 @@ export function buildCustomerDetails(
 
   // Build from company fields
   const lines: string[] = [];
-  const companyName =
-    deliveryNote.companyName || deliveryNote.company?.name;
-  if (companyName) {
-    lines.push(companyName);
-  }
+  const companyName = deliveryNote.companyName || deliveryNote.company?.name;
+  if (companyName) lines.push(companyName);
 
   if (deliveryNote.company) {
-    if (deliveryNote.company.address) {
-      lines.push(deliveryNote.company.address);
-    }
-    const cityLine = [
-      deliveryNote.company.city,
+    const street =
+      (deliveryNote.company as any).addressLine1 || deliveryNote.company.address || null;
+    const zipCity = [
       deliveryNote.company.zip || deliveryNote.company.postalCode,
-      deliveryNote.company.country,
+      deliveryNote.company.city,
     ]
       .filter(Boolean)
-      .join(", ");
-    if (cityLine) lines.push(cityLine);
-    if (deliveryNote.company.email) lines.push(deliveryNote.company.email);
-    if (deliveryNote.company.phone) lines.push(deliveryNote.company.phone);
-    if (deliveryNote.company.vatNumber) {
-      lines.push(`VAT: ${deliveryNote.company.vatNumber}`);
-    }
+      .join(" ");
+    const addressLine = [street, zipCity].filter(Boolean).join(", ");
+    const country = deliveryNote.company.country || null;
+    const email = (deliveryNote.company as any).billingEmail || deliveryNote.company.email || null;
+    const pib = deliveryNote.company.vatNumber ? `PIB: ${deliveryNote.company.vatNumber}` : null;
+    const mbSource =
+      (deliveryNote.company as any).companyNumber ||
+      (deliveryNote.company as any).registrationNumber;
+    const mb = mbSource ? `MB: ${String(mbSource)}` : null;
+
+    if (addressLine) lines.push(addressLine);
+    if (country) lines.push(country);
+    if (email) lines.push(email);
+    if (pib) lines.push(pib);
+    if (mb) lines.push(mb);
   }
 
   if (lines.length === 0) return null;
@@ -88,4 +91,3 @@ export function buildCustomerDetails(
     })),
   };
 }
-

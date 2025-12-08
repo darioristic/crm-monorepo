@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Download, Link2, Check, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Check, Download, Link2, Pencil } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { HtmlTemplate } from "@/components/invoice/templates/html";
-import type { Invoice, EditorDoc } from "@/types/invoice";
-import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
+import type { EditorDoc, Invoice } from "@/types/invoice";
+import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
 // API Invoice Response Type
 interface InvoiceApiResponse {
@@ -56,6 +51,7 @@ interface InvoiceApiResponse {
     vatNumber?: string;
     website?: string;
   };
+  customerDetails?: unknown;
   vat?: number | null;
   tax?: number | null;
   discount?: number | null;
@@ -86,7 +82,7 @@ function InvoiceStatus({ status }: { status?: string }) {
       case "unpaid":
       case "sent":
         return "bg-[#FEEBC8] text-[#744210]";
-      case "canceled":
+      case "cancelled":
         return "bg-[#E2E8F0] text-[#4A5568]";
       default:
         return "bg-[#E2E8F0] text-[#4A5568]";
@@ -202,9 +198,7 @@ function buildCustomerDetails(invoice: InvoiceApiResponse): EditorDoc | null {
 }
 
 // Build from details (seller info) - uses localStorage or defaults
-function buildFromDetails(
-  storedFromDetails: EditorDoc | null
-): EditorDoc | null {
+function buildFromDetails(storedFromDetails: EditorDoc | null): EditorDoc | null {
   // If stored details exist, use them
   if (storedFromDetails) return storedFromDetails;
 
@@ -243,10 +237,25 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
   }, []);
 
   // Get customer name from company object
-  const customerName =
-    invoice.companyName || invoice.company?.name || "Customer";
+  const customerName = invoice.companyName || invoice.company?.name || "Customer";
 
   // Transform API data to Invoice type
+  // Prefer stored customerDetails from API; fallback to built from company fields
+  let customerDoc: any = null;
+  if (invoice.customerDetails) {
+    customerDoc = invoice.customerDetails as any;
+    if (typeof customerDoc === "string") {
+      try {
+        customerDoc = JSON.parse(customerDoc);
+      } catch {
+        customerDoc = null;
+      }
+    }
+    if (!customerDoc || typeof customerDoc !== "object" || customerDoc.type !== "doc") {
+      customerDoc = null;
+    }
+  }
+
   const invoiceData: Invoice = {
     id: invoice.id,
     invoiceNumber: invoice.invoiceNumber,
@@ -278,7 +287,7 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
             ],
           }
         : null),
-    customerDetails: buildCustomerDetails(invoice),
+    customerDetails: customerDoc || buildCustomerDetails(invoice),
     fromDetails: buildFromDetails(fromDetails),
     noteDetails: invoice.notes
       ? {
@@ -297,12 +306,9 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
     tax: invoice.tax || null,
     discount: invoice.discount || null,
     subtotal: invoice.subtotal,
-    status:
-      ["draft", "sent", "paid", "partial", "overdue", "cancelled"].includes(
-        invoice.status,
-      )
-        ? (invoice.status as Invoice["status"]) 
-        : "draft",
+    status: ["draft", "sent", "paid", "partial", "overdue", "cancelled"].includes(invoice.status)
+      ? (invoice.status as Invoice["status"])
+      : "draft",
     template: {
       ...DEFAULT_INVOICE_TEMPLATE,
       logoUrl: logoUrl,
@@ -349,7 +355,18 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      window.open(`/api/download/invoice?id=${invoice.id}`, "_blank");
+      const resp = await fetch("/api/download/invoice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: invoice.id, logo: logoUrl }),
+      });
+      if (!resp.ok) {
+        throw new Error("Failed to generate PDF");
+      }
+      const blob = await resp.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      window.open(objectUrl, "_blank");
+      setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
     } catch {
       toast.error("Failed to download invoice");
     } finally {
@@ -362,10 +379,13 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
 
   return (
     <div className="flex flex-col justify-center items-center min-h-screen dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      {!isAuthenticated && (
+        <div className="w-full max-w-[780px] mb-4 p-2 bg-muted/50 border border-border rounded-md text-center text-sm text-muted-foreground">
+          Viewing in Read-Only Mode
+        </div>
+      )}
+
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         {/* Customer Header - Identical to Midday */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -383,12 +403,7 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
         {/* Invoice Template */}
         <div className="pb-24 md:pb-0">
           <div className="shadow-[0_24px_48px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
-            <HtmlTemplate
-              data={invoiceData}
-              width={width}
-              height={height}
-              disableScroll
-            />
+            <HtmlTemplate data={invoiceData} width={width} height={height} disableScroll />
           </div>
         </div>
       </div>

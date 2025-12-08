@@ -1,223 +1,205 @@
 "use client";
 
-import { useUserQuery } from "@/hooks/use-user";
-import { cn } from "@/lib/utils";
-import { SubmitButton } from "@/components/ui/submit-button";
-import {
-	Tooltip,
-	TooltipContent,
-	TooltipProvider,
-	TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Check } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { SubmitButton } from "@/components/ui/submit-button";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { useUserQuery } from "@/hooks/use-user";
+import { logger } from "@/lib/logger";
+import { cn } from "@/lib/utils";
 
 export function Plans() {
-	const [isSubmitting, setIsSubmitting] = useState(0);
-	const { data: user } = useUserQuery();
+  const [isSubmitting, setIsSubmitting] = useState(0);
+  const { data: user } = useUserQuery();
 
-	const handleCheckout = async (plan: "starter" | "pro") => {
-		try {
-			setIsSubmitting(plan === "starter" ? 1 : 2);
-			
-			// TODO: Implement checkout flow with payment provider (Stripe/PayPal)
-			// This requires:
-			// 1. Payment provider integration (Stripe recommended)
-			// 2. Subscription management system
-			// 3. Webhook handling for payment events
-			// 4. Subscription status tracking in database
-			
-			// Placeholder: Redirect to checkout page or open payment modal
-			// const { request } = await import("@/lib/api");
-			// const response = await request("/api/v1/subscriptions/checkout", {
-			//   method: "POST",
-			//   body: JSON.stringify({ plan }),
-			// });
-			// if (response.success && response.data?.checkoutUrl) {
-			//   window.location.href = response.data.checkoutUrl;
-			// }
-			
-			toast.info("Checkout functionality requires payment provider integration");
-			setIsSubmitting(0);
-		} catch (error) {
-			console.error("Failed to open checkout", error);
-			toast.error("Failed to initiate checkout");
-			setIsSubmitting(0);
-		}
-	};
+  const handleCheckout = async (plan: "starter" | "pro") => {
+    try {
+      setIsSubmitting(plan === "starter" ? 1 : 2);
 
-	return (
-		<TooltipProvider delayDuration={0}>
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-7 w-full">
-				{/* Starter Plan */}
-				<div className="flex flex-col p-6 border bg-background">
-					<h2 className="text-xl mb-2 text-left">Starter</h2>
-					<div className="mt-1 flex items-baseline">
-						<span className="text-2xl font-medium tracking-tight">$29</span>
-						<span className="ml-1 text-xl font-medium">/mo</span>
-						<span className="ml-2 text-xs text-muted-foreground">
-							Excl. VAT
-						</span>
-					</div>
+      // TODO: Implement checkout flow with payment provider (Stripe/PayPal)
+      // This requires:
+      // 1. Payment provider integration (Stripe recommended)
+      // 2. Subscription management system
+      // 3. Webhook handling for payment events
+      // 4. Subscription status tracking in database
 
-					<div className="mt-4">
-						<h3 className="text-xs font-medium uppercase tracking-wide text-left text-[#878787] font-mono">
-							INCLUDING
-						</h3>
-						<ul className="mt-4 space-y-2">
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">
-									Send up to 10 invoices per month
-								</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">2 connected banks</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Unlimited bank accounts</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Financial overview</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Time Tracker</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">50 inbox items per month</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Customer management</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Export CSV & reports</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Assistant</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">10GB Vault Storage</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">2 users</span>
-							</li>
-						</ul>
-					</div>
+      // Placeholder: Redirect to checkout page or open payment modal
+      // const { request } = await import("@/lib/api");
+      // const response = await request("/api/v1/subscriptions/checkout", {
+      //   method: "POST",
+      //   body: JSON.stringify({ plan }),
+      // });
+      // if (response.success && response.data?.checkoutUrl) {
+      //   window.location.href = response.data.checkoutUrl;
+      // }
 
-					<div className="mt-8 border-t-[1px] border-border pt-4">
-						<SubmitButton
-							variant="secondary"
-							className="h-9 hover:bg-primary hover:text-secondary w-full"
-							isSubmitting={isSubmitting === 1}
-							onClick={() => handleCheckout("starter")}
-						>
-							Choose starter plan
-						</SubmitButton>
-					</div>
-				</div>
+      toast.info("Checkout functionality requires payment provider integration");
+      setIsSubmitting(0);
+    } catch (error) {
+      logger.error("Failed to open checkout", error);
+      toast.error("Failed to initiate checkout");
+      setIsSubmitting(0);
+    }
+  };
 
-				{/* Pro Plan */}
-				<div className="flex flex-col p-6 border border-primary bg-background relative">
-					<div className="absolute top-6 right-6 rounded-full text-[#878787] text-[9px] font-normal border px-2 py-1 font-mono">
-						Limited offer
-					</div>
-					<h2 className="text-xl text-left mb-2">Pro</h2>
-					<div className="mt-1 flex items-baseline">
-						<span
-							className={cn(
-								"text-2xl font-medium tracking-tight",
-								"line-through text-[#878787]",
-							)}
-						>
-							$99
-						</span>
-						<span className="ml-1 text-2xl font-medium tracking-tight">
-							$49
-						</span>
+  return (
+    <TooltipProvider delayDuration={0}>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-7 w-full">
+        {/* Starter Plan */}
+        <div className="flex flex-col p-6 border bg-background">
+          <h2 className="text-xl mb-2 text-left">Starter</h2>
+          <div className="mt-1 flex items-baseline">
+            <span className="text-2xl font-medium tracking-tight">$29</span>
+            <span className="ml-1 text-xl font-medium">/mo</span>
+            <span className="ml-2 text-xs text-muted-foreground">Excl. VAT</span>
+          </div>
 
-						<span className="ml-1 text-xl font-medium">/mo</span>
-						<span className="ml-2 text-xs text-muted-foreground">
-							Excl. VAT
-						</span>
-					</div>
+          <div className="mt-4">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-left text-[#878787] font-mono">
+              INCLUDING
+            </h3>
+            <ul className="mt-4 space-y-2">
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Send up to 10 invoices per month</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">2 connected banks</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Unlimited bank accounts</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Financial overview</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Time Tracker</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">50 inbox items per month</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Customer management</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Export CSV & reports</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Assistant</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">10GB Vault Storage</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">2 users</span>
+              </li>
+            </ul>
+          </div>
 
-					<div className="mt-4">
-						<h3 className="text-xs font-medium uppercase tracking-wide text-left text-[#878787] font-mono">
-							INCLUDING
-						</h3>
-						<ul className="mt-4 space-y-2">
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">
-									Send up to 50 invoices per month
-								</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">10 connected banks</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Unlimited bank accounts</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Financial overview</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Time Tracker</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">500 inbox items per month</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Customer management</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Export CSV & reports</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">Assistant</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">100GB Vault Storage</span>
-							</li>
-							<li className="flex items-start">
-								<Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
-								<span className="text-xs">10 users</span>
-							</li>
-						</ul>
-					</div>
+          <div className="mt-8 border-t-[1px] border-border pt-4">
+            <SubmitButton
+              variant="secondary"
+              className="h-9 hover:bg-primary hover:text-secondary w-full"
+              isSubmitting={isSubmitting === 1}
+              onClick={() => handleCheckout("starter")}
+            >
+              Choose starter plan
+            </SubmitButton>
+          </div>
+        </div>
 
-					<div className="mt-8 border-t border-border pt-4">
-						<SubmitButton
-							className="h-9 w-full"
-							onClick={() => handleCheckout("pro")}
-							isSubmitting={isSubmitting === 2}
-						>
-							Choose pro plan
-						</SubmitButton>
-					</div>
-				</div>
-			</div>
-		</TooltipProvider>
-	);
+        {/* Pro Plan */}
+        <div className="flex flex-col p-6 border border-primary bg-background relative">
+          <div className="absolute top-6 right-6 rounded-full text-[#878787] text-[9px] font-normal border px-2 py-1 font-mono">
+            Limited offer
+          </div>
+          <h2 className="text-xl text-left mb-2">Pro</h2>
+          <div className="mt-1 flex items-baseline">
+            <span
+              className={cn("text-2xl font-medium tracking-tight", "line-through text-[#878787]")}
+            >
+              $99
+            </span>
+            <span className="ml-1 text-2xl font-medium tracking-tight">$49</span>
+
+            <span className="ml-1 text-xl font-medium">/mo</span>
+            <span className="ml-2 text-xs text-muted-foreground">Excl. VAT</span>
+          </div>
+
+          <div className="mt-4">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-left text-[#878787] font-mono">
+              INCLUDING
+            </h3>
+            <ul className="mt-4 space-y-2">
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Send up to 50 invoices per month</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">10 connected banks</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Unlimited bank accounts</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Financial overview</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Time Tracker</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">500 inbox items per month</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Customer management</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Export CSV & reports</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">Assistant</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">100GB Vault Storage</span>
+              </li>
+              <li className="flex items-start">
+                <Check className="h-4 w-4 text-primary flex-shrink-0 mr-2" />
+                <span className="text-xs">10 users</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="mt-8 border-t border-border pt-4">
+            <SubmitButton
+              className="h-9 w-full"
+              onClick={() => handleCheckout("pro")}
+              isSubmitting={isSubmitting === 2}
+            >
+              Choose pro plan
+            </SubmitButton>
+          </div>
+        </div>
+      </div>
+    </TooltipProvider>
+  );
 }
-

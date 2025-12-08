@@ -1,0 +1,31 @@
+{
+  "name": "@crm/document-forms",
+  "version": "0.1.0",
+  "description": "Shared form components for CRM documents",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./select-customer": "./src/select-customer.tsx",
+    "./create-company-inline-form": "./src/create-company-inline-form.tsx"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@crm/schemas": "workspace:*",
+    "lucide-react": "^0.460.0",
+    "react": "19.2.0",
+    "react-hook-form": "^7.53.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@hookform/resolvers": "5.2.2",
+    "@types/node": "^22.10.1",
+    "@types/react": "^19.0.0",
+    "typescript": "^5.7.2"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0"
+  }
+}

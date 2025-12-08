@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
-import { Editor } from "@/components/invoice/editor";
-import { Controller, useFormContext } from "react-hook-form";
-import { LabelInput } from "./label-input";
 import type { JSONContent } from "@tiptap/react";
+import { useEffect } from "react";
+import { Controller, useFormContext } from "react-hook-form";
+import { Editor } from "@/components/invoice/editor";
 import { STORAGE_KEYS } from "@/constants/storage-keys";
+import { logger } from "@/lib/logger";
+import { LabelInput } from "./label-input";
 
 const STORAGE_KEY = STORAGE_KEYS.INVOICE_FROM_DETAILS;
 const STORAGE_LABEL_KEY = STORAGE_KEYS.INVOICE_FROM_LABEL;
@@ -26,7 +27,7 @@ export function FromDetails() {
           setValue("fromDetails", parsed, { shouldDirty: false });
         }
       } catch (e) {
-        console.error("Failed to load from details from localStorage:", e);
+        logger.error("Failed to load from details from localStorage:", e);
       }
     }
 
@@ -36,7 +37,7 @@ export function FromDetails() {
         if (savedLabel) {
           setValue("template.fromLabel", savedLabel, { shouldDirty: false });
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore
       }
     }
@@ -51,7 +52,7 @@ export function FromDetails() {
         localStorage.removeItem(STORAGE_KEY);
       }
     } catch (e) {
-      console.error("Failed to save from details to localStorage:", e);
+      logger.error("Failed to save from details to localStorage:", e);
     }
   };
 
@@ -59,18 +60,14 @@ export function FromDetails() {
   const handleLabelSave = (value: string) => {
     try {
       localStorage.setItem(STORAGE_LABEL_KEY, value);
-    } catch (e) {
+    } catch (_e) {
       // Ignore
     }
   };
 
   return (
     <div>
-      <LabelInput
-        name="template.fromLabel"
-        className="mb-2 block"
-        onSave={handleLabelSave}
-      />
+      <LabelInput name="template.fromLabel" className="mb-2 block" onSave={handleLabelSave} />
 
       <Controller
         name="fromDetails"

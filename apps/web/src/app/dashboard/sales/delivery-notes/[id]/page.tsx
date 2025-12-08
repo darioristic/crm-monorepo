@@ -1,29 +1,24 @@
 "use client";
 
-import { useParams } from "next/navigation";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
 import type { DeliveryNoteWithRelations } from "@crm/types";
-import { deliveryNotesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { HtmlTemplate } from "@/components/delivery-note/templates/html";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { motion } from "framer-motion";
-import { Download, Copy, Pencil, ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, Pencil } from "lucide-react";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { PAGE_SIZES } from "@/constants/page-sizes";
+import { HtmlTemplate } from "@/components/delivery-note/templates/html";
 import { DeliveryStatusBadge } from "@/components/sales/status/DeliveryStatusBadge";
-import { buildCustomerDetails } from "@/utils/customer-details";
-import { getStoredFromDetails } from "@/hooks/use-stored-from-details";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { PAGE_SIZES } from "@/constants/page-sizes";
+import { useApi } from "@/hooks/use-api";
 import { useCopyLink } from "@/hooks/use-copy-link";
+import { getStoredFromDetails } from "@/hooks/use-stored-from-details";
+import { deliveryNotesApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
+import { buildCustomerDetails } from "@/utils/customer-details";
 
 export default function DeliveryNoteDetailPage() {
   const params = useParams();
@@ -49,7 +44,7 @@ export default function DeliveryNoteDetailPage() {
       toast.info("Preparing PDF download...");
       window.open(`/api/download/delivery-note?id=${id}`, "_blank");
     } catch (error) {
-      console.error("Failed to download delivery note:", error);
+      logger.error("Failed to download delivery note:", error);
       toast.error("Failed to download delivery note");
     }
   };
@@ -62,10 +57,7 @@ export default function DeliveryNoteDetailPage() {
     const { width, height } = PAGE_SIZES.A4;
     return (
       <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4">
-        <div
-          className="flex flex-col w-full max-w-full py-6"
-          style={{ maxWidth: width }}
-        >
+        <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
           <div className="flex justify-between items-center mb-4">
             <Skeleton className="h-6 w-32" />
             <Skeleton className="h-6 w-20" />
@@ -81,8 +73,7 @@ export default function DeliveryNoteDetailPage() {
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-4rem)] p-8">
         <h2 className="text-xl font-semibold mb-2">Delivery note not found</h2>
         <p className="text-muted-foreground mb-4">
-          The delivery note you're looking for doesn't exist or has been
-          deleted.
+          The delivery note you're looking for doesn't exist or has been deleted.
         </p>
         <Button asChild>
           <Link href="/dashboard/sales/delivery-notes">
@@ -101,10 +92,7 @@ export default function DeliveryNoteDetailPage() {
 
   return (
     <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         {/* Customer Header */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -121,10 +109,7 @@ export default function DeliveryNoteDetailPage() {
             <span className="truncate text-sm">{customerName}</span>
           </div>
 
-          <DeliveryStatusBadge
-            status={deliveryNote.status}
-            showTooltip={false}
-          />
+          <DeliveryStatusBadge status={deliveryNote.status} showTooltip={false} />
         </div>
 
         {/* Delivery Note Template with shadow */}

@@ -1,19 +1,16 @@
 "use client";
 
-import {
-  formatInvoiceAmount,
-  calculateLineItemTotal,
-} from "@/utils/invoice-calculate";
-import { Button } from "@/components/ui/button";
-import { Plus, GripVertical, X } from "lucide-react";
 import { Reorder, useDragControls } from "framer-motion";
-import { useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { GripVertical, Plus, X } from "lucide-react";
+import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import { QuantityInput } from "@/components/ui/quantity-input";
+import { calculateLineItemTotal, formatInvoiceAmount } from "@/utils/invoice-calculate";
 import type { FormValues } from "./form-context";
 import { LabelInput } from "./label-input";
 import { ProductAutocomplete } from "./product-autocomplete";
 import { ProductAwareAmountInput } from "./product-aware-amount-input";
 import { ProductAwareUnitInput } from "./product-aware-unit-input";
-import { QuantityInput } from "./quantity-input";
 
 export function LineItems() {
   const { control } = useFormContext<FormValues>();
@@ -48,14 +45,10 @@ export function LineItems() {
   });
 
   const reorderList = (newFields: typeof fields) => {
-    const firstDiffIndex = fields.findIndex(
-      (field, index) => field.id !== newFields[index]?.id
-    );
+    const firstDiffIndex = fields.findIndex((field, index) => field.id !== newFields[index]?.id);
 
     if (firstDiffIndex !== -1) {
-      const newIndex = newFields.findIndex(
-        (field) => field.id === fields[firstDiffIndex]?.id
-      );
+      const newIndex = newFields.findIndex((field) => field.id === fields[firstDiffIndex]?.id);
 
       if (newIndex !== -1) {
         swap(firstDiffIndex, newIndex);
@@ -83,35 +76,18 @@ export function LineItems() {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div
-        className="grid gap-2 items-end mb-2 text-[11px] text-[#878787]"
-        style={getGridStyle()}
-      >
+      <div className="grid gap-2 items-end mb-2 text-[11px] text-[#878787]" style={getGridStyle()}>
         <span>#</span>
         <LabelInput name="template.descriptionLabel" className="truncate" />
-        <LabelInput
-          name="template.quantityLabel"
-          className="truncate text-center"
-        />
+        <LabelInput name="template.quantityLabel" className="truncate text-center" />
         {includeUnits && <span className="text-center">Unit</span>}
-        <LabelInput
-          name="template.priceLabel"
-          className="truncate text-center"
-        />
+        <LabelInput name="template.priceLabel" className="truncate text-center" />
         {includeDiscount && <span className="text-center">Disc %</span>}
         {includeVat && <span className="text-center">VAT %</span>}
-        <LabelInput
-          name="template.totalLabel"
-          className="text-right truncate"
-        />
+        <LabelInput name="template.totalLabel" className="text-right truncate" />
       </div>
 
-      <Reorder.Group
-        axis="y"
-        values={fields}
-        onReorder={reorderList}
-        className="!m-0"
-      >
+      <Reorder.Group axis="y" values={fields} onReorder={reorderList} className="!m-0">
         {fields.map((field, index) => (
           <LineItemRow
             key={field.id}
@@ -251,9 +227,18 @@ function LineItemRow({
       />
 
       {/* Qty */}
-      <QuantityInput
+      <Controller
         name={`lineItems.${index}.quantity`}
-        className="text-center"
+        render={({ field }) => (
+          <QuantityInput
+            value={field.value ?? 0}
+            onChange={field.onChange}
+            onBlur={field.onBlur}
+            className="text-center"
+            min={0}
+            step={1}
+          />
+        )}
       />
 
       {/* Unit */}
@@ -266,16 +251,15 @@ function LineItemRow({
       )}
 
       {/* Price */}
-      <ProductAwareAmountInput
-        name={`lineItems.${index}.price`}
-        lineItemIndex={index}
-      />
+      <ProductAwareAmountInput name={`lineItems.${index}.price`} lineItemIndex={index} />
 
       {/* Disc % */}
       {includeDiscount && (
         <input
           type="number"
-          {...register(`lineItems.${index}.discount`, { valueAsNumber: true })}
+          {...register(`lineItems.${index}.discount`, {
+            setValueAs: (v) => (v === "" || Number.isNaN(Number(v)) ? 0 : Number(v)),
+          })}
           placeholder="0"
           className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
@@ -285,7 +269,9 @@ function LineItemRow({
       {includeVat && (
         <input
           type="number"
-          {...register(`lineItems.${index}.vat`, { valueAsNumber: true })}
+          {...register(`lineItems.${index}.vat`, {
+            setValueAs: (v) => (v === "" || Number.isNaN(Number(v)) ? 0 : Number(v)),
+          })}
           placeholder="20"
           className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />

@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
 import { CommandIcon, SearchIcon } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
-
+import React, { useEffect, useState } from "react";
+import { navItems } from "@/components/layout/sidebar/nav-main";
+import { Button } from "@/components/ui/button";
 import {
   CommandDialog,
   CommandEmpty,
@@ -12,10 +12,9 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator
+  CommandSeparator,
 } from "@/components/ui/command";
-import { Button } from "@/components/ui/button";
-import { navItems } from "@/components/layout/sidebar/nav-main";
+import { Input } from "@/components/ui/input";
 
 export default function Search() {
   const [open, setOpen] = useState(false);
@@ -37,6 +36,8 @@ export default function Search() {
       <div className="relative hidden max-w-sm flex-1 lg:block">
         <SearchIcon className="text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2" />
         <Input
+          id="global-search"
+          name="global-search"
           className="h-9 w-full cursor-pointer rounded-md border pr-4 pl-10 text-sm shadow-xs"
           placeholder="Search..."
           type="search"
@@ -48,17 +49,12 @@ export default function Search() {
         </div>
       </div>
       <div className="block lg:hidden">
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          onClick={() => setOpen(true)}
-          suppressHydrationWarning
-        >
+        <Button size="icon" variant="ghost" onClick={() => setOpen(true)} suppressHydrationWarning>
           <SearchIcon />
         </Button>
       </div>
-      <CommandDialog 
-        open={open} 
+      <CommandDialog
+        open={open}
         onOpenChange={setOpen}
         title="Search"
         description="Search commands and navigate to pages"
@@ -69,13 +65,14 @@ export default function Search() {
           {navItems.map((route) => (
             <React.Fragment key={route.title}>
               <CommandGroup heading={route.title}>
-                {route.items.map((item, key) => (
+                {route.items.map((item) => (
                   <CommandItem
-                    key={key}
+                    key={item.href}
                     onSelect={() => {
                       setOpen(false);
                       router.push(item.href);
-                    }}>
+                    }}
+                  >
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                   </CommandItem>

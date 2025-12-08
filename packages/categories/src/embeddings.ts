@@ -1,14 +1,13 @@
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { embed, embedMany } from "ai";
-import type { EmbeddingResult, EmbeddingsResult, CategoryMatch, Category } from "./types";
 import { ALL_CATEGORIES } from "./categories";
+import { logger } from "./logger"; // TODO: Adjust path
+import type { Category, CategoryMatch, EmbeddingResult, EmbeddingsResult } from "./types";
 
 const GOOGLE_API_KEY = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
 
 // Create Google AI client
-const google = GOOGLE_API_KEY
-  ? createGoogleGenerativeAI({ apiKey: GOOGLE_API_KEY })
-  : null;
+const google = GOOGLE_API_KEY ? createGoogleGenerativeAI({ apiKey: GOOGLE_API_KEY }) : null;
 
 const EMBEDDING_CONFIG = {
   modelName: "text-embedding-004",
@@ -26,7 +25,7 @@ export async function generateEmbedding(text: string): Promise<EmbeddingResult> 
   const model = google.textEmbeddingModel(EMBEDDING_CONFIG.modelName);
 
   const { embedding } = await embed({
-    model,
+    model: model as any,
     value: text,
   });
 
@@ -47,7 +46,7 @@ export async function generateEmbeddings(texts: string[]): Promise<EmbeddingsRes
   const model = google.textEmbeddingModel(EMBEDDING_CONFIG.modelName);
 
   const { embeddings } = await embedMany({
-    model,
+    model: model as any,
     values: texts,
   });
 
@@ -123,7 +122,7 @@ export async function findBestCategory(
 
     return bestMatch;
   } catch (error) {
-    console.error("Error finding best category:", error);
+    logger.error("Error finding best category:", error);
     return null;
   }
 }
@@ -151,11 +150,9 @@ export async function findTopCategories(
     }));
 
     // Sort by similarity and return top N
-    return matches
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, topN);
+    return matches.sort((a, b) => b.similarity - a.similarity).slice(0, topN);
   } catch (error) {
-    console.error("Error finding top categories:", error);
+    logger.error("Error finding top categories:", error);
     return [];
   }
 }
@@ -216,4 +213,3 @@ export class CategoryEmbeddings {
 
 // Singleton instance
 export const categoryEmbeddings = new CategoryEmbeddings();
-

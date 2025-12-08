@@ -1,16 +1,16 @@
 "use client";
 
+import type { InvoiceStatusBreakdown } from "@crm/types";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Pie, PieChart, Cell, ResponsiveContainer } from "recharts";
-import type { InvoiceStatusBreakdown } from "@crm/types";
 
 interface InvoiceStatusChartProps {
   data: InvoiceStatusBreakdown[];
@@ -59,7 +59,11 @@ export function InvoiceStatusChart({ data, className }: InvoiceStatusChartProps)
         <CardDescription>Distribution of invoice statuses</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="mx-auto h-[300px] w-full">
+        <ChartContainer
+          id="reports-invoice-status"
+          config={chartConfig}
+          className="mx-auto h-[300px] w-full"
+        >
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -84,7 +88,9 @@ export function InvoiceStatusChart({ data, className }: InvoiceStatusChartProps)
                     formatter={(value, name, props) => (
                       <div className="space-y-1">
                         <p className="font-medium">{name}</p>
-                        <p>{Number(value)} invoices ({((Number(value) / total) * 100).toFixed(1)}%)</p>
+                        <p>
+                          {Number(value)} invoices ({((Number(value) / total) * 100).toFixed(1)}%)
+                        </p>
                         <p className="text-muted-foreground">
                           Total: €{props.payload?.totalValue?.toLocaleString()}
                         </p>
@@ -101,4 +107,3 @@ export function InvoiceStatusChart({ data, className }: InvoiceStatusChartProps)
     </Card>
   );
 }
-

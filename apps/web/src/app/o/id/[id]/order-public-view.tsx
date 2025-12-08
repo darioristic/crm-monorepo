@@ -1,21 +1,16 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Download, Link2, Check, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Check, Download, Link2, Pencil } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { HtmlTemplate } from "@/components/order/templates/html";
-import type { Order, EditorDoc } from "@/types/order";
-import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
+import type { EditorDoc, Order } from "@/types/order";
+import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
 
 // API Order Response Type
 interface OrderApiResponse {
@@ -54,6 +49,7 @@ interface OrderApiResponse {
     vatNumber?: string;
     website?: string;
   };
+  customerDetails?: EditorDoc | string | null;
   vat?: number | null;
   tax?: number | null;
   discount?: number | null;
@@ -227,6 +223,22 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
   const customerName = order.companyName || order.company?.name || "Customer";
 
   // Transform API data to Order type
+  // Prefer stored customerDetails from API; fallback to built from company fields
+  let customerDoc: any = null;
+  if ((order as any).customerDetails) {
+    customerDoc = (order as any).customerDetails as any;
+    if (typeof customerDoc === "string") {
+      try {
+        customerDoc = JSON.parse(customerDoc);
+      } catch {
+        customerDoc = null;
+      }
+    }
+    if (!customerDoc || typeof customerDoc !== "object" || customerDoc.type !== "doc") {
+      customerDoc = null;
+    }
+  }
+
   const orderData: Order = {
     id: order.id,
     orderNumber: order.orderNumber,
@@ -257,7 +269,7 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
             ],
           }
         : null),
-    customerDetails: buildCustomerDetails(order),
+    customerDetails: customerDoc || buildCustomerDetails(order),
     fromDetails: buildFromDetails(fromDetails),
     noteDetails: order.notes
       ? {
@@ -276,12 +288,9 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
     tax: order.tax || null,
     discount: order.discount || null,
     subtotal: order.subtotal,
-    status:
-      ["pending", "processing", "completed", "cancelled", "refunded"].includes(
-        order.status,
-      )
-        ? (order.status as Order["status"]) 
-        : "pending",
+    status: ["pending", "processing", "completed", "cancelled", "refunded"].includes(order.status)
+      ? (order.status as Order["status"])
+      : "pending",
     template: {
       ...DEFAULT_ORDER_TEMPLATE,
       logoUrl: logoUrl,
@@ -343,10 +352,7 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
 
   return (
     <div className="flex flex-col justify-center items-center min-h-screen dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         {/* Customer Header */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -364,12 +370,7 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
         {/* Order Template */}
         <div className="pb-24 md:pb-0">
           <div className="shadow-[0_24px_48px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
-            <HtmlTemplate
-              data={orderData}
-              width={width}
-              height={height}
-              disableScroll
-            />
+            <HtmlTemplate data={orderData} width={width} height={height} disableScroll />
           </div>
         </div>
       </div>

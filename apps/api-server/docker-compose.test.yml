@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  # Test PostgreSQL database
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: crm-postgres-test
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: crm_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./test-data:/var/lib/postgresql/data
+      - ./src/db/migrations:/migrations
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d crm_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - test-network
+
+  # Redis for caching tests
+  redis-test:
+    image: redis:7-alpine
+    container_name: crm-redis-test
+    ports:
+      - "6380:6379"
+    networks:
+      - test-network
+
+networks:
+  test-network:
+    driver: bridge

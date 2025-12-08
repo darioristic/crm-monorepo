@@ -1,6 +1,7 @@
 import { openai } from "@ai-sdk/openai";
 import type { CoreMessage, LanguageModel } from "ai";
 import { redis } from "../../../cache/redis";
+import { logger } from "../../../lib/logger";
 import type { AppContext, ChatUserContext } from "../../types";
 
 // Memory storage using Redis
@@ -47,10 +48,7 @@ export const COMMON_AGENT_RULES = `<behavior_rules>
 - If you don't have enough information, ask for clarification
 </behavior_rules>`;
 
-export function buildAppContext(
-  context: ChatUserContext,
-  chatId: string
-): AppContext {
+export function buildAppContext(context: ChatUserContext, chatId: string): AppContext {
   const scopedUserId = `${context.userId}:${context.teamId}`;
 
   return {
@@ -72,39 +70,31 @@ export function createAgent(config: AgentConfig): Agent {
     config,
     getSystemPrompt: (ctx: AppContext) => {
       const instructions =
-        typeof config.instructions === "function"
-          ? config.instructions(ctx)
-          : config.instructions;
+        typeof config.instructions === "function" ? config.instructions(ctx) : config.instructions;
       return instructions;
     },
   };
 }
 
 // Chat history management
-export async function getChatHistory(
-  chatId: string,
-  limit = 20
-): Promise<CoreMessage[]> {
+export async function getChatHistory(chatId: string, limit = 20): Promise<CoreMessage[]> {
   try {
     const key = `${CHAT_HISTORY_PREFIX}${chatId}`;
     const history = await redis.lrange(key, -limit, -1);
     return history.map((msg) => JSON.parse(msg) as CoreMessage);
   } catch (error) {
-    console.error("Error getting chat history:", error);
+    logger.error("Error getting chat history:", error);
     return [];
   }
 }
 
-export async function saveChatMessage(
-  chatId: string,
-  message: CoreMessage
-): Promise<void> {
+export async function saveChatMessage(chatId: string, message: CoreMessage): Promise<void> {
   try {
     const key = `${CHAT_HISTORY_PREFIX}${chatId}`;
     await redis.rpush(key, JSON.stringify(message));
     await redis.expire(key, MEMORY_TTL);
   } catch (error) {
-    console.error("Error saving chat message:", error);
+    logger.error("Error saving chat message:", error);
   }
 }
 
@@ -113,7 +103,7 @@ export async function clearChatHistory(chatId: string): Promise<void> {
     const key = `${CHAT_HISTORY_PREFIX}${chatId}`;
     await redis.del(key);
   } catch (error) {
-    console.error("Error clearing chat history:", error);
+    logger.error("Error clearing chat history:", error);
   }
 }
 
@@ -123,21 +113,18 @@ export async function getWorkingMemory(userId: string): Promise<string | null> {
     const key = `${CHAT_MEMORY_PREFIX}${userId}`;
     return await redis.get(key);
   } catch (error) {
-    console.error("Error getting working memory:", error);
+    logger.error("Error getting working memory:", error);
     return null;
   }
 }
 
-export async function saveWorkingMemory(
-  userId: string,
-  memory: string
-): Promise<void> {
+export async function saveWorkingMemory(userId: string, memory: string): Promise<void> {
   try {
     const key = `${CHAT_MEMORY_PREFIX}${userId}`;
     await redis.set(key, memory);
     await redis.expire(key, MEMORY_TTL);
   } catch (error) {
-    console.error("Error saving working memory:", error);
+    logger.error("Error saving working memory:", error);
   }
 }
 

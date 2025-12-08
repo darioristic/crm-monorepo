@@ -1,9 +1,10 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 export const name = "002_create_users";
 
 export async function up(): Promise<void> {
-  console.log(`Running migration: ${name}`);
+  logger.info(`Running migration: ${name}`);
 
   // Create enum type for user roles
   await db`
@@ -36,11 +37,11 @@ export async function up(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_users_company_id ON users(company_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_users_role ON users(role)`;
 
-  console.log(`✅ Migration ${name} completed`);
+  logger.info(`✅ Migration ${name} completed`);
 }
 
 export async function down(): Promise<void> {
-  console.log(`Rolling back migration: ${name}`);
+  logger.info(`Rolling back migration: ${name}`);
 
   await db`DROP INDEX IF EXISTS idx_users_role`;
   await db`DROP INDEX IF EXISTS idx_users_company_id`;
@@ -48,5 +49,5 @@ export async function down(): Promise<void> {
   await db`DROP TABLE IF EXISTS users CASCADE`;
   await db`DROP TYPE IF EXISTS user_role`;
 
-  console.log(`✅ Rollback ${name} completed`);
+  logger.info(`✅ Rollback ${name} completed`);
 }

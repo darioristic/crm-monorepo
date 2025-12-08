@@ -1,51 +1,57 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
+import type { Company, Project, User } from "@crm/types";
 import {
-  ColumnDef,
+  type ColumnDef,
   flexRender,
   getCoreRowModel,
+  type RowSelectionState,
   useReactTable,
-  RowSelectionState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, RefreshCwIcon, Pencil, Trash2, Eye, LayoutGrid } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import type { Project, User, Company } from "@crm/types";
-
+import {
+  ArrowUpDown,
+  Eye,
+  LayoutGrid,
+  MoreHorizontal,
+  Pencil,
+  RefreshCwIcon,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import * as React from "react";
+import { toast } from "sonner";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { formatDate } from "@/lib/utils";
-import { projectsApi, usersApi, companiesApi } from "@/lib/api";
-import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/utils";
+import { useApi, useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { companiesApi, projectsApi, usersApi } from "@/lib/api";
+import { formatDate, getErrorMessage } from "@/lib/utils";
 
 type ProjectWithRelations = Project & {
   ownerName?: string;
@@ -58,7 +64,7 @@ const statusColors = {
   in_progress: "default",
   on_hold: "warning",
   completed: "success",
-  cancelled: "destructive"
+  cancelled: "destructive",
 } as const;
 
 const statusOptions = [
@@ -67,7 +73,7 @@ const statusOptions = [
   { value: "in_progress", label: "In Progress" },
   { value: "on_hold", label: "On Hold" },
   { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" }
+  { value: "cancelled", label: "Cancelled" },
 ];
 
 export function ProjectsDataTable() {
@@ -80,14 +86,11 @@ export function ProjectsDataTable() {
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Fetch users for owner lookup
-  const { data: users } = useApi<User[]>(
-    () => usersApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: users } = useApi<User[]>(() => usersApi.getAll(), { autoFetch: true });
 
   // Fetch companies for company lookup
   const { data: companies } = useApi<Company[]>(
-    () => companiesApi.getAll(),
+    () => companiesApi.getAll({ pageSize: 500, source: "customer" }),
     { autoFetch: true }
   );
 
@@ -119,11 +122,11 @@ export function ProjectsDataTable() {
     totalCount,
     totalPages,
     setPage,
-    setFilters
-  } = usePaginatedApi<Project>(
-    (params) => projectsApi.getAll(params),
-    { search: searchValue, status: statusFilter === "all" ? undefined : statusFilter }
-  );
+    setFilters,
+  } = usePaginatedApi<Project>((params) => projectsApi.getAll(params), {
+    search: searchValue,
+    status: statusFilter === "all" ? undefined : statusFilter,
+  });
 
   // Delete mutation
   const deleteMutation = useMutation<void, string>((id) => projectsApi.delete(id));
@@ -134,7 +137,7 @@ export function ProjectsDataTable() {
       ...project,
       ownerName: userMap.get(project.managerId) || "Unknown",
       companyName: project.clientId ? companyMap.get(project.clientId) : undefined,
-      progress: 0 // Would be calculated from tasks
+      progress: 0, // Would be calculated from tasks
     }));
   }, [projects, userMap, companyMap]);
 
@@ -143,7 +146,7 @@ export function ProjectsDataTable() {
     const timer = setTimeout(() => {
       setFilters({
         search: searchValue,
-        status: statusFilter === "all" ? undefined : statusFilter
+        status: statusFilter === "all" ? undefined : statusFilter,
       });
     }, 300);
     return () => clearTimeout(timer);
@@ -174,7 +177,7 @@ export function ProjectsDataTable() {
     let failCount = 0;
 
     for (const rowIndex of selectedRows) {
-      const project = enrichedProjects[parseInt(rowIndex)];
+      const project = enrichedProjects[parseInt(rowIndex, 10)];
       if (project) {
         const result = await deleteMutation.mutate(project.id);
         if (result.success) {
@@ -223,16 +226,17 @@ export function ProjectsDataTable() {
       enableSorting: false,
       enableHiding: false,
     },
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-        Project Name
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Project Name
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <Link
           href={`/dashboard/projects/${row.original.id}`}
@@ -240,48 +244,46 @@ export function ProjectsDataTable() {
         >
           {row.original.name}
         </Link>
-      )
+      ),
     },
     {
       accessorKey: "companyName",
       header: "Company",
       cell: ({ row }) => (
         <span className="text-muted-foreground">{row.original.companyName || "-"}</span>
-      )
+      ),
     },
     {
       accessorKey: "ownerName",
       header: "Owner",
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.ownerName}</span>,
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.ownerName}</span>
-      )
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={statusColors[row.original.status]} className="capitalize">
-        {row.original.status.replace("_", " ")}
-      </Badge>
-    )
-  },
-  {
-    accessorKey: "progress",
-    header: "Progress",
-    cell: ({ row }) => (
-      <div className="flex items-center gap-2 w-32">
+        <Badge variant={statusColors[row.original.status]} className="capitalize">
+          {row.original.status.replace("_", " ")}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "progress",
+      header: "Progress",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2 w-32">
           <Progress value={row.original.progress || 0} className="h-2" />
           <span className="text-sm text-muted-foreground">{row.original.progress || 0}%</span>
-      </div>
-    )
-  },
-  {
-    accessorKey: "startDate",
-    header: "Start Date",
-      cell: ({ row }) => row.original.startDate ? formatDate(row.original.startDate) : "-"
-  },
-  {
-    accessorKey: "endDate",
+        </div>
+      ),
+    },
+    {
+      accessorKey: "startDate",
+      header: "Start Date",
+      cell: ({ row }) => (row.original.startDate ? formatDate(row.original.startDate) : "-"),
+    },
+    {
+      accessorKey: "endDate",
       header: "Due Date",
       cell: ({ row }) => {
         if (!row.original.endDate) return "-";
@@ -292,18 +294,18 @@ export function ProjectsDataTable() {
             {formatDate(row.original.endDate)}
           </span>
         );
-      }
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+      },
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
               <Link href={`/dashboard/projects/${row.original.id}`}>
                 <Eye className="mr-2 h-4 w-4" />
@@ -333,11 +335,11 @@ export function ProjectsDataTable() {
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-  }
-];
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ];
 
   const table = useReactTable({
     data: enrichedProjects,
@@ -394,11 +396,7 @@ export function ProjectsDataTable() {
           <RefreshCwIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
         {selectedCount > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setBulkDeleteDialogOpen(true)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete ({selectedCount})
           </Button>
@@ -445,32 +443,37 @@ export function ProjectsDataTable() {
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
           {selectedCount > 0 ? (
-            <span>{selectedCount} of {totalCount} row(s) selected</span>
+            <span>
+              {selectedCount} of {totalCount} row(s) selected
+            </span>
           ) : (
-            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} projects</span>
+            <span>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of{" "}
+              {totalCount} projects
+            </span>
           )}
         </div>
         <div className="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage(page - 1)}
             disabled={page <= 1}
           >
-          Previous
-        </Button>
+            Previous
+          </Button>
           <span className="text-sm text-muted-foreground">
             Page {page} of {totalPages || 1}
           </span>
-        <Button
-          variant="outline"
-          size="sm"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage(page + 1)}
             disabled={page >= totalPages}
           >
-          Next
-        </Button>
-      </div>
+            Next
+          </Button>
+        </div>
       </div>
 
       <DeleteDialog

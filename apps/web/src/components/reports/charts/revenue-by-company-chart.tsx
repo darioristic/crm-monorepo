@@ -1,14 +1,14 @@
 "use client";
 
+import type { CompanyRevenue } from "@crm/types";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import type { CompanyRevenue } from "@crm/types";
 
 interface RevenueByCompanyChartProps {
   data: CompanyRevenue[];
@@ -25,9 +25,8 @@ const chartConfig = {
 export function RevenueByCompanyChart({ data, className }: RevenueByCompanyChartProps) {
   const formattedData = data.map((item) => ({
     ...item,
-    name: item.companyName.length > 15 
-      ? item.companyName.substring(0, 15) + "..." 
-      : item.companyName,
+    name:
+      item.companyName.length > 15 ? `${item.companyName.substring(0, 15)}...` : item.companyName,
     fullName: item.companyName,
   }));
 
@@ -38,7 +37,11 @@ export function RevenueByCompanyChart({ data, className }: RevenueByCompanyChart
         <CardDescription>Top companies by total revenue</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer
+          id="reports-revenue-by-company"
+          config={chartConfig}
+          className="h-[300px] w-full"
+        >
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={formattedData}
@@ -75,11 +78,7 @@ export function RevenueByCompanyChart({ data, className }: RevenueByCompanyChart
                   />
                 }
               />
-              <Bar
-                dataKey="revenue"
-                fill="var(--color-revenue)"
-                radius={[0, 4, 4, 0]}
-              />
+              <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[0, 4, 4, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
@@ -87,4 +86,3 @@ export function RevenueByCompanyChart({ data, className }: RevenueByCompanyChart
     </Card>
   );
 }
-

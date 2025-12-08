@@ -3,9 +3,9 @@ import { generateObject } from "ai";
 import { documentClassifierPrompt, imageClassifierPrompt } from "../prompt";
 import { documentClassifierSchema, imageClassifierSchema } from "../schema";
 import type {
-  DocumentClassifierRequest,
-  DocumentClassifierImageRequest,
   ClassificationResult,
+  DocumentClassifierImageRequest,
+  DocumentClassifierRequest,
 } from "../types";
 
 export class DocumentClassifier {
@@ -13,7 +13,7 @@ export class DocumentClassifier {
 
   async #processDocument({ content }: DocumentClassifierRequest): Promise<ClassificationResult> {
     const result = await generateObject({
-      model: this.model,
+      model: this.model as any,
       schema: documentClassifierSchema,
       temperature: 0.3,
       messages: [
@@ -33,7 +33,7 @@ export class DocumentClassifier {
 
   async #processImage(request: DocumentClassifierImageRequest): Promise<ClassificationResult> {
     const result = await generateObject({
-      model: this.model,
+      model: this.model as any,
       schema: imageClassifierSchema,
       temperature: 0.3,
       messages: [
@@ -60,14 +60,13 @@ export class DocumentClassifier {
     return this.#processDocument(request);
   }
 
-  public async classifyImage(request: DocumentClassifierImageRequest): Promise<ClassificationResult> {
+  public async classifyImage(
+    request: DocumentClassifierImageRequest
+  ): Promise<ClassificationResult> {
     return this.#processImage(request);
   }
 
-  public async classify(
-    content: string,
-    isImage = false
-  ): Promise<ClassificationResult> {
+  public async classify(content: string, isImage = false): Promise<ClassificationResult> {
     if (isImage) {
       return this.classifyImage({ content });
     }
@@ -77,4 +76,3 @@ export class DocumentClassifier {
 
 // Singleton instance
 export const documentClassifier = new DocumentClassifier();
-

@@ -1,20 +1,15 @@
-import { generateMeta } from "@/lib/utils";
-import { Metadata } from "next";
-import { cookies } from "next/headers";
-import { notFound } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Pencil, Package } from "lucide-react";
 import type { ProductWithCategory } from "@crm/types";
+import { ArrowLeft, Package, Pencil } from "lucide-react";
+import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import Link from "next/link";
+import { notFound } from "next/navigation";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { logger } from "@/lib/logger";
+import { generateMeta } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -45,7 +40,7 @@ async function getProduct(id: string): Promise<ProductWithCategory | null> {
     const data = await response.json();
     return data.data || null;
   } catch (error) {
-    console.error("Error fetching product:", error);
+    logger.error("Error fetching product:", error);
     return null;
   }
 }
@@ -98,9 +93,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
   const stockStatus = getStockStatus(product);
   const margin = product.costPrice
-    ? ((Number(product.unitPrice) - Number(product.costPrice)) /
-        Number(product.unitPrice)) *
-      100
+    ? ((Number(product.unitPrice) - Number(product.costPrice)) / Number(product.unitPrice)) * 100
     : null;
 
   return (
@@ -136,18 +129,14 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
               <div>
                 <CardTitle>{product.name}</CardTitle>
-                <CardDescription>
-                  {product.category?.name || "Uncategorized"}
-                </CardDescription>
+                <CardDescription>{product.category?.name || "Uncategorized"}</CardDescription>
               </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
             {product.description && (
               <div>
-                <h4 className="text-muted-foreground mb-2 text-sm font-medium">
-                  Description
-                </h4>
+                <h4 className="text-muted-foreground mb-2 text-sm font-medium">Description</h4>
                 <p className="text-sm">{product.description}</p>
               </div>
             )}
@@ -156,18 +145,14 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <h4 className="text-muted-foreground mb-2 text-sm font-medium">
-                  Unit Price
-                </h4>
+                <h4 className="text-muted-foreground mb-2 text-sm font-medium">Unit Price</h4>
                 <p className="text-2xl font-bold">
                   {formatCurrency(Number(product.unitPrice), product.currency)}
                 </p>
               </div>
               {product.costPrice && (
                 <div>
-                  <h4 className="text-muted-foreground mb-2 text-sm font-medium">
-                    Cost Price
-                  </h4>
+                  <h4 className="text-muted-foreground mb-2 text-sm font-medium">Cost Price</h4>
                   <p className="text-2xl font-bold">
                     {formatCurrency(Number(product.costPrice), product.currency)}
                   </p>
@@ -177,12 +162,8 @@ export default async function ProductDetailPage({ params }: PageProps) {
 
             {margin !== null && (
               <div>
-                <h4 className="text-muted-foreground mb-2 text-sm font-medium">
-                  Profit Margin
-                </h4>
-                <p className="text-lg font-semibold text-green-600">
-                  {margin.toFixed(1)}%
-                </p>
+                <h4 className="text-muted-foreground mb-2 text-sm font-medium">Profit Margin</h4>
+                <p className="text-lg font-semibold text-green-600">{margin.toFixed(1)}%</p>
               </div>
             )}
           </CardContent>
@@ -203,9 +184,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Type</span>
-                <Badge variant="outline">
-                  {product.isService ? "Service" : "Product"}
-                </Badge>
+                <Badge variant="outline">{product.isService ? "Service" : "Product"}</Badge>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Stock Status</span>
@@ -227,9 +206,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground text-sm">
-                    Min Level
-                  </span>
+                  <span className="text-muted-foreground text-sm">Min Level</span>
                   <span className="font-medium">
                     {Number(product.minStockLevel) || 0} {product.unit}
                   </span>
@@ -249,9 +226,7 @@ export default async function ProductDetailPage({ params }: PageProps) {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Tax Rate</span>
-                <span className="font-medium">
-                  {Number(product.taxRate) || 0}%
-                </span>
+                <span className="font-medium">{Number(product.taxRate) || 0}%</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground text-sm">Currency</span>
@@ -270,4 +245,3 @@ export default async function ProductDetailPage({ params }: PageProps) {
     </div>
   );
 }
-

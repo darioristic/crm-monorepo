@@ -1,14 +1,14 @@
 "use client";
 
+import type { RevenuePoint } from "@crm/types";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Line, LineChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
-import type { RevenuePoint } from "@crm/types";
 
 interface RevenueOverTimeChartProps {
   data: RevenuePoint[];
@@ -36,7 +36,11 @@ export function RevenueOverTimeChart({ data, className }: RevenueOverTimeChartPr
         <CardDescription>Daily revenue from paid invoices</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[300px] w-full">
+        <ChartContainer
+          id="reports-revenue-over-time"
+          config={chartConfig}
+          className="h-[300px] w-full"
+        >
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={formattedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
@@ -81,4 +85,3 @@ export function RevenueOverTimeChart({ data, className }: RevenueOverTimeChartPr
     </Card>
   );
 }
-

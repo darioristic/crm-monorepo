@@ -1,17 +1,18 @@
 import type {
+  FilterParams,
+  PaginationParams,
   Quote,
   QuoteItem,
-  QuoteWithRelations,
-  PaginationParams,
-  FilterParams,
   QuoteStatus,
+  QuoteWithRelations,
 } from "@crm/types";
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 import {
   createQueryBuilder,
+  type QueryParam,
   sanitizeSortColumn,
   sanitizeSortOrder,
-  type QueryParam,
 } from "../query-builder";
 
 // ============================================
@@ -24,79 +25,126 @@ export const quoteQueries = {
     pagination: PaginationParams,
     filters: FilterParams
   ): Promise<{ data: Quote[]; total: number }> {
-    const { page = 1, pageSize = 20 } = pagination;
+    try {
+      const { page = 1, pageSize = 20 } = pagination;
 
-    const safePage = Math.max(1, Math.floor(page));
-    const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
-    const safeOffset = (safePage - 1) * safePageSize;
+      const safePage = Math.max(1, Math.floor(page));
+      const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
+      const safeOffset = (safePage - 1) * safePageSize;
 
-    // Koristi query builder za sigurne upite
-    const qb = createQueryBuilder("quotes");
-    // Only filter by companyId if provided (admin can see all)
-    if (companyId) {
-      qb.addEqualCondition("company_id", companyId);
-    }
-    qb.addSearchCondition(["quote_number"], filters.search);
-    qb.addEqualCondition("status", filters.status);
-
-    const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
-
-    const countQuery = `SELECT COUNT(*) FROM quotes ${whereClause}`;
-    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
-    const total = parseInt(countResult[0].count, 10);
-
-    const sortBy = sanitizeSortColumn("quotes", pagination.sortBy);
-    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
-
-    const selectQuery = `
-      SELECT * FROM quotes
-      ${whereClause}
-      ORDER BY ${sortBy} ${sortOrder}
-      LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
-    `;
-
-    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
-
-    // Fetch all items for all quotes in a single query (fixes N+1 problem)
-    if (data.length === 0) {
-      return { data: [], total };
-    }
-
-    const quoteIds = data.map((row: Record<string, unknown>) => row.id as string);
-    const allItems = await db`
-      SELECT * FROM quote_items
-      WHERE quote_id = ANY(${quoteIds})
-      ORDER BY quote_id
-    `;
-
-    // Group items by quote_id
-    const itemsByQuoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-      if (!acc[item.quote_id]) {
-        acc[item.quote_id] = [];
+      // Koristi query builder za sigurne upite
+      const qb = createQueryBuilder("quotes");
+      // Only filter by companyId if provided (admin can see all)
+      if (companyId) {
+        qb.addEqualCondition("company_id", companyId);
       }
-      acc[item.quote_id].push(item);
-      return acc;
-    }, {});
+      qb.addSearchCondition(["quote_number"], filters.search);
+      qb.addEqualCondition("status", filters.status);
+      if ((filters as any).createdBy) {
+        qb.addEqualCondition("created_by", (filters as any).createdBy as string);
+      }
 
-    // Map quotes with their items
-    const quotesWithItems = data.map((row: Record<string, unknown>) => {
-      const items = itemsByQuoteId[row.id as string] || [];
-      return mapQuote(row, items);
-    });
+      const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
-    return { data: quotesWithItems, total };
+      const countQuery = `SELECT COUNT(*) FROM quotes ${whereClause}`;
+      const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
+      const total = parseInt((countResult[0]?.count as string) || "0", 10);
+
+      const sortBy = sanitizeSortColumn("quotes", pagination.sortBy);
+      const sortOrder = sanitizeSortOrder(pagination.sortOrder);
+
+      // Select query with error handling
+      let data: Record<string, unknown>[] = [];
+      try {
+        const selectQuery = `
+          SELECT * FROM quotes
+          ${whereClause}
+          ORDER BY ${sortBy} ${sortOrder}
+          LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
+        `;
+        data = await db.unsafe(selectQuery, [
+          ...whereValues,
+          safePageSize,
+          safeOffset,
+        ] as QueryParam[]);
+      } catch (selectError) {
+        logger.error("Error selecting quotes:", selectError);
+        logger.error("CompanyId:", companyId);
+        logger.error("Pagination:", pagination);
+        logger.error("Filters:", filters);
+        logger.error("WhereValues:", whereValues);
+        logger.error("SafePageSize:", safePageSize, "SafeOffset:", safeOffset);
+        data = [];
+      }
+
+      // Fetch all items for all quotes in a single query (fixes N+1 problem)
+      if (data.length === 0) {
+        return { data: [], total };
+      }
+
+      const quoteIds = data.map((row: Record<string, unknown>) => row.id as string);
+
+      if (quoteIds.length === 0) {
+        return {
+          data: data.map((row: Record<string, unknown>) => mapQuote(row, [])),
+          total,
+        };
+      }
+
+      // Fetch all items for all quotes in a single query (fixes N+1 problem)
+      const allItems = await db`
+        SELECT * FROM quote_items
+        WHERE quote_id = ANY(${quoteIds})
+        ORDER BY quote_id
+      `;
+
+      // Group items by quote_id
+      const itemsByQuoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
+        if (!acc[item.quote_id]) {
+          acc[item.quote_id] = [];
+        }
+        acc[item.quote_id].push(item);
+        return acc;
+      }, {});
+
+      // Map quotes with their items
+      const quotesWithItems = data.map((row: Record<string, unknown>) => {
+        const items = itemsByQuoteId[row.id as string] || [];
+        return mapQuote(row, items);
+      });
+
+      return { data: quotesWithItems, total };
+    } catch (error) {
+      logger.error("Error in quoteQueries.findAll:", error);
+      throw error;
+    }
   },
 
   async findById(id: string): Promise<QuoteWithRelations | null> {
     const result = await db`
-      SELECT q.*,
-        c.id as company_id_join, c.name as company_name, c.industry as company_industry, c.address as company_address,
-        ct.id as contact_id_join, ct.first_name as contact_first_name, ct.last_name as contact_last_name, ct.email as contact_email
-      FROM quotes q
-      LEFT JOIN companies c ON q.company_id = c.id
-      LEFT JOIN contacts ct ON q.contact_id = ct.id
-      WHERE q.id = ${id}
-    `;
+	      SELECT q.*,
+	        c.id as company_id_join,
+	        c.name as company_name,
+	        c.industry as company_industry,
+	        c.address as company_address,
+	        c.email as company_email,
+	        c.phone as company_phone,
+	        c.city as company_city,
+	        c.zip as company_zip,
+	        c.country as company_country,
+	        c.vat_number as company_vat_number,
+	        c.company_number as company_company_number,
+	        c.website as company_website,
+	        c.logo_url as company_logo_url,
+	        ct.id as contact_id_join,
+	        ct.first_name as contact_first_name,
+	        ct.last_name as contact_last_name,
+	        ct.email as contact_email
+	      FROM quotes q
+	      LEFT JOIN companies c ON q.company_id = c.id
+	      LEFT JOIN contacts ct ON q.contact_id = ct.id
+	      WHERE q.id = ${id}
+	    `;
 
     if (result.length === 0) return null;
 
@@ -120,7 +168,44 @@ export const quoteQueries = {
     return mapQuote(result[0], items);
   },
 
-  async create(quote: Omit<Quote, "items">, items: Omit<QuoteItem, "id" | "quoteId">[]): Promise<Quote> {
+  async findByNumberWithRelations(quoteNumber: string): Promise<QuoteWithRelations | null> {
+    const result = await db`
+	      SELECT q.*,
+	        c.id as company_id_join,
+	        c.name as company_name,
+	        c.industry as company_industry,
+	        c.address as company_address,
+	        c.email as company_email,
+	        c.phone as company_phone,
+	        c.city as company_city,
+	        c.zip as company_zip,
+	        c.country as company_country,
+	        c.vat_number as company_vat_number,
+	        c.website as company_website,
+	        c.logo_url as company_logo_url,
+	        ct.id as contact_id_join,
+	        ct.first_name as contact_first_name,
+	        ct.last_name as contact_last_name,
+	        ct.email as contact_email
+	      FROM quotes q
+	      LEFT JOIN companies c ON q.company_id = c.id
+	      LEFT JOIN contacts ct ON q.contact_id = ct.id
+	      WHERE q.quote_number = ${quoteNumber}
+	    `;
+
+    if (result.length === 0) return null;
+
+    const items = await db`
+      SELECT * FROM quote_items WHERE quote_id = ${result[0].id}
+    `;
+
+    return mapQuoteWithRelations(result[0], items);
+  },
+
+  async create(
+    quote: Omit<Quote, "items">,
+    items: Omit<QuoteItem, "id" | "quoteId">[]
+  ): Promise<Quote> {
     const result = await db`
       INSERT INTO quotes (
         id, quote_number, company_id, contact_id, status, issue_date, valid_until,
@@ -146,10 +231,17 @@ export const quoteQueries = {
       insertedItems.push(mapQuoteItem(itemResult[0]));
     }
 
-    return mapQuote(result[0], insertedItems.map((i) => ({ ...i })));
+    return mapQuote(
+      result[0],
+      insertedItems.map((i) => ({ ...i }))
+    );
   },
 
-  async update(id: string, data: Partial<Quote>, items?: Omit<QuoteItem, "quoteId">[]): Promise<Quote> {
+  async update(
+    id: string,
+    data: Partial<Quote>,
+    items?: Omit<QuoteItem, "quoteId">[]
+  ): Promise<Quote> {
     const result = await db`
       UPDATE quotes SET
         company_id = COALESCE(${data.companyId ?? null}, company_id),
@@ -198,7 +290,20 @@ export const quoteQueries = {
       SELECT COUNT(*) FROM quotes WHERE EXTRACT(YEAR FROM created_at) = ${year}
     `;
     const count = parseInt(result[0].count as string, 10) + 1;
-    return `QUO-${year}-${String(count).padStart(5, "0")}`;
+
+    // Try a few attempts with random suffix to avoid unique collisions across tenants
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const suffix = Math.floor(1000 + Math.random() * 9000); // 4-digit
+      const candidate = `QUO-${year}-${String(count).padStart(5, "0")}-${suffix}`;
+      const exists = await db`
+        SELECT 1 FROM quotes WHERE quote_number = ${candidate} LIMIT 1
+      `;
+      if (exists.length === 0) return candidate;
+    }
+
+    // Fallback with timestamp tail to guarantee uniqueness
+    const tsTail = String(Date.now()).slice(-6);
+    return `QUO-${year}-${String(count).padStart(5, "0")}-${tsTail}`;
   },
 
   async findByCompany(companyId: string): Promise<Quote[]> {
@@ -231,8 +336,18 @@ export const quoteQueries = {
 // ============================================
 
 function toISOString(value: unknown): string {
+  if (value === null || value === undefined) {
+    return new Date().toISOString();
+  }
   if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'string') return value;
+  if (typeof value === "string") {
+    // Try to parse as date first
+    const date = new Date(value);
+    if (!Number.isNaN(date.getTime())) {
+      return date.toISOString();
+    }
+    return value;
+  }
   return String(value);
 }
 
@@ -246,17 +361,24 @@ function mapQuoteItem(row: Record<string, unknown>): QuoteItem {
     quoteId: row.quote_id as string,
     productName: row.product_name as string,
     description: row.description as string | undefined,
-    quantity: parseFloat(row.quantity as string),
-    unitPrice: parseFloat(row.unit_price as string),
-    discount: parseFloat(row.discount as string),
-    total: parseFloat(row.total as string),
+    quantity: parseFloat(String(row.quantity || 0)),
+    unitPrice: parseFloat(String(row.unit_price || 0)),
+    discount: parseFloat(String(row.discount || 0)),
+    total: parseFloat(String(row.total || 0)),
   };
 }
 
 function mapQuote(row: Record<string, unknown>, items: unknown[]): Quote {
   let fromDetails = null;
   if (row.from_details) {
-    fromDetails = typeof row.from_details === "string" ? JSON.parse(row.from_details as string) : row.from_details;
+    try {
+      fromDetails =
+        typeof row.from_details === "string"
+          ? JSON.parse(row.from_details as string)
+          : row.from_details;
+    } catch {
+      fromDetails = null;
+    }
   }
   return {
     id: row.id as string,
@@ -269,10 +391,10 @@ function mapQuote(row: Record<string, unknown>, items: unknown[]): Quote {
     issueDate: toISOString(row.issue_date),
     validUntil: toISOString(row.valid_until),
     items: (items as Record<string, unknown>[]).map(mapQuoteItem),
-    subtotal: parseFloat(row.subtotal as string),
-    taxRate: parseFloat(row.tax_rate as string),
-    tax: parseFloat(row.tax as string),
-    total: parseFloat(row.total as string),
+    subtotal: parseFloat(String(row.subtotal || 0)),
+    taxRate: parseFloat(String(row.tax_rate || 0)),
+    tax: parseFloat(String(row.tax || 0)),
+    total: parseFloat(String(row.total || 0)),
     notes: row.notes as string | undefined,
     terms: row.terms as string | undefined,
     fromDetails,
@@ -292,6 +414,15 @@ function mapQuoteWithRelations(row: Record<string, unknown>, items: unknown[]): 
           name: row.company_name as string,
           industry: row.company_industry as string,
           address: row.company_address as string,
+          email: (row.company_email as string) || undefined,
+          phone: (row.company_phone as string) || undefined,
+          city: (row.company_city as string) || undefined,
+          zip: (row.company_zip as string) || undefined,
+          country: (row.company_country as string) || undefined,
+          vatNumber: (row.company_vat_number as string) || undefined,
+          companyNumber: (row.company_company_number as string) || undefined,
+          website: (row.company_website as string) || undefined,
+          logoUrl: (row.company_logo_url as string) || undefined,
         }
       : undefined,
     contact: row.contact_id_join

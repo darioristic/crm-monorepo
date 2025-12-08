@@ -1,16 +1,25 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import type {
+  Company,
+  CreateOrderRequest,
+  Invoice,
+  Order,
+  Quote,
+  UpdateOrderRequest,
+} from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, Loader2, Plus, Trash2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { Order, Company, CreateOrderRequest, UpdateOrderRequest, Quote, Invoice } from "@crm/types";
-import { ordersApi, companiesApi, quotesApi, invoicesApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
+import { SelectCompany } from "@/components/companies/select-company";
+import { CreateCompanyInlineForm } from "@/components/shared/documents/create-company-inline-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -20,6 +29,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,10 +37,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useApi, useMutation } from "@/hooks/use-api";
+import { companiesApi, invoicesApi, ordersApi, quotesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
 const lineItemSchema = z.object({
@@ -65,25 +75,22 @@ interface OrderFormProps {
 
 export function OrderForm({ order, mode }: OrderFormProps) {
   const router = useRouter();
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
 
   const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
     () => companiesApi.getAll(),
     { autoFetch: true }
   );
 
-  const { data: quotes } = useApi<Quote[]>(
-    () => quotesApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: quotes } = useApi<Quote[]>(() => quotesApi.getAll(), {
+    autoFetch: true,
+  });
 
-  const { data: invoices } = useApi<Invoice[]>(
-    () => invoicesApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: invoices } = useApi<Invoice[]>(() => invoicesApi.getAll(), {
+    autoFetch: true,
+  });
 
-  const createMutation = useMutation<Order, CreateOrderRequest>((data) =>
-    ordersApi.create(data)
-  );
+  const createMutation = useMutation<Order, CreateOrderRequest>((data) => ordersApi.create(data));
 
   const updateMutation = useMutation<Order, UpdateOrderRequest>((data) =>
     ordersApi.update(order?.id || "", data)
@@ -109,7 +116,16 @@ export function OrderForm({ order, mode }: OrderFormProps) {
         unitPrice: item.unitPrice || 0,
         discount: item.discount || 0,
         total: item.total || 0,
-      })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 }],
+      })) || [
+        {
+          productName: "",
+          description: "",
+          quantity: 1,
+          unitPrice: 0,
+          discount: 0,
+          total: 0,
+        },
+      ],
     },
   });
 
@@ -120,11 +136,11 @@ export function OrderForm({ order, mode }: OrderFormProps) {
 
   // Calculate totals when items change
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
+    const subscription = form.watch((_value, { name }) => {
       if (name?.startsWith("items.")) {
         const items = form.getValues("items");
         let subtotal = 0;
-        
+
         items.forEach((item) => {
           const quantity = item.quantity || 0;
           const unitPrice = item.unitPrice || 0;
@@ -166,7 +182,16 @@ export function OrderForm({ order, mode }: OrderFormProps) {
           unitPrice: item.unitPrice || 0,
           discount: item.discount || 0,
           total: item.total || 0,
-        })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 }],
+        })) || [
+          {
+            productName: "",
+            description: "",
+            quantity: 1,
+            unitPrice: 0,
+            discount: 0,
+            total: 0,
+          },
+        ],
       });
     }
   }, [order, form]);
@@ -184,17 +209,20 @@ export function OrderForm({ order, mode }: OrderFormProps) {
       currency: values.currency,
       notes: values.notes || undefined,
       createdBy: "current-user-id", // This would come from auth context
+      items: values.items,
     };
 
     let result;
     if (mode === "create") {
-      result = await createMutation.mutate(data as CreateOrderRequest);
+      result = await createMutation.mutate(data as unknown as CreateOrderRequest);
     } else {
       result = await updateMutation.mutate(data as UpdateOrderRequest);
     }
 
     if (result.success) {
-      toast.success(mode === "create" ? "Order created successfully" : "Order updated successfully");
+      toast.success(
+        mode === "create" ? "Order created successfully" : "Order updated successfully"
+      );
       router.push("/dashboard/sales/orders");
       router.refresh();
     } else {
@@ -211,9 +239,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
         <CardHeader>
           <CardTitle>{mode === "create" ? "Create Order" : "Edit Order"}</CardTitle>
           <CardDescription>
-            {mode === "create"
-              ? "Create a new order"
-              : `Editing order ${order?.orderNumber}`}
+            {mode === "create" ? "Create a new order" : `Editing order ${order?.orderNumber}`}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -234,24 +260,23 @@ export function OrderForm({ order, mode }: OrderFormProps) {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Company *</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                        disabled={companiesLoading}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select a company" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {companies?.map((company) => (
-                            <SelectItem key={company.id} value={company.id}>
-                              {company.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <SelectCompany
+                          value={field.value}
+                          onSelect={field.onChange}
+                          placeholder="Select or search company..."
+                        />
+                      </FormControl>
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setShowCreateCustomer(true)}
+                          className="text-xs p-0 h-auto hover:bg-transparent"
+                        >
+                          + Create new customer
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -377,7 +402,16 @@ export function OrderForm({ order, mode }: OrderFormProps) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => append({ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 })}
+                    onClick={() =>
+                      append({
+                        productName: "",
+                        description: "",
+                        quantity: 1,
+                        unitPrice: 0,
+                        discount: 0,
+                        total: 0,
+                      })
+                    }
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Item
@@ -482,7 +516,9 @@ export function OrderForm({ order, mode }: OrderFormProps) {
                 ))}
 
                 {form.formState.errors.items?.root && (
-                  <p className="text-sm text-destructive">{form.formState.errors.items.root.message}</p>
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.items.root.message}
+                  </p>
                 )}
               </div>
 
@@ -559,11 +595,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {mode === "create" ? "Create Order" : "Update Order"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
+                <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
               </div>
@@ -571,7 +603,32 @@ export function OrderForm({ order, mode }: OrderFormProps) {
           </Form>
         </CardContent>
       </Card>
+      <Sheet open={showCreateCustomer} onOpenChange={setShowCreateCustomer}>
+        <SheetContent className="sm:max-w-[480px]">
+          <SheetHeader className="mb-6 flex justify-between items-center flex-row">
+            <h2 className="text-xl">Create Customer</h2>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setShowCreateCustomer(false)}
+              className="p-0 m-0 size-auto hover:bg-transparent"
+            >
+              <X className="size-5" />
+            </Button>
+          </SheetHeader>
+          <CreateCompanyInlineForm
+            prefillName={""}
+            onSuccess={(newCompanyId) => {
+              setShowCreateCustomer(false);
+              form.setValue("companyId", newCompanyId, {
+                shouldDirty: true,
+                shouldTouch: true,
+              });
+            }}
+            onCancel={() => setShowCreateCustomer(false)}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
-

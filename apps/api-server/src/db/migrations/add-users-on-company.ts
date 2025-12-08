@@ -1,10 +1,11 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 export const name = "013_add_users_on_company";
 
 /**
  * Migration: Add users_on_company table and populate from existing users.company_id
- * 
+ *
  * This migration:
  * 1. Creates the company_role enum if it doesn't exist
  * 2. Creates the users_on_company table if it doesn't exist
@@ -13,10 +14,10 @@ export const name = "013_add_users_on_company";
  * 5. Does NOT delete users.company_id (it remains for current active company)
  */
 export async function up(): Promise<void> {
-	console.log(`Running migration: ${name}`);
+  logger.info(`Running migration: ${name}`);
 
-	// Step 1: Create company_role enum if it doesn't exist
-	await db`
+  // Step 1: Create company_role enum if it doesn't exist
+  await db`
 		DO $$ BEGIN
 			CREATE TYPE company_role AS ENUM ('owner', 'member', 'admin');
 		EXCEPTION
@@ -24,8 +25,8 @@ export async function up(): Promise<void> {
 		END $$
 	`;
 
-	// Step 2: Create users_on_company table if it doesn't exist
-	await db`
+  // Step 2: Create users_on_company table if it doesn't exist
+  await db`
 		CREATE TABLE IF NOT EXISTS users_on_company (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -36,13 +37,13 @@ export async function up(): Promise<void> {
 		)
 	`;
 
-	// Step 3: Create indexes if they don't exist
-	await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_user_id ON users_on_company(user_id)`;
-	await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_company_id ON users_on_company(company_id)`;
-	await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_role ON users_on_company(role)`;
+  // Step 3: Create indexes if they don't exist
+  await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_user_id ON users_on_company(user_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_company_id ON users_on_company(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_users_on_company_role ON users_on_company(role)`;
 
-	// Step 4: Populate users_on_company from existing users.company_id
-	await db`
+  // Step 4: Populate users_on_company from existing users.company_id
+  await db`
 		INSERT INTO users_on_company (user_id, company_id, role, created_at)
 		SELECT 
 			u.id as user_id,
@@ -58,26 +59,25 @@ export async function up(): Promise<void> {
 		ON CONFLICT (user_id, company_id) DO NOTHING
 	`;
 
-	console.log(`✅ Migration ${name} completed`);
+  logger.info(`✅ Migration ${name} completed`);
 }
 
 /**
  * Rollback migration
  */
 export async function down(): Promise<void> {
-	console.log(`Rolling back migration: ${name}`);
+  logger.info(`Rolling back migration: ${name}`);
 
-	// Drop indexes
-	await db`DROP INDEX IF EXISTS idx_users_on_company_role`;
-	await db`DROP INDEX IF EXISTS idx_users_on_company_company_id`;
-	await db`DROP INDEX IF EXISTS idx_users_on_company_user_id`;
+  // Drop indexes
+  await db`DROP INDEX IF EXISTS idx_users_on_company_role`;
+  await db`DROP INDEX IF EXISTS idx_users_on_company_company_id`;
+  await db`DROP INDEX IF EXISTS idx_users_on_company_user_id`;
 
-	// Drop table
-	await db`DROP TABLE IF EXISTS users_on_company CASCADE`;
+  // Drop table
+  await db`DROP TABLE IF EXISTS users_on_company CASCADE`;
 
-	// Note: We don't drop the company_role enum as it might be used elsewhere
-	// If needed, it can be dropped manually: DROP TYPE IF EXISTS company_role;
+  // Note: We don't drop the company_role enum as it might be used elsewhere
+  // If needed, it can be dropped manually: DROP TYPE IF EXISTS company_role;
 
-	console.log(`✅ Rollback ${name} completed`);
+  logger.info(`✅ Rollback ${name} completed`);
 }
-

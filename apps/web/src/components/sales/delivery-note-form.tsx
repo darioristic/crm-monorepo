@@ -1,21 +1,33 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import type {
-  DeliveryNote,
   Company,
   CreateDeliveryNoteRequest,
+  DeliveryNote,
   UpdateDeliveryNoteRequest,
 } from "@crm/types";
-import { deliveryNotesApi, companiesApi } from "@/lib/api";
-import { useMutation } from "@/hooks/use-api";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  AlertCircle,
+  Building2,
+  Globe,
+  Hash,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Trash2,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { SelectCompany } from "@/components/companies/select-company";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -25,6 +37,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,31 +45,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SelectCompany } from "@/components/companies/select-company";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import {
-  Loader2,
-  AlertCircle,
-  Plus,
-  Trash2,
-  Building2,
-  MapPin,
-  Phone,
-  Mail,
-  Globe,
-  Hash,
-  ArrowLeft,
-} from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/utils";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation } from "@/hooks/use-api";
+import { companiesApi, deliveryNotesApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
+import { formatCurrency, getErrorMessage } from "@/lib/utils";
 
 interface CustomerDetails {
   name: string;
@@ -114,12 +107,12 @@ export function DeliveryNoteForm({
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(false);
 
-  const createMutation = useMutation<DeliveryNote, CreateDeliveryNoteRequest>(
-    (data) => deliveryNotesApi.create(data)
+  const createMutation = useMutation<DeliveryNote, CreateDeliveryNoteRequest>((data) =>
+    deliveryNotesApi.create(data)
   );
 
-  const updateMutation = useMutation<DeliveryNote, UpdateDeliveryNoteRequest>(
-    (data) => deliveryNotesApi.update(deliveryNote?.id || "", data)
+  const updateMutation = useMutation<DeliveryNote, UpdateDeliveryNoteRequest>((data) =>
+    deliveryNotesApi.update(deliveryNote?.id || "", data)
   );
 
   // Fetch company details when companyId changes
@@ -136,10 +129,10 @@ export function DeliveryNoteForm({
         setSelectedCompany(response.data);
       } else {
         setSelectedCompany(null);
-        console.error("Failed to fetch company details:", response.error);
+        logger.error("Failed to fetch company details:", response.error);
       }
     } catch (error) {
-      console.error("Error fetching company details:", error);
+      logger.error("Error fetching company details:", error);
       setSelectedCompany(null);
     } finally {
       setIsLoadingCompany(false);
@@ -274,12 +267,8 @@ export function DeliveryNoteForm({
     const data = {
       companyId: values.companyId,
       shippingAddress: values.shippingAddress,
-      shipDate: values.shipDate
-        ? new Date(values.shipDate).toISOString()
-        : undefined,
-      deliveryDate: values.deliveryDate
-        ? new Date(values.deliveryDate).toISOString()
-        : undefined,
+      shipDate: values.shipDate ? new Date(values.shipDate).toISOString() : undefined,
+      deliveryDate: values.deliveryDate ? new Date(values.deliveryDate).toISOString() : undefined,
       status: values.status,
       trackingNumber: values.trackingNumber || undefined,
       carrier: values.carrier || undefined,
@@ -310,9 +299,7 @@ export function DeliveryNoteForm({
         router.refresh();
       }
     } else {
-      toast.error(
-        getErrorMessage(result.error, "Failed to save delivery note")
-      );
+      toast.error(getErrorMessage(result.error, "Failed to save delivery note"));
     }
   };
 
@@ -320,26 +307,13 @@ export function DeliveryNoteForm({
   const error = createMutation.error || updateMutation.error;
 
   // Common unit options
-  const unitOptions = [
-    "pcs",
-    "kg",
-    "g",
-    "l",
-    "ml",
-    "m",
-    "cm",
-    "box",
-    "pack",
-    "set",
-  ];
+  const unitOptions = ["pcs", "kg", "g", "l", "ml", "m", "cm", "box", "pack", "set"];
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>
-            {mode === "create" ? "Create Delivery Note" : "Edit Delivery Note"}
-          </CardTitle>
+          <CardTitle>{mode === "create" ? "Create Delivery Note" : "Edit Delivery Note"}</CardTitle>
           <CardDescription>
             {mode === "create"
               ? "Create a new delivery note for shipping products"
@@ -382,10 +356,7 @@ export function DeliveryNoteForm({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Status</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        value={field.value}
-                      >
+                      <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue />
@@ -419,9 +390,7 @@ export function DeliveryNoteForm({
                   <div className="flex items-start gap-3">
                     <Building2 className="h-5 w-5 text-primary mt-0.5" />
                     <div className="flex-1 space-y-2">
-                      <h4 className="font-semibold text-lg">
-                        {selectedCompany.name}
-                      </h4>
+                      <h4 className="font-semibold text-lg">{selectedCompany.name}</h4>
 
                       <div className="grid gap-2 sm:grid-cols-2 text-sm">
                         {/* Address Info */}
@@ -432,20 +401,14 @@ export function DeliveryNoteForm({
                           <div className="flex items-start gap-2">
                             <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                             <div>
-                              {selectedCompany.address && (
-                                <p>{selectedCompany.address}</p>
-                              )}
-                              {(selectedCompany.zip ||
-                                selectedCompany.city) && (
+                              {selectedCompany.address && <p>{selectedCompany.address}</p>}
+                              {(selectedCompany.zip || selectedCompany.city) && (
                                 <p>
-                                  {selectedCompany.zip &&
-                                    `${selectedCompany.zip} `}
+                                  {selectedCompany.zip && `${selectedCompany.zip} `}
                                   {selectedCompany.city}
                                 </p>
                               )}
-                              {selectedCompany.country && (
-                                <p>{selectedCompany.country}</p>
-                              )}
+                              {selectedCompany.country && <p>{selectedCompany.country}</p>}
                             </div>
                           </div>
                         )}
@@ -474,29 +437,20 @@ export function DeliveryNoteForm({
                       </div>
 
                       {/* Business Identifiers */}
-                      {(selectedCompany.vatNumber ||
-                        selectedCompany.companyNumber) && (
+                      {(selectedCompany.vatNumber || selectedCompany.companyNumber) && (
                         <div className="flex flex-wrap gap-4 pt-2 border-t text-sm">
                           {selectedCompany.vatNumber && (
                             <div className="flex items-center gap-2">
                               <Hash className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                VAT/OIB:
-                              </span>
-                              <span className="font-medium">
-                                {selectedCompany.vatNumber}
-                              </span>
+                              <span className="text-muted-foreground">VAT/OIB:</span>
+                              <span className="font-medium">{selectedCompany.vatNumber}</span>
                             </div>
                           )}
                           {selectedCompany.companyNumber && (
                             <div className="flex items-center gap-2">
                               <Hash className="h-4 w-4 text-muted-foreground" />
-                              <span className="text-muted-foreground">
-                                Company No:
-                              </span>
-                              <span className="font-medium">
-                                {selectedCompany.companyNumber}
-                              </span>
+                              <span className="text-muted-foreground">Company No:</span>
+                              <span className="font-medium">{selectedCompany.companyNumber}</span>
                             </div>
                           )}
                         </div>
@@ -591,13 +545,7 @@ export function DeliveryNoteForm({
                     <FormItem>
                       <FormLabel>Tax Rate (%)</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          max="100"
-                          step="0.01"
-                          {...field}
-                        />
+                        <Input type="number" min="0" max="100" step="0.01" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -671,10 +619,7 @@ export function DeliveryNoteForm({
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Unit *</FormLabel>
-                              <Select
-                                onValueChange={field.onChange}
-                                value={field.value}
-                              >
+                              <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Unit" />
@@ -702,12 +647,7 @@ export function DeliveryNoteForm({
                             <FormItem>
                               <FormLabel>Unit Price *</FormLabel>
                               <FormControl>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  step="0.01"
-                                  {...field}
-                                />
+                                <Input type="number" min="0" step="0.01" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -723,12 +663,7 @@ export function DeliveryNoteForm({
                             <FormItem>
                               <FormLabel>Discount %</FormLabel>
                               <FormControl>
-                                <Input
-                                  type="number"
-                                  min="0"
-                                  max="100"
-                                  {...field}
-                                />
+                                <Input type="number" min="0" max="100" {...field} />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -765,10 +700,7 @@ export function DeliveryNoteForm({
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
-                              <Input
-                                placeholder="Description (optional)"
-                                {...field}
-                              />
+                              <Input placeholder="Description (optional)" {...field} />
                             </FormControl>
                           </FormItem>
                         )}
@@ -794,18 +726,12 @@ export function DeliveryNoteForm({
                     </span>
                   </div>
                   <div className="flex justify-end gap-8">
-                    <span className="text-muted-foreground">
-                      Tax ({watchedTaxRate}%):
-                    </span>
-                    <span className="font-medium w-32">
-                      {formatCurrency(calculations.tax)}
-                    </span>
+                    <span className="text-muted-foreground">Tax ({watchedTaxRate}%):</span>
+                    <span className="font-medium w-32">{formatCurrency(calculations.tax)}</span>
                   </div>
                   <div className="flex justify-end gap-8 text-lg">
                     <span className="font-semibold">Total:</span>
-                    <span className="font-bold w-32">
-                      {formatCurrency(calculations.total)}
-                    </span>
+                    <span className="font-bold w-32">{formatCurrency(calculations.total)}</span>
                   </div>
                 </div>
               </Card>
@@ -826,9 +752,7 @@ export function DeliveryNoteForm({
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Internal notes (not visible to customer)
-                      </FormDescription>
+                      <FormDescription>Internal notes (not visible to customer)</FormDescription>
                     </FormItem>
                   )}
                 />
@@ -847,9 +771,7 @@ export function DeliveryNoteForm({
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Visible on the delivery note document
-                      </FormDescription>
+                      <FormDescription>Visible on the delivery note document</FormDescription>
                     </FormItem>
                   )}
                 />
@@ -858,18 +780,10 @@ export function DeliveryNoteForm({
               {/* Actions */}
               <div className="flex gap-4">
                 <Button type="submit" disabled={isLoading}>
-                  {isLoading && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  {mode === "create"
-                    ? "Create Delivery Note"
-                    : "Update Delivery Note"}
+                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {mode === "create" ? "Create Delivery Note" : "Update Delivery Note"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
+                <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
               </div>

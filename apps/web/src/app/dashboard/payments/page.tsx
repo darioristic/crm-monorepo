@@ -1,30 +1,31 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import Link from "next/link";
+import type { PaymentMethod, PaymentStatus, PaymentWithInvoice } from "@crm/types";
 import {
-  CreditCard,
-  RefreshCwIcon,
-  FilterIcon,
   CalendarIcon,
-  DollarSign,
-  TrendingUp,
   Clock,
+  CreditCard,
+  DollarSign,
+  FilterIcon,
+  RefreshCwIcon,
   RotateCcw,
+  TrendingUp,
 } from "lucide-react";
-import { paymentsApi } from "@/lib/api";
-import type { PaymentWithInvoice, PaymentMethod, PaymentStatus } from "@crm/types";
-import { formatCurrency } from "@/lib/utils";
+import Link from "next/link";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -34,15 +35,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
+import { paymentsApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
+import { formatCurrency } from "@/lib/utils";
 
 const paymentMethods: { value: PaymentMethod | "all"; label: string }[] = [
   { value: "all", label: "All Methods" },
@@ -123,7 +118,7 @@ export default function PaymentsPage() {
         });
       }
     } catch (error) {
-      console.error("Failed to fetch payments:", error);
+      logger.error("Failed to fetch payments:", error);
       toast.error("Failed to load payments");
     } finally {
       setIsLoading(false);
@@ -149,9 +144,7 @@ export default function PaymentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Payments</h1>
-          <p className="text-muted-foreground">
-            View and manage all payment transactions
-          </p>
+          <p className="text-muted-foreground">View and manage all payment transactions</p>
         </div>
         <Button variant="outline" size="icon" onClick={fetchPayments}>
           <RefreshCwIcon className="h-4 w-4" />
@@ -166,9 +159,7 @@ export default function PaymentsPage() {
             <DollarSign className="text-muted-foreground h-4 w-4" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {formatCurrency(stats.totalCompleted)}
-            </div>
+            <div className="text-2xl font-bold">{formatCurrency(stats.totalCompleted)}</div>
             <p className="text-muted-foreground text-xs">Completed payments</p>
           </CardContent>
         </Card>
@@ -214,24 +205,18 @@ export default function PaymentsPage() {
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <CardTitle>All Payments</CardTitle>
-              <CardDescription>
-                Complete history of all payment transactions
-              </CardDescription>
+              <CardDescription>Complete history of all payment transactions</CardDescription>
             </div>
             <div className="flex flex-wrap gap-2">
               <Input
                 placeholder="Search reference, invoice..."
                 className="w-[200px]"
                 value={filters.search}
-                onChange={(e) =>
-                  setFilters((prev) => ({ ...prev, search: e.target.value }))
-                }
+                onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
               />
               <Select
                 value={filters.method}
-                onValueChange={(value: any) =>
-                  setFilters((prev) => ({ ...prev, method: value }))
-                }
+                onValueChange={(value: any) => setFilters((prev) => ({ ...prev, method: value }))}
               >
                 <SelectTrigger className="w-[150px]">
                   <CreditCard className="mr-2 h-4 w-4" />
@@ -247,9 +232,7 @@ export default function PaymentsPage() {
               </Select>
               <Select
                 value={filters.status}
-                onValueChange={(value: any) =>
-                  setFilters((prev) => ({ ...prev, status: value }))
-                }
+                onValueChange={(value: any) => setFilters((prev) => ({ ...prev, status: value }))}
               >
                 <SelectTrigger className="w-[140px]">
                   <FilterIcon className="mr-2 h-4 w-4" />
@@ -334,8 +317,8 @@ export default function PaymentsPage() {
                           payment.status === "refunded"
                             ? "text-red-600"
                             : payment.status === "completed"
-                            ? "text-green-600"
-                            : ""
+                              ? "text-green-600"
+                              : ""
                         }`}
                       >
                         {payment.status === "refunded" && "-"}
@@ -352,4 +335,3 @@ export default function PaymentsPage() {
     </div>
   );
 }
-

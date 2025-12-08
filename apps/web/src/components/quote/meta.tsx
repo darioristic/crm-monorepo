@@ -1,17 +1,20 @@
 "use client";
 
 import { useFormContext, useWatch } from "react-hook-form";
-import { QuoteTitle } from "./quote-title";
-import { QuoteNo } from "./quote-no";
-import { IssueDate } from "./issue-date";
-import { ValidUntil } from "./valid-until";
-import { LabelInput } from "./label-input";
+import { LabelInput } from "@/components/invoice/label-input";
 import type { FormValues } from "./form-context";
+import { IssueDate } from "./issue-date";
+import { QuoteNo } from "./quote-no";
+import { QuoteTitle } from "./quote-title";
+import { ValidUntil } from "./valid-until";
 
 export function Meta() {
   const { control } = useFormContext<FormValues>();
-  const issueDateLabel = useWatch({ control, name: "template.issueDateLabel" });
-  const validUntilLabel = useWatch({ control, name: "template.validUntilLabel" });
+  const _issueDateLabel = useWatch({ control, name: "template.issueDateLabel" });
+  const _validUntilLabel = useWatch({
+    control,
+    name: "template.validUntilLabel",
+  });
 
   return (
     <div className="flex flex-col">
@@ -41,4 +44,3 @@ export function Meta() {
     </div>
   );
 }
-

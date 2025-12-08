@@ -1,9 +1,11 @@
 "use client";
 
-import Link from "next/link";
-import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
 import type { Order } from "@crm/types";
+import { formatCurrency, formatDateDMY } from "@crm/utils";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { type OrderStatus, OrderStatusBadge } from "@/components/sales/status";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -13,8 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { OrderStatusBadge, type OrderStatus } from "@/components/sales/status";
 
 export type OrderWithCompany = Order & {
   companyName?: string;
@@ -70,11 +70,7 @@ export function getOrderColumns({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            window.open(
-              `/o/id/${row.original.id}`,
-              "_blank",
-              "noopener,noreferrer"
-            );
+            window.open(`/o/id/${row.original.id}`, "_blank", "noopener,noreferrer");
           }}
           className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
@@ -85,9 +81,7 @@ export function getOrderColumns({
     {
       accessorKey: "companyName",
       header: "Company",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.companyName}</span>
-      ),
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.companyName}</span>,
     },
     {
       accessorKey: "status",
@@ -109,14 +103,14 @@ export function getOrderColumns({
       ),
       cell: ({ row }) => (
         <span className="font-medium">
-          {formatCurrency(row.original.total, row.original.currency)}
+          {formatCurrency(row.original.total, row.original.currency || "EUR", "sr-RS")}
         </span>
       ),
     },
     {
       accessorKey: "createdAt",
       header: "Created",
-      cell: ({ row }) => formatDate(row.original.createdAt),
+      cell: ({ row }) => formatDateDMY(row.original.createdAt),
     },
     {
       id: "actions",
@@ -134,21 +128,14 @@ export function getOrderColumns({
                 if (onView) {
                   onView(row.original);
                 } else {
-                  window.open(
-                    `/o/id/${row.original.id}`,
-                    "_blank",
-                    "noopener,noreferrer"
-                  );
+                  window.open(`/o/id/${row.original.id}`, "_blank", "noopener,noreferrer");
                 }
               }}
             >
               <Eye className="mr-2 h-4 w-4" />
               View Order
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onEdit?.(row.original)}
-              asChild={!onEdit}
-            >
+            <DropdownMenuItem onClick={() => onEdit?.(row.original)} asChild={!onEdit}>
               {onEdit ? (
                 <>
                   <Pencil className="mr-2 h-4 w-4" />
@@ -179,4 +166,3 @@ export function getOrderColumns({
     },
   ];
 }
-

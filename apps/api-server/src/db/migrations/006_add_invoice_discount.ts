@@ -1,15 +1,16 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 export const name = "006_add_invoice_discount";
 
 /**
  * Migration: Add discount and grossTotal columns to invoices table
- * 
+ *
  * This migration adds support for invoice-level discounts:
  * - gross_total: Sum of all line items (before discount)
  * - discount: Amount deducted from gross total
  * - subtotal: Now represents gross_total - discount
- * 
+ *
  * Calculation order:
  * 1. gross_total = sum of line items
  * 2. subtotal = gross_total - discount
@@ -36,13 +37,12 @@ export async function up() {
     WHERE gross_total = '0'
   `;
 
-  console.log("✅ Migration 006: Added invoice discount columns");
+  logger.info("✅ Migration 006: Added invoice discount columns");
 }
 
 export async function down() {
   await db`ALTER TABLE invoices DROP COLUMN IF EXISTS gross_total`;
   await db`ALTER TABLE invoices DROP COLUMN IF EXISTS discount`;
-  
-  console.log("✅ Migration 006: Removed invoice discount columns");
-}
 
+  logger.info("✅ Migration 006: Removed invoice discount columns");
+}

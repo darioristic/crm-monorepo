@@ -1,7 +1,7 @@
 "use client";
 
+import { DownloadIcon, FileIcon, FileSpreadsheetIcon, Loader2Icon } from "lucide-react";
 import { useState } from "react";
-import { DownloadIcon, FileSpreadsheetIcon, FileIcon, Loader2Icon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,7 +9,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { exportToCSV, exportToPDF, type ColumnDef } from "@/lib/export";
+import { type ColumnDef, exportToCSV, exportToPDF } from "@/lib/export";
+import { logger } from "@/lib/logger";
 
 interface ExportButtonProps<T extends Record<string, unknown>> {
   data: T[];
@@ -47,12 +48,12 @@ export function ExportButton<T extends Record<string, unknown>>({
 
   const handleExportPDF = async () => {
     if (!elementId) return;
-    
+
     setExporting("pdf");
     try {
       await exportToPDF(elementId, filename, pdfOptions);
     } catch (error) {
-      console.error("PDF export failed:", error);
+      logger.error("PDF export failed:", error);
     } finally {
       setExporting(null);
     }
@@ -90,4 +91,3 @@ export function ExportButton<T extends Record<string, unknown>>({
     </DropdownMenu>
   );
 }
-

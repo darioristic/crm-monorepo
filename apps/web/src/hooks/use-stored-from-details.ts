@@ -1,6 +1,7 @@
 import { useMemo } from "react";
-import type { EditorDoc } from "@/types/invoice";
 import { STORAGE_KEYS } from "@/constants/storage-keys";
+import { logger } from "@/lib/logger";
+import type { EditorDoc } from "@/types/invoice";
 
 /**
  * Hook to get stored fromDetails from localStorage
@@ -26,10 +27,7 @@ export function useStoredFromDetails(): EditorDoc | null {
       }
       return null;
     } catch (error) {
-      console.error(
-        "Failed to load from details from localStorage:",
-        error
-      );
+      logger.error("Failed to load from details from localStorage:", error);
       return null;
     }
   }, []);
@@ -57,8 +55,7 @@ export function getStoredFromDetails(): EditorDoc | null {
     }
     return null;
   } catch (error) {
-    console.error("Failed to load from details from localStorage:", error);
+    logger.error("Failed to load from details from localStorage:", error);
     return null;
   }
 }
-

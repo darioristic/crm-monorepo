@@ -1,23 +1,23 @@
 "use client";
 
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
-  TrendingUpIcon,
-  TrendingDownIcon,
-  WalletIcon,
+  DollarSignIcon,
   FileTextIcon,
-  DollarSignIcon
+  TrendingDownIcon,
+  TrendingUpIcon,
+  WalletIcon,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Bar, BarChart } from "recharts";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
 } from "@/components/ui/chart";
 
 const chartData = [
@@ -68,14 +68,14 @@ const chartData = [
   { date: "2024-05-15", desktop: 473, mobile: 380 },
   { date: "2024-05-16", desktop: 338, mobile: 400 },
   { date: "2024-05-17", desktop: 499, mobile: 420 },
-  { date: "2024-05-18", desktop: 315, mobile: 350 }
+  { date: "2024-05-18", desktop: 315, mobile: 350 },
 ];
 
 const chartConfig = {
   desktop: {
     label: "Desktop",
-    color: "var(--chart-1)"
-  }
+    color: "var(--chart-1)",
+  },
 } satisfies ChartConfig;
 
 export default function KPICards() {
@@ -164,7 +164,11 @@ export default function KPICards() {
           </div>
         </CardContent>
         <div className="-mb-1.5">
-          <ChartContainer config={chartConfig} className="h-14 w-full">
+          <ChartContainer
+            id="finance-kpi-pending-invoices"
+            config={chartConfig}
+            className="h-14 w-full"
+          >
             <BarChart accessibilityLayer data={chartData}>
               <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
               <Bar dataKey="desktop" fill="var(--color-desktop)" radius={[7, 7, 0, 0]} />

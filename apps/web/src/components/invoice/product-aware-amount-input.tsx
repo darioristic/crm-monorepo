@@ -1,18 +1,18 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { productsApi } from "@/lib/api";
-import { NumericFormat } from "react-number-format";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import {
+  type FieldPath,
+  type FieldValues,
   useController,
   useFormContext,
   useWatch,
-  type FieldPath,
-  type FieldValues,
 } from "react-hook-form";
+import { NumericFormat } from "react-number-format";
+import { productsApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
 import type { FormValues } from "./form-context";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Same query key as ProductAutocomplete
 const PRODUCTS_QUERY_KEY = ["invoice-products"];
@@ -83,13 +83,13 @@ export function ProductAwareAmountInput<T extends FieldValues>({
   return (
     <div className="relative font-mono">
       <NumericFormat
+        name={name}
+        id={name}
         autoComplete="off"
         value={value}
         onValueChange={(values) => {
           onChange(
-            values.floatValue !== undefined && values.floatValue !== null
-              ? values.floatValue
-              : 0
+            values.floatValue !== undefined && values.floatValue !== null ? values.floatValue : 0
           );
         }}
         onFocus={() => setIsFocused(true)}

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import type { Project } from "@crm/types";
 import { FolderIcon, XIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,9 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { projectsApi } from "@/lib/api";
-import type { Project } from "@crm/types";
+import { logger } from "@/lib/logger";
 
 interface ProjectFilterProps {
   value?: string;
@@ -31,7 +32,7 @@ export function ProjectFilter({ value, onChange, className }: ProjectFilterProps
           setProjects(response.data);
         }
       } catch (error) {
-        console.error("Failed to load projects:", error);
+        logger.error("Failed to load projects:", error);
       } finally {
         setLoading(false);
       }
@@ -74,4 +75,3 @@ export function ProjectFilter({ value, onChange, className }: ProjectFilterProps
     </div>
   );
 }
-

@@ -1,6 +1,39 @@
 "use client";
 
+import {
+  BarChart3Icon,
+  BellIcon,
+  CalendarIcon,
+  ChartBarDecreasingIcon,
+  ChevronRight,
+  ClipboardCheckIcon,
+  CreditCardIcon,
+  FileTextIcon,
+  FolderArchive,
+  FolderDotIcon,
+  LayoutDashboardIcon,
+  type LucideIcon,
+  MilestoneIcon,
+  PackageIcon,
+  ReceiptIcon,
+  SettingsIcon,
+  ShoppingCartIcon,
+  SquareKanbanIcon,
+  TruckIcon,
+  UserIcon,
+  UsersIcon,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import * as React from "react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -13,44 +46,6 @@ import {
   SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  BellIcon,
-  Building2Icon,
-  CalendarIcon,
-  ChartBarDecreasingIcon,
-  ChevronRight,
-  ClipboardCheckIcon,
-  CreditCardIcon,
-  FileTextIcon,
-  FolderArchive,
-  FolderDotIcon,
-  LayoutDashboardIcon,
-  MilestoneIcon,
-  PackageIcon,
-  ReceiptIcon,
-  SettingsIcon,
-  ShoppingCartIcon,
-  SquareKanbanIcon,
-  TruckIcon,
-  UserIcon,
-  UsersIcon,
-  type LucideIcon,
-  BarChart3Icon,
-} from "lucide-react";
-import Link from "next/link";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { usePathname } from "next/navigation";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 type NavGroup = {
   title: string;
@@ -94,14 +89,13 @@ export const navItems: NavGroup[] = [
     title: "CRM",
     items: [
       {
-        title: "Contacts",
-        href: "/dashboard/users",
+        title: "Accounts",
+        href: "/dashboard/accounts",
         icon: UsersIcon,
-      },
-      {
-        title: "Companies",
-        href: "/dashboard/companies",
-        icon: Building2Icon,
+        items: [
+          { title: "Individuals", href: "/dashboard/accounts/individuals" },
+          { title: "Organizations", href: "/dashboard/accounts/organizations" },
+        ],
       },
     ],
   },
@@ -248,6 +242,7 @@ export function NavMain() {
                           <DropdownMenuContent
                             side={dropdownSide}
                             align={dropdownAlign}
+                            forceMount
                             className="min-w-48 rounded-lg"
                           >
                             <DropdownMenuLabel>{item.title}</DropdownMenuLabel>
@@ -265,9 +260,7 @@ export function NavMain() {
                       </div>
                       <Collapsible
                         className="group/collapsible block group-data-[collapsible=icon]:hidden"
-                        defaultOpen={
-                          !!item.items.find((s) => s.href === pathname)
-                        }
+                        defaultOpen={!!item.items.find((s) => s.href === pathname)}
                       >
                         <CollapsibleTrigger asChild>
                           <SidebarMenuButton
@@ -279,7 +272,7 @@ export function NavMain() {
                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                           </SidebarMenuButton>
                         </CollapsibleTrigger>
-                        <CollapsibleContent>
+                        <CollapsibleContent forceMount>
                           <SidebarMenuSub>
                             {item?.items?.map((subItem, key) => (
                               <SidebarMenuSubItem key={key}>

@@ -1,17 +1,17 @@
 import type {
   DeliveryNote,
   DeliveryNoteItem,
-  DeliveryNoteWithRelations,
-  PaginationParams,
-  FilterParams,
   DeliveryNoteStatus,
+  DeliveryNoteWithRelations,
+  FilterParams,
+  PaginationParams,
 } from "@crm/types";
 import { sql as db } from "../client";
 import {
   createQueryBuilder,
+  type QueryParam,
   sanitizeSortColumn,
   sanitizeSortOrder,
-  type QueryParam,
 } from "../query-builder";
 
 // ============================================
@@ -38,6 +38,9 @@ export const deliveryNoteQueries = {
     }
     qb.addSearchCondition(["delivery_number"], filters.search);
     qb.addEqualCondition("status", filters.status);
+    if ((filters as any).createdBy) {
+      qb.addEqualCondition("created_by", (filters as any).createdBy as string);
+    }
 
     const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
@@ -55,7 +58,11 @@ export const deliveryNoteQueries = {
       LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
 
-    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
+    const data = await db.unsafe(selectQuery, [
+      ...whereValues,
+      safePageSize,
+      safeOffset,
+    ] as QueryParam[]);
 
     // Fetch all items for all delivery notes in a single query (fixes N+1 problem)
     if (data.length === 0) {
@@ -157,7 +164,10 @@ export const deliveryNoteQueries = {
       insertedItems.push(mapDeliveryNoteItem(itemResult[0]));
     }
 
-    return mapDeliveryNote(result[0], insertedItems.map((i) => ({ ...i })));
+    return mapDeliveryNote(
+      result[0],
+      insertedItems.map((i) => ({ ...i }))
+    );
   },
 
   async update(
@@ -394,7 +404,7 @@ export const deliveryNoteQueries = {
 
 function toISOString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'string') return value;
+  if (typeof value === "string") return value;
   return String(value);
 }
 

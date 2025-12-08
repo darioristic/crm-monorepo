@@ -1,3 +1,4 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 import * as migration001 from "./001_create_companies";
 import * as migration002 from "./002_create_users";
@@ -17,44 +18,50 @@ import * as migration017 from "./017_add_performance_indexes";
 import * as migration018 from "./018_create_orders_table";
 import * as migration019 from "./019_add_delivery_note_fields";
 import * as migration020 from "./020_create_multitenant_schema";
+import * as migration021_accounts from "./021_add_accounts_fields";
 import * as migration021 from "./021_add_from_details_quotes_delivery_notes";
 import * as migration022 from "./022_add_from_details_orders";
 import * as migration023 from "./023_add_customer_details_orders";
+import * as migration024_orgs from "./024_add_customer_organizations";
+import * as migration025 from "./025_create_tenant_accounts_and_migrate";
 
 interface Migration {
-	name: string;
-	up: () => Promise<void>;
-	down: () => Promise<void>;
+  name: string;
+  up: () => Promise<void>;
+  down: () => Promise<void>;
 }
 
 // Register all migrations in order
 const migrations: Migration[] = [
-	migration001,
-	migration002,
-	migration003,
-	migration006,
-	migration007,
-	migration008,
-	migration009,
-	migration010,
-	migration011,
-	migration012,
-	migration013,
-	migration014,
-	migration015,
-	migration016,
-	migration017,
-	migration018,
+  migration001,
+  migration002,
+  migration003,
+  migration006,
+  migration007,
+  migration008,
+  migration009,
+  migration010,
+  migration011,
+  migration012,
+  migration013,
+  migration014,
+  migration015,
+  migration016,
+  migration017,
+  migration018,
   migration019,
   migration020,
   migration021,
+  migration021_accounts,
+  migration024_orgs,
   migration022,
   migration023,
+  migration025,
 ];
 
 // Migrations tracking table
 async function ensureMigrationsTable(): Promise<void> {
-	await db`
+  await db`
     CREATE TABLE IF NOT EXISTS _migrations (
       id SERIAL PRIMARY KEY,
       name VARCHAR(255) NOT NULL UNIQUE,
@@ -64,129 +71,130 @@ async function ensureMigrationsTable(): Promise<void> {
 }
 
 async function getExecutedMigrations(): Promise<string[]> {
-	const result = await db`SELECT name FROM _migrations ORDER BY id`;
-	return result.map((row) => row.name as string);
+  const result = await db`SELECT name FROM _migrations ORDER BY id`;
+  return result.map((row) => row.name as string);
 }
 
 async function markMigrationExecuted(name: string): Promise<void> {
-	await db`INSERT INTO _migrations (name) VALUES (${name})`;
+  await db`INSERT INTO _migrations (name) VALUES (${name})`;
 }
 
 async function markMigrationRolledBack(name: string): Promise<void> {
-	await db`DELETE FROM _migrations WHERE name = ${name}`;
+  await db`DELETE FROM _migrations WHERE name = ${name}`;
 }
 
 // Run all pending migrations
 export async function migrate(): Promise<void> {
-	console.log("🚀 Starting migrations...\n");
+  logger.info("🚀 Starting migrations...\n");
 
-	await ensureMigrationsTable();
-	const executed = await getExecutedMigrations();
+  await ensureMigrationsTable();
+  const executed = await getExecutedMigrations();
 
-	let count = 0;
-	for (const migration of migrations) {
-		if (!executed.includes(migration.name)) {
-			await migration.up();
-			await markMigrationExecuted(migration.name);
-			count++;
-		} else {
-			console.log(`⏭️  Skipping ${migration.name} (already executed)`);
-		}
-	}
+  let count = 0;
+  for (const migration of migrations) {
+    if (!executed.includes(migration.name)) {
+      await migration.up();
+      await markMigrationExecuted(migration.name);
+      count++;
+    } else {
+      logger.info(`⏭️  Skipping ${migration.name} (already executed)`);
+    }
+  }
 
-	if (count === 0) {
-		console.log("\n✅ No pending migrations");
-	} else {
-		console.log(`\n✅ Executed ${count} migration(s)`);
-	}
+  if (count === 0) {
+    logger.info("\n✅ No pending migrations");
+  } else {
+    logger.info(`\n✅ Executed ${count} migration(s)`);
+  }
 }
 
 // Rollback the last migration
 export async function rollback(): Promise<void> {
-	console.log("🔄 Rolling back last migration...\n");
+  logger.info("🔄 Rolling back last migration...\n");
 
-	await ensureMigrationsTable();
-	const executed = await getExecutedMigrations();
+  await ensureMigrationsTable();
+  const executed = await getExecutedMigrations();
 
-	if (executed.length === 0) {
-		console.log("No migrations to rollback");
-		return;
-	}
+  if (executed.length === 0) {
+    logger.info("No migrations to rollback");
+    return;
+  }
 
-	const lastMigrationName = executed[executed.length - 1];
-	const migration = migrations.find((m) => m.name === lastMigrationName);
+  const lastMigrationName = executed[executed.length - 1];
+  const migration = migrations.find((m) => m.name === lastMigrationName);
 
-	if (!migration) {
-		throw new Error(`Migration ${lastMigrationName} not found`);
-	}
+  if (!migration) {
+    throw new Error(`Migration ${lastMigrationName} not found`);
+  }
 
-	await migration.down();
-	await markMigrationRolledBack(lastMigrationName);
-	console.log(`\n✅ Rolled back ${lastMigrationName}`);
+  await migration.down();
+  await markMigrationRolledBack(lastMigrationName);
+  logger.info(`\n✅ Rolled back ${lastMigrationName}`);
 }
 
 // Rollback all migrations
 export async function reset(): Promise<void> {
-	console.log("🔄 Rolling back all migrations...\n");
+  logger.info("🔄 Rolling back all migrations...\n");
 
-	await ensureMigrationsTable();
-	const executed = await getExecutedMigrations();
+  await ensureMigrationsTable();
+  const executed = await getExecutedMigrations();
 
-	for (let i = executed.length - 1; i >= 0; i--) {
-		const migrationName = executed[i];
-		const migration = migrations.find((m) => m.name === migrationName);
+  for (let i = executed.length - 1; i >= 0; i--) {
+    const migrationName = executed[i];
+    const migration = migrations.find((m) => m.name === migrationName);
 
-		if (migration) {
-			await migration.down();
-			await markMigrationRolledBack(migrationName);
-		}
-	}
+    if (migration) {
+      await migration.down();
+      await markMigrationRolledBack(migrationName);
+    }
+  }
 
-	console.log("\n✅ All migrations rolled back");
+  logger.info("\n✅ All migrations rolled back");
 }
 
 // Show migration status
 export async function status(): Promise<void> {
-	console.log("📋 Migration Status\n");
+  logger.info("📋 Migration Status\n");
 
-	await ensureMigrationsTable();
-	const executed = await getExecutedMigrations();
+  await ensureMigrationsTable();
+  const executed = await getExecutedMigrations();
 
-	for (const migration of migrations) {
-		const isExecuted = executed.includes(migration.name);
-		const status = isExecuted ? "✅" : "⏳";
-		console.log(`${status} ${migration.name}`);
-	}
+  for (const migration of migrations) {
+    const isExecuted = executed.includes(migration.name);
+    const status = isExecuted ? "✅" : "⏳";
+    logger.info(`${status} ${migration.name}`);
+  }
 }
 
 // CLI runner
 if (import.meta.main) {
-	const command = process.argv[2] || "migrate";
+  const command = process.argv[2] || "migrate";
 
-	try {
-		switch (command) {
-			case "migrate":
-			case "up":
-				await migrate();
-				break;
-			case "rollback":
-			case "down":
-				await rollback();
-				break;
-			case "reset":
-				await reset();
-				break;
-			case "status":
-				await status();
-				break;
-			default:
-				console.log(`Unknown command: ${command}`);
-				console.log("Available commands: migrate, rollback, reset, status");
-				process.exit(1);
-		}
-		process.exit(0);
-	} catch (error) {
-		console.error("Migration error:", error);
-		process.exit(1);
-	}
+  try {
+    switch (command) {
+      case "migrate":
+      case "up":
+        await migrate();
+        break;
+      case "rollback":
+      case "down":
+        await rollback();
+        break;
+      case "reset":
+        await reset();
+        break;
+      case "status":
+        await status();
+        break;
+      default:
+        logger.info(`Unknown command: ${command}`);
+        logger.info("Available commands: migrate, rollback, reset, status");
+        process.exit(1);
+    }
+    process.exit(0);
+  } catch (error) {
+    logger.error("Migration error:");
+    console.error(error);
+    process.exit(1);
+  }
 }

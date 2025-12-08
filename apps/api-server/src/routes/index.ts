@@ -418,7 +418,7 @@ export async function handleRequest(request: Request, url: URL): Promise<Respons
     if (!match) continue;
 
     if (method === "PUT" && path.startsWith("/api/v1/companies")) {
-      console.log("Matched route for PUT", route.pattern.source, "path", path);
+      logger.info("Matched route for PUT", route.pattern.source, "path", path);
     }
 
     // Extract params

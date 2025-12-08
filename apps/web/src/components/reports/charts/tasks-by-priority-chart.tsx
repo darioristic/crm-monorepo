@@ -1,14 +1,14 @@
 "use client";
 
+import type { TaskPriorityStats } from "@crm/types";
+import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Bar, BarChart, XAxis, YAxis, ResponsiveContainer } from "recharts";
-import type { TaskPriorityStats } from "@crm/types";
 
 interface TasksByPriorityChartProps {
   data: TaskPriorityStats[];
@@ -55,50 +55,36 @@ export function TasksByPriorityChart({ data, className }: TasksByPriorityChartPr
         <CardDescription>Task distribution and completion by priority level</CardDescription>
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="h-[250px] w-full">
+        <ChartContainer
+          id="reports-tasks-by-priority"
+          config={chartConfig}
+          className="h-[250px] w-full"
+        >
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={formattedData}
-              margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
-            >
-              <XAxis
-                dataKey="name"
-                tickLine={false}
-                axisLine={false}
-                className="text-xs"
-              />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                className="text-xs"
-              />
+            <BarChart data={formattedData} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+              <XAxis dataKey="name" tickLine={false} axisLine={false} className="text-xs" />
+              <YAxis tickLine={false} axisLine={false} className="text-xs" />
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    formatter={(value, name, props) => (
+                    formatter={(_value, _name, props) => (
                       <div className="space-y-1">
                         <p className="font-medium">{props.payload?.name}</p>
                         <p>Total: {props.payload?.count}</p>
                         <p>Completed: {props.payload?.completedCount}</p>
                         <p className="text-muted-foreground">
-                          {((props.payload?.completedCount / props.payload?.count) * 100 || 0).toFixed(0)}% done
+                          {(
+                            (props.payload?.completedCount / props.payload?.count) * 100 || 0
+                          ).toFixed(0)}
+                          % done
                         </p>
                       </div>
                     )}
                   />
                 }
               />
-              <Bar
-                dataKey="count"
-                radius={[4, 4, 0, 0]}
-                fill="var(--chart-3)"
-                opacity={0.3}
-              />
-              <Bar
-                dataKey="completedCount"
-                radius={[4, 4, 0, 0]}
-                fill="var(--chart-1)"
-              />
+              <Bar dataKey="count" radius={[4, 4, 0, 0]} fill="var(--chart-3)" opacity={0.3} />
+              <Bar dataKey="completedCount" radius={[4, 4, 0, 0]} fill="var(--chart-1)" />
             </BarChart>
           </ResponsiveContainer>
         </ChartContainer>
@@ -120,4 +106,3 @@ export function TasksByPriorityChart({ data, className }: TasksByPriorityChartPr
     </Card>
   );
 }
-

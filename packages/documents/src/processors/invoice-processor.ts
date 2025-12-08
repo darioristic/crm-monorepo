@@ -4,13 +4,10 @@ import type { z } from "zod";
 import { createInvoicePrompt, invoicePrompt } from "../prompt";
 import { invoiceSchema } from "../schema";
 import type { ExtractedInvoice, GetDocumentRequest } from "../types";
+import { logger } from "./logger"; // TODO: Adjust path
 
 // Retry helper
-async function retryCall<T>(
-  fn: () => Promise<T>,
-  maxRetries = 3,
-  delayMs = 1000
-): Promise<T> {
+async function retryCall<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 1000): Promise<T> {
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -18,7 +15,7 @@ async function retryCall<T>(
       return await fn();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      console.log(`Attempt ${attempt} failed: ${lastError.message}`);
+      logger.info(`Attempt ${attempt} failed: ${lastError.message}`);
 
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
@@ -32,28 +29,16 @@ async function retryCall<T>(
 export class InvoiceProcessor {
   private model = mistral("mistral-small-latest");
 
-  #isDataQualityPoor(result: z.infer<typeof invoiceSchema>): boolean {
-    const criticalFieldsMissing =
-      !result.total_amount ||
-      !result.currency ||
-      !result.vendor_name ||
-      (!result.invoice_date && !result.due_date);
-
-    return criticalFieldsMissing;
-  }
-
   async #processDocument({ documentUrl, companyName }: GetDocumentRequest) {
     if (!documentUrl) {
       throw new Error("Document URL is required");
     }
 
-    const prompt = companyName
-      ? createInvoicePrompt(companyName)
-      : invoicePrompt;
+    const prompt = companyName ? createInvoicePrompt(companyName) : invoicePrompt;
 
     const result = await retryCall(() =>
       generateObject({
-        model: this.model,
+        model: this.model as any,
         schema: invoiceSchema,
         temperature: 0.1,
         messages: [
@@ -67,7 +52,7 @@ export class InvoiceProcessor {
               {
                 type: "file",
                 data: documentUrl,
-                mimeType: "application/pdf",
+                mediaType: "application/pdf",
               },
             ],
           },
@@ -79,13 +64,11 @@ export class InvoiceProcessor {
   }
 
   async #processText(text: string, companyName?: string) {
-    const prompt = companyName
-      ? createInvoicePrompt(companyName)
-      : invoicePrompt;
+    const prompt = companyName ? createInvoicePrompt(companyName) : invoicePrompt;
 
     const result = await retryCall(() =>
       generateObject({
-        model: this.model,
+        model: this.model as any,
         schema: invoiceSchema,
         temperature: 0.1,
         messages: [
@@ -147,4 +130,3 @@ export class InvoiceProcessor {
 
 // Singleton instance
 export const invoiceProcessor = new InvoiceProcessor();
-

@@ -1,9 +1,10 @@
-import { generateMeta } from "@/lib/utils";
-import Link from "next/link";
+import type { ProductWithCategory } from "@crm/types";
 import { PlusIcon } from "@radix-ui/react-icons";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
-
+import Link from "next/link";
+import { ProductsDataTable } from "@/components/products/products-data-table";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,9 +14,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { ProductsDataTable } from "@/components/products/products-data-table";
-import type { ProductWithCategory } from "@crm/types";
+import { logger } from "@/lib/logger";
+import { generateMeta } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateMeta({
@@ -35,11 +35,12 @@ async function getProducts(): Promise<{
   };
 }> {
   const API_URL = process.env.API_URL || "http://localhost:3001";
-  
+
   try {
     const cookieStore = await cookies();
-    const cookieHeader = cookieStore.getAll()
-      .map(c => `${c.name}=${c.value}`)
+    const cookieHeader = cookieStore
+      .getAll()
+      .map((c) => `${c.name}=${c.value}`)
       .join("; ");
 
     const response = await fetch(`${API_URL}/api/v1/products?pageSize=100`, {
@@ -51,7 +52,7 @@ async function getProducts(): Promise<{
     });
 
     if (!response.ok) {
-      console.error("Failed to fetch products:", response.status);
+      logger.error("Failed to fetch products:", response.status);
       return {
         products: [],
         stats: { total: 0, totalStock: 0, lowStock: 0, outOfStock: 0 },
@@ -79,7 +80,7 @@ async function getProducts(): Promise<{
 
     return { products, stats };
   } catch (error) {
-    console.error("Error fetching products:", error);
+    logger.error("Error fetching products:", error);
     return {
       products: [],
       stats: { total: 0, totalStock: 0, lowStock: 0, outOfStock: 0 },
@@ -105,9 +106,7 @@ export default async function ProductsPage() {
         <Card>
           <CardHeader>
             <CardDescription>Total Products</CardDescription>
-            <CardTitle className="font-display text-2xl lg:text-3xl">
-              {stats.total}
-            </CardTitle>
+            <CardTitle className="font-display text-2xl lg:text-3xl">{stats.total}</CardTitle>
             <CardAction>
               <Badge variant="outline">
                 <span className="text-green-600">Active</span>
@@ -131,9 +130,7 @@ export default async function ProductsPage() {
         <Card>
           <CardHeader>
             <CardDescription>Low Stock</CardDescription>
-            <CardTitle className="font-display text-2xl lg:text-3xl">
-              {stats.lowStock}
-            </CardTitle>
+            <CardTitle className="font-display text-2xl lg:text-3xl">{stats.lowStock}</CardTitle>
             <CardAction>
               {stats.lowStock > 0 ? (
                 <Badge variant="outline">
@@ -150,9 +147,7 @@ export default async function ProductsPage() {
         <Card>
           <CardHeader>
             <CardDescription>Out of Stock</CardDescription>
-            <CardTitle className="font-display text-2xl lg:text-3xl">
-              {stats.outOfStock}
-            </CardTitle>
+            <CardTitle className="font-display text-2xl lg:text-3xl">{stats.outOfStock}</CardTitle>
             <CardAction>
               {stats.outOfStock > 0 ? (
                 <Badge variant="outline">

@@ -1,50 +1,73 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  TrendingUpIcon,
   FileTextIcon,
+  PercentIcon,
   ReceiptIcon,
   RefreshCwIcon,
-  PercentIcon
+  TrendingUpIcon,
 } from "lucide-react";
-import { analyticsApi, reportsApi } from "@/lib/api";
-import { ReportFilters, ExportButton, invoiceStatusOptions, useReportFilters } from "@/components/reports/filters";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useState } from "react";
+import { ChartError, ChartSkeleton, EmptyChartState } from "@/components/reports/charts";
 import {
-  RevenueOverTimeChart,
-  RevenueByCompanyChart,
-  TopCustomersTable,
-  InvoiceStatusChart,
-  ConversionFunnelChart,
-  ChartSkeleton,
-  ChartError,
-  EmptyChartState
-} from "@/components/reports/charts";
+  ExportButton,
+  invoiceStatusOptions,
+  ReportFilters,
+  useReportFilters,
+} from "@/components/reports/filters";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { analyticsApi, reportsApi } from "@/lib/api";
+
+// Dynamic imports for heavy chart components to reduce initial bundle size
+const RevenueOverTimeChart = dynamic(
+  () =>
+    import("@/components/reports/charts").then((mod) => ({ default: mod.RevenueOverTimeChart })),
+  { loading: () => <ChartSkeleton height={300} /> }
+);
+
+const RevenueByCompanyChart = dynamic(
+  () =>
+    import("@/components/reports/charts").then((mod) => ({ default: mod.RevenueByCompanyChart })),
+  { loading: () => <ChartSkeleton height={300} /> }
+);
+
+const InvoiceStatusChart = dynamic(
+  () => import("@/components/reports/charts").then((mod) => ({ default: mod.InvoiceStatusChart })),
+  { loading: () => <ChartSkeleton height={300} /> }
+);
+
+const ConversionFunnelChart = dynamic(
+  () =>
+    import("@/components/reports/charts").then((mod) => ({ default: mod.ConversionFunnelChart })),
+  { loading: () => <ChartSkeleton height={400} /> }
+);
+
+const TopCustomersTable = dynamic(
+  () => import("@/components/reports/charts").then((mod) => ({ default: mod.TopCustomersTable })),
+  { loading: () => <ChartSkeleton height={400} /> }
+);
+
 import type {
-  SalesSummary,
-  RevenuePoint,
   CompanyRevenue,
-  TopCustomer,
   ConversionFunnel,
-  InvoiceStatusBreakdown
+  InvoiceStatusBreakdown,
+  RevenuePoint,
+  SalesSummary,
+  TopCustomer,
 } from "@crm/types";
-import type { ColumnDef } from "@/lib/export";
 import { format } from "date-fns";
+import type { ColumnDef } from "@/lib/export";
+import { logger } from "@/lib/logger";
 
 export function SalesReportsContent() {
   const { filters } = useReportFilters();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [summary, setSummary] = useState<SalesSummary | null>(null);
   const [revenueData, setRevenueData] = useState<RevenuePoint[]>([]);
   const [companyRevenue, setCompanyRevenue] = useState<CompanyRevenue[]>([]);
@@ -55,7 +78,7 @@ export function SalesReportsContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     const params = {
       from: filters.from,
       to: filters.to,
@@ -63,21 +86,15 @@ export function SalesReportsContent() {
     };
 
     try {
-      const [
-        summaryRes,
-        revenueRes,
-        companyRes,
-        customersRes,
-        funnelRes,
-        statusRes
-      ] = await Promise.all([
-        reportsApi.getSalesSummary(),
-        analyticsApi.getRevenueOverTime(params),
-        analyticsApi.getRevenueByCompany({ ...params, limit: 10 }),
-        analyticsApi.getTopCustomers({ ...params, limit: 10 }),
-        analyticsApi.getConversionFunnel(params),
-        analyticsApi.getInvoiceStatusBreakdown(params)
-      ]);
+      const [summaryRes, revenueRes, companyRes, customersRes, funnelRes, statusRes] =
+        await Promise.all([
+          reportsApi.getSalesSummary(),
+          analyticsApi.getRevenueOverTime(params),
+          analyticsApi.getRevenueByCompany({ ...params, limit: 10 }),
+          analyticsApi.getTopCustomers({ ...params, limit: 10 }),
+          analyticsApi.getConversionFunnel(params),
+          analyticsApi.getInvoiceStatusBreakdown(params),
+        ]);
 
       if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
       if (revenueRes.success && revenueRes.data) setRevenueData(revenueRes.data);
@@ -86,7 +103,7 @@ export function SalesReportsContent() {
       if (funnelRes.success && funnelRes.data) setConversionFunnel(funnelRes.data);
       if (statusRes.success && statusRes.data) setInvoiceStatus(statusRes.data);
     } catch (err) {
-      console.error("Failed to fetch sales data:", err);
+      logger.error("Failed to fetch sales data:", err);
       setError("Failed to load sales analytics");
     } finally {
       setLoading(false);
@@ -102,7 +119,11 @@ export function SalesReportsContent() {
   const exportColumns: ColumnDef<TopCustomer>[] = [
     { key: "companyName", header: "Company" },
     { key: "industry", header: "Industry" },
-    { key: "totalRevenue", header: "Total Revenue", format: (v) => `€${Number(v).toLocaleString()}` },
+    {
+      key: "totalRevenue",
+      header: "Total Revenue",
+      format: (v) => `€${Number(v).toLocaleString()}`,
+    },
     { key: "paidRevenue", header: "Paid Revenue", format: (v) => `€${Number(v).toLocaleString()}` },
     { key: "invoiceCount", header: "Invoices" },
     { key: "quoteCount", header: "Quotes" },
@@ -115,9 +136,7 @@ export function SalesReportsContent() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sales Reports</h1>
-          <p className="text-muted-foreground">
-            Detailed sales analytics and performance metrics
-          </p>
+          <p className="text-muted-foreground">Detailed sales analytics and performance metrics</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportButton
@@ -146,9 +165,7 @@ export function SalesReportsContent() {
         statusPlaceholder="Invoice Status"
       />
 
-      {error && (
-        <ChartError message={error} onRetry={fetchData} />
-      )}
+      {error && <ChartError message={error} onRetry={fetchData} />}
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -163,7 +180,10 @@ export function SalesReportsContent() {
             ) : (
               <>
                 <div className="text-2xl font-bold">
-                  €{((summary?.totalInvoiceValue || 0) - (summary?.unpaidAmount || 0)).toLocaleString()}
+                  €
+                  {(
+                    (summary?.totalInvoiceValue || 0) - (summary?.unpaidAmount || 0)
+                  ).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   €{(summary?.unpaidAmount || 0).toLocaleString()} outstanding
@@ -221,9 +241,7 @@ export function SalesReportsContent() {
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <div className="text-2xl font-bold">
-                  {conversionFunnel?.conversionRate || 0}%
-                </div>
+                <div className="text-2xl font-bold">{conversionFunnel?.conversionRate || 0}%</div>
                 <p className="text-xs text-muted-foreground">
                   Avg. {conversionFunnel?.avgDaysToConvert || 0} days to convert
                 </p>
@@ -242,7 +260,10 @@ export function SalesReportsContent() {
           </>
         ) : revenueData.length === 0 && companyRevenue.length === 0 ? (
           <>
-            <EmptyChartState title="No Revenue Data" message="No revenue data available for the selected period." />
+            <EmptyChartState
+              title="No Revenue Data"
+              message="No revenue data available for the selected period."
+            />
             <EmptyChartState title="No Company Data" message="No company revenue data available." />
           </>
         ) : (
@@ -290,9 +311,11 @@ export function SalesReportsContent() {
       ) : topCustomers.length > 0 ? (
         <TopCustomersTable data={topCustomers} />
       ) : (
-        <EmptyChartState title="No Customer Data" message="No customer data available for the selected period." />
+        <EmptyChartState
+          title="No Customer Data"
+          message="No customer data available for the selected period."
+        />
       )}
     </div>
   );
 }
-

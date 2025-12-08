@@ -43,6 +43,7 @@
     "@crm/utils": "workspace:*",
     "@sentry/bun": "10.28.0",
     "ai": "^5.0.87",
+    "bcryptjs": "3.0.3",
     "bullmq": "^5.30.0",
     "drizzle-orm": "0.44.7",
     "ioredis": "^5.4.1",

@@ -1,5 +1,6 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { logger } from "@/lib/logger";
 import { DeliveryNotePublicView } from "./delivery-note-public-view";
 
 type Props = {
@@ -54,7 +55,7 @@ export default async function DeliveryNotePublicPage({ params }: Props) {
       deliveryNote = data.data;
     }
   } catch (error) {
-    console.error("Error fetching delivery note:", error);
+    logger.error("Error fetching delivery note:", error);
   }
 
   if (!deliveryNote) {
@@ -63,4 +64,3 @@ export default async function DeliveryNotePublicPage({ params }: Props) {
 
   return <DeliveryNotePublicView deliveryNote={deliveryNote} token={token} />;
 }
-

@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import type { DeliveryNote } from "@crm/types";
+import { logger } from "@/lib/logger";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -8,10 +8,7 @@ export async function GET(request: NextRequest) {
   const deliveryNoteId = searchParams.get("id");
 
   if (!token && !deliveryNoteId) {
-    return NextResponse.json(
-      { error: "Token or delivery note ID is required" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Token or delivery note ID is required" }, { status: 400 });
   }
 
   try {
@@ -22,19 +19,13 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
     let response: Response;
 
     if (token) {
-      response = await fetch(
-        `${baseUrl}/api/delivery-notes/token/${token}`,
-        fetchOptions,
-      );
+      response = await fetch(`${baseUrl}/api/delivery-notes/token/${token}`, fetchOptions);
     } else {
-      response = await fetch(
-        `${baseUrl}/api/v1/delivery-notes/${deliveryNoteId}`,
-        fetchOptions,
-      );
+      response = await fetch(`${baseUrl}/api/v1/delivery-notes/${deliveryNoteId}`, fetchOptions);
     }
 
     if (!response.ok) {
@@ -46,14 +37,15 @@ export async function GET(request: NextRequest) {
 
     let fromDetails = null;
     if (apiDeliveryNote.fromDetails) {
-      fromDetails = typeof apiDeliveryNote.fromDetails === 'string'
-        ? JSON.parse(apiDeliveryNote.fromDetails)
-        : apiDeliveryNote.fromDetails;
+      fromDetails =
+        typeof apiDeliveryNote.fromDetails === "string"
+          ? JSON.parse(apiDeliveryNote.fromDetails)
+          : apiDeliveryNote.fromDetails;
     } else {
       try {
         const userRes = await fetch(
           `${baseUrl}/api/v1/users/${apiDeliveryNote.createdBy}`,
-          fetchOptions,
+          fetchOptions
         );
         if (userRes.ok) {
           const userData = await userRes.json();
@@ -84,12 +76,10 @@ export async function GET(request: NextRequest) {
 
     // Dynamically import PDF components
     const { renderToBuffer } = await import("@react-pdf/renderer");
-    const { PdfTemplate } = await import(
-      "@/components/delivery-note/templates/pdf-template"
-    );
+    const { PdfTemplate } = await import("@/components/delivery-note/templates/pdf-template");
 
     // Generate PDF
-    const pdfDocument = await PdfTemplate({ 
+    const pdfDocument = await PdfTemplate({
       deliveryNote: apiDeliveryNote,
       fromDetails: fromDetails,
     });
@@ -105,12 +95,11 @@ export async function GET(request: NextRequest) {
     const arrayBuffer = uint8.buffer.slice(uint8.byteOffset, uint8.byteOffset + uint8.byteLength);
     return new Response(arrayBuffer, { headers });
   } catch (error) {
-    console.error("Error generating PDF:", error);
-    const errorMessage =
-      error instanceof Error ? error.message : "Unknown error";
+    logger.error("Error generating PDF:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
       { error: "Failed to generate PDF", details: errorMessage },
-      { status: 500 },
+      { status: 500 }
     );
   }
 }

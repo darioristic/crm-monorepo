@@ -43,13 +43,9 @@ function formatDate(dateString: string, format: string = "dd/MM/yyyy"): string {
   return `${day}/${month}/${year}`;
 }
 
-export function InvoicePreview({
-  invoice,
-  template = {},
-  className,
-}: InvoicePreviewProps) {
+export function InvoicePreview({ invoice, template = {}, className }: InvoicePreviewProps) {
   const config = {
-    logoUrl: template.logoUrl || null,
+    logoUrl: template.logoUrl || invoice.logoUrl || null,
     title: template.title || "Invoice",
     fromLabel: template.fromLabel || "From",
     customerLabel: template.customerLabel || "Bill To",
@@ -70,12 +66,18 @@ export function InvoicePreview({
   };
 
   const balance = Number(invoice.total) - Number(invoice.paidAmount);
+  const from =
+    invoice.fromDetails && typeof invoice.fromDetails === "object"
+      ? (invoice.fromDetails as any)
+      : null;
+  const to =
+    invoice.customerDetails && typeof invoice.customerDetails === "object"
+      ? (invoice.customerDetails as any)
+      : null;
 
   return (
     <div
-      className={`bg-white text-black font-['Inter',sans-serif] ${
-        className || ""
-      }`}
+      className={`bg-white text-black font-['Inter',sans-serif] ${className || ""}`}
       style={{
         width: "210mm",
         minHeight: "297mm",
@@ -109,34 +111,58 @@ export function InvoicePreview({
         {/* Logo */}
         {config.logoUrl && (
           <div className="max-w-[200px]">
-            <img
-              src={config.logoUrl}
-              alt="Company Logo"
-              className="h-16 object-contain"
-            />
+            <img src={config.logoUrl} alt="Company Logo" className="h-16 object-contain" />
           </div>
         )}
       </div>
 
       {/* Company and Customer */}
       <div className="grid grid-cols-2 gap-8 mb-8">
-        {/* From */}
         <div>
-          <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">
-            {config.fromLabel}
-          </p>
+          <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">{config.fromLabel}</p>
           <div className="text-sm leading-relaxed">
-            <p className="font-medium">Your Company</p>
+            <p className="font-medium">{(from?.name as string) || "Your Company"}</p>
+            {from && (
+              <div className="mt-1 space-y-1 text-gray-700">
+                {from?.address && <p>{String(from.address)}</p>}
+                {(from?.city || from?.zip || from?.state) && (
+                  <p>
+                    {from?.zip ? `${String(from.zip)} ` : ""}
+                    {from?.city ? String(from.city) : ""}
+                    {from?.state ? `, ${String(from.state)}` : ""}
+                  </p>
+                )}
+                {from?.country && <p>{String(from.country)}</p>}
+                {from?.email && <p>{String(from.email)}</p>}
+                {from?.phone && <p>{String(from.phone)}</p>}
+                {from?.vatNumber && <p>VAT: {String(from.vatNumber)}</p>}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* To */}
         <div>
           <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">
             {config.customerLabel}
           </p>
           <div className="text-sm leading-relaxed">
-            <p className="font-medium">Customer</p>
+            <p className="font-medium">{(to?.name as string) || "Customer"}</p>
+            {to && (
+              <div className="mt-1 space-y-1 text-gray-700">
+                {to?.address && <p>{String(to.address)}</p>}
+                {(to?.city || to?.zip || to?.state) && (
+                  <p>
+                    {to?.zip ? `${String(to.zip)} ` : ""}
+                    {to?.city ? String(to.city) : ""}
+                    {to?.state ? `, ${String(to.state)}` : ""}
+                  </p>
+                )}
+                {to?.country && <p>{String(to.country)}</p>}
+                {to?.email && <p>{String(to.email)}</p>}
+                {to?.phone && <p>{String(to.phone)}</p>}
+                {to?.vatNumber && <p>VAT: {String(to.vatNumber)}</p>}
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -170,9 +196,7 @@ export function InvoicePreview({
           >
             <div>
               <p className="font-medium">{item.productName}</p>
-              {item.description && (
-                <p className="text-xs text-gray-500 mt-1">{item.description}</p>
-              )}
+              {item.description && <p className="text-xs text-gray-500 mt-1">{item.description}</p>}
             </div>
             <div className="text-right">{Number(item.quantity)}</div>
             <div className="text-right">
@@ -219,20 +243,14 @@ export function InvoicePreview({
           {/* Subtotal (after discount) */}
           <div className="flex justify-between text-sm">
             <span className="text-gray-500">{config.subtotalLabel}:</span>
-            <span>
-              {formatCurrency(Number(invoice.subtotal), config.currency)}
-            </span>
+            <span>{formatCurrency(Number(invoice.subtotal), config.currency)}</span>
           </div>
 
           {/* VAT */}
           {Number(invoice.taxRate) > 0 && (
             <div className="flex justify-between text-sm">
-              <span className="text-gray-500">
-                VAT Amount ({Number(invoice.taxRate)}%):
-              </span>
-              <span>
-                {formatCurrency(Number(invoice.tax), config.currency)}
-              </span>
+              <span className="text-gray-500">VAT Amount ({Number(invoice.taxRate)}%):</span>
+              <span>{formatCurrency(Number(invoice.tax), config.currency)}</span>
             </div>
           )}
 
@@ -248,9 +266,7 @@ export function InvoicePreview({
           {Number(invoice.paidAmount) > 0 && (
             <div className="flex justify-between text-sm text-green-600">
               <span>Paid</span>
-              <span>
-                {formatCurrency(Number(invoice.paidAmount), config.currency)}
-              </span>
+              <span>{formatCurrency(Number(invoice.paidAmount), config.currency)}</span>
             </div>
           )}
 
@@ -279,9 +295,7 @@ export function InvoicePreview({
         {/* Notes */}
         {invoice.notes && (
           <div>
-            <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">
-              {config.noteLabel}
-            </p>
+            <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">{config.noteLabel}</p>
             <p className="text-sm whitespace-pre-wrap">{invoice.notes}</p>
           </div>
         )}

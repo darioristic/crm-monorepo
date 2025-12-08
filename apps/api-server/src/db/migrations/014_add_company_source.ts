@@ -1,9 +1,10 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 export const name = "014_add_company_source";
 
 export async function up(): Promise<void> {
-  console.log(`Running migration: ${name}`);
+  logger.info(`Running migration: ${name}`);
 
   // Add source column to companies table
   // 'manual' = created through /dashboard/companies page
@@ -16,15 +17,14 @@ export async function up(): Promise<void> {
   // Create index for source filtering
   await db`CREATE INDEX IF NOT EXISTS idx_companies_source ON companies(source)`;
 
-  console.log(`✅ Migration ${name} completed`);
+  logger.info(`✅ Migration ${name} completed`);
 }
 
 export async function down(): Promise<void> {
-  console.log(`Rolling back migration: ${name}`);
+  logger.info(`Rolling back migration: ${name}`);
 
   await db`DROP INDEX IF EXISTS idx_companies_source`;
   await db`ALTER TABLE companies DROP COLUMN IF EXISTS source`;
 
-  console.log(`✅ Rollback ${name} completed`);
+  logger.info(`✅ Rollback ${name} completed`);
 }
-

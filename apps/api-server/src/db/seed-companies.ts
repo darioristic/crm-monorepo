@@ -1,7 +1,8 @@
 import type { Company } from "@crm/types";
 import { generateUUID, now } from "@crm/utils";
-import { companyQueries } from "./queries/companies";
+import { logger } from "../lib/logger";
 import { sql as db } from "./client";
+import { companyQueries } from "./queries/companies";
 
 function pastDate(daysAgo: number): string {
   return new Date(Date.now() - daysAgo * 24 * 60 * 60 * 1000).toISOString();
@@ -976,7 +977,7 @@ export const GLOBAL_COMPANIES: Company[] = [
 // ============================================
 
 async function seedCompaniesData(companies: Company[]): Promise<string[]> {
-  console.log("📦 Seeding companies...");
+  logger.info("📦 Seeding companies...");
   const ids: string[] = [];
 
   for (const company of companies) {
@@ -984,16 +985,18 @@ async function seedCompaniesData(companies: Company[]): Promise<string[]> {
       const existing = await companyQueries.findByName(company.name);
       if (existing) {
         // Update existing company with all fields
-        console.log(`  🔄 Updating company: ${company.name}`);
+        logger.info(`  🔄 Updating company: ${company.name}`);
         await companyQueries.update(existing.id, company);
         ids.push(existing.id);
       } else {
         const created = await companyQueries.createWithId(company);
-        console.log(`  ✅ Created company: ${created.name} (${company.city}, ${company.countryCode})`);
+        logger.info(
+          `  ✅ Created company: ${created.name} (${company.city}, ${company.countryCode})`
+        );
         ids.push(created.id);
       }
     } catch (error) {
-      console.error(`  ❌ Failed to create/update company ${company.name}:`, error);
+      logger.error(`  ❌ Failed to create/update company ${company.name}:`, error);
     }
   }
 
@@ -1001,30 +1004,32 @@ async function seedCompaniesData(companies: Company[]): Promise<string[]> {
 }
 
 export async function seedSerbianAndGlobalCompanies(): Promise<void> {
-  console.log("\n🌱 Starting seed for Serbian and Global companies...\n");
+  logger.info("\n🌱 Starting seed for Serbian and Global companies...\n");
 
   try {
-    console.log("\n🇷🇸 SERBIAN COMPANIES (25):\n");
-    console.log("═".repeat(50));
+    logger.info("\n🇷🇸 SERBIAN COMPANIES (25):\n");
+    logger.info("═".repeat(50));
     const serbianIds = await seedCompaniesData(SERBIAN_COMPANIES);
-    console.log(`\n  📊 Serbian companies seeded: ${serbianIds.length}\n`);
+    logger.info(`\n  📊 Serbian companies seeded: ${serbianIds.length}\n`);
 
-    console.log("\n🌍 GLOBAL COMPANIES (25):\n");
-    console.log("═".repeat(50));
+    logger.info("\n🌍 GLOBAL COMPANIES (25):\n");
+    logger.info("═".repeat(50));
     const globalIds = await seedCompaniesData(GLOBAL_COMPANIES);
-    console.log(`\n  📊 Global companies seeded: ${globalIds.length}\n`);
+    logger.info(`\n  📊 Global companies seeded: ${globalIds.length}\n`);
 
     // Summary
     const companyCount = await db`SELECT COUNT(*) FROM companies`;
-    console.log("\n📊 Final Summary:");
-    console.log("═".repeat(50));
-    console.log(`   Total Serbian companies added: ${serbianIds.length}`);
-    console.log(`   Total Global companies added: ${globalIds.length}`);
-    console.log(`   Total companies in database:  ${parseInt(companyCount[0].count as string, 10)}`);
-    console.log("═".repeat(50));
-    console.log("\n✅ Company seeding completed!\n");
+    logger.info("\n📊 Final Summary:");
+    logger.info("═".repeat(50));
+    logger.info(`   Total Serbian companies added: ${serbianIds.length}`);
+    logger.info(`   Total Global companies added: ${globalIds.length}`);
+    logger.info(
+      `   Total companies in database:  ${parseInt(companyCount[0].count as string, 10)}`
+    );
+    logger.info("═".repeat(50));
+    logger.info("\n✅ Company seeding completed!\n");
   } catch (error) {
-    console.error("\n❌ Seed failed:", error);
+    logger.error("\n❌ Seed failed:", error);
     throw error;
   }
 }
@@ -1036,7 +1041,7 @@ if (import.meta.main) {
     await db.end();
     process.exit(0);
   } catch (error) {
-    console.error("Seed error:", error);
+    logger.error("Seed error:", error);
     await db.end();
     process.exit(1);
   }

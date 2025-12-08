@@ -1,12 +1,12 @@
 "use client";
 
+import { ArrowLeft, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Send, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { QuoteDefaultSettings, QuoteFormValues } from "@/types/quote";
 import { Form } from "./form";
-import { SettingsMenu } from "./settings-menu";
 import { FormContext } from "./form-context";
-import type { QuoteFormValues, QuoteDefaultSettings } from "@/types/quote";
+import { SettingsMenu } from "./settings-menu";
 
 type QuoteContentProps = {
   type: "create" | "edit" | "success";
@@ -16,13 +16,7 @@ type QuoteContentProps = {
   onClose?: () => void;
 };
 
-export function QuoteContent({
-  type,
-  quoteId,
-  data,
-  defaultSettings,
-  onClose,
-}: QuoteContentProps) {
+export function QuoteContent({ type, quoteId, data, defaultSettings, onClose }: QuoteContentProps) {
   const router = useRouter();
 
   const handleSuccess = (id: string) => {
@@ -39,14 +33,17 @@ export function QuoteContent({
       <SuccessContent
         quoteId={quoteId!}
         onViewQuote={() => router.push(`/dashboard/sales/quotes/${quoteId}`)}
-        onCreateAnother={() => window.location.reload()}
+        onCreateAnother={() => {
+          router.push(`/dashboard/sales/quotes?type=create`);
+          onClose?.();
+        }}
         onClose={onClose}
       />
     );
   }
 
   return (
-    <FormContext data={data} defaultSettings={defaultSettings}>
+    <FormContext key={`${type}-${quoteId || "new"}`} data={data} defaultSettings={defaultSettings}>
       <div className="h-full flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
@@ -77,12 +74,7 @@ type SuccessContentProps = {
   onClose?: () => void;
 };
 
-function SuccessContent({
-  quoteId,
-  onViewQuote,
-  onCreateAnother,
-  onClose,
-}: SuccessContentProps) {
+function SuccessContent({ quoteId, onViewQuote, onCreateAnother, onClose }: SuccessContentProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 text-center">
       <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-6">
@@ -91,8 +83,8 @@ function SuccessContent({
 
       <h2 className="text-2xl font-semibold mb-2">Quote Created</h2>
       <p className="text-muted-foreground mb-8 max-w-md">
-        Your quote has been created successfully. You can now view it, send it
-        to your customer, or create another one.
+        Your quote has been created successfully. You can now view it, send it to your customer, or
+        create another one.
       </p>
 
       <div className="flex gap-3">
@@ -104,4 +96,3 @@ function SuccessContent({
     </div>
   );
 }
-

@@ -1,13 +1,14 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 export const name = "018_create_orders_table";
 
 export async function up(): Promise<void> {
-	console.log(`Running migration: ${name}`);
-	console.log("Creating orders table and order_items table...");
+  logger.info(`Running migration: ${name}`);
+  logger.info("Creating orders table and order_items table...");
 
-	// Create enum type for order status if it doesn't exist
-	await db`
+  // Create enum type for order status if it doesn't exist
+  await db`
 		DO $$ BEGIN
 			CREATE TYPE order_status AS ENUM ('pending', 'processing', 'completed', 'cancelled', 'refunded');
 		EXCEPTION
@@ -15,8 +16,8 @@ export async function up(): Promise<void> {
 		END $$
 	`;
 
-	// Create orders table
-	await db`
+  // Create orders table
+  await db`
 		CREATE TABLE IF NOT EXISTS orders (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			order_number VARCHAR(50) UNIQUE NOT NULL,
@@ -36,8 +37,8 @@ export async function up(): Promise<void> {
 		)
 	`;
 
-	// Create order_items table
-	await db`
+  // Create order_items table
+  await db`
 		CREATE TABLE IF NOT EXISTS order_items (
 			id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 			order_id UUID NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
@@ -52,28 +53,27 @@ export async function up(): Promise<void> {
 		)
 	`;
 
-	// Create indexes for orders
-	await db`CREATE INDEX IF NOT EXISTS idx_orders_company_id ON orders(company_id)`;
-	await db`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
-	await db`CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number)`;
-	await db`CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC)`;
-	await db`CREATE INDEX IF NOT EXISTS idx_orders_quote_id ON orders(quote_id)`;
-	await db`CREATE INDEX IF NOT EXISTS idx_orders_invoice_id ON orders(invoice_id)`;
-	await db`CREATE INDEX IF NOT EXISTS idx_orders_created_by ON orders(created_by)`;
+  // Create indexes for orders
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_company_id ON orders(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_quote_id ON orders(quote_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_invoice_id ON orders(invoice_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_created_by ON orders(created_by)`;
 
-	// Create indexes for order_items
-	await db`CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)`;
+  // Create indexes for order_items
+  await db`CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id)`;
 
-	console.log("✅ Orders and order_items tables created successfully");
+  logger.info("✅ Orders and order_items tables created successfully");
 }
 
 export async function down(): Promise<void> {
-	console.log("Dropping orders and order_items tables...");
+  logger.info("Dropping orders and order_items tables...");
 
-	await db`DROP TABLE IF EXISTS order_items CASCADE`;
-	await db`DROP TABLE IF EXISTS orders CASCADE`;
-	await db`DROP TYPE IF EXISTS order_status CASCADE`;
+  await db`DROP TABLE IF EXISTS order_items CASCADE`;
+  await db`DROP TABLE IF EXISTS orders CASCADE`;
+  await db`DROP TYPE IF EXISTS order_status CASCADE`;
 
-	console.log("✅ Orders and order_items tables dropped");
+  logger.info("✅ Orders and order_items tables dropped");
 }
-

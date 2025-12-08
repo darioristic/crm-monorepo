@@ -1,25 +1,23 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCallback, useState } from "react";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import type { Company } from "@crm/types";
+import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { Copy, Download, Loader2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useApi } from "@/hooks/use-api";
+import { companiesApi, ordersApi } from "@/lib/api";
+import type { OrderDefaultSettings, OrderFormValues } from "@/types/order";
+import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
 import { ProductEditProvider } from "./product-edit-context";
 import { ProductEditSheet } from "./product-edit-sheet";
-import { Copy, Download, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type {
-  OrderFormValues,
-  OrderDefaultSettings,
-} from "@/types/order";
-import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
-import { ordersApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { toast } from "sonner";
 
 // API Order Response Type
 interface OrderApiResponse {
@@ -90,15 +88,12 @@ export function OrderSheet({ defaultSettings }: OrderSheetProps) {
   const isOpen = type === "create" || type === "edit" || type === "success";
 
   // Fetch order data when editing or showing success
-  const { data: orderData, isLoading: isLoadingOrder } = useApi(
-    () => ordersApi.getById(orderId!),
-    { autoFetch: !!orderId && (type === "edit" || type === "success") }
-  );
+  const { data: orderData, isLoading: isLoadingOrder } = useApi(() => ordersApi.getById(orderId!), {
+    autoFetch: !!orderId && (type === "edit" || type === "success"),
+  });
 
   // Transform API order to form values
-  const formData = orderData
-    ? transformOrderToFormValues(orderData)
-    : undefined;
+  const formData = orderData ? transformOrderToFormValues(orderData) : undefined;
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -211,9 +206,7 @@ function OrderSheetContent({
       hideCloseButton
     >
       <VisuallyHidden>
-        <SheetTitle>
-          {type === "edit" ? "Edit Order" : "New Order"}
-        </SheetTitle>
+        <SheetTitle>{type === "edit" ? "Edit Order" : "New Order"}</SheetTitle>
       </VisuallyHidden>
       <div className="h-full overflow-y-auto">
         <Form orderId={orderId || undefined} onSuccess={onSuccess} />
@@ -229,15 +222,8 @@ type SuccessContentProps = {
   onCreateAnother: () => void;
 };
 
-function SuccessContent({
-  orderId,
-  order,
-  onViewOrder,
-  onCreateAnother,
-}: SuccessContentProps) {
-  const shareUrl = typeof window !== "undefined" 
-    ? `${window.location.origin}/o/id/${orderId}` 
-    : "";
+function SuccessContent({ orderId, order, onViewOrder, onCreateAnother }: SuccessContentProps) {
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/o/id/${orderId}` : "";
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
@@ -248,21 +234,35 @@ function SuccessContent({
     window.open(`/api/download/order?id=${orderId}`, "_blank");
   };
 
-  // Get company data
-  const company = order?.company;
+  const [company, setCompany] = useState<Company | null>(order?.company || null);
   const companyName = company?.name || order?.companyName;
 
   // Build address line (zip + city) or use full address
   const addressLine = [company?.zip, company?.city].filter(Boolean).join(" ") || company?.address;
+
+  useEffect(() => {
+    let active = true;
+    async function loadCompany() {
+      if (company || !order?.companyId) return;
+      try {
+        const res = await companiesApi.getById(order.companyId);
+        if (res && (res as any).success && (res as any).data && active) {
+          setCompany((res as any).data as Company);
+        }
+      } catch {}
+    }
+    loadCompany();
+    return () => {
+      active = false;
+    };
+  }, [company, order?.companyId]);
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-8 pb-0">
         <h1 className="text-2xl font-semibold mb-1">Created</h1>
-        <p className="text-muted-foreground">
-          Your order was created successfully
-        </p>
+        <p className="text-muted-foreground">Your order was created successfully</p>
       </div>
 
       {/* Order Preview Card */}
@@ -272,14 +272,14 @@ function SuccessContent({
           <div className="flex justify-between items-start mb-6">
             <div>
               <span className="text-xs text-muted-foreground">Order No:</span>
-              <span className="text-sm font-medium ml-1">
-                {order?.orderNumber || "—"}
-              </span>
+              <span className="text-sm font-medium ml-1">{order?.orderNumber || "—"}</span>
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Issue Date:</span>
               <span className="text-sm font-medium ml-1">
-                {order?.issueDate ? formatDate(order.issueDate) : "—"}
+                {order?.issueDate || order?.createdAt
+                  ? formatDateDMY(order?.issueDate || (order?.createdAt as string))
+                  : "—"}
               </span>
             </div>
           </div>
@@ -288,12 +288,8 @@ function SuccessContent({
           <div className="mb-6">
             <p className="text-xs font-medium text-foreground mb-2">To</p>
             <div className="space-y-0.5">
-              {companyName && (
-                <p className="text-sm text-muted-foreground">{companyName}</p>
-              )}
-              {addressLine && (
-                <p className="text-sm text-muted-foreground">{addressLine}</p>
-              )}
+              {companyName && <p className="text-sm text-muted-foreground">{companyName}</p>}
+              {addressLine && <p className="text-sm text-muted-foreground">{addressLine}</p>}
               {company?.country && (
                 <p className="text-sm text-muted-foreground">{company.country}</p>
               )}
@@ -321,7 +317,7 @@ function SuccessContent({
           <div className="flex justify-between items-center mb-6">
             <span className="text-sm text-muted-foreground">Total</span>
             <span className="text-2xl font-semibold">
-              {formatCurrency(order?.total || 0, order?.currency || "EUR")}
+              {formatCurrency(order?.total || 0, order?.currency || "EUR", "sr-RS")}
             </span>
           </div>
 
@@ -331,15 +327,11 @@ function SuccessContent({
           {/* Details Section */}
           <div>
             <h3 className="text-base font-medium mb-4">Details</h3>
-            
+
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Share link</p>
               <div className="flex gap-2">
-                <Input
-                  value={shareUrl}
-                  readOnly
-                  className="bg-background text-sm font-mono"
-                />
+                <Input value={shareUrl} readOnly className="bg-background text-sm font-mono" />
                 <Button
                   variant="secondary"
                   size="icon"
@@ -390,9 +382,7 @@ function SuccessContent({
 }
 
 // Transform API order to form values
-function transformOrderToFormValues(
-  order: OrderApiResponse
-): Partial<OrderFormValues> {
+function transformOrderToFormValues(order: OrderApiResponse): Partial<OrderFormValues> {
   return {
     id: order.id,
     status: order.status,
@@ -434,4 +424,3 @@ function transformOrderToFormValues(
     token: order.token,
   };
 }
-

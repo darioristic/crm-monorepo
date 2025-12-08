@@ -1,27 +1,27 @@
 "use client";
 
-import { useEffect, useCallback, useRef } from "react";
-import { useFormContext, useWatch, type FieldErrors } from "react-hook-form";
-import { useDebounceValue } from "usehooks-ts";
+import type { CreateInvoiceRequest, InvoiceStatus, UpdateInvoiceRequest } from "@crm/types";
+import { useCallback, useEffect, useRef } from "react";
+import { type FieldErrors, useFormContext, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { useDebounceValue } from "usehooks-ts";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { invoicesApi } from "@/lib/api";
 import { useMutation } from "@/hooks/use-api";
-import type { FormValues } from "./form-context";
-import type { CreateInvoiceRequest, UpdateInvoiceRequest, InvoiceStatus } from "@crm/types";
+import { invoicesApi } from "@/lib/api";
 import { logger } from "@/lib/logger";
-import { Meta } from "./meta";
-import { Logo } from "./logo";
-import { FromDetails } from "./from-details";
 import { CustomerDetails } from "./customer-details";
-import { LineItems } from "./line-items";
-import { Summary } from "./summary";
-import { PaymentDetails } from "./payment-details";
-import { NoteDetails } from "./note-details";
-import { SubmitButton } from "./submit-button";
 import { EditBlock } from "./edit-block";
 import { extractTextFromContent } from "./editor";
+import type { FormValues } from "./form-context";
+import { FromDetails } from "./from-details";
+import { LineItems } from "./line-items";
+import { Logo } from "./logo";
+import { Meta } from "./meta";
+import { NoteDetails } from "./note-details";
+import { PaymentDetails } from "./payment-details";
 import { SettingsMenu } from "./settings-menu";
+import { SubmitButton } from "./submit-button";
+import { Summary } from "./summary";
 
 type FormProps = {
   invoiceId?: string;
@@ -31,7 +31,7 @@ type FormProps = {
 
 export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
   const form = useFormContext<FormValues>();
-  const customerId = form.watch("customerId");
+  const _customerId = form.watch("customerId");
 
   // Stable mutation function that handles both create and update
   const mutationFn = useCallback(
@@ -46,7 +46,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
   // Use refs for mutation functions to prevent infinite loops in useEffect
   const draftMutationRef = useRef(draftMutation);
   draftMutationRef.current = draftMutation;
-  
+
   // Track if a draft save is in progress to prevent duplicate requests
   const isSavingDraftRef = useRef(false);
 
@@ -77,7 +77,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
   const isDirty = form.formState.isDirty;
   const invoiceNumberValid = !form.getFieldState("invoiceNumber").error;
-  const [debouncedValue] = useDebounceValue(formValues, 500);
+  const [_debouncedValue] = useDebounceValue(formValues, 500);
 
   // Transform form values to API format
   const transformFormValuesToDraft = useCallback((values: FormValues) => {
@@ -87,7 +87,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       .reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
 
     return {
-      companyId: values.customerId && values.customerId.trim() ? values.customerId.trim() : undefined,
+      companyId: values.customerId?.trim() ? values.customerId.trim() : undefined,
       invoiceNumber: values.invoiceNumber,
       issueDate: values.issueDate,
       dueDate: values.dueDate,
@@ -100,12 +100,8 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       vatRate: values.template.vatRate || 20,
       currency: values.template.currency || "EUR",
       total: values.amount,
-      notes: values.noteDetails
-        ? extractTextFromContent(values.noteDetails)
-        : undefined,
-      terms: values.paymentDetails
-        ? extractTextFromContent(values.paymentDetails)
-        : undefined,
+      notes: values.noteDetails ? extractTextFromContent(values.noteDetails) : undefined,
+      terms: values.paymentDetails ? extractTextFromContent(values.paymentDetails) : undefined,
       // Store fromDetails, customerDetails and logo for PDF generation
       fromDetails: values.fromDetails || null,
       customerDetails: values.customerDetails || null,
@@ -172,20 +168,25 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     if (isSavingDraftRef.current || !isDirty || !invoiceNumberValid) {
       return;
     }
-    
+
     const currentFormValues = form.getValues();
-    
+
     // Check all required fields for a valid invoice draft
     const customerId = currentFormValues.customerId;
-    const hasCustomer = !!(customerId && typeof customerId === 'string' && customerId.trim().length > 0);
+    const hasCustomer = !!(
+      customerId &&
+      typeof customerId === "string" &&
+      customerId.trim().length > 0
+    );
     const hasDueDate = !!currentFormValues.dueDate;
-    
+
     // Check for valid line items with both name and price > 0
-    const validLineItems = currentFormValues.lineItems?.filter(
-      (item) => item.name && item.name.trim().length > 0 && (item.price ?? 0) > 0
-    ) ?? [];
+    const validLineItems =
+      currentFormValues.lineItems?.filter(
+        (item) => item.name && item.name.trim().length > 0 && (item.price ?? 0) > 0
+      ) ?? [];
     const hasValidLineItem = validLineItems.length > 0;
-    
+
     // Only save draft if ALL required fields are present
     if (!hasCustomer || !hasDueDate || !hasValidLineItem) {
       return;
@@ -193,7 +194,12 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
     // Double-check the transformed data before sending
     const transformedData = transformFormValuesToDraft(currentFormValues);
-    if (!transformedData.companyId || !transformedData.dueDate || !transformedData.items || transformedData.items.length === 0) {
+    if (
+      !transformedData.companyId ||
+      !transformedData.dueDate ||
+      !transformedData.items ||
+      transformedData.items.length === 0
+    ) {
       return;
     }
 
@@ -210,13 +216,20 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       .finally(() => {
         isSavingDraftRef.current = false;
       });
-  }, [invoiceId, debouncedValue, isDirty, invoiceNumberValid, form, onDraftSaved, transformFormValuesToDraft]);
+  }, [invoiceId, isDirty, invoiceNumberValid, form, onDraftSaved, transformFormValuesToDraft]);
 
   // Submit the form
   const handleSubmit = async (values: FormValues) => {
     // Validate required fields
-    if (!values.customerId || !values.customerId.trim()) {
+    const initialCompanyId = (values.customerId || (values as any).companyId || "").trim();
+    const companyIdFinal = initialCompanyId;
+    if (!companyIdFinal) {
       toast.error("Please select a customer");
+      return;
+    }
+
+    if (!values.issueDate) {
+      toast.error("Please set an issue date");
       return;
     }
 
@@ -229,7 +242,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     const validLineItems = values.lineItems.filter(
       (item) => item.name && item.name.trim().length > 0
     );
-    
+
     if (validLineItems.length === 0) {
       toast.error("Please add at least one item with a name");
       return;
@@ -237,16 +250,25 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
     // Transform the data
     const transformedData = {
-      ...transformFormValuesToDraft(values),
+      ...transformFormValuesToDraft({
+        ...values,
+        customerId: companyIdFinal as any,
+        companyId: companyIdFinal as any,
+      } as any),
       status: values.template.deliveryType === "create" ? "draft" : "sent",
     };
 
     // Final validation before sending
-    if (!transformedData.companyId || !transformedData.dueDate || !transformedData.items || transformedData.items.length === 0) {
-      console.error('Submit validation failed:', {
+    if (
+      !transformedData.companyId ||
+      !transformedData.dueDate ||
+      !transformedData.items ||
+      transformedData.items.length === 0
+    ) {
+      logger.error("Submit validation failed:", {
         companyId: transformedData.companyId,
         dueDate: transformedData.dueDate,
-        itemsCount: transformedData.items?.length ?? 0
+        itemsCount: transformedData.items?.length ?? 0,
       });
       toast.error("Please fill in all required fields");
       return;
@@ -258,12 +280,19 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       const isUpdate = !!invoiceId;
       toast.success(
         values.template.deliveryType === "create_and_send"
-          ? isUpdate ? "Invoice updated and sent" : "Invoice created and sent"
-          : isUpdate ? "Invoice updated successfully" : "Invoice created successfully"
+          ? isUpdate
+            ? "Invoice updated and sent"
+            : "Invoice created and sent"
+          : isUpdate
+            ? "Invoice updated successfully"
+            : "Invoice created successfully"
       );
       onSuccess?.(result.data.id);
     } else {
-      toast.error(result.error || (invoiceId ? "Failed to update invoice" : "Failed to create invoice"));
+      const message =
+        (result.error && (result.error as any).message) ||
+        (invoiceId ? "Failed to update invoice" : "Failed to create invoice");
+      toast.error(message);
     }
   };
 
@@ -274,9 +303,9 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
     // Deep check for actual error messages
     const hasActualError = (obj: unknown): boolean => {
-      if (!obj || typeof obj !== 'object') return false;
-      if ('message' in obj && typeof obj.message === 'string') return true;
-      return Object.values(obj).some(val => hasActualError(val));
+      if (!obj || typeof obj !== "object") return false;
+      if ("message" in obj && typeof obj.message === "string") return true;
+      return Object.values(obj).some((val) => hasActualError(val));
     };
 
     if (!hasActualError(errors)) return;
@@ -286,10 +315,10 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     // Get nested errors (react-hook-form can have nested error objects)
     const getFirstErrorMessage = (errorObj: unknown): string | undefined => {
       if (!errorObj) return undefined;
-      if (typeof errorObj === 'object' && errorObj !== null && 'message' in errorObj) {
+      if (typeof errorObj === "object" && errorObj !== null && "message" in errorObj) {
         return errorObj.message as string;
       }
-      if (typeof errorObj === 'object' && errorObj !== null) {
+      if (typeof errorObj === "object" && errorObj !== null) {
         for (const key of Object.keys(errorObj)) {
           const nested = getFirstErrorMessage((errorObj as Record<string, unknown>)[key]);
           if (nested) return nested;
@@ -297,7 +326,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       }
       return undefined;
     };
-    
+
     const errorMessage = getFirstErrorMessage(errors);
     if (errorMessage) {
       toast.error(errorMessage);

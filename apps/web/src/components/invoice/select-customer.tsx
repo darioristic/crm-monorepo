@@ -1,5 +1,10 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
+import { X } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -10,17 +15,18 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-} from "@/components/ui/sheet";
-import { X } from "lucide-react";
-import { useState } from "react";
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
+import { accountsApi, contactsApi } from "@/lib/api";
 import { CreateCompanyInlineForm } from "./create-company-inline-form";
 
 type Company = {
@@ -31,7 +37,7 @@ type Company = {
 
 type Props = {
   companies: Company[];
-  onSelect: (customerId: string) => void;
+  onSelect: (type: "individual" | "organization", id: string) => void;
   onCompanyCreated?: () => void;
 };
 
@@ -40,20 +46,48 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
   const [value, setValue] = useState("");
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [prefillName, setPrefillName] = useState("");
+  const [filterType, setFilterType] = useState<"all" | "individual" | "organization">("all");
+  const [results, setResults] = useState<
+    Array<{
+      type: "individual" | "organization";
+      id: string;
+      display: string;
+      subtitle?: string;
+      favorite: boolean;
+    }>
+  >([]);
+  const [_isLoading, setIsLoading] = useState(false);
 
-  const formatData = companies?.map((item) => ({
-    value: item.name,
-    label: item.name,
+  const individualSchema = z.object({
+    firstName: z.string().min(1),
+    lastName: z.string().min(1),
+    jmbg: z.string().min(6).optional(),
+    email: z.string().email().optional(),
+    phone: z.string().optional(),
+  });
+  const individualForm = useForm<z.infer<typeof individualSchema>>({
+    resolver: zodResolver(individualSchema),
+    defaultValues: { firstName: "", lastName: "", jmbg: "", email: "", phone: "" },
+  });
+
+  const formatData = results?.map((item) => ({
+    value: item.display,
+    label: item.display,
     id: item.id,
-    email: item.email,
+    email: item.subtitle,
+    type: item.type,
+    favorite: item.favorite,
   }));
 
-  const handleSelect = (id: string) => {
+  const handleSelect = (id: string, type?: "individual" | "organization") => {
     if (id === "create-customer") {
       setPrefillName("");
       setShowCreateSheet(true);
     } else {
-      onSelect(id);
+      if (type) {
+        accountsApi.select({ type, id }).catch(() => {});
+        onSelect(type, id);
+      }
     }
     setOpen(false);
   };
@@ -67,8 +101,33 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
   const handleCompanyCreated = (newCompanyId: string) => {
     setShowCreateSheet(false);
     setPrefillName("");
-    onSelect(newCompanyId);
+    onSelect("organization", newCompanyId);
     onCompanyCreated?.();
+  };
+
+  const runSearch = async (q: string, t: "all" | "individual" | "organization") => {
+    setIsLoading(true);
+    try {
+      const typeParam = t === "all" ? undefined : t;
+      const res = await accountsApi.search({ q, type: typeParam, limit: 20 });
+      if (res.success && res.data) {
+        setResults(res.data);
+      } else {
+        setResults([]);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleValueChange = (v: string) => {
+    setValue(v);
+    runSearch(v, filterType);
+  };
+
+  const handleFilterChange = (t: "all" | "individual" | "organization") => {
+    setFilterType(t);
+    runSearch(value, t);
   };
 
   if (!companies?.length) {
@@ -121,19 +180,34 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
           </Button>
         </PopoverTrigger>
 
-        <PopoverContent
-          className="w-[250px] p-0"
-          side="bottom"
-          sideOffset={10}
-          align="start"
-        >
+        <PopoverContent className="w-[250px] p-0" side="bottom" sideOffset={10} align="start">
           <Command>
             <CommandInput
               value={value}
-              onValueChange={setValue}
+              onValueChange={handleValueChange}
               placeholder="Search customer..."
               className="h-9 text-xs"
             />
+            <div className="border-t border-border p-2">
+              <RadioGroup
+                value={filterType}
+                onValueChange={(v) => handleFilterChange(v as any)}
+                className="grid grid-cols-3 gap-2"
+              >
+                <label className="flex items-center gap-2 text-[11px]">
+                  <RadioGroupItem value="all" />
+                  All
+                </label>
+                <label className="flex items-center gap-2 text-[11px]">
+                  <RadioGroupItem value="organization" />
+                  Organizations
+                </label>
+                <label className="flex items-center gap-2 text-[11px]">
+                  <RadioGroupItem value="individual" />
+                  Individuals
+                </label>
+              </RadioGroup>
+            </div>
             <CommandList className="max-h-[200px] overflow-auto">
               <CommandEmpty className="text-xs border-t border-border p-2">
                 <button
@@ -149,15 +223,13 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
                   <CommandItem
                     key={item.id}
                     value={item.value}
-                    onSelect={() => handleSelect(item.id)}
+                    onSelect={() => handleSelect(item.id, item.type)}
                     className="group text-xs cursor-pointer"
                   >
                     <div className="flex flex-col">
                       <span>{item.label}</span>
                       {item.email && (
-                        <span className="text-[10px] text-muted-foreground">
-                          {item.email}
-                        </span>
+                        <span className="text-[10px] text-muted-foreground">{item.email}</span>
                       )}
                     </div>
                   </CommandItem>
@@ -188,11 +260,132 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
               <X className="size-5" />
             </Button>
           </SheetHeader>
-          <CreateCompanyInlineForm
-            prefillName={prefillName}
-            onSuccess={handleCompanyCreated}
-            onCancel={() => setShowCreateSheet(false)}
-          />
+          <div className="space-y-6">
+            <CreateCompanyInlineForm
+              prefillName={prefillName}
+              onSuccess={handleCompanyCreated}
+              onCancel={() => setShowCreateSheet(false)}
+            />
+            <div className="border-t pt-6">
+              <h3 className="text-sm font-medium mb-3">Create Individual</h3>
+              <Form {...individualForm}>
+                <form
+                  onSubmit={individualForm.handleSubmit(async (data) => {
+                    const res = await contactsApi.create({
+                      id: crypto.randomUUID(),
+                      firstName: data.firstName,
+                      lastName: data.lastName,
+                      email: data.email || "",
+                      phone: data.phone,
+                      company: undefined,
+                      position: undefined,
+                      address: undefined,
+                      notes: undefined,
+                      leadId: undefined,
+                      jmbg: data.jmbg,
+                      createdAt: new Date().toISOString(),
+                      updatedAt: new Date().toISOString(),
+                    } as any);
+                    if (res.success && res.data) {
+                      setShowCreateSheet(false);
+                      onSelect("individual", res.data.id);
+                    }
+                  })}
+                  className="space-y-3"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={individualForm.control}
+                      name="firstName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">First Name</FormLabel>
+                          <FormControl>
+                            <InputGroup>
+                              <InputGroupInput {...field} />
+                            </InputGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={individualForm.control}
+                      name="lastName"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Last Name</FormLabel>
+                          <FormControl>
+                            <InputGroup>
+                              <InputGroupInput {...field} />
+                            </InputGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <FormField
+                    control={individualForm.control}
+                    name="jmbg"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs">JMBG</FormLabel>
+                        <FormControl>
+                          <InputGroup>
+                            <InputGroupInput {...field} />
+                          </InputGroup>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-2 gap-3">
+                    <FormField
+                      control={individualForm.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Email</FormLabel>
+                          <FormControl>
+                            <InputGroup>
+                              <InputGroupInput type="email" {...field} />
+                            </InputGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <FormField
+                      control={individualForm.control}
+                      name="phone"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-xs">Phone</FormLabel>
+                          <FormControl>
+                            <InputGroup>
+                              <InputGroupInput {...field} />
+                            </InputGroup>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setShowCreateSheet(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button type="submit">Create & Select</Button>
+                  </div>
+                </form>
+              </Form>
+            </div>
+          </div>
         </SheetContent>
       </Sheet>
     </>

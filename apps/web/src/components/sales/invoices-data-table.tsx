@@ -1,36 +1,38 @@
 "use client";
 
-import * as React from "react";
-import { useRouter, usePathname } from "next/navigation";
+import type { Company, Invoice } from "@crm/types";
 import {
   flexRender,
   getCoreRowModel,
+  type RowSelectionState,
   useReactTable,
-  RowSelectionState,
 } from "@tanstack/react-table";
-import type { Invoice, Company } from "@crm/types";
 import { Trash2 } from "lucide-react";
-
+import { usePathname, useRouter } from "next/navigation";
+import * as React from "react";
+import { toast } from "sonner";
+import {
+  getInvoicesColumns,
+  type InvoiceWithCompany,
+} from "@/components/sales/invoices/InvoicesColumns";
+import { InvoicesToolbar } from "@/components/sales/invoices/InvoicesToolbar";
+import { PaymentDialog } from "@/components/sales/invoices/PaymentDialog";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import { invoicesApi, companiesApi } from "@/lib/api";
-import { usePaginatedApi, useMutation } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { toast } from "sonner";
+import { useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { companiesApi, invoicesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
-import { getInvoicesColumns, type InvoiceWithCompany } from "@/components/sales/invoices/InvoicesColumns";
-import { InvoicesToolbar } from "@/components/sales/invoices/InvoicesToolbar";
-import { PaymentDialog } from "@/components/sales/invoices/PaymentDialog";
 
-export function InvoicesDataTable() {
+export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number }) {
   const router = useRouter();
   const pathname = usePathname();
   const [searchValue, setSearchValue] = React.useState("");
@@ -42,15 +44,15 @@ export function InvoicesDataTable() {
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Open invoice in sheet
-  const handleOpenSheet = React.useCallback((invoiceId: string) => {
-    router.push(`${pathname}?type=edit&invoiceId=${invoiceId}`);
-  }, [router, pathname]);
+  const handleOpenSheet = React.useCallback(
+    (invoiceId: string) => {
+      router.push(`${pathname}?type=edit&invoiceId=${invoiceId}`);
+    },
+    [router, pathname]
+  );
 
   // Fetch companies for name lookup - use paginated API to get all companies
-  const {
-    data: companies,
-    isLoading: companiesLoading,
-  } = usePaginatedApi<Company>(
+  const { data: companies, isLoading: companiesLoading } = usePaginatedApi<Company>(
     (params) => companiesApi.getAll({ ...params, pageSize: 1000 }), // Get all companies
     {}
   );
@@ -79,11 +81,11 @@ export function InvoicesDataTable() {
     totalCount,
     totalPages,
     setPage,
-    setFilters
-  } = usePaginatedApi<Invoice>(
-    (params) => invoicesApi.getAll(params),
-    { search: searchValue, status: statusFilter === "all" ? undefined : statusFilter }
-  );
+    setFilters,
+  } = usePaginatedApi<Invoice>((params) => invoicesApi.getAll(params), {
+    search: searchValue,
+    status: statusFilter === "all" ? undefined : statusFilter,
+  });
 
   // Delete mutation
   const deleteMutation = useMutation<void, string>((id) => invoicesApi.delete(id));
@@ -92,20 +94,27 @@ export function InvoicesDataTable() {
   const enrichedInvoices: InvoiceWithCompany[] = React.useMemo(() => {
     return (invoices || []).map((invoice) => ({
       ...invoice,
-      companyName: companyMap.get(invoice.companyId) || "Unknown Company"
+      companyName: companyMap.get(invoice.companyId) || "Unknown Company",
     }));
   }, [invoices, companyMap]);
 
   // Handle search with debounce
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      setFilters({ 
-        search: searchValue, 
-        status: statusFilter === "all" ? undefined : statusFilter 
+      setFilters({
+        search: searchValue,
+        status: statusFilter === "all" ? undefined : statusFilter,
       });
     }, 300);
     return () => clearTimeout(timer);
   }, [searchValue, statusFilter, setFilters]);
+
+  // Handle external refresh trigger
+  React.useEffect(() => {
+    if (refreshTrigger) {
+      refetch();
+    }
+  }, [refreshTrigger, refetch]);
 
   // Handle delete
   const handleDelete = async () => {
@@ -147,7 +156,7 @@ export function InvoicesDataTable() {
     let failCount = 0;
 
     for (const rowIndex of selectedRows) {
-      const invoice = enrichedInvoices[parseInt(rowIndex)];
+      const invoice = enrichedInvoices[parseInt(rowIndex, 10)];
       if (invoice) {
         const result = await deleteMutation.mutate(invoice.id);
         if (result.success) {
@@ -233,11 +242,7 @@ export function InvoicesDataTable() {
           />
         </div>
         {selectedCount > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setBulkDeleteDialogOpen(true)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete ({selectedCount})
           </Button>
@@ -284,9 +289,14 @@ export function InvoicesDataTable() {
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
           {selectedCount > 0 ? (
-            <span>{selectedCount} of {totalCount} row(s) selected</span>
+            <span>
+              {selectedCount} of {totalCount} row(s) selected
+            </span>
           ) : (
-            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} invoices</span>
+            <span>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of{" "}
+              {totalCount} invoices
+            </span>
           )}
         </div>
         <div className="flex items-center space-x-2">

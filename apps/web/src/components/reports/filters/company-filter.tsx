@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import type { Company } from "@crm/types";
 import { Building2Icon, XIcon } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -9,9 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 import { companiesApi } from "@/lib/api";
-import type { Company } from "@crm/types";
+import { logger } from "@/lib/logger";
 
 interface CompanyFilterProps {
   value?: string;
@@ -31,7 +32,7 @@ export function CompanyFilter({ value, onChange, className }: CompanyFilterProps
           setCompanies(response.data);
         }
       } catch (error) {
-        console.error("Failed to load companies:", error);
+        logger.error("Failed to load companies:", error);
       } finally {
         setLoading(false);
       }
@@ -39,7 +40,7 @@ export function CompanyFilter({ value, onChange, className }: CompanyFilterProps
     loadCompanies();
   }, []);
 
-  const selectedCompany = companies.find((c) => c.id === value);
+  const _selectedCompany = companies.find((c) => c.id === value);
 
   return (
     <div className={className}>
@@ -76,4 +77,3 @@ export function CompanyFilter({ value, onChange, className }: CompanyFilterProps
     </div>
   );
 }
-

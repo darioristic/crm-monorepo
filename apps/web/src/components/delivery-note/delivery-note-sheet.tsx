@@ -1,20 +1,21 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCallback } from "react";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import type { DeliveryNote } from "@crm/types";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { DeliveryNoteForm } from "@/components/sales/delivery-note-form";
 import { Copy, Download, Loader2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback } from "react";
+import { toast } from "sonner";
+import { DeliveryNoteForm } from "@/components/sales/delivery-note-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { deliveryNotesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { toast } from "sonner";
-import type { DeliveryNote } from "@crm/types";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { SHEET_SIZES } from "@/constants/sheet-sizes";
+import { useApi } from "@/hooks/use-api";
 import { useCopyLink } from "@/hooks/use-copy-link";
+import { deliveryNotesApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 export function DeliveryNoteSheet() {
   const searchParams = useSearchParams();
@@ -27,10 +28,12 @@ export function DeliveryNoteSheet() {
   const isOpen = type === "create" || type === "edit" || type === "success";
 
   // Fetch delivery note data when editing or showing success
-  const { data: deliveryNoteData, isLoading: isLoadingDeliveryNote } =
-    useApi<DeliveryNote>(() => deliveryNotesApi.getById(deliveryNoteId!), {
+  const { data: deliveryNoteData, isLoading: isLoadingDeliveryNote } = useApi<DeliveryNote>(
+    () => deliveryNotesApi.getById(deliveryNoteId!),
+    {
       autoFetch: !!deliveryNoteId && (type === "edit" || type === "success"),
-    });
+    }
+  );
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -62,9 +65,7 @@ export function DeliveryNoteSheet() {
           deliveryNoteData={deliveryNoteData}
           onSuccess={handleSuccess}
           onClose={() => handleOpenChange(false)}
-          isLoading={
-            isLoadingDeliveryNote && (type === "edit" || type === "success")
-          }
+          isLoading={isLoadingDeliveryNote && (type === "edit" || type === "success")}
         />
       )}
     </Sheet>
@@ -123,11 +124,7 @@ function DeliveryNoteSheetContent({
           deliveryNoteId={deliveryNoteId!}
           deliveryNote={deliveryNoteData}
           onViewDeliveryNote={() => {
-            window.open(
-              `/d/id/${deliveryNoteId}`,
-              "_blank",
-              "noopener,noreferrer"
-            );
+            window.open(`/d/id/${deliveryNoteId}`, "_blank", "noopener,noreferrer");
           }}
           onCreateAnother={() => window.location.reload()}
         />
@@ -144,9 +141,7 @@ function DeliveryNoteSheetContent({
       hideCloseButton
     >
       <VisuallyHidden>
-        <SheetTitle>
-          {type === "edit" ? "Edit Delivery Note" : "New Delivery Note"}
-        </SheetTitle>
+        <SheetTitle>{type === "edit" ? "Edit Delivery Note" : "New Delivery Note"}</SheetTitle>
       </VisuallyHidden>
       <div className="h-full overflow-y-auto">
         <DeliveryNoteForm
@@ -188,7 +183,7 @@ function SuccessContent({
     try {
       window.open(`/api/download/delivery-note?id=${deliveryNoteId}`, "_blank");
     } catch (error) {
-      console.error("Failed to open download link:", error);
+      logger.error("Failed to open download link:", error);
       toast.error("Failed to download delivery note");
     }
   };
@@ -198,17 +193,14 @@ function SuccessContent({
   const companyName = company?.name || deliveryNote?.companyName;
 
   // Build address line (zip + city) or use full address
-  const addressLine =
-    [company?.zip, company?.city].filter(Boolean).join(" ") || company?.address;
+  const addressLine = [company?.zip, company?.city].filter(Boolean).join(" ") || company?.address;
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="p-8 pb-0">
         <h1 className="text-2xl font-semibold mb-1">Created</h1>
-        <p className="text-muted-foreground">
-          Your delivery note was created successfully
-        </p>
+        <p className="text-muted-foreground">Your delivery note was created successfully</p>
       </div>
 
       {/* Delivery Note Preview Card */}
@@ -217,21 +209,15 @@ function SuccessContent({
           {/* Delivery Note Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
-              <span className="text-xs text-muted-foreground">
-                Delivery Note No:
-              </span>
+              <span className="text-xs text-muted-foreground">Delivery Note No:</span>
               <span className="text-sm font-medium ml-1">
                 {deliveryNote?.deliveryNumber || "—"}
               </span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground">
-                Delivery Date:
-              </span>
+              <span className="text-xs text-muted-foreground">Delivery Date:</span>
               <span className="text-sm font-medium ml-1">
-                {deliveryNote?.deliveryDate
-                  ? formatDate(deliveryNote.deliveryDate)
-                  : "—"}
+                {deliveryNote?.deliveryDate ? formatDate(deliveryNote.deliveryDate) : "—"}
               </span>
             </div>
           </div>
@@ -240,34 +226,21 @@ function SuccessContent({
           <div className="mb-6">
             <p className="text-xs font-medium text-foreground mb-2">To</p>
             <div className="space-y-0.5">
-              {companyName && (
-                <p className="text-sm text-muted-foreground">{companyName}</p>
-              )}
-              {addressLine && (
-                <p className="text-sm text-muted-foreground">{addressLine}</p>
-              )}
+              {companyName && <p className="text-sm text-muted-foreground">{companyName}</p>}
+              {addressLine && <p className="text-sm text-muted-foreground">{addressLine}</p>}
               {company?.country && (
-                <p className="text-sm text-muted-foreground">
-                  {company.country}
-                </p>
+                <p className="text-sm text-muted-foreground">{company.country}</p>
               )}
               {company?.vatNumber && (
-                <p className="text-sm text-muted-foreground">
-                  PIB: {company.vatNumber}
-                </p>
+                <p className="text-sm text-muted-foreground">PIB: {company.vatNumber}</p>
               )}
               {company?.phone && (
-                <p className="text-sm text-muted-foreground">
-                  Tel: {company.phone}
-                </p>
+                <p className="text-sm text-muted-foreground">Tel: {company.phone}</p>
               )}
               {(company?.email || company?.billingEmail) && (
                 <p className="text-sm text-muted-foreground">
                   E-mail:{" "}
-                  <a
-                    href={`mailto:${company.email || company.billingEmail}`}
-                    className="underline"
-                  >
+                  <a href={`mailto:${company.email || company.billingEmail}`} className="underline">
                     {company.email || company.billingEmail}
                   </a>
                 </p>
@@ -281,9 +254,7 @@ function SuccessContent({
           {/* Shipping Address */}
           {deliveryNote?.shippingAddress && (
             <div className="mb-6">
-              <p className="text-xs font-medium text-foreground mb-2">
-                Shipping Address
-              </p>
+              <p className="text-xs font-medium text-foreground mb-2">Shipping Address</p>
               <p className="text-sm text-muted-foreground whitespace-pre-line">
                 {deliveryNote.shippingAddress}
               </p>
@@ -310,11 +281,7 @@ function SuccessContent({
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Share link</p>
               <div className="flex gap-2">
-                <Input
-                  value={shareUrl}
-                  readOnly
-                  className="bg-background text-sm font-mono"
-                />
+                <Input value={shareUrl} readOnly className="bg-background text-sm font-mono" />
                 <Button
                   variant="secondary"
                   size="icon"
@@ -353,11 +320,7 @@ function SuccessContent({
 
       {/* Footer Buttons */}
       <div className="p-8 pt-0 flex gap-3">
-        <Button
-          variant="outline"
-          className="flex-1"
-          onClick={onViewDeliveryNote}
-        >
+        <Button variant="outline" className="flex-1" onClick={onViewDeliveryNote}>
           View delivery note
         </Button>
         <Button className="flex-1" onClick={onCreateAnother}>

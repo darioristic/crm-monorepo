@@ -1,15 +1,19 @@
 "use client";
 
-import { ReactNode, createContext, useContext, useEffect, useState } from "react";
-import { DEFAULT_THEME, ThemeType } from "@/lib/themes";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { DEFAULT_THEME, type ThemeType } from "@/lib/themes";
 
 function setThemeCookie(key: string, value: string | null) {
   if (typeof window === "undefined") return;
 
   if (!value) {
-    document.cookie = `${key}=; path=/; max-age=0; SameSite=Lax; ${window.location.protocol === "https:" ? "Secure;" : ""}`;
+    document.cookie = `${key}=; path=/; max-age=0; SameSite=Lax; ${
+      window.location.protocol === "https:" ? "Secure;" : ""
+    }`;
   } else {
-    document.cookie = `${key}=${value}; path=/; max-age=31536000; SameSite=Lax; ${window.location.protocol === "https:" ? "Secure;" : ""}`;
+    document.cookie = `${key}=${value}; path=/; max-age=31536000; SameSite=Lax; ${
+      window.location.protocol === "https:" ? "Secure;" : ""
+    }`;
   }
 }
 
@@ -22,7 +26,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ActiveThemeProvider({
   children,
-  initialTheme
+  initialTheme,
 }: {
   children: ReactNode;
   initialTheme?: ThemeType;
@@ -37,7 +41,7 @@ export function ActiveThemeProvider({
     setThemeCookie("theme_radius", theme.radius);
     body.setAttribute("data-theme-radius", theme.radius);
 
-    if (theme.radius != "default") {
+    if (theme.radius !== "default") {
       setThemeCookie("theme_preset", theme.radius);
       body.setAttribute("data-theme-radius", theme.radius);
     } else {
@@ -45,7 +49,7 @@ export function ActiveThemeProvider({
       body.removeAttribute("data-theme-radius");
     }
 
-    if (theme.preset != "default") {
+    if (theme.preset !== "default") {
       setThemeCookie("theme_preset", theme.preset);
       body.setAttribute("data-theme-preset", theme.preset);
     } else {
@@ -56,7 +60,7 @@ export function ActiveThemeProvider({
     setThemeCookie("theme_content_layout", theme.contentLayout);
     body.setAttribute("data-theme-content-layout", theme.contentLayout);
 
-    if (theme.scale != "none") {
+    if (theme.scale !== "none") {
       setThemeCookie("theme_scale", theme.scale);
       body.setAttribute("data-theme-scale", theme.scale);
     } else {

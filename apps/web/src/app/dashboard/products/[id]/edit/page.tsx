@@ -1,9 +1,10 @@
-import { generateMeta } from "@/lib/utils";
-import { Metadata } from "next";
+import type { ProductCategory, ProductWithCategory } from "@crm/types";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { ProductForm } from "@/components/products/product-form";
-import type { ProductWithCategory, ProductCategory } from "@crm/types";
+import { logger } from "@/lib/logger";
+import { generateMeta } from "@/lib/utils";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -34,7 +35,7 @@ async function getProduct(id: string): Promise<ProductWithCategory | null> {
     const data = await response.json();
     return data.data || null;
   } catch (error) {
-    console.error("Error fetching product:", error);
+    logger.error("Error fetching product:", error);
     return null;
   }
 }
@@ -64,14 +65,12 @@ async function getCategories(): Promise<ProductCategory[]> {
     const data = await response.json();
     return data.data || [];
   } catch (error) {
-    console.error("Error fetching categories:", error);
+    logger.error("Error fetching categories:", error);
     return [];
   }
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
   const product = await getProduct(id);
 
@@ -84,10 +83,7 @@ export async function generateMetadata({
 
 export default async function EditProductPage({ params }: PageProps) {
   const { id } = await params;
-  const [product, categories] = await Promise.all([
-    getProduct(id),
-    getCategories(),
-  ]);
+  const [product, categories] = await Promise.all([getProduct(id), getCategories()]);
 
   if (!product) {
     notFound();
@@ -103,4 +99,3 @@ export default async function EditProductPage({ params }: PageProps) {
     </div>
   );
 }
-

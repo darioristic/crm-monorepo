@@ -1,14 +1,9 @@
 "use client";
 
-import {
-  BadgeCheck,
-  Bell,
-  CreditCard,
-  LogOut,
-  Settings,
-  Shield,
-} from "lucide-react";
+import { BadgeCheck, Bell, LogOut, Settings, Shield } from "lucide-react";
+import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,13 +13,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
-import { Badge } from "@/components/ui/badge";
 
 export default function UserMenu() {
-  const { user, isAdmin, logout, getUserDisplayName, getUserInitials } =
-    useAuth();
+  const { user, isAdmin, logout, getUserDisplayName, getUserInitials } = useAuth();
 
   if (!user) {
     return null;
@@ -37,7 +29,7 @@ export default function UserMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button 
+        <button
           className="flex items-center gap-2 rounded-full focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
           suppressHydrationWarning
         >
@@ -46,16 +38,11 @@ export default function UserMenu() {
               src={user.avatarUrl || `/images/avatars/01.png`}
               alt={getUserDisplayName()}
             />
-            <AvatarFallback className="rounded-lg">
-              {getUserInitials()}
-            </AvatarFallback>
+            <AvatarFallback className="rounded-lg">{getUserInitials()}</AvatarFallback>
           </Avatar>
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent
-        className="w-(--radix-dropdown-menu-trigger-width) min-w-60"
-        align="end"
-      >
+      <DropdownMenuContent className="w-(--radix-dropdown-menu-trigger-width) min-w-60" align="end">
         <DropdownMenuLabel className="p-0">
           <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
             <Avatar>
@@ -63,9 +50,7 @@ export default function UserMenu() {
                 src={user.avatarUrl || `/images/avatars/01.png`}
                 alt={getUserDisplayName()}
               />
-              <AvatarFallback className="rounded-lg">
-                {getUserInitials()}
-              </AvatarFallback>
+              <AvatarFallback className="rounded-lg">{getUserInitials()}</AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="flex items-center gap-2 truncate font-semibold">
@@ -77,9 +62,7 @@ export default function UserMenu() {
                   </Badge>
                 )}
               </span>
-              <span className="text-muted-foreground truncate text-xs">
-                {user.email}
-              </span>
+              <span className="text-muted-foreground truncate text-xs">{user.email}</span>
             </div>
           </div>
         </DropdownMenuLabel>
@@ -104,19 +87,7 @@ export default function UserMenu() {
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
-        {isAdmin && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/users">
-                  <Shield />
-                  User Management
-                </Link>
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </>
-        )}
+        {isAdmin && null}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={handleLogout}

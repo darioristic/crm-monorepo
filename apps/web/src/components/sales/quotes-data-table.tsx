@@ -1,36 +1,35 @@
 "use client";
 
-import * as React from "react";
-import { useRouter, usePathname } from "next/navigation";
+import type { Company, Quote } from "@crm/types";
 import {
   flexRender,
   getCoreRowModel,
+  type RowSelectionState,
   useReactTable,
-  RowSelectionState,
 } from "@tanstack/react-table";
-import type { Quote, Company } from "@crm/types";
 import { Trash2 } from "lucide-react";
-
+import { usePathname, useRouter } from "next/navigation";
+import * as React from "react";
+import { toast } from "sonner";
+import { getQuotesColumns, type QuoteWithCompany } from "@/components/sales/quotes/QuotesColumns";
+import { QuotesToolbar } from "@/components/sales/quotes/QuotesToolbar";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import { quotesApi, companiesApi } from "@/lib/api";
-import { usePaginatedApi, useMutation } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/utils";
-import { getQuotesColumns, type QuoteWithCompany } from "@/components/sales/quotes/QuotesColumns";
-import { QuotesToolbar } from "@/components/sales/quotes/QuotesToolbar";
 import { useAuth } from "@/contexts/auth-context";
+import { useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { companiesApi, quotesApi } from "@/lib/api";
+import { getErrorMessage } from "@/lib/utils";
 
-export function QuotesDataTable() {
+export function QuotesDataTable({ refreshSignal }: { refreshSignal?: number | string }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
@@ -43,14 +42,15 @@ export function QuotesDataTable() {
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Open quote in sheet
-  const handleOpenSheet = React.useCallback((quoteId: string) => {
-    router.push(`${pathname}?type=edit&quoteId=${quoteId}`);
-  }, [router, pathname]);
+  const handleOpenSheet = React.useCallback(
+    (quoteId: string) => {
+      router.push(`${pathname}?type=edit&quoteId=${quoteId}`);
+    },
+    [router, pathname]
+  );
 
   // Fetch companies for name lookup - use paginated API to get all companies
-  const {
-    data: companies,
-  } = usePaginatedApi<Company>(
+  const { data: companies } = usePaginatedApi<Company>(
     (params) => companiesApi.getAll({ ...params, pageSize: 1000 }), // Get all companies
     {}
   );
@@ -80,18 +80,17 @@ export function QuotesDataTable() {
     totalPages,
     setPage,
     filters,
-    setFilters
-  } = usePaginatedApi<Quote>(
-    (params) => quotesApi.getAll(params),
-    {
-      search: searchValue,
-      status: statusFilter === "all" ? undefined : statusFilter,
-      companyId:
-        typeof window !== "undefined"
-          ? window.localStorage?.getItem("selectedCompanyId") || undefined
-          : undefined,
+    setFilters,
+  } = usePaginatedApi<Quote>((params) => quotesApi.getAll(params), {
+    search: searchValue,
+    status: statusFilter === "all" ? undefined : statusFilter,
+  });
+
+  React.useEffect(() => {
+    if (refreshSignal !== undefined) {
+      refetch();
     }
-  );
+  }, [refreshSignal]);
 
   // Delete mutation
   const deleteMutation = useMutation<void, string>((id) => quotesApi.delete(id));
@@ -100,29 +99,20 @@ export function QuotesDataTable() {
   const enrichedQuotes: QuoteWithCompany[] = React.useMemo(() => {
     return (quotes || []).map((quote) => ({
       ...quote,
-      companyName: companyMap.get(quote.companyId) || "Unknown Company"
+      companyName: companyMap.get(quote.companyId) || "Unknown Company",
     }));
   }, [quotes, companyMap]);
 
   // Handle search with debounce
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      setFilters({ 
-        search: searchValue, 
-        status: statusFilter === "all" ? undefined : statusFilter 
+      setFilters({
+        search: searchValue,
+        status: statusFilter === "all" ? undefined : statusFilter,
       });
     }, 300);
     return () => clearTimeout(timer);
   }, [searchValue, statusFilter, setFilters]);
-
-  React.useEffect(() => {
-    const lsCompany =
-      typeof window !== "undefined"
-        ? window.localStorage?.getItem("selectedCompanyId") || undefined
-        : undefined;
-    const companyId = user?.companyId || lsCompany;
-    setFilters({ ...filters, companyId });
-  }, [user?.companyId, setFilters, filters]);
 
   // Handle delete
   const handleDelete = async () => {
@@ -149,7 +139,7 @@ export function QuotesDataTable() {
     let failCount = 0;
 
     for (const rowIndex of selectedRows) {
-      const quote = enrichedQuotes[parseInt(rowIndex)];
+      const quote = enrichedQuotes[parseInt(rowIndex, 10)];
       if (quote) {
         const result = await deleteMutation.mutate(quote.id);
         if (result.success) {
@@ -233,11 +223,7 @@ export function QuotesDataTable() {
           />
         </div>
         {selectedCount > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setBulkDeleteDialogOpen(true)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete ({selectedCount})
           </Button>
@@ -284,9 +270,14 @@ export function QuotesDataTable() {
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
           {selectedCount > 0 ? (
-            <span>{selectedCount} of {totalCount} row(s) selected</span>
+            <span>
+              {selectedCount} of {totalCount} row(s) selected
+            </span>
           ) : (
-            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} quotes</span>
+            <span>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of{" "}
+              {totalCount} quotes
+            </span>
           )}
         </div>
         <div className="flex items-center space-x-2">

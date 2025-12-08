@@ -4,13 +4,10 @@ import type { z } from "zod";
 import { receiptPrompt } from "../prompt";
 import { receiptSchema } from "../schema";
 import type { ExtractedReceipt, GetDocumentRequest } from "../types";
+import { logger } from "./logger"; // TODO: Adjust path
 
 // Retry helper
-async function retryCall<T>(
-  fn: () => Promise<T>,
-  maxRetries = 3,
-  delayMs = 1000
-): Promise<T> {
+async function retryCall<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 1000): Promise<T> {
   let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
@@ -18,7 +15,7 @@ async function retryCall<T>(
       return await fn();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      console.log(`Attempt ${attempt} failed: ${lastError.message}`);
+      logger.info(`Attempt ${attempt} failed: ${lastError.message}`);
 
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
@@ -39,7 +36,7 @@ export class ReceiptProcessor {
 
     const result = await retryCall(() =>
       generateObject({
-        model: this.model,
+        model: this.model as any,
         schema: receiptSchema,
         temperature: 0.1,
         messages: [
@@ -53,7 +50,7 @@ export class ReceiptProcessor {
               {
                 type: "file",
                 data: documentUrl,
-                mimeType: "application/pdf",
+                mediaType: "application/pdf",
               },
             ],
           },
@@ -67,7 +64,7 @@ export class ReceiptProcessor {
   async #processImage(imageUrl: string) {
     const result = await retryCall(() =>
       generateObject({
-        model: this.model,
+        model: this.model as any,
         schema: receiptSchema,
         temperature: 0.1,
         messages: [
@@ -94,7 +91,7 @@ export class ReceiptProcessor {
   async #processText(text: string) {
     const result = await retryCall(() =>
       generateObject({
-        model: this.model,
+        model: this.model as any,
         schema: receiptSchema,
         temperature: 0.1,
         messages: [
@@ -146,4 +143,3 @@ export class ReceiptProcessor {
 
 // Singleton instance
 export const receiptProcessor = new ReceiptProcessor();
-

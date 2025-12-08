@@ -1,16 +1,30 @@
 "use client";
 
-import { useEffect, useMemo, useState, useCallback } from "react";
-import { useRouter } from "next/navigation";
-import { useForm, useFieldArray } from "react-hook-form";
+import type { Company, CreateInvoiceRequest, Invoice, UpdateInvoiceRequest } from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  AlertCircle,
+  Building2,
+  Globe,
+  Hash,
+  Loader2,
+  Mail,
+  MapPin,
+  Phone,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { Invoice, CreateInvoiceRequest, UpdateInvoiceRequest, Company } from "@crm/types";
-import { invoicesApi, companiesApi } from "@/lib/api";
-import { useMutation } from "@/hooks/use-api";
+import { SelectCompany } from "@/components/companies/select-company";
+import { CreateCompanyInlineForm } from "@/components/shared/documents/create-company-inline-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -20,6 +34,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,13 +42,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { SelectCompany } from "@/components/companies/select-company";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, Plus, Trash2, Building2, MapPin, Phone, Mail, Globe, Hash } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/utils";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation } from "@/hooks/use-api";
+import { companiesApi, invoicesApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
+import { formatCurrency, getErrorMessage } from "@/lib/utils";
 
 interface CustomerDetails {
   name: string;
@@ -79,6 +93,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   const router = useRouter();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(false);
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
 
   const createMutation = useMutation<Invoice, CreateInvoiceRequest>((data) =>
     invoicesApi.create(data)
@@ -89,7 +104,9 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   );
 
   const today = new Date().toISOString().split("T")[0];
-  const defaultDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const defaultDueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split("T")[0];
 
   // Fetch company details when companyId changes
   const fetchCompanyDetails = useCallback(async (companyId: string) => {
@@ -105,10 +122,10 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
         setSelectedCompany(response.data);
       } else {
         setSelectedCompany(null);
-        console.error("Failed to fetch company details:", response.error);
+        logger.error("Failed to fetch company details:", response.error);
       }
     } catch (error) {
-      console.error("Error fetching company details:", error);
+      logger.error("Error fetching company details:", error);
       setSelectedCompany(null);
     } finally {
       setIsLoadingCompany(false);
@@ -237,7 +254,9 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
     }
 
     if (result.success) {
-      toast.success(mode === "create" ? "Invoice created successfully" : "Invoice updated successfully");
+      toast.success(
+        mode === "create" ? "Invoice created successfully" : "Invoice updated successfully"
+      );
       router.push("/dashboard/sales/invoices");
       router.refresh();
     } else {
@@ -294,6 +313,16 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                           placeholder="Select or search company..."
                         />
                       </FormControl>
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setShowCreateCustomer(true)}
+                          className="text-xs p-0 h-auto hover:bg-transparent"
+                        >
+                          + Create new customer
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -335,17 +364,20 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                   </div>
                 </Card>
               )}
-              
+
               {selectedCompany && !isLoadingCompany && (
                 <Card className="p-4 bg-muted/30 border-primary/20">
                   <div className="flex items-start gap-3">
                     <Building2 className="h-5 w-5 text-primary mt-0.5" />
                     <div className="flex-1 space-y-2">
                       <h4 className="font-semibold text-lg">{selectedCompany.name}</h4>
-                      
+
                       <div className="grid gap-2 sm:grid-cols-2 text-sm">
                         {/* Address Info */}
-                        {(selectedCompany.address || selectedCompany.city || selectedCompany.zip || selectedCompany.country) && (
+                        {(selectedCompany.address ||
+                          selectedCompany.city ||
+                          selectedCompany.zip ||
+                          selectedCompany.country) && (
                           <div className="flex items-start gap-2">
                             <MapPin className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
                             <div>
@@ -460,7 +492,15 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => append({ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 })}
+                    onClick={() =>
+                      append({
+                        productName: "",
+                        description: "",
+                        quantity: 1,
+                        unitPrice: 0,
+                        discount: 0,
+                      })
+                    }
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Item
@@ -538,8 +578,8 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                         <div className="text-sm font-medium mb-2">
                           {formatCurrency(
                             (watchedItems[index]?.quantity || 0) *
-                            (watchedItems[index]?.unitPrice || 0) *
-                            (1 - (watchedItems[index]?.discount || 0) / 100)
+                              (watchedItems[index]?.unitPrice || 0) *
+                              (1 - (watchedItems[index]?.discount || 0) / 100)
                           )}
                         </div>
                       </div>
@@ -575,7 +615,9 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                 ))}
 
                 {form.formState.errors.items?.root && (
-                  <p className="text-sm text-destructive">{form.formState.errors.items.root.message}</p>
+                  <p className="text-sm text-destructive">
+                    {form.formState.errors.items.root.message}
+                  </p>
                 )}
               </div>
 
@@ -584,7 +626,9 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                 <div className="space-y-2 text-right">
                   <div className="flex justify-end gap-8">
                     <span className="text-muted-foreground">Subtotal:</span>
-                    <span className="font-medium w-32">{formatCurrency(calculations.subtotal)}</span>
+                    <span className="font-medium w-32">
+                      {formatCurrency(calculations.subtotal)}
+                    </span>
                   </div>
                   <div className="flex justify-end gap-8">
                     <span className="text-muted-foreground">Tax ({watchedTaxRate}%):</span>
@@ -644,11 +688,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {mode === "create" ? "Create Invoice" : "Update Invoice"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
+                <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
               </div>
@@ -656,7 +696,29 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
           </Form>
         </CardContent>
       </Card>
+      <Sheet open={showCreateCustomer} onOpenChange={setShowCreateCustomer}>
+        <SheetContent className="sm:max-w-[480px]">
+          <SheetHeader className="mb-6 flex justify-between items-center flex-row">
+            <h2 className="text-xl">Create Customer</h2>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setShowCreateCustomer(false)}
+              className="p-0 m-0 size-auto hover:bg-transparent"
+            >
+              <X className="size-5" />
+            </Button>
+          </SheetHeader>
+          <CreateCompanyInlineForm
+            prefillName={""}
+            onSuccess={(newCompanyId) => {
+              setShowCreateCustomer(false);
+              form.setValue("companyId", newCompanyId, { shouldDirty: true, shouldTouch: true });
+            }}
+            onCancel={() => setShowCreateCustomer(false)}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
-

@@ -1,10 +1,11 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 export const name = "010_add_invoice_template_fields";
 
 /**
  * Migration: Add template-related fields to invoices and invoice_items tables
- * 
+ *
  * This migration adds support for:
  * - fromDetails: Seller/From details stored as JSON
  * - customerDetails: Customer/Bill to details stored as JSON
@@ -63,7 +64,7 @@ export async function up() {
     ADD COLUMN IF NOT EXISTS vat_rate TEXT NOT NULL DEFAULT '20'
   `;
 
-  console.log("✅ Migration 010: Added invoice template fields");
+  logger.info("✅ Migration 010: Added invoice template fields");
 }
 
 export async function down() {
@@ -74,11 +75,10 @@ export async function down() {
   await db`ALTER TABLE invoices DROP COLUMN IF EXISTS customer_details`;
   await db`ALTER TABLE invoices DROP COLUMN IF EXISTS logo_url`;
   await db`ALTER TABLE invoices DROP COLUMN IF EXISTS template_settings`;
-  
+
   // Remove from invoice_items
   await db`ALTER TABLE invoice_items DROP COLUMN IF EXISTS unit`;
   await db`ALTER TABLE invoice_items DROP COLUMN IF EXISTS vat_rate`;
-  
-  console.log("✅ Migration 010: Removed invoice template fields");
-}
 
+  logger.info("✅ Migration 010: Removed invoice template fields");
+}

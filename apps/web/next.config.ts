@@ -1,5 +1,5 @@
+import path from "node:path";
 import type { NextConfig } from "next";
-import path from "path";
 
 const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
@@ -10,7 +10,9 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   env: {
-    API_URL: process.env.API_URL || "http://localhost:3001",
+    API_URL: process.env.API_URL || "http://localhost:3002",
+    NEXT_PUBLIC_API_URL:
+      process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:3002",
   },
   // Configure Turbopack for monorepo structure
   turbopack: {
@@ -21,9 +23,10 @@ const nextConfig: NextConfig = {
   // Proxy API requests to backend to avoid cross-origin cookie issues
   async rewrites() {
     // Use internal Kubernetes service URL for production, localhost for dev
-    const apiUrl = process.env.NODE_ENV === "production" 
-      ? "http://crm-backend:3001"
-      : (process.env.API_URL || "http://localhost:3001");
+    const apiUrl =
+      process.env.NODE_ENV === "production"
+        ? "http://crm-backend:3001"
+        : process.env.API_URL || "http://localhost:3002";
     return [
       {
         source: "/api/:path*",

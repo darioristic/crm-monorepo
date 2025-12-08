@@ -5,15 +5,16 @@
  * using the pg_trgm extension for trigram-based fuzzy matching.
  */
 
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 export const name = "009_add_related_documents_function";
 
 export async function up(): Promise<void> {
-	console.log(`⬆️  Running ${name}...`);
+  logger.info(`⬆️  Running ${name}...`);
 
-	// Create the function to match similar documents by title
-	await db`
+  // Create the function to match similar documents by title
+  await db`
     CREATE OR REPLACE FUNCTION match_similar_documents_by_title(
       p_document_id UUID,
       p_company_id UUID,
@@ -55,8 +56,8 @@ export async function up(): Promise<void> {
     $$ LANGUAGE plpgsql;
   `;
 
-	// Create a function to match similar documents by content/summary
-	await db`
+  // Create a function to match similar documents by content/summary
+  await db`
     CREATE OR REPLACE FUNCTION match_similar_documents_by_content(
       p_document_id UUID,
       p_company_id UUID,
@@ -112,33 +113,32 @@ export async function up(): Promise<void> {
     $$ LANGUAGE plpgsql;
   `;
 
-	// Create an index to improve trigram similarity performance
-	await db`
+  // Create an index to improve trigram similarity performance
+  await db`
     CREATE INDEX IF NOT EXISTS idx_documents_title_trgm_ops
     ON documents USING gin (title gin_trgm_ops)
     WHERE title IS NOT NULL
   `;
 
-	await db`
+  await db`
     CREATE INDEX IF NOT EXISTS idx_documents_summary_trgm_ops
     ON documents USING gin (summary gin_trgm_ops)
     WHERE summary IS NOT NULL
   `;
 
-	console.log(`✅ ${name} completed`);
+  logger.info(`✅ ${name} completed`);
 }
 
 export async function down(): Promise<void> {
-	console.log(`⬇️  Rolling back ${name}...`);
+  logger.info(`⬇️  Rolling back ${name}...`);
 
-	// Drop the functions
-	await db`DROP FUNCTION IF EXISTS match_similar_documents_by_content(UUID, UUID, FLOAT, INT)`;
-	await db`DROP FUNCTION IF EXISTS match_similar_documents_by_title(UUID, UUID, FLOAT, INT)`;
+  // Drop the functions
+  await db`DROP FUNCTION IF EXISTS match_similar_documents_by_content(UUID, UUID, FLOAT, INT)`;
+  await db`DROP FUNCTION IF EXISTS match_similar_documents_by_title(UUID, UUID, FLOAT, INT)`;
 
-	// Drop the indexes (these might have been created in migration 008, but we'll try to drop them)
-	await db`DROP INDEX IF EXISTS idx_documents_summary_trgm_ops`;
-	await db`DROP INDEX IF EXISTS idx_documents_title_trgm_ops`;
+  // Drop the indexes (these might have been created in migration 008, but we'll try to drop them)
+  await db`DROP INDEX IF EXISTS idx_documents_summary_trgm_ops`;
+  await db`DROP INDEX IF EXISTS idx_documents_title_trgm_ops`;
 
-	console.log(`✅ ${name} rolled back`);
+  logger.info(`✅ ${name} rolled back`);
 }
-

@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useCallback, useState } from "react";
+import type { Invoice } from "@crm/types";
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useApi, useMutation } from "@/hooks/use-api";
 import { invoicesApi } from "@/lib/api";
 import { useInvoiceSettingsStore, useInvoiceSheetStore } from "@/store/invoice-store";
 import type { InvoiceFormValues } from "@/types/invoice";
-import { toast } from "sonner";
 
 // Hook for fetching invoices list
 export function useInvoices(params?: {
@@ -27,16 +28,16 @@ export function useInvoice(id: string | undefined) {
 
 // Hook for invoice mutations
 export function useInvoiceMutations() {
-  const createMutation = useMutation((data: any) => invoicesApi.create(data));
-  const updateMutation = useMutation(({ id, data }: { id: string; data: any }) =>
-    invoicesApi.update(id, data)
+  const createMutation = useMutation((data: InvoiceFormValues) => invoicesApi.create(data));
+  const updateMutation = useMutation(
+    ({ id, data }: { id: string; data: Partial<InvoiceFormValues> }) => invoicesApi.update(id, data)
   );
   const deleteMutation = useMutation((id: string) => invoicesApi.delete(id));
   const markAsPaidMutation = useMutation((id: string) =>
-    invoicesApi.update(id, { status: "paid" } as any)
+    invoicesApi.update(id, { status: "paid" })
   );
   const sendInvoiceMutation = useMutation((id: string) =>
-    invoicesApi.update(id, { status: "sent" } as any)
+    invoicesApi.update(id, { status: "sent" })
   );
 
   return {
@@ -50,14 +51,10 @@ export function useInvoiceMutations() {
 
 // Hook for invoice sheet
 export function useInvoiceSheet() {
-  const { isOpen, type, invoiceId, open, close, setSuccess } =
-    useInvoiceSheetStore();
+  const { isOpen, type, invoiceId, open, close, setSuccess } = useInvoiceSheetStore();
 
   const openCreate = useCallback(() => open("create"), [open]);
-  const openEdit = useCallback(
-    (id: string) => open("edit", id),
-    [open]
-  );
+  const openEdit = useCallback((id: string) => open("edit", id), [open]);
 
   return {
     isOpen,
@@ -139,20 +136,20 @@ export function useInvoiceStats() {
       };
     }
 
-    const invoices = Array.isArray(data) ? data : [];
+    const invoices = (Array.isArray(data) ? data : []) as Invoice[];
     return {
       total: invoices.length,
-      draft: invoices.filter((i: any) => i.status === "draft").length,
-      sent: invoices.filter((i: any) => i.status === "sent").length,
-      paid: invoices.filter((i: any) => i.status === "paid").length,
-      overdue: invoices.filter((i: any) => i.status === "overdue").length,
-      totalAmount: invoices.reduce((sum: number, i: any) => sum + (i.total || 0), 0),
+      draft: invoices.filter((i) => i.status === "draft").length,
+      sent: invoices.filter((i) => i.status === "sent").length,
+      paid: invoices.filter((i) => i.status === "paid").length,
+      overdue: invoices.filter((i) => i.status === "overdue").length,
+      totalAmount: invoices.reduce((sum, i) => sum + (i.total || 0), 0),
       paidAmount: invoices
-        .filter((i: any) => i.status === "paid")
-        .reduce((sum: number, i: any) => sum + (i.total || 0), 0),
+        .filter((i) => i.status === "paid")
+        .reduce((sum, i) => sum + (i.total || 0), 0),
       pendingAmount: invoices
-        .filter((i: any) => i.status !== "paid" && i.status !== "canceled")
-        .reduce((sum: number, i: any) => sum + (i.total || 0), 0),
+        .filter((i) => i.status !== "paid" && i.status !== "cancelled")
+        .reduce((sum, i) => sum + (i.total || 0), 0),
     };
   }, [data]);
 

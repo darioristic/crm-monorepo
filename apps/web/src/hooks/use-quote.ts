@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useCallback, useEffect } from "react";
+import type { Quote } from "@crm/types";
+import { useCallback, useMemo } from "react";
+import { toast } from "sonner";
 import { useApi, useMutation } from "@/hooks/use-api";
 import { quotesApi } from "@/lib/api";
 import type { QuoteFormValues } from "@/types/quote";
-import { toast } from "sonner";
-import { useAuth } from "@/contexts/auth-context";
 
 // Hook for fetching quotes list
 export function useQuotes(params?: {
@@ -15,22 +15,9 @@ export function useQuotes(params?: {
   limit?: number;
   companyId?: string;
 }) {
-  const { user } = useAuth();
-  const lsCompany =
-    typeof window !== "undefined"
-      ? window.localStorage?.getItem("selectedCompanyId") || undefined
-      : undefined;
-  const effectiveCompanyId = params?.companyId ?? user?.companyId ?? lsCompany;
-
-  const result = useApi(
-    () => quotesApi.getAll({ ...(params || {}), companyId: effectiveCompanyId }),
-    { autoFetch: true },
-  );
-
-  useEffect(() => {
-    result.refetch();
-  }, [effectiveCompanyId]);
-
+  const result = useApi(() => quotesApi.getAll({ ...(params || {}) }), {
+    autoFetch: true,
+  });
   return result;
 }
 
@@ -44,17 +31,15 @@ export function useQuote(id: string | undefined) {
 
 // Hook for quote mutations
 export function useQuoteMutations() {
-  const createMutation = useMutation((data: any) => quotesApi.create(data));
-  const updateMutation = useMutation(({ id, data }: { id: string; data: any }) =>
-    quotesApi.update(id, data)
+  const createMutation = useMutation((data: QuoteFormValues) => quotesApi.create(data));
+  const updateMutation = useMutation(
+    ({ id, data }: { id: string; data: Partial<QuoteFormValues> }) => quotesApi.update(id, data)
   );
   const deleteMutation = useMutation((id: string) => quotesApi.delete(id));
   const markAsAcceptedMutation = useMutation((id: string) =>
-    quotesApi.update(id, { status: "accepted" } as any)
+    quotesApi.update(id, { status: "accepted" })
   );
-  const sendQuoteMutation = useMutation((id: string) =>
-    quotesApi.update(id, { status: "sent" } as any)
-  );
+  const sendQuoteMutation = useMutation((id: string) => quotesApi.update(id, { status: "sent" }));
 
   return {
     create: createMutation,
@@ -62,6 +47,24 @@ export function useQuoteMutations() {
     delete: deleteMutation,
     markAsAccepted: markAsAcceptedMutation,
     send: sendQuoteMutation,
+  };
+}
+
+// Hook for quote workflows (convert to order/invoice)
+export function useQuoteWorkflows() {
+  const convertToOrder = useMutation(
+    ({ id, customizations }: { id: string; customizations?: Record<string, unknown> }) =>
+      quotesApi.convertToOrder(id, customizations as any)
+  );
+
+  const convertToInvoice = useMutation(
+    ({ id, customizations }: { id: string; customizations?: Record<string, unknown> }) =>
+      quotesApi.convertToInvoice(id, customizations as any)
+  );
+
+  return {
+    convertToOrder,
+    convertToInvoice,
   };
 }
 
@@ -114,21 +117,21 @@ export function useQuoteStats() {
       };
     }
 
-    const quotes = Array.isArray(data) ? data : [];
+    const quotes = (Array.isArray(data) ? data : []) as Quote[];
     return {
       total: quotes.length,
-      draft: quotes.filter((q: any) => q.status === "draft").length,
-      sent: quotes.filter((q: any) => q.status === "sent").length,
-      accepted: quotes.filter((q: any) => q.status === "accepted").length,
-      rejected: quotes.filter((q: any) => q.status === "rejected").length,
-      expired: quotes.filter((q: any) => q.status === "expired").length,
-      totalAmount: quotes.reduce((sum: number, q: any) => sum + (q.total || 0), 0),
+      draft: quotes.filter((q) => q.status === "draft").length,
+      sent: quotes.filter((q) => q.status === "sent").length,
+      accepted: quotes.filter((q) => q.status === "accepted").length,
+      rejected: quotes.filter((q) => q.status === "rejected").length,
+      expired: quotes.filter((q) => q.status === "expired").length,
+      totalAmount: quotes.reduce((sum, q) => sum + (q.total || 0), 0),
       acceptedAmount: quotes
-        .filter((q: any) => q.status === "accepted")
-        .reduce((sum: number, q: any) => sum + (q.total || 0), 0),
+        .filter((q) => q.status === "accepted")
+        .reduce((sum, q) => sum + (q.total || 0), 0),
       pendingAmount: quotes
-        .filter((q: any) => q.status !== "accepted" && q.status !== "rejected" && q.status !== "expired")
-        .reduce((sum: number, q: any) => sum + (q.total || 0), 0),
+        .filter((q) => q.status !== "accepted" && q.status !== "rejected" && q.status !== "expired")
+        .reduce((sum, q) => sum + (q.total || 0), 0),
     };
   }, [data]);
 

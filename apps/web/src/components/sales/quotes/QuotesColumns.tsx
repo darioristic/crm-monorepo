@@ -1,8 +1,10 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
 import type { Quote } from "@crm/types";
+import { formatCurrency, formatDateDMY } from "@crm/utils";
+import type { ColumnDef } from "@tanstack/react-table";
+import { ArrowUpDown, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { type QuoteStatus, QuoteStatusBadge } from "@/components/sales/status";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -12,8 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { QuoteStatusBadge, type QuoteStatus } from "@/components/sales/status";
 
 export type QuoteWithCompany = Quote & {
   companyName?: string;
@@ -69,11 +69,7 @@ export function getQuotesColumns({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            window.open(
-              `/q/id/${row.original.id}`,
-              "_blank",
-              "noopener,noreferrer"
-            );
+            window.open(`/q/id/${row.original.id}`, "_blank", "noopener,noreferrer");
           }}
           className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
@@ -84,9 +80,7 @@ export function getQuotesColumns({
     {
       accessorKey: "companyName",
       header: "Company",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">{row.original.companyName}</span>
-      ),
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.companyName}</span>,
     },
     {
       accessorKey: "status",
@@ -107,18 +101,20 @@ export function getQuotesColumns({
         </Button>
       ),
       cell: ({ row }) => (
-        <span className="font-medium">{formatCurrency(row.original.total)}</span>
+        <span className="font-medium">
+          {formatCurrency(row.original.total, row.original.currency || "EUR", "sr-RS")}
+        </span>
       ),
     },
     {
       accessorKey: "validUntil",
       header: "Valid Until",
-      cell: ({ row }) => formatDate(row.original.validUntil),
+      cell: ({ row }) => formatDateDMY(row.original.validUntil),
     },
     {
       accessorKey: "createdAt",
       header: "Created",
-      cell: ({ row }) => formatDate(row.original.createdAt),
+      cell: ({ row }) => formatDateDMY(row.original.createdAt),
     },
     {
       id: "actions",
@@ -136,21 +132,14 @@ export function getQuotesColumns({
                 if (onView) {
                   onView(row.original);
                 } else {
-                  window.open(
-                    `/q/id/${row.original.id}`,
-                    "_blank",
-                    "noopener,noreferrer"
-                  );
+                  window.open(`/q/id/${row.original.id}`, "_blank", "noopener,noreferrer");
                 }
               }}
             >
               <Eye className="mr-2 h-4 w-4" />
               View Quote
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => onEdit?.(row.original)}
-              asChild={!onEdit}
-            >
+            <DropdownMenuItem onClick={() => onEdit?.(row.original)} asChild={!onEdit}>
               {onEdit ? (
                 <>
                   <Pencil className="mr-2 h-4 w-4" />
@@ -181,4 +170,3 @@ export function getQuotesColumns({
     },
   ];
 }
-

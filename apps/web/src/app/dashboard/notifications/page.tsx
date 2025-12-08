@@ -1,43 +1,28 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
-import {
-  BellIcon,
-  ClockIcon,
-  CheckCheckIcon,
-  FileTextIcon,
-  DollarSignIcon,
-  FolderIcon,
-  ListTodoIcon,
-  UsersIcon,
-  AlertTriangleIcon,
-  InfoIcon,
-  CheckCircleIcon,
-  Trash2Icon,
-  RefreshCwIcon,
-  FilterIcon,
-} from "lucide-react";
-import { notificationsApi } from "@/lib/api";
 import type { Notification as NotificationType } from "@crm/types";
-
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  AlertTriangleIcon,
+  BellIcon,
+  CheckCheckIcon,
+  CheckCircleIcon,
+  ClockIcon,
+  DollarSignIcon,
+  FileTextIcon,
+  FilterIcon,
+  FolderIcon,
+  InfoIcon,
+  ListTodoIcon,
+  RefreshCwIcon,
+  Trash2Icon,
+  UsersIcon,
+} from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,7 +30,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { notificationsApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
 
 function getNotificationIcon(type: NotificationType["type"]) {
   switch (type) {
@@ -118,7 +112,7 @@ export default function NotificationsPage() {
         setNotifications(result.data.notifications || []);
       }
     } catch (error) {
-      console.error("Failed to fetch notifications:", error);
+      logger.error("Failed to fetch notifications:", error);
       toast.error("Failed to load notifications");
     } finally {
       setIsLoading(false);
@@ -132,9 +126,7 @@ export default function NotificationsPage() {
   const handleMarkAsRead = async (id: string) => {
     const result = await notificationsApi.markAsRead(id);
     if (result.success) {
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-      );
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)));
     }
   };
 
@@ -160,21 +152,15 @@ export default function NotificationsPage() {
   };
 
   const handleDeleteSelected = async () => {
-    const promises = Array.from(selectedIds).map((id) =>
-      notificationsApi.delete(id)
-    );
+    const promises = Array.from(selectedIds).map((id) => notificationsApi.delete(id));
     await Promise.all(promises);
-    setNotifications((prev) =>
-      prev.filter((n) => !selectedIds.has(n.id))
-    );
+    setNotifications((prev) => prev.filter((n) => !selectedIds.has(n.id)));
     setSelectedIds(new Set());
     toast.success(`${selectedIds.size} notifications deleted`);
   };
 
   const handleMarkSelectedAsRead = async () => {
-    const promises = Array.from(selectedIds).map((id) =>
-      notificationsApi.markAsRead(id)
-    );
+    const promises = Array.from(selectedIds).map((id) => notificationsApi.markAsRead(id));
     await Promise.all(promises);
     setNotifications((prev) =>
       prev.map((n) => (selectedIds.has(n.id) ? { ...n, isRead: true } : n))
@@ -210,9 +196,7 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Notifications</h1>
-          <p className="text-muted-foreground">
-            Manage your notifications and stay up to date
-          </p>
+          <p className="text-muted-foreground">Manage your notifications and stay up to date</p>
         </div>
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" onClick={fetchNotifications}>
@@ -226,15 +210,10 @@ export default function NotificationsPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <CardTitle className="text-base">All Notifications</CardTitle>
-              {unreadCount > 0 && (
-                <Badge variant="secondary">{unreadCount} unread</Badge>
-              )}
+              {unreadCount > 0 && <Badge variant="secondary">{unreadCount} unread</Badge>}
             </div>
             <div className="flex items-center gap-2">
-              <Select
-                value={filter}
-                onValueChange={(value: any) => setFilter(value)}
-              >
+              <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
                 <SelectTrigger className="w-[120px]">
                   <FilterIcon className="mr-2 h-4 w-4" />
                   <SelectValue />
@@ -247,11 +226,7 @@ export default function NotificationsPage() {
               </Select>
 
               {unreadCount > 0 && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMarkAllAsRead}
-                >
+                <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
                   <CheckCheckIcon className="mr-2 h-4 w-4" />
                   Mark all read
                 </Button>
@@ -262,15 +237,9 @@ export default function NotificationsPage() {
         <CardContent>
           {selectedIds.size > 0 && (
             <div className="mb-4 flex items-center gap-2 rounded-lg border bg-muted/50 p-3">
-              <span className="text-sm font-medium">
-                {selectedIds.size} selected
-              </span>
+              <span className="text-sm font-medium">{selectedIds.size} selected</span>
               <div className="ml-auto flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleMarkSelectedAsRead}
-                >
+                <Button variant="outline" size="sm" onClick={handleMarkSelectedAsRead}>
                   <CheckCheckIcon className="mr-2 h-4 w-4" />
                   Mark as read
                 </Button>
@@ -304,9 +273,7 @@ export default function NotificationsPage() {
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <BellIcon className="text-muted-foreground mb-4 h-16 w-16" />
               <h3 className="text-lg font-medium">No notifications</h3>
-              <p className="text-muted-foreground">
-                You&apos;re all caught up! Check back later.
-              </p>
+              <p className="text-muted-foreground">You&apos;re all caught up! Check back later.</p>
             </div>
           ) : (
             <div className="space-y-2">
@@ -343,16 +310,12 @@ export default function NotificationsPage() {
                       <div className="min-w-0">
                         <h4
                           className={`truncate ${
-                            !notification.isRead
-                              ? "font-semibold"
-                              : "font-medium"
+                            !notification.isRead ? "font-semibold" : "font-medium"
                           }`}
                         >
                           {notification.title}
                         </h4>
-                        <p className="text-muted-foreground mt-1 text-sm">
-                          {notification.message}
-                        </p>
+                        <p className="text-muted-foreground mt-1 text-sm">{notification.message}</p>
                         <div className="text-muted-foreground mt-2 flex items-center gap-2 text-xs">
                           <ClockIcon className="h-3 w-3" />
                           {formatDate(notification.createdAt)}
@@ -386,9 +349,7 @@ export default function NotificationsPage() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                           {!notification.isRead && (
-                            <DropdownMenuItem
-                              onClick={() => handleMarkAsRead(notification.id)}
-                            >
+                            <DropdownMenuItem onClick={() => handleMarkAsRead(notification.id)}>
                               <CheckCheckIcon className="mr-2 h-4 w-4" />
                               Mark as read
                             </DropdownMenuItem>
@@ -419,4 +380,3 @@ export default function NotificationsPage() {
     </div>
   );
 }
-

@@ -1,20 +1,20 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
+import type { Invoice } from "@crm/types";
+import { formatCurrency, formatDateDMY } from "@crm/utils";
 import {
+  Copy,
+  CreditCard,
+  Download,
+  ExternalLink,
   MoreHorizontal,
   Pencil,
   Trash2,
-  CreditCard,
-  ExternalLink,
-  Copy,
-  Download,
 } from "lucide-react";
-import type { Invoice } from "@crm/types";
-
-import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,8 +22,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { toast } from "sonner";
 
 export type InvoiceWithCompany = Invoice & {
   companyName?: string;
@@ -47,9 +45,7 @@ const gradients = [
 ];
 
 function getGradient(invoiceNumber: string): string {
-  const hash = invoiceNumber
-    .split("")
-    .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = invoiceNumber.split("").reduce((acc, char) => acc + char.charCodeAt(0), 0);
   return gradients[hash % gradients.length];
 }
 
@@ -59,12 +55,7 @@ function handleCopyLink(invoiceId: string) {
   toast.success("Link copied to clipboard");
 }
 
-export function InvoiceCard({
-  invoice,
-  onEdit,
-  onDelete,
-  onRecordPayment,
-}: InvoiceCardProps) {
+export function InvoiceCard({ invoice, onEdit, onDelete, onRecordPayment }: InvoiceCardProps) {
   const canEdit = invoice.status !== "paid" && invoice.status !== "cancelled";
   const gradient = getGradient(invoice.invoiceNumber);
 
@@ -95,11 +86,7 @@ export function InvoiceCard({
               )}
 
               <DropdownMenuItem asChild>
-                <a
-                  href={`/i/${invoice.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
+                <a href={`/i/${invoice.id}`} target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="mr-2 h-4 w-4" />
                   Open invoice
                 </a>
@@ -112,38 +99,32 @@ export function InvoiceCard({
 
               {invoice.status !== "draft" && (
                 <DropdownMenuItem asChild>
-                  <a
-                    href={`/api/download/invoice?id=${invoice.id}`}
-                    target="_blank"
-                  >
+                  <a href={`/api/download/invoice?id=${invoice.id}`} target="_blank">
                     <Download className="mr-2 h-4 w-4" />
                     Download
                   </a>
                 </DropdownMenuItem>
               )}
 
-              {invoice.status !== "paid" &&
-                invoice.status !== "cancelled" &&
-                onRecordPayment && (
-                  <DropdownMenuItem onClick={() => onRecordPayment(invoice)}>
-                    <CreditCard className="mr-2 h-4 w-4" />
-                    Record payment
-                  </DropdownMenuItem>
-                )}
+              {invoice.status !== "paid" && invoice.status !== "cancelled" && onRecordPayment && (
+                <DropdownMenuItem onClick={() => onRecordPayment(invoice)}>
+                  <CreditCard className="mr-2 h-4 w-4" />
+                  Record payment
+                </DropdownMenuItem>
+              )}
 
-              {(invoice.status === "draft" || invoice.status === "cancelled") &&
-                onDelete && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      className="text-destructive focus:text-destructive"
-                      onClick={() => onDelete(invoice)}
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </>
-                )}
+              {(invoice.status === "draft" || invoice.status === "cancelled") && onDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => onDelete(invoice)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -154,18 +135,14 @@ export function InvoiceCard({
             href={`/dashboard/sales/invoices/${invoice.id}`}
             className="text-lg font-semibold hover:text-primary transition-colors"
           >
-            {formatCurrency(invoice.total)}
+            {formatCurrency(invoice.total, invoice.currency || "EUR", "sr-RS")}
           </Link>
-          <span className="text-sm font-mono text-muted-foreground">
-            #{invoice.invoiceNumber}
-          </span>
+          <span className="text-sm font-mono text-muted-foreground">#{invoice.invoiceNumber}</span>
         </div>
 
         {/* Description */}
         {invoice.notes && (
-          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
-            {invoice.notes}
-          </p>
+          <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{invoice.notes}</p>
         )}
         {!invoice.notes && invoice.companyName && (
           <p className="text-sm text-muted-foreground mb-3 line-clamp-2">
@@ -178,13 +155,12 @@ export function InvoiceCard({
           <span className="text-muted-foreground">Due date: </span>
           <span
             className={`font-medium ${
-              new Date(invoice.dueDate) < new Date() &&
-              invoice.status !== "paid"
+              new Date(invoice.dueDate) < new Date() && invoice.status !== "paid"
                 ? "text-destructive"
                 : ""
             }`}
           >
-            {formatDate(invoice.dueDate)}
+            {formatDateDMY(invoice.dueDate)}
           </span>
         </div>
       </CardContent>

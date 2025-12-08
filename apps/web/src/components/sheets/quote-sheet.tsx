@@ -1,21 +1,16 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import type { Company, CreateQuoteRequest, Quote, UpdateQuoteRequest } from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Reorder, useDragControls } from "framer-motion";
+import { AlertCircle, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { Quote, Company, CreateQuoteRequest, UpdateQuoteRequest } from "@crm/types";
-import { quotesApi, companiesApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
+import { CreateCompanyInlineForm } from "@/components/shared/documents/create-company-inline-form";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import {
   Form,
   FormControl,
@@ -24,6 +19,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -31,12 +27,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, Plus, Trash2, GripVertical } from "lucide-react";
-import { formatCurrency } from "@/lib/utils";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/utils";
-import { Reorder, useDragControls } from "framer-motion";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { useApi, useMutation } from "@/hooks/use-api";
+import { companiesApi, quotesApi } from "@/lib/api";
+import { formatCurrency, getErrorMessage } from "@/lib/utils";
 
 const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -67,15 +62,15 @@ interface QuoteSheetProps {
   onSuccess?: () => void;
 }
 
-function LineItem({ 
-  index, 
-  onRemove, 
+function LineItem({
+  index,
+  onRemove,
   control,
   register,
   watchedItem,
-  canRemove 
-}: { 
-  index: number; 
+  canRemove,
+}: {
+  index: number;
   onRemove: () => void;
   control: any;
   register: any;
@@ -83,7 +78,10 @@ function LineItem({
   canRemove: boolean;
 }) {
   const dragControls = useDragControls();
-  const lineTotal = (watchedItem?.quantity || 0) * (watchedItem?.unitPrice || 0) * (1 - (watchedItem?.discount || 0) / 100);
+  const lineTotal =
+    (watchedItem?.quantity || 0) *
+    (watchedItem?.unitPrice || 0) *
+    (1 - (watchedItem?.discount || 0) / 100);
 
   return (
     <Reorder.Item
@@ -93,13 +91,13 @@ function LineItem({
       className="bg-card rounded-lg border border-border p-4 group"
     >
       <div className="flex items-start gap-3">
-        <div 
+        <div
           className="cursor-grab opacity-0 group-hover:opacity-100 transition-opacity mt-2"
           onPointerDown={(e) => dragControls.start(e)}
         >
           <GripVertical className="h-4 w-4 text-muted-foreground" />
         </div>
-        
+
         <div className="flex-1 space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <FormField
@@ -126,7 +124,7 @@ function LineItem({
               )}
             />
           </div>
-          
+
           <div className="grid grid-cols-4 gap-3">
             <FormField
               control={control}
@@ -166,9 +164,7 @@ function LineItem({
             />
             <div>
               <div className="text-xs text-muted-foreground mb-1">Total</div>
-              <div className="h-9 flex items-center font-medium">
-                {formatCurrency(lineTotal)}
-              </div>
+              <div className="h-9 flex items-center font-medium">{formatCurrency(lineTotal)}</div>
             </div>
           </div>
         </div>
@@ -188,21 +184,14 @@ function LineItem({
   );
 }
 
-export function QuoteSheet({
-  quote,
-  mode,
-  open,
-  onOpenChange,
-  onSuccess,
-}: QuoteSheetProps) {
-  const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
-    () => companiesApi.getAll(),
-    { autoFetch: true }
-  );
+export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: QuoteSheetProps) {
+  const {
+    data: companies,
+    isLoading: companiesLoading,
+    refetch: refetchCompanies,
+  } = useApi<Company[]>(() => companiesApi.getAll(), { autoFetch: true });
 
-  const createMutation = useMutation<Quote, CreateQuoteRequest>((data) =>
-    quotesApi.create(data)
-  );
+  const createMutation = useMutation<Quote, CreateQuoteRequest>((data) => quotesApi.create(data));
 
   const updateMutation = useMutation<Quote, UpdateQuoteRequest>((data) =>
     quotesApi.update(quote?.id || "", data)
@@ -215,6 +204,7 @@ export function QuoteSheet({
 
   const form = useForm<QuoteFormValues>({
     resolver: zodResolver(quoteFormSchema) as any,
+    shouldUnregister: true,
     defaultValues: {
       companyId: "",
       issueDate: today,
@@ -223,7 +213,7 @@ export function QuoteSheet({
       taxRate: 20,
       notes: "",
       terms: "",
-      items: [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
+      items: [],
     },
   });
 
@@ -242,14 +232,24 @@ export function QuoteSheet({
         taxRate: quote.taxRate,
         notes: quote.notes || "",
         terms: quote.terms || "",
-        items: quote.items?.map((item) => ({
+        items:
+          quote.items?.map((item) => ({
+            productName: item.productName,
+            description: item.description || "",
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            discount: item.discount,
+          })) || [],
+      });
+      const mapped =
+        quote.items?.map((item) => ({
           productName: item.productName,
           description: item.description || "",
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           discount: item.discount,
-        })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
-      });
+        })) || [];
+      replace(mapped);
     } else if (mode === "create" && open) {
       form.reset({
         companyId: "",
@@ -259,10 +259,13 @@ export function QuoteSheet({
         taxRate: 20,
         notes: "",
         terms: "",
-        items: [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
+        items: [],
       });
+      replace([]);
     }
   }, [quote, mode, form, today, defaultValidUntil, open]);
+
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
 
   const watchedItems = form.watch("items");
   const watchedTaxRate = form.watch("taxRate");
@@ -316,7 +319,9 @@ export function QuoteSheet({
     }
 
     if (result.success) {
-      toast.success(mode === "create" ? "Quote created successfully" : "Quote updated successfully");
+      toast.success(
+        mode === "create" ? "Quote created successfully" : "Quote updated successfully"
+      );
       onOpenChange(false);
       onSuccess?.();
     } else {
@@ -331,7 +336,9 @@ export function QuoteSheet({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="right" className="w-full sm:max-w-2xl p-0 flex flex-col">
         <SheetHeader className="p-6 border-b border-border bg-muted/50">
-          <SheetTitle>{mode === "create" ? "New Quote" : `Edit Quote ${quote?.quoteNumber}`}</SheetTitle>
+          <SheetTitle>
+            {mode === "create" ? "New Quote" : `Edit Quote ${quote?.quoteNumber}`}
+          </SheetTitle>
         </SheetHeader>
 
         <div className="flex-1 overflow-auto p-6">
@@ -370,6 +377,16 @@ export function QuoteSheet({
                           ))}
                         </SelectContent>
                       </Select>
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setShowCreateCustomer(true)}
+                          className="text-xs p-0 h-auto hover:bg-transparent"
+                        >
+                          + Create new customer
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -454,7 +471,15 @@ export function QuoteSheet({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => append({ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 })}
+                    onClick={() =>
+                      append({
+                        productName: "",
+                        description: "",
+                        quantity: 1,
+                        unitPrice: 0,
+                        discount: 0,
+                      })
+                    }
                   >
                     <Plus className="mr-2 h-4 w-4" />
                     Add Item
@@ -506,7 +531,12 @@ export function QuoteSheet({
                     <FormItem>
                       <FormLabel>Notes</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Internal notes..." rows={3} className="resize-none" {...field} />
+                        <Textarea
+                          placeholder="Internal notes..."
+                          rows={3}
+                          className="resize-none"
+                          {...field}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -519,7 +549,12 @@ export function QuoteSheet({
                     <FormItem>
                       <FormLabel>Terms & Conditions</FormLabel>
                       <FormControl>
-                        <Textarea placeholder="Terms..." rows={3} className="resize-none" {...field} />
+                        <Textarea
+                          placeholder="Terms..."
+                          rows={3}
+                          className="resize-none"
+                          {...field}
+                        />
                       </FormControl>
                     </FormItem>
                   )}
@@ -540,7 +575,33 @@ export function QuoteSheet({
           </Button>
         </div>
       </SheetContent>
+      <Sheet open={showCreateCustomer} onOpenChange={setShowCreateCustomer}>
+        <SheetContent className="sm:max-w-[480px]">
+          <SheetHeader className="mb-6 flex justify-between items-center flex-row">
+            <h2 className="text-xl">Create Customer</h2>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setShowCreateCustomer(false)}
+              className="p-0 m-0 size-auto hover:bg-transparent"
+            >
+              <AlertCircle className="size-5" />
+            </Button>
+          </SheetHeader>
+          <CreateCompanyInlineForm
+            prefillName=""
+            onSuccess={(newCompanyId) => {
+              form.setValue("companyId", newCompanyId, {
+                shouldDirty: true,
+                shouldValidate: true,
+              });
+              refetchCompanies();
+              setShowCreateCustomer(false);
+            }}
+            onCancel={() => setShowCreateCustomer(false)}
+          />
+        </SheetContent>
+      </Sheet>
     </Sheet>
   );
 }
-

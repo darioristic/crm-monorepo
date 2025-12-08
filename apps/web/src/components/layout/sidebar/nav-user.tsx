@@ -1,7 +1,9 @@
 "use client";
 
-import * as React from "react";
+import { DotsVerticalIcon } from "@radix-ui/react-icons";
+import { BellIcon, LogOutIcon, SettingsIcon, UserCircle2Icon } from "lucide-react";
 import Link from "next/link";
+import * as React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -10,16 +12,14 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar
+  useSidebar,
 } from "@/components/ui/sidebar";
-import { BellIcon, LogOutIcon, SettingsIcon, UserCircle2Icon } from "lucide-react";
-import { DotsVerticalIcon } from "@radix-ui/react-icons";
 import { useAuth } from "@/contexts/auth-context";
 
 export function NavUser() {
@@ -52,7 +52,8 @@ export function NavUser() {
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground">
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            >
               <Avatar className="rounded-full">
                 <AvatarImage src={user.avatarUrl || "/images/avatars/01.png"} alt={displayName} />
                 <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
@@ -68,7 +69,9 @@ export function NavUser() {
             className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
             side={dropdownSide}
             align="end"
-            sideOffset={4}>
+            sideOffset={4}
+            forceMount
+          >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <Avatar className="h-8 w-8 rounded-lg">

@@ -1,4 +1,4 @@
-import type { ApiResponse, ApiError, PaginationParams, Timestamp, UUID } from "@crm/types";
+import type { ApiError, ApiResponse, PaginationParams, Timestamp, UUID } from "@crm/types";
 
 // ============================================
 // UUID Generation
@@ -45,6 +45,19 @@ export function formatDateTime(timestamp: Timestamp, locale: string = "en-US"): 
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+export function formatDateDMY(input: Timestamp | Date | string): string {
+  const date =
+    typeof input === "string"
+      ? new Date(input)
+      : input instanceof Date
+        ? input
+        : fromTimestamp(input as Timestamp);
+  const d = String(date.getDate()).padStart(2, "0");
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const y = String(date.getFullYear());
+  return `${d}.${m}.${y}`;
 }
 
 export function formatRelativeTime(timestamp: Timestamp): string {

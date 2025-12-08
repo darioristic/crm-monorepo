@@ -1,6 +1,7 @@
-import { sql } from "./client";
 import type { ApiResponse } from "@crm/types";
 import { errorResponse } from "@crm/utils";
+import { logger } from "../lib/logger";
+import { sql } from "./client";
 
 // ============================================
 // Transaction Wrapper Utilities
@@ -42,7 +43,7 @@ export async function withTransactionResponse<T>(
       data: result,
     };
   } catch (error) {
-    console.error("Transaction error:", error);
+    logger.error("Transaction error:", error);
     return errorResponse("DATABASE_ERROR", errorMessage);
   }
 }
@@ -368,20 +369,18 @@ export async function convertQuoteToInvoice(
 /**
  * Record payment and update invoice atomically
  */
-export async function recordPaymentWithInvoiceUpdate(
-  payment: {
-    id: string;
-    invoiceId: string;
-    amount: number;
-    currency: string;
-    paymentMethod: string;
-    paymentDate: string;
-    reference?: string;
-    transactionId?: string;
-    notes?: string;
-    recordedBy: string;
-  }
-): Promise<void> {
+export async function recordPaymentWithInvoiceUpdate(payment: {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  currency: string;
+  paymentMethod: string;
+  paymentDate: string;
+  reference?: string;
+  transactionId?: string;
+  notes?: string;
+  recordedBy: string;
+}): Promise<void> {
   await withTransaction(async () => {
     // Get current invoice
     const invoices = await sql`

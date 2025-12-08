@@ -3,39 +3,39 @@
 import * as React from "react";
 
 import { Label, Pie, PieChart } from "recharts";
+import { ExportButton } from "@/components/CardActionMenus";
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
 } from "@/components/ui/chart";
-import { ExportButton } from "@/components/CardActionMenus";
 
 const chartData = [
   { source: "social", leads: 275, fill: "var(--color-social)" },
   { source: "email", leads: 200, fill: "var(--color-email)" },
   { source: "call", leads: 287, fill: "var(--color-call)" },
-  { source: "others", leads: 173, fill: "var(--color-others)" }
+  { source: "others", leads: 173, fill: "var(--color-others)" },
 ];
 
 const chartConfig = {
   social: {
     label: "Social",
-    color: "var(--chart-1)"
+    color: "var(--chart-1)",
   },
   email: {
     label: "Email",
-    color: "var(--chart-2)"
+    color: "var(--chart-2)",
   },
   call: {
     label: "Call",
-    color: "var(--chart-3)"
+    color: "var(--chart-3)",
   },
   others: {
     label: "Others",
-    color: "var(--chart-4)"
-  }
+    color: "var(--chart-4)",
+  },
 } satisfies ChartConfig;
 
 type ChartConfigKeys = keyof typeof chartConfig;
@@ -54,7 +54,11 @@ export function LeadBySourceCard() {
         </CardAction>
       </CardHeader>
       <CardContent className="flex-1">
-        <ChartContainer config={chartConfig} className="mx-auto aspect-square max-h-[250px]">
+        <ChartContainer
+          id="shared-leads-by-source"
+          config={chartConfig}
+          className="mx-auto aspect-square max-h-[250px]"
+        >
           <PieChart>
             <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
             <Pie data={chartData} dataKey="leads" nameKey="source" innerRadius={60} strokeWidth={5}>
@@ -66,17 +70,20 @@ export function LeadBySourceCard() {
                         x={viewBox.cx}
                         y={viewBox.cy}
                         textAnchor="middle"
-                        dominantBaseline="middle">
+                        dominantBaseline="middle"
+                      >
                         <tspan
                           x={viewBox.cx}
                           y={viewBox.cy}
-                          className="fill-foreground font-display text-3xl">
+                          className="fill-foreground font-display text-3xl"
+                        >
                           {totalVisitors.toLocaleString()}
                         </tspan>
                         <tspan
                           x={viewBox.cx}
                           y={(viewBox.cy || 0) + 24}
-                          className="fill-muted-foreground">
+                          className="fill-muted-foreground"
+                        >
                           Leads
                         </tspan>
                       </text>
@@ -94,8 +101,9 @@ export function LeadBySourceCard() {
                 <span
                   className="block size-2 rounded-full"
                   style={{
-                    backgroundColor: chartConfig[item.source as ChartConfigKeys]?.color
-                  }}></span>
+                    backgroundColor: chartConfig[item.source as ChartConfigKeys]?.color,
+                  }}
+                ></span>
                 <div className="text-xs tracking-wide uppercase">
                   {chartConfig[item.source as ChartConfigKeys]?.label}
                 </div>

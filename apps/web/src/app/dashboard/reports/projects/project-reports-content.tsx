@@ -1,52 +1,65 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+  AlertTriangleIcon,
+  CheckCircle2Icon,
+  ClockIcon,
+  FolderDotIcon,
+  RefreshCwIcon,
+} from "lucide-react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useState } from "react";
+import { ChartError, ChartSkeleton, EmptyChartState } from "@/components/reports/charts";
+import {
+  ExportButton,
+  projectStatusOptions,
+  ReportFilters,
+  useReportFilters,
+} from "@/components/reports/filters";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import {
-  FolderDotIcon,
-  CheckCircle2Icon,
-  ClockIcon,
-  RefreshCwIcon,
-  AlertTriangleIcon
-} from "lucide-react";
 import { analyticsApi, reportsApi } from "@/lib/api";
-import { ReportFilters, ExportButton, projectStatusOptions, useReportFilters } from "@/components/reports/filters";
-import {
-  TaskCompletionChart,
-  MilestoneStatusChart,
-  TasksByPriorityChart,
-  ChartSkeleton,
-  ChartError,
-  EmptyChartState
-} from "@/components/reports/charts";
+
+// Dynamic imports for heavy chart components to reduce initial bundle size
+const TaskCompletionChart = dynamic(
+  () => import("@/components/reports/charts").then((mod) => ({ default: mod.TaskCompletionChart })),
+  { loading: () => <ChartSkeleton height={300} /> }
+);
+
+const MilestoneStatusChart = dynamic(
+  () =>
+    import("@/components/reports/charts").then((mod) => ({ default: mod.MilestoneStatusChart })),
+  { loading: () => <ChartSkeleton height={300} /> }
+);
+
+const TasksByPriorityChart = dynamic(
+  () =>
+    import("@/components/reports/charts").then((mod) => ({ default: mod.TasksByPriorityChart })),
+  { loading: () => <ChartSkeleton height={300} /> }
+);
+
 import type {
-  ProjectSummary,
-  ProjectReport,
-  TaskStatPoint,
   MilestoneBreakdown,
+  ProjectDurationStats,
+  ProjectReport,
+  ProjectSummary,
   TaskPriorityStats,
-  ProjectDurationStats
+  TaskStatPoint,
 } from "@crm/types";
-import type { ColumnDef } from "@/lib/export";
 import { format } from "date-fns";
+import type { ColumnDef } from "@/lib/export";
+import { logger } from "@/lib/logger";
 
 const statusVariants: Record<string, "default" | "secondary" | "destructive" | "outline"> = {
   planning: "outline",
@@ -66,10 +79,10 @@ const statusLabels: Record<string, string> = {
 
 export function ProjectReportsContent() {
   const { filters } = useReportFilters();
-  
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [summary, setSummary] = useState<ProjectSummary | null>(null);
   const [projects, setProjects] = useState<ProjectReport[]>([]);
   const [taskStats, setTaskStats] = useState<TaskStatPoint[]>([]);
@@ -80,7 +93,7 @@ export function ProjectReportsContent() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     setError(null);
-    
+
     const params = {
       from: filters.from,
       to: filters.to,
@@ -88,21 +101,15 @@ export function ProjectReportsContent() {
     };
 
     try {
-      const [
-        summaryRes,
-        projectsRes,
-        taskStatsRes,
-        milestoneRes,
-        priorityRes,
-        durationRes
-      ] = await Promise.all([
-        reportsApi.getProjectSummary(),
-        reportsApi.getProjects({ status: filters.status, pageSize: 20 }),
-        analyticsApi.getTaskStatsOverTime(params),
-        analyticsApi.getMilestoneBreakdown(params),
-        analyticsApi.getTasksByPriority(params),
-        analyticsApi.getProjectDurationStats()
-      ]);
+      const [summaryRes, projectsRes, taskStatsRes, milestoneRes, priorityRes, durationRes] =
+        await Promise.all([
+          reportsApi.getProjectSummary(),
+          reportsApi.getProjects({ status: filters.status, pageSize: 20 }),
+          analyticsApi.getTaskStatsOverTime(params),
+          analyticsApi.getMilestoneBreakdown(params),
+          analyticsApi.getTasksByPriority(params),
+          analyticsApi.getProjectDurationStats(),
+        ]);
 
       if (summaryRes.success && summaryRes.data) setSummary(summaryRes.data);
       if (projectsRes.success && projectsRes.data) setProjects(projectsRes.data);
@@ -111,7 +118,7 @@ export function ProjectReportsContent() {
       if (priorityRes.success && priorityRes.data) setTasksByPriority(priorityRes.data);
       if (durationRes.success && durationRes.data) setDurationStats(durationRes.data);
     } catch (err) {
-      console.error("Failed to fetch project data:", err);
+      logger.error("Failed to fetch project data:", err);
       setError("Failed to load project analytics");
     } finally {
       setLoading(false);
@@ -134,9 +141,10 @@ export function ProjectReportsContent() {
     { key: "managerName", header: "Manager" },
   ];
 
-  const taskCompletionRate = summary && summary.totalTasks > 0
-    ? Math.round((summary.completedTasks / summary.totalTasks) * 100)
-    : 0;
+  const taskCompletionRate =
+    summary && summary.totalTasks > 0
+      ? Math.round((summary.completedTasks / summary.totalTasks) * 100)
+      : 0;
 
   return (
     <div className="space-y-6" id="project-report-content">
@@ -144,9 +152,7 @@ export function ProjectReportsContent() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Project Reports</h1>
-          <p className="text-muted-foreground">
-            Track project progress and team performance
-          </p>
+          <p className="text-muted-foreground">Track project progress and team performance</p>
         </div>
         <div className="flex items-center gap-2">
           <ExportButton
@@ -175,9 +181,7 @@ export function ProjectReportsContent() {
         statusPlaceholder="Project Status"
       />
 
-      {error && (
-        <ChartError message={error} onRetry={fetchData} />
-      )}
+      {error && <ChartError message={error} onRetry={fetchData} />}
 
       {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-4">
@@ -232,9 +236,7 @@ export function ProjectReportsContent() {
                 <div className="text-2xl font-bold text-amber-600">
                   {summary?.overdueTasks || 0}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Require attention
-                </p>
+                <p className="text-xs text-muted-foreground">Require attention</p>
               </>
             )}
           </CardContent>
@@ -250,9 +252,7 @@ export function ProjectReportsContent() {
               <Skeleton className="h-8 w-20" />
             ) : (
               <>
-                <div className="text-2xl font-bold">
-                  {durationStats?.avgDurationDays || 0} days
-                </div>
+                <div className="text-2xl font-bold">{durationStats?.avgDurationDays || 0} days</div>
                 <p className="text-xs text-muted-foreground">
                   {durationStats?.onTimePercentage || 0}% on time
                 </p>
@@ -274,7 +274,10 @@ export function ProjectReportsContent() {
             {taskStats.length > 0 ? (
               <TaskCompletionChart data={taskStats} />
             ) : (
-              <EmptyChartState title="No Task Data" message="No task statistics available for the selected period." />
+              <EmptyChartState
+                title="No Task Data"
+                message="No task statistics available for the selected period."
+              />
             )}
             {milestoneBreakdown.length > 0 ? (
               <MilestoneStatusChart data={milestoneBreakdown} />
@@ -357,4 +360,3 @@ export function ProjectReportsContent() {
     </div>
   );
 }
-

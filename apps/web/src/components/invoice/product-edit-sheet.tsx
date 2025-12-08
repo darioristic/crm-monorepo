@@ -1,20 +1,8 @@
 "use client";
 
-import { useProductEdit } from "./product-edit-context";
-import { productsApi } from "@/lib/api";
+import { Loader2, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import { Loader2, Trash2 } from "lucide-react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,6 +14,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
+import { productsApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
+import { useProductEdit } from "./product-edit-context";
 
 type FormData = {
   name: string;
@@ -80,7 +76,7 @@ export function ProductEditSheet() {
           }
         })
         .catch((error) => {
-          console.error("Failed to fetch product:", error);
+          logger.error("Failed to fetch product:", error);
         })
         .finally(() => {
           setIsLoading(false);
@@ -106,10 +102,10 @@ export function ProductEditSheet() {
           onProductUpdated?.();
           closeProductEdit();
         } else {
-          console.error("Failed to update product:", response.error);
+          logger.error("Failed to update product:", response.error);
         }
       } catch (error) {
-        console.error("Failed to update product:", error);
+        logger.error("Failed to update product:", error);
       } finally {
         setIsSaving(false);
       }
@@ -127,10 +123,10 @@ export function ProductEditSheet() {
         onProductUpdated?.();
         closeProductEdit();
       } else {
-        console.error("Failed to delete product:", response.error);
+        logger.error("Failed to delete product:", response.error);
       }
     } catch (error) {
-      console.error("Failed to delete product:", error);
+      logger.error("Failed to delete product:", error);
     } finally {
       setIsDeleting(false);
     }
@@ -168,11 +164,7 @@ export function ProductEditSheet() {
                       onClick={handleDelete}
                       className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                     >
-                      {isDeleting ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                      ) : (
-                        "Delete"
-                      )}
+                      {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Delete"}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -195,12 +187,8 @@ export function ProductEditSheet() {
                 placeholder="Product name"
                 autoFocus
               />
-              {errors.name && (
-                <p className="text-xs text-destructive">{errors.name.message}</p>
-              )}
-              <p className="text-xs text-muted-foreground">
-                This is the product display name.
-              </p>
+              {errors.name && <p className="text-xs text-destructive">{errors.name.message}</p>}
+              <p className="text-xs text-muted-foreground">This is the product display name.</p>
             </div>
 
             <div className="space-y-2">
@@ -211,9 +199,7 @@ export function ProductEditSheet() {
                 placeholder="Product description (optional)"
                 rows={3}
               />
-              <p className="text-xs text-muted-foreground">
-                This is for internal use only.
-              </p>
+              <p className="text-xs text-muted-foreground">This is for internal use only.</p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -224,7 +210,9 @@ export function ProductEditSheet() {
                   type="number"
                   step="0.01"
                   min="0"
-                  {...register("unitPrice", { valueAsNumber: true })}
+                  {...register("unitPrice", {
+                    setValueAs: (v) => (v === "" || Number.isNaN(Number(v)) ? 0 : Number(v)),
+                  })}
                   placeholder="0.00"
                 />
                 <p className="text-xs text-muted-foreground">Default price.</p>
@@ -232,25 +220,14 @@ export function ProductEditSheet() {
 
               <div className="space-y-2">
                 <Label htmlFor="unit">Unit</Label>
-                <Input
-                  id="unit"
-                  {...register("unit")}
-                  placeholder="e.g., hour, pcs, kg"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Unit of measurement.
-                </p>
+                <Input id="unit" {...register("unit")} placeholder="e.g., hour, pcs, kg" />
+                <p className="text-xs text-muted-foreground">Unit of measurement.</p>
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="currency">Currency</Label>
-              <Input
-                id="currency"
-                {...register("currency")}
-                placeholder="EUR"
-                maxLength={3}
-              />
+              <Input id="currency" {...register("currency")} placeholder="EUR" maxLength={3} />
             </div>
 
             <div className="pt-6 border-t">
@@ -271,4 +248,3 @@ export function ProductEditSheet() {
     </Sheet>
   );
 }
-

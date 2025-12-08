@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
+import { logger } from "@/lib/logger";
 
 /**
  * Hook for copying text to clipboard with toast notifications
@@ -24,7 +25,7 @@ export function useCopyLink() {
         setTimeout(() => setCopied(false), 2000);
         return true;
       } catch (error) {
-        console.error("Failed to copy to clipboard:", error);
+        logger.error("Failed to copy to clipboard:", error);
         toast.error("Failed to copy to clipboard");
         setCopied(false);
         return false;
@@ -35,4 +36,3 @@ export function useCopyLink() {
 
   return { copyLink, copied };
 }
-

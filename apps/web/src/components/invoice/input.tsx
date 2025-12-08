@@ -1,9 +1,9 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { Input as BaseInput } from "@/components/ui/input";
 import { useState } from "react";
 import { useFormContext } from "react-hook-form";
+import { Input as BaseInput } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
   name: string;
@@ -23,6 +23,7 @@ export function Input({ className, name, ...props }: InputProps) {
   return (
     <div className="relative">
       <BaseInput
+        id={props.id || name}
         {...props}
         {...rest}
         ref={ref}
@@ -31,7 +32,7 @@ export function Input({ className, name, ...props }: InputProps) {
         className={cn(
           "border-0 p-0 h-6 border-b border-transparent focus:border-border text-xs focus-visible:ring-0",
           isPlaceholder && "opacity-0",
-          className,
+          className
         )}
         onFocus={(evt) => {
           setIsFocused(true);
@@ -50,4 +51,3 @@ export function Input({ className, name, ...props }: InputProps) {
     </div>
   );
 }
-

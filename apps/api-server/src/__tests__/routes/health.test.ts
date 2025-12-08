@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
-import { healthRoutes } from '../../routes/health';
+import { describe, expect, it } from "vitest";
+import { healthRoutes } from "../../routes/health";
 
 /**
  * API Endpoint Integration Tests Example
@@ -14,20 +14,18 @@ import { healthRoutes } from '../../routes/health';
  * 4. Mocking external dependencies (DB, cache, etc.)
  */
 
-describe('Health API Endpoints - Integration Tests', () => {
+describe("Health API Endpoints - Integration Tests", () => {
   // Helper function to call route handlers
   const callRoute = async (
     path: string,
-    method = 'GET',
+    method = "GET",
     options: RequestInit = {}
   ): Promise<Response> => {
     const url = new URL(`http://localhost${path}`);
     const request = new Request(url.toString(), { method, ...options });
 
     // Find matching route using RegExp pattern
-    const route = healthRoutes.find(
-      (r) => r.method === method && r.pattern.test(path)
-    );
+    const route = healthRoutes.find((r) => r.method === method && r.pattern.test(path));
 
     if (!route) {
       throw new Error(`No route found for ${method} ${path}`);
@@ -50,59 +48,59 @@ describe('Health API Endpoints - Integration Tests', () => {
   // Basic Health Check Tests
   // ============================================
 
-  describe('GET /health', () => {
-    it('should return 200 status', async () => {
-      const response = await callRoute('/health');
+  describe("GET /health", () => {
+    it("should return 200 status", async () => {
+      const response = await callRoute("/health");
 
       expect(response.status).toBe(200);
     });
 
-    it('should return healthy status', async () => {
-      const response = await callRoute('/health');
+    it("should return healthy status", async () => {
+      const response = await callRoute("/health");
       const data: any = await response.json();
 
       expect(data.success).toBe(true);
-      expect(data.data.status).toBe('healthy');
+      expect(data.data.status).toBe("healthy");
     });
 
-    it('should return timestamp', async () => {
-      const response = await callRoute('/health');
+    it("should return timestamp", async () => {
+      const response = await callRoute("/health");
       const data: any = await response.json();
 
       expect(data.data.timestamp).toBeDefined();
-      expect(typeof data.data.timestamp).toBe('string');
+      expect(typeof data.data.timestamp).toBe("string");
 
       // Verify it's a valid ISO timestamp
       const timestamp = new Date(data.data.timestamp);
-      expect(timestamp.toString()).not.toBe('Invalid Date');
+      expect(timestamp.toString()).not.toBe("Invalid Date");
     });
 
-    it('should return version number', async () => {
-      const response = await callRoute('/health');
+    it("should return version number", async () => {
+      const response = await callRoute("/health");
       const data: any = await response.json();
 
-      expect(data.data.version).toBe('1.0.0');
+      expect(data.data.version).toBe("1.0.0");
     });
 
-    it('should return JSON content type', async () => {
-      const response = await callRoute('/health');
+    it("should return JSON content type", async () => {
+      const response = await callRoute("/health");
 
-      expect(response.headers.get('Content-Type')).toBe('application/json');
+      expect(response.headers.get("Content-Type")).toBe("application/json");
     });
 
-    it('should have correct response structure', async () => {
-      const response = await callRoute('/health');
+    it("should have correct response structure", async () => {
+      const response = await callRoute("/health");
       const data: any = await response.json();
 
-      expect(data).toHaveProperty('success');
-      expect(data).toHaveProperty('data');
-      expect(data.data).toHaveProperty('status');
-      expect(data.data).toHaveProperty('timestamp');
-      expect(data.data).toHaveProperty('version');
+      expect(data).toHaveProperty("success");
+      expect(data).toHaveProperty("data");
+      expect(data.data).toHaveProperty("status");
+      expect(data.data).toHaveProperty("timestamp");
+      expect(data.data).toHaveProperty("version");
     });
 
-    it('should handle multiple concurrent requests', async () => {
-      const requests = Array.from({ length: 10 }, () => callRoute('/health'));
+    it("should handle multiple concurrent requests", async () => {
+      const requests = Array.from({ length: 10 }, () => callRoute("/health"));
 
       const responses = await Promise.all(requests);
 
@@ -116,51 +114,51 @@ describe('Health API Endpoints - Integration Tests', () => {
   // API Info Endpoint Tests
   // ============================================
 
-  describe('GET /api/v1', () => {
-    it('should return API information', async () => {
-      const response = await callRoute('/api/v1');
+  describe("GET /api/v1", () => {
+    it("should return API information", async () => {
+      const response = await callRoute("/api/v1");
       const data: any = await response.json();
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data.name).toBe('CRM API');
-      expect(data.data.version).toBe('1.0.0');
+      expect(data.data.name).toBe("CRM API");
+      expect(data.data.version).toBe("1.0.0");
     });
 
-    it('should list all available endpoints', async () => {
-      const response = await callRoute('/api/v1');
+    it("should list all available endpoints", async () => {
+      const response = await callRoute("/api/v1");
       const data: any = await response.json();
 
       const endpoints = data.data.endpoints;
 
       // Verify key endpoint groups exist
-      expect(endpoints).toHaveProperty('auth');
-      expect(endpoints).toHaveProperty('companies');
-      expect(endpoints).toHaveProperty('users');
-      expect(endpoints).toHaveProperty('leads');
-      expect(endpoints).toHaveProperty('contacts');
-      expect(endpoints).toHaveProperty('deals');
-      expect(endpoints).toHaveProperty('projects');
-      expect(endpoints).toHaveProperty('products');
+      expect(endpoints).toHaveProperty("auth");
+      expect(endpoints).toHaveProperty("companies");
+      expect(endpoints).toHaveProperty("users");
+      expect(endpoints).toHaveProperty("leads");
+      expect(endpoints).toHaveProperty("contacts");
+      expect(endpoints).toHaveProperty("deals");
+      expect(endpoints).toHaveProperty("projects");
+      expect(endpoints).toHaveProperty("products");
     });
 
-    it('should include auth endpoints', async () => {
-      const response = await callRoute('/api/v1');
+    it("should include auth endpoints", async () => {
+      const response = await callRoute("/api/v1");
       const data: any = await response.json();
 
       const authEndpoints = data.data.endpoints.auth;
 
-      expect(authEndpoints).toHaveProperty('login');
-      expect(authEndpoints).toHaveProperty('logout');
-      expect(authEndpoints).toHaveProperty('refresh');
-      expect(authEndpoints).toHaveProperty('me');
+      expect(authEndpoints).toHaveProperty("login");
+      expect(authEndpoints).toHaveProperty("logout");
+      expect(authEndpoints).toHaveProperty("refresh");
+      expect(authEndpoints).toHaveProperty("me");
 
-      expect(authEndpoints.login).toBe('/api/v1/auth/login');
+      expect(authEndpoints.login).toBe("/api/v1/auth/login");
     });
 
-    it('should return consistent data across requests', async () => {
-      const response1 = await callRoute('/api/v1');
-      const response2 = await callRoute('/api/v1');
+    it("should return consistent data across requests", async () => {
+      const response1 = await callRoute("/api/v1");
+      const response2 = await callRoute("/api/v1");
 
       const data1: any = await response1.json();
       const data2: any = await response2.json();

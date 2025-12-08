@@ -1,27 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import type { ProjectSummary, SalesSummary } from "@crm/types";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
+  ArrowRightIcon,
   BarChart3Icon,
   FileTextIcon,
   FolderDotIcon,
+  RefreshCwIcon,
   TrendingUpIcon,
   UsersIcon,
-  ArrowRightIcon,
-  RefreshCwIcon
 } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { reportsApi } from "@/lib/api";
-import type { SalesSummary, ProjectSummary } from "@crm/types";
+import { logger } from "@/lib/logger";
 
 export function ReportsOverview() {
   const [salesSummary, setSalesSummary] = useState<SalesSummary | null>(null);
@@ -35,7 +30,7 @@ export function ReportsOverview() {
     try {
       const [salesRes, projectRes] = await Promise.all([
         reportsApi.getSalesSummary(),
-        reportsApi.getProjectSummary()
+        reportsApi.getProjectSummary(),
       ]);
 
       if (salesRes.success && salesRes.data) {
@@ -46,7 +41,7 @@ export function ReportsOverview() {
       }
     } catch (err) {
       setError("Failed to load report data");
-      console.error(err);
+      logger.error(err);
     } finally {
       setLoading(false);
     }
@@ -60,18 +55,17 @@ export function ReportsOverview() {
     ? salesSummary.totalInvoiceValue - salesSummary.unpaidAmount
     : 0;
 
-  const conversionRate = salesSummary && salesSummary.totalQuotes > 0
-    ? Math.round((salesSummary.acceptedQuotes / salesSummary.totalQuotes) * 100)
-    : 0;
+  const conversionRate =
+    salesSummary && salesSummary.totalQuotes > 0
+      ? Math.round((salesSummary.acceptedQuotes / salesSummary.totalQuotes) * 100)
+      : 0;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Reports & Analytics</h1>
-          <p className="text-muted-foreground">
-            View insights and analytics across your CRM
-          </p>
+          <p className="text-muted-foreground">View insights and analytics across your CRM</p>
         </div>
         <Button variant="outline" onClick={fetchData} disabled={loading}>
           <RefreshCwIcon className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
@@ -99,9 +93,7 @@ export function ReportsOverview() {
               <Skeleton className="h-8 w-24" />
             ) : (
               <>
-                <div className="text-2xl font-bold">
-                  €{totalRevenue.toLocaleString()}
-                </div>
+                <div className="text-2xl font-bold">€{totalRevenue.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground">
                   {salesSummary?.paidInvoices || 0} paid invoices
                 </p>
@@ -120,9 +112,7 @@ export function ReportsOverview() {
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <div className="text-2xl font-bold">
-                  {projectSummary?.activeProjects || 0}
-                </div>
+                <div className="text-2xl font-bold">{projectSummary?.activeProjects || 0}</div>
                 <p className="text-xs text-muted-foreground">
                   {projectSummary?.totalProjects || 0} total projects
                 </p>
@@ -160,9 +150,7 @@ export function ReportsOverview() {
               <Skeleton className="h-8 w-16" />
             ) : (
               <>
-                <div className="text-2xl font-bold">
-                  {projectSummary?.completedTasks || 0}
-                </div>
+                <div className="text-2xl font-bold">{projectSummary?.completedTasks || 0}</div>
                 <p className="text-xs text-muted-foreground">
                   {projectSummary?.overdueTasks || 0} overdue
                 </p>
@@ -183,9 +171,7 @@ export function ReportsOverview() {
                 </div>
                 <div className="flex-1">
                   <CardTitle>Sales Reports</CardTitle>
-                  <CardDescription>
-                    View quotes, invoices, and revenue analytics
-                  </CardDescription>
+                  <CardDescription>View quotes, invoices, and revenue analytics</CardDescription>
                 </div>
                 <ArrowRightIcon className="h-5 w-5 text-muted-foreground" />
               </div>
@@ -231,9 +217,7 @@ export function ReportsOverview() {
                 </div>
                 <div className="flex-1">
                   <CardTitle>Project Reports</CardTitle>
-                  <CardDescription>
-                    Track project progress, tasks, and milestones
-                  </CardDescription>
+                  <CardDescription>Track project progress, tasks, and milestones</CardDescription>
                 </div>
                 <ArrowRightIcon className="h-5 w-5 text-muted-foreground" />
               </div>
@@ -279,7 +263,10 @@ export function ReportsOverview() {
           {loading ? (
             <div className="space-y-4">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center justify-between border-b pb-4 last:border-0">
+                <div
+                  key={i}
+                  className="flex items-center justify-between border-b pb-4 last:border-0"
+                >
                   <Skeleton className="h-10 w-48" />
                   <Skeleton className="h-6 w-20" />
                 </div>
@@ -316,12 +303,15 @@ export function ReportsOverview() {
                 <div>
                   <p className="font-medium">Milestone Progress</p>
                   <p className="text-sm text-muted-foreground">
-                    {projectSummary?.completedMilestones || 0} of {projectSummary?.totalMilestones || 0} completed
+                    {projectSummary?.completedMilestones || 0} of{" "}
+                    {projectSummary?.totalMilestones || 0} completed
                   </p>
                 </div>
                 <p className="text-lg font-bold">
                   {projectSummary && projectSummary.totalMilestones > 0
-                    ? Math.round((projectSummary.completedMilestones / projectSummary.totalMilestones) * 100)
+                    ? Math.round(
+                        (projectSummary.completedMilestones / projectSummary.totalMilestones) * 100
+                      )
                     : 0}
                   %
                 </p>
@@ -333,4 +323,3 @@ export function ReportsOverview() {
     </div>
   );
 }
-

@@ -1,39 +1,55 @@
 import type {
-  Deal,
+  ApiResponse,
   CreateDealRequest,
-  UpdateDealRequest,
-  Quote,
-  QuoteItem,
-  CreateQuoteRequest,
-  UpdateQuoteRequest,
-  Invoice,
-  InvoiceItem,
+  CreateDeliveryNoteRequest,
   CreateInvoiceRequest,
-  UpdateInvoiceRequest,
+  CreateQuoteRequest,
+  Deal,
+  DealStage,
   DeliveryNote,
   DeliveryNoteItem,
-  CreateDeliveryNoteRequest,
-  UpdateDeliveryNoteRequest,
-  ApiResponse,
-  PaginationParams,
-  FilterParams,
-  DealStage,
-  QuoteStatus,
   DeliveryNoteStatus,
+  FilterParams,
+  Invoice,
+  InvoiceItem,
+  PaginationParams,
+  Quote,
+  QuoteItem,
+  QuoteStatus,
+  UpdateDealRequest,
+  UpdateDeliveryNoteRequest,
+  UpdateInvoiceRequest,
+  UpdateQuoteRequest,
 } from "@crm/types";
 import {
-  successResponse,
+  Errors,
   errorResponse,
-  paginatedResponse,
   generateUUID,
   now,
-  Errors,
+  paginatedResponse,
+  successResponse,
 } from "@crm/utils";
-import { dealQueries, quoteQueries, invoiceQueries, deliveryNoteQueries, companyQueries, userQueries } from "../db/queries";
 import { cache } from "../cache/redis";
+import {
+  companyQueries,
+  dealQueries,
+  deliveryNoteQueries,
+  invoiceQueries,
+  quoteQueries,
+  userQueries,
+} from "../db/queries";
 import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300;
+
+type PgError = {
+  code?: string | number;
+  detail?: string;
+  constraint?: string;
+  constraint_name?: string;
+  message?: string;
+  stack?: string;
+};
 
 interface PipelineSummary {
   stages: {
@@ -91,6 +107,24 @@ class SalesService {
       serviceLogger.error({ error }, "Error fetching deal:");
       return errorResponse("DATABASE_ERROR", "Failed to fetch deal");
     }
+  }
+
+  public renderDeliveryNotePdf(note: DeliveryNote): Uint8Array {
+    const lines: string[] = [];
+    lines.push(`Otpremnica ${note.deliveryNumber || note.id}`);
+    lines.push(`Status: ${note.status}`);
+    if (note.shipDate) lines.push(`Datum isporuke: ${note.shipDate}`);
+    lines.push("Stavke:");
+    for (const it of note.items || []) {
+      const qty = typeof it.quantity === "number" ? it.quantity : Number(it.quantity);
+      lines.push(`- ${it.productName} x ${qty} ${it.unit || "pcs"}`);
+    }
+    return this.buildSimplePdf(lines);
+  }
+
+  private buildSimplePdf(lines: string[]): Uint8Array {
+    const content = lines.join("\n");
+    return new Uint8Array(Buffer.from(content));
   }
 
   async createDeal(data: CreateDealRequest): Promise<ApiResponse<Deal>> {
@@ -240,8 +274,19 @@ class SalesService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      serviceLogger.error({ error }, "Error fetching quotes:");
-      return errorResponse("DATABASE_ERROR", "Failed to fetch quotes");
+      serviceLogger.error(
+        {
+          error,
+          companyId,
+          pagination,
+          filters,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+        },
+        "Error fetching quotes"
+      );
+      // Always return a valid JSON response, never throw
+      return paginatedResponse([], 0, pagination);
     }
   }
 
@@ -290,24 +335,38 @@ class SalesService {
 
       const quoteNumber = await quoteQueries.generateNumber();
 
-      const userCompanyId = await userQueries.getUserCompanyId(data.createdBy);
+      const userCompanyId =
+        data.sellerCompanyId ?? (await userQueries.getUserCompanyId(data.createdBy));
       const sellerCompany = userCompanyId ? await companyQueries.findById(userCompanyId) : null;
+
+      if (!userCompanyId) {
+        return errorResponse("VALIDATION_ERROR", "Seller company ID is required");
+      }
 
       const sellerLines: string[] = [];
       if (sellerCompany?.name) sellerLines.push(sellerCompany.name);
       if (sellerCompany?.address) sellerLines.push(sellerCompany.address);
-      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country].filter(Boolean).join(", ");
+      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country]
+        .filter(Boolean)
+        .join(", ");
       if (sellerCityLine) sellerLines.push(sellerCityLine);
       if (sellerCompany?.email) sellerLines.push(sellerCompany.email);
       if (sellerCompany?.phone) sellerLines.push(sellerCompany.phone);
       if (sellerCompany?.website) sellerLines.push(sellerCompany.website);
       if (sellerCompany?.vatNumber) sellerLines.push(`PIB: ${sellerCompany.vatNumber}`);
 
-      const builtFromDetails = sellerLines.length > 0
-        ? { type: "doc", content: sellerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
-        : null;
+      const builtFromDetails =
+        sellerLines.length > 0
+          ? {
+              type: "doc",
+              content: sellerLines.map((line) => ({
+                type: "paragraph",
+                content: [{ type: "text", text: line }],
+              })),
+            }
+          : null;
 
-      const quote: Omit<Quote, "items"> = {
+      let quote: Omit<Quote, "items"> = {
         id: generateUUID(),
         createdAt: now(),
         updatedAt: now(),
@@ -327,7 +386,32 @@ class SalesService {
         createdBy: data.createdBy,
       };
 
-      const created = await quoteQueries.create(quote, items);
+      let created: Quote | undefined;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          created = await quoteQueries.create(quote, items);
+          break;
+        } catch (err: unknown) {
+          const e = err as PgError | Error | any;
+          const msg = [
+            typeof e?.message === "string" ? e.message : "",
+            typeof e?.code === "string" || typeof e?.code === "number" ? String(e.code) : "",
+            typeof e?.constraint === "string" ? e.constraint : "",
+            typeof e?.detail === "string" ? e.detail : "",
+          ].join(" ");
+          // Retry on unique constraint violation for quote_number
+          if (msg.includes("quote_number") || msg.includes("unique") || msg.includes("23505")) {
+            const newNumber = await quoteQueries.generateNumber();
+            quote = { ...quote, quoteNumber: newNumber, updatedAt: now() };
+            continue;
+          }
+          throw err;
+        }
+      }
+
+      if (!created) {
+        return errorResponse("DATABASE_ERROR", "Failed to create quote after retries");
+      }
 
       // Invalidate cache
       await cache.invalidatePattern("quotes:list:*");
@@ -422,7 +506,10 @@ class SalesService {
   ): Promise<ApiResponse<Invoice[]>> {
     try {
       const cacheKey = `invoices:list:${JSON.stringify({ companyId, pagination, filters })}`;
-      const cached = await cache.get<Invoice[]>(cacheKey);
+      let cached: Invoice[] | null = null;
+      try {
+        cached = await cache.get<Invoice[]>(cacheKey);
+      } catch {}
       if (cached) {
         return paginatedResponse(cached, cached.length, pagination);
       }
@@ -432,14 +519,17 @@ class SalesService {
 
       return paginatedResponse(data, total, pagination);
     } catch (error) {
-      serviceLogger.error({ 
-        error, 
-        companyId, 
-        pagination, 
-        filters,
-        errorMessage: error instanceof Error ? error.message : String(error),
-        errorStack: error instanceof Error ? error.stack : undefined
-      }, "Error fetching invoices");
+      serviceLogger.error(
+        {
+          error,
+          companyId,
+          pagination,
+          filters,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : undefined,
+        },
+        "Error fetching invoices"
+      );
       // Always return a valid JSON response, never throw
       return paginatedResponse([], 0, pagination);
     }
@@ -448,21 +538,47 @@ class SalesService {
   async getInvoiceById(id: string): Promise<ApiResponse<Invoice>> {
     try {
       const cacheKey = `invoices:${id}`;
-      const cached = await cache.get<Invoice>(cacheKey);
+      let cached: Invoice | null = null;
+      try {
+        cached = await cache.get<Invoice>(cacheKey);
+      } catch {}
       if (cached) {
         return successResponse(cached);
       }
 
-      const invoice = await invoiceQueries.findById(id);
+      let invoice: Invoice | null = null;
+      try {
+        invoice = await invoiceQueries.findById(id);
+      } catch (dbError: unknown) {
+        const e = dbError as PgError;
+        const errInfo = {
+          code: e.code,
+          detail: e.detail,
+          constraint: e.constraint ?? e.constraint_name,
+          message: e.message ?? (dbError instanceof Error ? dbError.message : String(dbError)),
+        };
+        serviceLogger.error(errInfo, "DB error in findById");
+        return errorResponse("DATABASE_ERROR", `Failed to fetch invoice: ${errInfo.message}`);
+      }
       if (!invoice) {
         return Errors.NotFound("Invoice").toResponse();
       }
 
-      await cache.set(cacheKey, invoice, CACHE_TTL);
+      try {
+        await cache.set(cacheKey, invoice, CACHE_TTL);
+      } catch {}
       return successResponse(invoice);
-    } catch (error) {
-      serviceLogger.error({ error }, "Error fetching invoice:");
-      return errorResponse("DATABASE_ERROR", "Failed to fetch invoice");
+    } catch (error: unknown) {
+      const e = error as PgError;
+      const errInfo = {
+        code: e.code,
+        detail: e.detail,
+        constraint: e.constraint ?? e.constraint_name,
+        message: e.message ?? (error instanceof Error ? error.message : String(error)),
+        stack: error instanceof Error ? error.stack : undefined,
+      };
+      serviceLogger.error(errInfo, "Error fetching invoice");
+      return errorResponse("DATABASE_ERROR", `Failed to fetch invoice: ${errInfo.message}`);
     }
   }
 
@@ -470,21 +586,21 @@ class SalesService {
     try {
       // Validate required fields with specific error messages
       const errors: string[] = [];
-      
-      if (!data.companyId || typeof data.companyId !== 'string' || data.companyId.trim() === '') {
+
+      if (!data.companyId || typeof data.companyId !== "string" || data.companyId.trim() === "") {
         errors.push("Company ID is required");
       }
-      
+
       if (!data.dueDate) {
         errors.push("Due date is required");
       }
-      
+
       if (!data.items || !Array.isArray(data.items)) {
         errors.push("Items are required");
       } else if (data.items.length === 0) {
         errors.push("At least one item is required");
       }
-      
+
       if (errors.length > 0) {
         return errorResponse("VALIDATION_ERROR", errors.join(", "));
       }
@@ -508,41 +624,68 @@ class SalesService {
       const vat = subtotal * (vatRate / 100);
       const total = subtotal + tax + vat;
 
-      const userCompanyId = await userQueries.getUserCompanyId(data.createdBy);
+      const userCompanyId =
+        data.sellerCompanyId ?? (await userQueries.getUserCompanyId(data.createdBy));
       const sellerCompany = userCompanyId ? await companyQueries.findById(userCompanyId) : null;
+
+      if (!userCompanyId) {
+        return errorResponse("VALIDATION_ERROR", "Seller company ID is required");
+      }
 
       const sellerLines: string[] = [];
       if (sellerCompany?.name) sellerLines.push(sellerCompany.name);
       if (sellerCompany?.address) sellerLines.push(sellerCompany.address);
-      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country].filter(Boolean).join(", ");
+      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country]
+        .filter(Boolean)
+        .join(", ");
       if (sellerCityLine) sellerLines.push(sellerCityLine);
       if (sellerCompany?.email) sellerLines.push(sellerCompany.email);
       if (sellerCompany?.phone) sellerLines.push(sellerCompany.phone);
       if (sellerCompany?.website) sellerLines.push(sellerCompany.website);
       if (sellerCompany?.vatNumber) sellerLines.push(`PIB: ${sellerCompany.vatNumber}`);
 
-      const builtFromDetails = sellerLines.length > 0
-        ? { type: "doc", content: sellerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
-        : null;
+      const builtFromDetails =
+        sellerLines.length > 0
+          ? {
+              type: "doc",
+              content: sellerLines.map((line) => ({
+                type: "paragraph",
+                content: [{ type: "text", text: line }],
+              })),
+            }
+          : null;
 
       const customerCompany = await companyQueries.findById(data.companyId);
       const customerLines: string[] = [];
       if (customerCompany?.name) customerLines.push(customerCompany.name);
       if (customerCompany?.address) customerLines.push(customerCompany.address);
-      const customerCityLine = [customerCompany?.city, customerCompany?.zip, customerCompany?.country].filter(Boolean).join(", ");
+      const customerCityLine = [
+        customerCompany?.city,
+        customerCompany?.zip,
+        customerCompany?.country,
+      ]
+        .filter(Boolean)
+        .join(", ");
       if (customerCityLine) customerLines.push(customerCityLine);
       if (customerCompany?.email) customerLines.push(customerCompany.email);
       if (customerCompany?.phone) customerLines.push(customerCompany.phone);
       if (customerCompany?.vatNumber) customerLines.push(`PIB: ${customerCompany.vatNumber}`);
 
-      const builtCustomerDetails = customerLines.length > 0
-        ? { type: "doc", content: customerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
-        : null;
+      const builtCustomerDetails =
+        customerLines.length > 0
+          ? {
+              type: "doc",
+              content: customerLines.map((line) => ({
+                type: "paragraph",
+                content: [{ type: "text", text: line }],
+              })),
+            }
+          : null;
 
       // Retry logic for duplicate invoice numbers (race condition protection)
       let retries = 5;
       let created: Invoice | null = null;
-      
+
       while (retries > 0 && !created) {
         try {
           const invoiceNumber = await invoiceQueries.generateNumber();
@@ -552,9 +695,10 @@ class SalesService {
             createdAt: now(),
             updatedAt: now(),
             invoiceNumber,
-            quoteId: data.quoteId,
+            quoteId: data.quoteId && String(data.quoteId).trim() !== "" ? data.quoteId : undefined,
             companyId: data.companyId,
-            contactId: data.contactId,
+            contactId:
+              data.contactId && String(data.contactId).trim() !== "" ? data.contactId : undefined,
             status: data.status || "draft",
             issueDate: data.issueDate || now(),
             dueDate: data.dueDate,
@@ -563,25 +707,29 @@ class SalesService {
             tax,
             total,
             paidAmount: 0,
-            notes: data.notes,
-            terms: data.terms,
+            notes: data.notes && String(data.notes).trim() !== "" ? data.notes : undefined,
+            terms: data.terms && String(data.terms).trim() !== "" ? data.terms : undefined,
             createdBy: data.createdBy,
             fromDetails: data.fromDetails ?? builtFromDetails,
             customerDetails: data.customerDetails ?? builtCustomerDetails,
             logoUrl: (data.logoUrl ?? sellerCompany?.logoUrl) || undefined,
             vatRate: vatRate,
-            currency: data.currency || "EUR",
+            currency:
+              (data.currency && String(data.currency).trim() !== "" ? data.currency : undefined) ||
+              "EUR",
             templateSettings: data.templateSettings || null,
           };
 
           created = await invoiceQueries.create(invoice, items);
-        } catch (err: any) {
+        } catch (err: unknown) {
           // Check if it's a duplicate key error
+          const e = err as PgError;
           const isDuplicateError =
-            (err.code === '23505' || err.code === 23505) &&
-            (err.constraint === 'invoices_invoice_number_unique' ||
-             err.constraint_name === 'invoices_invoice_number_unique' ||
-             err.message?.includes('invoices_invoice_number_unique'));
+            (e.code === "23505" || e.code === 23505) &&
+            (e.constraint === "invoices_invoice_number_unique" ||
+              e.constraint_name === "invoices_invoice_number_unique" ||
+              (typeof e.message === "string" &&
+                e.message.includes("invoices_invoice_number_unique")));
 
           if (isDuplicateError) {
             retries--;
@@ -589,7 +737,7 @@ class SalesService {
               throw err; // Throw the error if we've run out of retries
             }
             // Wait a small random time before retrying to reduce collision chance
-            await new Promise(resolve => setTimeout(resolve, Math.random() * 50));
+            await new Promise((resolve) => setTimeout(resolve, Math.random() * 50));
           } else {
             throw err; // Re-throw if it's a different error
           }
@@ -597,11 +745,16 @@ class SalesService {
       }
 
       if (!created) {
-        return errorResponse("DATABASE_ERROR", "Failed to generate unique invoice number after retries");
+        return errorResponse(
+          "DATABASE_ERROR",
+          "Failed to generate unique invoice number after retries"
+        );
       }
 
-      // Invalidate cache
-      await cache.invalidatePattern("invoices:list:*");
+      // Invalidate cache (ignore Redis errors)
+      try {
+        await cache.invalidatePattern("invoices:list:*");
+      } catch {}
 
       return successResponse(created);
     } catch (error) {
@@ -656,16 +809,39 @@ class SalesService {
         templateSettings: data.templateSettings,
       };
 
-      const updated = await invoiceQueries.update(id, updatePayload, items);
+      let updated: Invoice;
+      try {
+        updated = await invoiceQueries.update(id, updatePayload, items);
+      } catch (dbError: unknown) {
+        const e = dbError as PgError;
+        const errInfo = {
+          code: e.code,
+          detail: e.detail,
+          constraint: e.constraint ?? e.constraint_name,
+          message: e.message ?? (dbError instanceof Error ? dbError.message : String(dbError)),
+        };
+        serviceLogger.error(errInfo, "DB error in updateInvoice");
+        return errorResponse("DATABASE_ERROR", `Failed to update invoice: ${errInfo.message}`);
+      }
 
-      // Invalidate cache
-      await cache.del(`invoices:${id}`);
-      await cache.invalidatePattern("invoices:list:*");
+      // Invalidate cache (ignore Redis errors)
+      try {
+        await cache.del(`invoices:${id}`);
+        await cache.invalidatePattern("invoices:list:*");
+      } catch {}
 
       return successResponse(updated);
-    } catch (error) {
-      serviceLogger.error({ error }, "Error updating invoice:");
-      return errorResponse("DATABASE_ERROR", "Failed to update invoice");
+    } catch (error: unknown) {
+      const e = error as PgError;
+      const errInfo = {
+        code: e.code,
+        detail: e.detail,
+        constraint: e.constraint ?? e.constraint_name,
+        message: e.message ?? (error instanceof Error ? error.message : String(error)),
+        stack: error instanceof Error ? error.stack : undefined,
+      };
+      serviceLogger.error(errInfo, "Error updating invoice");
+      return errorResponse("DATABASE_ERROR", `Failed to update invoice: ${errInfo.message}`);
     }
   }
 
@@ -678,9 +854,11 @@ class SalesService {
 
       await invoiceQueries.delete(id);
 
-      // Invalidate cache
-      await cache.del(`invoices:${id}`);
-      await cache.invalidatePattern("invoices:list:*");
+      // Invalidate cache (ignore Redis errors)
+      try {
+        await cache.del(`invoices:${id}`);
+        await cache.invalidatePattern("invoices:list:*");
+      } catch {}
 
       return successResponse({ deleted: true });
     } catch (error) {
@@ -698,9 +876,11 @@ class SalesService {
 
       const updated = await invoiceQueries.recordPayment(id, amount);
 
-      // Invalidate cache
-      await cache.del(`invoices:${id}`);
-      await cache.invalidatePattern("invoices:list:*");
+      // Invalidate cache (ignore Redis errors)
+      try {
+        await cache.del(`invoices:${id}`);
+        await cache.invalidatePattern("invoices:list:*");
+      } catch {}
 
       return successResponse(updated);
     } catch (error) {
@@ -711,8 +891,11 @@ class SalesService {
 
   async getOverdueInvoices(companyId: string | null): Promise<ApiResponse<Invoice[]>> {
     try {
-      const cacheKey = `invoices:overdue:${companyId || 'all'}`;
-      const cached = await cache.get<Invoice[]>(cacheKey);
+      const cacheKey = `invoices:overdue:${companyId || "all"}`;
+      let cached: Invoice[] | null = null;
+      try {
+        cached = await cache.get<Invoice[]>(cacheKey);
+      } catch {}
       if (cached) {
         return successResponse(cached);
       }
@@ -805,22 +988,32 @@ class SalesService {
 
       const deliveryNumber = await deliveryNoteQueries.generateNumber();
 
-      const userCompanyId = await userQueries.getUserCompanyId(data.createdBy);
+      const userCompanyId =
+        data.sellerCompanyId ?? (await userQueries.getUserCompanyId(data.createdBy));
       const sellerCompany = userCompanyId ? await companyQueries.findById(userCompanyId) : null;
 
       const sellerLines: string[] = [];
       if (sellerCompany?.name) sellerLines.push(sellerCompany.name);
       if (sellerCompany?.address) sellerLines.push(sellerCompany.address);
-      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country].filter(Boolean).join(", ");
+      const sellerCityLine = [sellerCompany?.city, sellerCompany?.zip, sellerCompany?.country]
+        .filter(Boolean)
+        .join(", ");
       if (sellerCityLine) sellerLines.push(sellerCityLine);
       if (sellerCompany?.email) sellerLines.push(sellerCompany.email);
       if (sellerCompany?.phone) sellerLines.push(sellerCompany.phone);
       if (sellerCompany?.website) sellerLines.push(sellerCompany.website);
       if (sellerCompany?.vatNumber) sellerLines.push(`PIB: ${sellerCompany.vatNumber}`);
 
-      const builtFromDetails = sellerLines.length > 0
-        ? { type: "doc", content: sellerLines.map((line) => ({ type: "paragraph", content: [{ type: "text", text: line }] })) }
-        : null;
+      const builtFromDetails =
+        sellerLines.length > 0
+          ? {
+              type: "doc",
+              content: sellerLines.map((line) => ({
+                type: "paragraph",
+                content: [{ type: "text", text: line }],
+              })),
+            }
+          : null;
 
       const note: Omit<DeliveryNote, "items"> = {
         id: generateUUID(),
@@ -952,7 +1145,7 @@ class SalesService {
 
   async getPendingDeliveries(companyId: string | null): Promise<ApiResponse<DeliveryNote[]>> {
     try {
-      const cacheKey = `delivery-notes:pending:${companyId || 'all'}`;
+      const cacheKey = `delivery-notes:pending:${companyId || "all"}`;
       const cached = await cache.get<DeliveryNote[]>(cacheKey);
       if (cached) {
         return successResponse(cached);
@@ -970,7 +1163,7 @@ class SalesService {
 
   async getInTransitDeliveries(companyId: string | null): Promise<ApiResponse<DeliveryNote[]>> {
     try {
-      const cacheKey = `delivery-notes:in-transit:${companyId || 'all'}`;
+      const cacheKey = `delivery-notes:in-transit:${companyId || "all"}`;
       const cached = await cache.get<DeliveryNote[]>(cacheKey);
       if (cached) {
         return successResponse(cached);

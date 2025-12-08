@@ -1,3 +1,5 @@
+import { logger } from "@/lib/logger";
+
 /**
  * Export utilities for reports - CSV and PDF generation
  */
@@ -17,7 +19,7 @@ export function exportToCSV<T extends Record<string, unknown>>(
   columns: ColumnDef<T>[]
 ): void {
   if (data.length === 0) {
-    console.warn("No data to export");
+    logger.warn("No data to export");
     return;
   }
 
@@ -55,7 +57,7 @@ export async function exportToPDF(
 ): Promise<void> {
   const element = document.getElementById(elementId);
   if (!element) {
-    console.error(`Element with id "${elementId}" not found`);
+    logger.error(`Element with id "${elementId}" not found`);
     return;
   }
 
@@ -65,7 +67,7 @@ export async function exportToPDF(
       import("html2canvas"),
       import("jspdf"),
     ]);
-    
+
     const html2canvas = html2canvasModule.default;
     const { jsPDF } = jsPDFModule;
 
@@ -89,7 +91,7 @@ export async function exportToPDF(
 
     // Add header
     let yPos = margin;
-    
+
     if (options.title) {
       pdf.setFontSize(16);
       pdf.setFont("helvetica", "bold");
@@ -119,7 +121,7 @@ export async function exportToPDF(
 
     // Add image, handling multi-page if needed
     const availableHeight = pageHeight - yPos - margin;
-    
+
     if (imgHeight <= availableHeight) {
       pdf.addImage(imgData, "PNG", margin, yPos, imgWidth, imgHeight);
     } else {
@@ -138,7 +140,7 @@ export async function exportToPDF(
           remainingHeight,
           isFirstPage ? availableHeight : pageHeight - 2 * margin
         );
-        
+
         const sliceRatio = sliceHeight / imgHeight;
         const sourceHeight = canvas.height * sliceRatio;
 
@@ -146,7 +148,7 @@ export async function exportToPDF(
         const sliceCanvas = document.createElement("canvas");
         sliceCanvas.width = canvas.width;
         sliceCanvas.height = sourceHeight;
-        
+
         const ctx = sliceCanvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(
@@ -160,7 +162,7 @@ export async function exportToPDF(
             canvas.width,
             sourceHeight
           );
-          
+
           const sliceData = sliceCanvas.toDataURL("image/png");
           pdf.addImage(sliceData, "PNG", margin, yPos, imgWidth, sliceHeight);
         }
@@ -186,7 +188,7 @@ export async function exportToPDF(
 
     pdf.save(`${filename}.pdf`);
   } catch (error) {
-    console.error("Error generating PDF:", error);
+    logger.error("Error generating PDF:", error);
     throw new Error("Failed to generate PDF. Make sure html2canvas and jspdf are installed.");
   }
 }
@@ -228,11 +230,11 @@ export function exportTableToPDF<T extends Record<string, unknown>>(
     pdf.setFontSize(9);
     pdf.setFont("helvetica", "bold");
     const colWidth = (pageWidth - 2 * margin) / columns.length;
-    
+
     columns.forEach((col, i) => {
       pdf.text(col.header, margin + i * colWidth, yPos, { maxWidth: colWidth - 2 });
     });
-    
+
     yPos += 6;
     pdf.setLineWidth(0.1);
     pdf.line(margin, yPos, pageWidth - margin, yPos);
@@ -240,7 +242,7 @@ export function exportTableToPDF<T extends Record<string, unknown>>(
 
     // Table body
     pdf.setFont("helvetica", "normal");
-    
+
     for (const row of data) {
       if (yPos > pdf.internal.pageSize.getHeight() - 20) {
         pdf.addPage();
@@ -252,7 +254,7 @@ export function exportTableToPDF<T extends Record<string, unknown>>(
         const text = col.format ? col.format(value, row) : String(value ?? "");
         pdf.text(text, margin + i * colWidth, yPos, { maxWidth: colWidth - 2 });
       });
-      
+
       yPos += 5;
     }
 
@@ -265,7 +267,9 @@ export function exportTableToPDF<T extends Record<string, unknown>>(
  */
 function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
   return path.split(".").reduce((current, key) => {
-    return current && typeof current === "object" ? (current as Record<string, unknown>)[key] : undefined;
+    return current && typeof current === "object"
+      ? (current as Record<string, unknown>)[key]
+      : undefined;
   }, obj as unknown);
 }
 
@@ -275,16 +279,16 @@ function getNestedValue(obj: Record<string, unknown>, path: string): unknown {
 function downloadFile(content: string, filename: string, mimeType: string): void {
   const blob = new Blob([content], { type: mimeType });
   const url = URL.createObjectURL(blob);
-  
+
   const link = document.createElement("a");
   link.href = url;
   link.download = filename;
   link.style.display = "none";
-  
+
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-  
+
   URL.revokeObjectURL(url);
 }
 
@@ -315,4 +319,3 @@ export function formatDate(date: string | Date): string {
 export function formatPercentage(value: number): string {
   return `${value.toFixed(1)}%`;
 }
-

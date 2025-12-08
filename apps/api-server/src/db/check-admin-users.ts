@@ -1,3 +1,4 @@
+import { logger } from "../lib/logger";
 import { sql as db } from "./client";
 
 async function checkAdminUsers() {
@@ -7,13 +8,13 @@ async function checkAdminUsers() {
     WHERE role = 'admin' 
     ORDER BY created_at ASC
   `;
-  
-  console.log("\n🔍 Admin korisnici u bazi:\n");
+
+  logger.info("\n🔍 Admin korisnici u bazi:\n");
   for (const admin of admins) {
-    console.log(`  - ${admin.email} (${admin.first_name} ${admin.last_name})`);
-    console.log(`    ID: ${admin.id}`);
-    console.log(`    Company ID: ${admin.company_id || 'null'}`);
-    
+    logger.info(`  - ${admin.email} (${admin.first_name} ${admin.last_name})`);
+    logger.info(`    ID: ${admin.id}`);
+    logger.info(`    Company ID: ${admin.company_id || "null"}`);
+
     // Check companies they have access to
     const companies = await db`
       SELECT c.id, c.name, c.source, uoc.role
@@ -22,15 +23,15 @@ async function checkAdminUsers() {
       WHERE uoc.user_id = ${admin.id}
       ORDER BY c.name ASC
     `;
-    
-    console.log(`    Kompanije (${companies.length}):`);
+
+    logger.info(`    Kompanije (${companies.length}):`);
     companies.forEach((c) => {
       const company = c as { name: string; source?: string | null; role: string };
-      console.log(`      - ${company.name} (${company.source || 'legacy'}) - ${company.role}`);
+      logger.info(`      - ${company.name} (${company.source || "legacy"}) - ${company.role}`);
     });
-    console.log("");
+    logger.info("");
   }
-  
+
   await db.end();
 }
 
@@ -38,7 +39,7 @@ if (import.meta.main) {
   checkAdminUsers()
     .then(() => process.exit(0))
     .catch((error) => {
-      console.error("Error:", error);
+      logger.error("Error:", error);
       process.exit(1);
     });
 }

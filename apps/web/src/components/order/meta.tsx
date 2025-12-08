@@ -1,11 +1,11 @@
 "use client";
 
-import { useFormContext, useWatch } from "react-hook-form";
-import { OrderTitle } from "./order-title";
-import { OrderNo } from "./order-no";
-import { IssueDate } from "./issue-date";
-import { LabelInput } from "./label-input";
+import { useFormContext } from "react-hook-form";
+import { LabelInput } from "@/components/invoice/label-input";
 import type { FormValues } from "./form-context";
+import { IssueDate } from "./issue-date";
+import { OrderNo } from "./order-no";
+import { OrderTitle } from "./order-title";
 
 export function Meta() {
   const { control } = useFormContext<FormValues>();
@@ -30,4 +30,3 @@ export function Meta() {
     </div>
   );
 }
-

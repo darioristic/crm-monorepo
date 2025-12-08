@@ -1,8 +1,8 @@
 "use client";
 
-import { useFormContext, Controller } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
+import { LabelInput } from "@/components/invoice/label-input";
 import { Input } from "@/components/ui/input";
-import { LabelInput } from "./label-input";
 import type { FormValues } from "./form-context";
 
 export function QuoteNo() {
@@ -11,10 +11,7 @@ export function QuoteNo() {
 
   return (
     <div className="flex items-center gap-2">
-      <LabelInput
-        name="template.quoteNoLabel"
-        className="text-[11px] text-[#878787] w-[70px]"
-      />
+      <LabelInput name="template.quoteNoLabel" className="text-[11px] text-[#878787] w-[70px]" />
       <Controller
         control={control}
         name="quoteNumber"
@@ -31,4 +28,3 @@ export function QuoteNo() {
     </div>
   );
 }
-

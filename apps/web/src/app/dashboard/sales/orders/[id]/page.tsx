@@ -1,25 +1,19 @@
 "use client";
 
-import { use } from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Check, Copy, Download, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ordersApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { HtmlTemplate } from "@/components/order/templates/html";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { motion } from "framer-motion";
-import { Download, Copy, Pencil, ArrowLeft, Check } from "lucide-react";
+import { use, useState } from "react";
 import { toast } from "sonner";
-import { useState } from "react";
-import type { Order as OrderType, OrderTemplate } from "@/types/order";
+import { HtmlTemplate } from "@/components/order/templates/html";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useApi } from "@/hooks/use-api";
+import { ordersApi } from "@/lib/api";
+import type { OrderTemplate, Order as OrderType } from "@/types/order";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -57,11 +51,13 @@ export default function OrderDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
 
-  const { data: order, isLoading, error } = useApi<any>(
-    () => ordersApi.getById(id),
-    { autoFetch: true }
-  );
+  const {
+    data: order,
+    isLoading,
+    error,
+  } = useApi<any>(() => ordersApi.getById(id), { autoFetch: true });
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -82,6 +78,28 @@ export default function OrderDetailPage({ params }: PageProps) {
 
   const handleEdit = () => {
     router.push(`/dashboard/sales/orders?type=edit&orderId=${id}`);
+  };
+
+  const handleConvertToInvoice = async () => {
+    try {
+      setIsConverting(true);
+      const result = await ordersApi.convertToInvoice(id);
+      if (result?.success) {
+        const { invoiceId } = (result as any).data || {};
+        if (invoiceId) {
+          toast.success("Order converted to invoice");
+          router.push(`/dashboard/sales/invoices/${invoiceId}`);
+        } else {
+          toast.error("Conversion succeeded but invoice ID missing");
+        }
+      } else {
+        toast.error("Failed to convert order to invoice");
+      }
+    } catch {
+      toast.error("Failed to convert order to invoice");
+    } finally {
+      setIsConverting(false);
+    }
   };
 
   if (isLoading) {
@@ -122,10 +140,7 @@ export default function OrderDetailPage({ params }: PageProps) {
 
   return (
     <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         {/* Customer Header */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -191,7 +206,11 @@ export default function OrderDetailPage({ params }: PageProps) {
                   className="rounded-full size-8"
                   onClick={handleCopyLink}
                 >
-                  {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                  {copied ? (
+                    <Check className="size-4 text-green-500" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent
@@ -223,6 +242,17 @@ export default function OrderDetailPage({ params }: PageProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          <div className="mx-2 h-5 w-px bg-border" />
+          <Button
+            variant="default"
+            size="sm"
+            className="h-8 ml-2 text-xs"
+            onClick={handleConvertToInvoice}
+            disabled={isConverting}
+          >
+            Convert to Invoice
+          </Button>
         </div>
       </motion.div>
     </div>
@@ -234,7 +264,7 @@ function transformOrderToTemplateData(order: any): OrderType {
   // Default template
   const defaultTemplate: OrderTemplate = {
     title: "Order",
-    customerLabel: "Bill to",
+    customerLabel: "To Customer",
     fromLabel: "From",
     orderNoLabel: "Order No",
     issueDateLabel: "Issue Date",
@@ -299,12 +329,14 @@ function transformOrderToTemplateData(order: any): OrderType {
     customerName: order.companyName || null,
     quoteId: order.quoteId || null,
     invoiceId: order.invoiceId || null,
-    customer: order.companyName ? {
-      id: order.companyId,
-      name: order.companyName,
-      website: null,
-      email: null,
-    } : null,
+    customer: order.companyName
+      ? {
+          id: order.companyId,
+          name: order.companyName,
+          website: null,
+          email: null,
+        }
+      : null,
     team: null,
     scheduledAt: null,
     lineItems: (order.items || []).map((item: any) => ({
@@ -315,21 +347,29 @@ function transformOrderToTemplateData(order: any): OrderType {
       discount: item.discount || 0,
     })),
     fromDetails: getStoredFromDetails(),
-    customerDetails: order.companyName ? {
-      type: "doc" as const,
-      content: [{
-        type: "paragraph",
-        content: [{ type: "text", text: order.companyName }]
-      }]
-    } : null,
+    customerDetails: order.companyName
+      ? {
+          type: "doc" as const,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: order.companyName }],
+            },
+          ],
+        }
+      : null,
     paymentDetails: getStoredPaymentDetails(),
-    noteDetails: order.notes ? {
-      type: "doc" as const,
-      content: [{
-        type: "paragraph",
-        content: [{ type: "text", text: order.notes }]
-      }]
-    } : null,
+    noteDetails: order.notes
+      ? {
+          type: "doc" as const,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: order.notes }],
+            },
+          ],
+        }
+      : null,
   };
 }
 

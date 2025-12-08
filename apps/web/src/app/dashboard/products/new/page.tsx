@@ -1,8 +1,9 @@
-import { generateMeta } from "@/lib/utils";
-import { Metadata } from "next";
+import type { ProductCategory } from "@crm/types";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { ProductForm } from "@/components/products/product-form";
-import type { ProductCategory } from "@crm/types";
+import { logger } from "@/lib/logger";
+import { generateMeta } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   return generateMeta({
@@ -37,7 +38,7 @@ async function getCategories(): Promise<ProductCategory[]> {
     const data = await response.json();
     return data.data || [];
   } catch (error) {
-    console.error("Error fetching categories:", error);
+    logger.error("Error fetching categories:", error);
     return [];
   }
 }
@@ -49,12 +50,9 @@ export default async function NewProductPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">New Product</h1>
-        <p className="text-muted-foreground">
-          Add a new product or service to your catalog
-        </p>
+        <p className="text-muted-foreground">Add a new product or service to your catalog</p>
       </div>
       <ProductForm mode="create" categories={categories} />
     </div>
   );
 }
-

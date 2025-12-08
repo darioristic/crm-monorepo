@@ -1,22 +1,22 @@
 import type {
+  ApiResponse,
   Company,
   CreateCompanyRequest,
-  UpdateCompanyRequest,
-  ApiResponse,
-  PaginationParams,
   FilterParams,
+  PaginationParams,
+  UpdateCompanyRequest,
 } from "@crm/types";
 import {
-  successResponse,
-  errorResponse,
-  paginatedResponse,
-  generateUUID,
-  now,
-  isEmpty,
   Errors,
+  errorResponse,
+  generateUUID,
+  isEmpty,
+  now,
+  paginatedResponse,
+  successResponse,
 } from "@crm/utils";
-import { companyQueries } from "../db/queries/companies";
 import { cache } from "../cache/redis";
+import { companyQueries } from "../db/queries/companies";
 import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300; // 5 minutes
@@ -104,6 +104,18 @@ class CompaniesService {
         name: data.name.trim(),
         industry: data.industry.trim(),
         address: data.address.trim(),
+        email: data.email ?? null,
+        phone: data.phone ?? null,
+        website: data.website ?? null,
+        contact: data.contact ?? null,
+        city: data.city ?? null,
+        zip: data.zip ?? null,
+        country: data.country ?? null,
+        countryCode: data.countryCode ?? null,
+        vatNumber: data.vatNumber?.trim() ?? null,
+        companyNumber: data.companyNumber?.trim() ?? null,
+        logoUrl: (data as any).logoUrl ?? null,
+        note: data.note ?? null,
       };
 
       const created = await companyQueries.createWithId(company);
@@ -144,9 +156,21 @@ class CompaniesService {
       }
 
       const updated = await companyQueries.update(id, {
-        name: data.name?.trim(),
-        industry: data.industry?.trim(),
-        address: data.address?.trim(),
+        name: data.name?.trim() ?? undefined,
+        industry: data.industry?.trim() ?? undefined,
+        address: data.address?.trim() ?? undefined,
+        email: data.email ?? undefined,
+        phone: data.phone ?? undefined,
+        website: data.website ?? undefined,
+        contact: data.contact ?? undefined,
+        city: data.city ?? undefined,
+        zip: data.zip ?? undefined,
+        country: data.country ?? undefined,
+        countryCode: data.countryCode ?? undefined,
+        vatNumber: data.vatNumber?.trim() ?? undefined,
+        companyNumber: data.companyNumber?.trim() ?? undefined,
+        logoUrl: (data as any).logoUrl ?? undefined,
+        note: data.note ?? undefined,
       });
 
       // Invalidate caches

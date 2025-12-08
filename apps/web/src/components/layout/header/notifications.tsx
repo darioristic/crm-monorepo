@@ -1,24 +1,24 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import type { Notification as NotificationType } from "@crm/types";
 import {
+  AlertTriangleIcon,
   BellIcon,
-  ClockIcon,
   CheckCheckIcon,
-  FileTextIcon,
+  CheckCircleIcon,
+  ClockIcon,
   DollarSignIcon,
+  FileTextIcon,
   FolderIcon,
+  InfoIcon,
   ListTodoIcon,
   UsersIcon,
-  AlertTriangleIcon,
-  InfoIcon,
-  CheckCircleIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { notificationsApi } from "@/lib/api";
-import type { Notification as NotificationType } from "@crm/types";
-
+import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,10 +28,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { toast } from "sonner";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { notificationsApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
 
 function getNotificationIcon(type: NotificationType["type"]) {
   switch (type) {
@@ -101,18 +101,18 @@ const Notifications = () => {
         setNotifications(notifResult.data.notifications || []);
       } else if (!notifResult.success) {
         // Log error but don't show toast for background polling
-        console.warn("Failed to fetch notifications:", notifResult.error?.message);
+        logger.warn("Failed to fetch notifications:", notifResult.error?.message);
       }
 
       if (countResult.success && countResult.data) {
         setUnreadCount(countResult.data.count);
       } else if (!countResult.success) {
         // Log error but don't show toast for background polling
-        console.warn("Failed to fetch notification count:", countResult.error?.message);
+        logger.warn("Failed to fetch notification count:", countResult.error?.message);
       }
     } catch (error) {
       // Only log, don't show toast for background polling errors
-      console.error("Failed to fetch notifications:", error);
+      logger.warn("Failed to fetch notifications:", error);
     } finally {
       setIsLoading(false);
     }
@@ -149,12 +149,7 @@ const Notifications = () => {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
-        <Button 
-          size="icon" 
-          variant="ghost" 
-          className="relative"
-          suppressHydrationWarning
-        >
+        <Button size="icon" variant="ghost" className="relative" suppressHydrationWarning>
           <BellIcon className={unreadCount > 0 ? "animate-tada" : ""} />
           {unreadCount > 0 && (
             <Badge
@@ -167,10 +162,7 @@ const Notifications = () => {
         </Button>
       </DropdownMenuTrigger>
 
-      <DropdownMenuContent
-        align={isMobile ? "center" : "end"}
-        className="ms-4 w-80 p-0"
-      >
+      <DropdownMenuContent align={isMobile ? "center" : "end"} className="ms-4 w-80 p-0">
         <DropdownMenuLabel className="bg-background dark:bg-muted sticky top-0 z-10 p-0">
           <div className="flex items-center justify-between border-b px-4 py-3">
             <div className="flex items-center gap-2">
@@ -200,8 +192,9 @@ const Notifications = () => {
         <ScrollArea className="h-[350px]">
           {isLoading ? (
             <div className="space-y-3 p-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="flex items-start gap-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                // eslint-disable-next-line react/no-array-index-key
+                <div key={`skeleton-${i}`} className="flex items-start gap-3">
                   <Skeleton className="h-8 w-8 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-3/4" />
@@ -215,9 +208,7 @@ const Notifications = () => {
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <BellIcon className="text-muted-foreground mb-3 h-10 w-10" />
               <p className="text-muted-foreground text-sm">No notifications</p>
-              <p className="text-muted-foreground text-xs">
-                You&apos;re all caught up!
-              </p>
+              <p className="text-muted-foreground text-xs">You&apos;re all caught up!</p>
             </div>
           ) : (
             notifications.map((notification) => (
@@ -271,9 +262,7 @@ const Notifications = () => {
             asChild
             onClick={() => setIsOpen(false)}
           >
-            <Link href="/dashboard/notifications">
-              View all notifications
-            </Link>
+            <Link href="/dashboard/notifications">View all notifications</Link>
           </Button>
         </div>
       </DropdownMenuContent>

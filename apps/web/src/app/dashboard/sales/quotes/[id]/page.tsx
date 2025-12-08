@@ -1,25 +1,20 @@
 "use client";
 
-import { use } from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Check, Copy, Download, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { quotesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { HtmlTemplate } from "@/components/quote/templates/html";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { motion } from "framer-motion";
-import { Download, Copy, Pencil, ArrowLeft, Check } from "lucide-react";
+import { use, useState } from "react";
 import { toast } from "sonner";
-import { useState } from "react";
-import type { Quote as QuoteType, QuoteTemplate } from "@/types/quote";
+import { HtmlTemplate } from "@/components/quote/templates/html";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useApi } from "@/hooks/use-api";
+import { useQuoteWorkflows } from "@/hooks/use-quote";
+import { quotesApi } from "@/lib/api";
+import type { QuoteTemplate, Quote as QuoteType } from "@/types/quote";
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -57,11 +52,13 @@ export default function QuoteDetailPage({ params }: PageProps) {
   const { id } = use(params);
   const router = useRouter();
   const [copied, setCopied] = useState(false);
+  const { convertToOrder, convertToInvoice } = useQuoteWorkflows();
 
-  const { data: quote, isLoading, error } = useApi<any>(
-    () => quotesApi.getById(id),
-    { autoFetch: true }
-  );
+  const {
+    data: quote,
+    isLoading,
+    error,
+  } = useApi<any>(() => quotesApi.getById(id), { autoFetch: true });
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -82,6 +79,40 @@ export default function QuoteDetailPage({ params }: PageProps) {
 
   const handleEdit = () => {
     router.push(`/dashboard/sales/quotes?type=edit&quoteId=${id}`);
+  };
+
+  const handleConvertToOrder = async () => {
+    try {
+      const result = await convertToOrder.mutateAsync({ id });
+      if (result && (result as any).success) {
+        const order = (result as any).data;
+        toast.success("Quote converted to order");
+        router.push(`/dashboard/sales/orders/${order.id}`);
+      } else {
+        toast.error("Failed to convert quote to order");
+      }
+    } catch {
+      toast.error("Failed to convert quote to order");
+    }
+  };
+
+  const handleConvertToInvoice = async () => {
+    try {
+      const result = await convertToInvoice.mutateAsync({ id });
+      if (result && (result as any).success) {
+        const { invoiceId } = (result as any).data || {};
+        if (invoiceId) {
+          toast.success("Quote converted to invoice");
+          router.push(`/dashboard/sales/invoices/${invoiceId}`);
+        } else {
+          toast.error("Conversion succeeded but invoice ID missing");
+        }
+      } else {
+        toast.error("Failed to convert quote to invoice");
+      }
+    } catch {
+      toast.error("Failed to convert quote to invoice");
+    }
   };
 
   if (isLoading) {
@@ -122,10 +153,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
 
   return (
     <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         {/* Customer Header */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -191,7 +219,11 @@ export default function QuoteDetailPage({ params }: PageProps) {
                   className="rounded-full size-8"
                   onClick={handleCopyLink}
                 >
-                  {copied ? <Check className="size-4 text-green-500" /> : <Copy className="size-4" />}
+                  {copied ? (
+                    <Check className="size-4 text-green-500" />
+                  ) : (
+                    <Copy className="size-4" />
+                  )}
                 </Button>
               </TooltipTrigger>
               <TooltipContent
@@ -223,6 +255,27 @@ export default function QuoteDetailPage({ params }: PageProps) {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
+
+          {/* Workflow Actions */}
+          <div className="mx-2 h-5 w-px bg-border" />
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 text-xs"
+            onClick={handleConvertToOrder}
+            disabled={convertToOrder.isPending || (quote.status === "accepted" ? false : false)}
+          >
+            Convert to Order
+          </Button>
+          <Button
+            variant="default"
+            size="sm"
+            className="h-8 ml-2 text-xs"
+            onClick={handleConvertToInvoice}
+            disabled={convertToInvoice.isPending}
+          >
+            Convert to Invoice
+          </Button>
         </div>
       </motion.div>
     </div>
@@ -299,12 +352,14 @@ function transformQuoteToTemplateData(quote: any): QuoteType {
     bottomBlock: null,
     customerId: quote.companyId || null,
     customerName: quote.companyName || null,
-    customer: quote.companyName ? {
-      id: quote.companyId,
-      name: quote.companyName,
-      website: null,
-      email: null,
-    } : null,
+    customer: quote.companyName
+      ? {
+          id: quote.companyId,
+          name: quote.companyName,
+          website: null,
+          email: null,
+        }
+      : null,
     team: null,
     scheduledAt: null,
     lineItems: (quote.items || []).map((item: any) => ({
@@ -314,27 +369,41 @@ function transformQuoteToTemplateData(quote: any): QuoteType {
       unit: item.unit || undefined,
     })),
     fromDetails: getStoredFromDetails(),
-    customerDetails: quote.companyName ? {
-      type: "doc" as const,
-      content: [{
-        type: "paragraph",
-        content: [{ type: "text", text: quote.companyName }]
-      }]
-    } : null,
-    paymentDetails: getStoredPaymentDetails() || (quote.terms ? {
-      type: "doc" as const,
-      content: [{
-        type: "paragraph",
-        content: [{ type: "text", text: quote.terms }]
-      }]
-    } : null),
-    noteDetails: quote.notes ? {
-      type: "doc" as const,
-      content: [{
-        type: "paragraph",
-        content: [{ type: "text", text: quote.notes }]
-      }]
-    } : null,
+    customerDetails: quote.companyName
+      ? {
+          type: "doc" as const,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: quote.companyName }],
+            },
+          ],
+        }
+      : null,
+    paymentDetails:
+      getStoredPaymentDetails() ||
+      (quote.terms
+        ? {
+            type: "doc" as const,
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: quote.terms }],
+              },
+            ],
+          }
+        : null),
+    noteDetails: quote.notes
+      ? {
+          type: "doc" as const,
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: quote.notes }],
+            },
+          ],
+        }
+      : null,
   };
 }
 

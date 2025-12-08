@@ -1,4 +1,4 @@
-import { vi } from 'vitest';
+import { vi } from "vitest";
 
 // Mock Redis client
 export const createMockRedis = () => {
@@ -10,14 +10,14 @@ export const createMockRedis = () => {
       return item?.value ?? null;
     }),
 
-    set: vi.fn(async (key: string, value: string, mode?: string, duration?: number) => {
+    set: vi.fn(async (key: string, value: string, _mode?: string, duration?: number) => {
       store.set(key, { value, ttl: duration });
-      return 'OK';
+      return "OK";
     }),
 
     setex: vi.fn(async (key: string, seconds: number, value: string) => {
       store.set(key, { value, ttl: seconds });
-      return 'OK';
+      return "OK";
     }),
 
     del: vi.fn(async (key: string) => {
@@ -53,7 +53,7 @@ export const createMockRedis = () => {
 
     flushall: vi.fn(async () => {
       store.clear();
-      return 'OK';
+      return "OK";
     }),
 
     // Test helper

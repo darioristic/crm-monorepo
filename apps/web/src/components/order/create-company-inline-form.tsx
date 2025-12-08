@@ -1,15 +1,21 @@
 "use client";
 
-import { companiesApi } from "@/lib/api";
-import { useMutation } from "@/hooks/use-api";
-import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, Globe, Loader2, Search } from "lucide-react";
+import { useCallback, useState } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { CountrySelector } from "@/components/companies/country-selector";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -20,13 +26,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Loader2, AlertCircle, Search, Globe } from "lucide-react";
-import { z } from "zod";
-import { CountrySelector } from "@/components/companies/country-selector";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useState, useCallback } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { toast } from "sonner";
+import { useMutation } from "@/hooks/use-api";
+import { companiesApi, organizationsApi } from "@/lib/api";
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -53,18 +54,18 @@ const formSchema = z.object({
 // Extract domain from email or website
 function extractDomain(input: string): string | null {
   if (!input) return null;
-  
+
   // If it's an email, extract the domain part
   if (input.includes("@")) {
     const parts = input.split("@");
     return parts[1]?.toLowerCase() || null;
   }
-  
+
   // If it's a URL, extract the domain
   try {
     let url = input;
     if (!url.startsWith("http")) {
-      url = "https://" + url;
+      url = `https://${url}`;
     }
     const parsed = new URL(url);
     return parsed.hostname.replace("www.", "").toLowerCase();
@@ -87,12 +88,11 @@ type Props = {
 
 export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Props) {
   const [isLookingUp, setIsLookingUp] = useState(false);
-  const [detectedDomain, setDetectedDomain] = useState<string | null>(null);
+  const [_detectedDomain, setDetectedDomain] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
+  const queryClient = useQueryClient();
 
-  const createMutation = useMutation<any, any>((values) =>
-    companiesApi.create(values)
-  );
+  const createMutation = useMutation<any, any>((values) => companiesApi.create(values));
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -116,34 +116,37 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
   });
 
   // Handle domain detection from email or website
-  const handleDomainDetection = useCallback((value: string, field: "email" | "website") => {
-    const domain = extractDomain(value);
-    if (domain) {
-      // Always update if domain is detected (allow re-detection)
-      setDetectedDomain(domain);
-      setLogoError(false);
-      
-      // Auto-fill website if it's from email
-      if (field === "email" && !form.getValues("website")) {
-        form.setValue("website", `https://${domain}`);
+  const handleDomainDetection = useCallback(
+    (value: string, field: "email" | "website") => {
+      const domain = extractDomain(value);
+      if (domain) {
+        // Always update if domain is detected (allow re-detection)
+        setDetectedDomain(domain);
+        setLogoError(false);
+
+        // Auto-fill website if it's from email
+        if (field === "email" && !form.getValues("website")) {
+          form.setValue("website", `https://${domain}`);
+        }
+
+        // Set logo URL
+        const logoUrl = getLogoUrl(domain);
+        form.setValue("logoUrl", logoUrl);
+      } else {
+        // Clear logo if no domain detected
+        setDetectedDomain(null);
+        form.setValue("logoUrl", "");
       }
-      
-      // Set logo URL
-      const logoUrl = getLogoUrl(domain);
-      form.setValue("logoUrl", logoUrl);
-    } else {
-      // Clear logo if no domain detected
-      setDetectedDomain(null);
-      form.setValue("logoUrl", "");
-    }
-  }, [form]);
+    },
+    [form]
+  );
 
   // Lookup company data (placeholder - can be expanded with real API)
   const handleLookup = useCallback(async () => {
     const email = form.getValues("email");
     const website = form.getValues("website");
     const domain = extractDomain(email || website || "");
-    
+
     if (!domain) {
       toast.error("Unesite email ili website da biste pretražili kompaniju");
       return;
@@ -157,14 +160,14 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
       // Set logo URL from Clearbit (free)
       const logoUrl = getLogoUrl(domain);
       form.setValue("logoUrl", logoUrl);
-      
+
       // Auto-fill website if not set
       if (!form.getValues("website")) {
         form.setValue("website", `https://${domain}`);
       }
 
       toast.success(`Logo pronađen za ${domain}`);
-    } catch (error) {
+    } catch (_error) {
       toast.error("Nije moguće pronaći podatke o kompaniji");
     } finally {
       setIsLookingUp(false);
@@ -198,6 +201,29 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
     const result = await createMutation.mutate(formattedData);
 
     if (result.success && result.data) {
+      try {
+        await organizationsApi.create({
+          id: result.data.id,
+          name: values.name,
+          email: values.email || undefined,
+          phone: values.phone || undefined,
+          pib: values.vatNumber || undefined,
+          companyNumber: values.companyNumber || undefined,
+          contactPerson: values.contact || undefined,
+          isFavorite: false,
+        });
+      } catch {}
+      try {
+        await queryClient.invalidateQueries({ queryKey: ["companies"] });
+      } catch {}
+      try {
+        await queryClient.invalidateQueries({ queryKey: ["organizations"] });
+      } catch {}
+      try {
+        if (typeof window !== "undefined") {
+          window.localStorage?.setItem("lastCreatedCompanyId", String(result.data.id));
+        }
+      } catch {}
       onSuccess(result.data.id);
     }
   };
@@ -207,24 +233,21 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col h-[calc(100vh-120px)]">
+      <form
+        onSubmit={form.handleSubmit(handleSubmit)}
+        className="flex flex-col h-[calc(100vh-120px)]"
+      >
         {error && (
           <Alert variant="destructive" className="mb-4">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
-        
+
         <div className="flex-1 overflow-y-auto pr-2">
-          <Accordion
-            type="multiple"
-            defaultValue={["general", "details"]}
-            className="space-y-4"
-          >
+          <Accordion type="multiple" defaultValue={["general", "details"]} className="space-y-4">
             <AccordionItem value="general" className="border-none">
-              <AccordionTrigger className="text-sm font-medium py-2">
-                General
-              </AccordionTrigger>
+              <AccordionTrigger className="text-sm font-medium py-2">General</AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-4">
                   {/* Logo preview and company name */}
@@ -232,8 +255,8 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
                     <div className="flex-shrink-0">
                       {form.watch("logoUrl") && !logoError ? (
                         <Avatar className="h-16 w-16 rounded-lg border">
-                          <AvatarImage 
-                            src={form.watch("logoUrl") || ""} 
+                          <AvatarImage
+                            src={form.watch("logoUrl") || ""}
                             alt="Company logo"
                             onError={() => {
                               setLogoError(true);
@@ -347,6 +370,26 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
 
                   <FormField
                     control={form.control}
+                    name="phone"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-xs text-[#878787] font-normal">Phone</FormLabel>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            value={field.value ?? ""}
+                            placeholder="+381 11 123 4567"
+                            type="tel"
+                            autoComplete="off"
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
                     name="industry"
                     render={({ field }) => (
                       <FormItem>
@@ -358,28 +401,6 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
                             {...field}
                             value={field.value ?? ""}
                             placeholder="Technology, Healthcare, Finance..."
-                            autoComplete="off"
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs text-[#878787] font-normal">
-                          Phone
-                        </FormLabel>
-                        <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value ?? ""}
-                            placeholder="+381 11 123 4567"
-                            type="tel"
                             autoComplete="off"
                           />
                         </FormControl>
@@ -424,9 +445,7 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
                       name="city"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs text-[#878787] font-normal">
-                            City
-                          </FormLabel>
+                          <FormLabel className="text-xs text-[#878787] font-normal">City</FormLabel>
                           <FormControl>
                             <Input
                               {...field}
@@ -536,17 +555,10 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
         {/* Fixed footer with buttons */}
         <div className="flex-shrink-0 pt-4 mt-4 border-t bg-background">
           <div className="flex justify-end space-x-3">
-            <Button
-              variant="outline"
-              onClick={onCancel}
-              type="button"
-            >
+            <Button variant="outline" onClick={onCancel} type="button">
               Cancel
             </Button>
-            <Button
-              type="submit"
-              disabled={isSubmitting}
-            >
+            <Button type="submit" disabled={isSubmitting}>
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create & Select
             </Button>
@@ -556,4 +568,3 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
     </Form>
   );
 }
-

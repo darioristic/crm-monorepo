@@ -6,6 +6,7 @@ type Props = {
   currency: string | null;
   descriptionLabel: string;
   quantityLabel: string;
+  unitLabel?: string;
   priceLabel: string;
   totalLabel: string;
   includeDecimals?: boolean;
@@ -65,6 +66,7 @@ export function LineItems({
   // Dynamic grid columns based on settings
   const getGridStyle = () => {
     let cols = "1.5fr 10%"; // Description, Qty
+    if (includeUnits) cols += " 10%"; // Unit
     cols += " 12%"; // Price
     if (includeDiscount) cols += " 10%"; // Disc %
     if (includeVat) cols += " 10%"; // VAT %
@@ -79,16 +81,13 @@ export function LineItems({
         style={getGridStyle()}
       >
         <div className="text-[11px] text-[#878787]">{descriptionLabel}</div>
-        <div className="text-[11px] text-[#878787] text-center">Qty</div>
-        <div className="text-[11px] text-[#878787] text-center">
-          {priceLabel}
-        </div>
-        {includeDiscount && (
-          <div className="text-[11px] text-[#878787] text-center">Disc %</div>
+        <div className="text-[11px] text-[#878787] text-center">{quantityLabel || "Qty"}</div>
+        {includeUnits && (
+          <div className="text-[11px] text-[#878787] text-center">{unitLabel || "Unit"}</div>
         )}
-        {includeVat && (
-          <div className="text-[11px] text-[#878787] text-center">VAT %</div>
-        )}
+        <div className="text-[11px] text-[#878787] text-center">{priceLabel}</div>
+        {includeDiscount && <div className="text-[11px] text-[#878787] text-center">Disc %</div>}
+        {includeVat && <div className="text-[11px] text-[#878787] text-center">VAT %</div>}
         <div className="text-[11px] text-[#878787] text-right">{totalLabel}</div>
       </div>
 
@@ -101,34 +100,24 @@ export function LineItems({
           <div className="self-start">
             <Description content={item.name} />
           </div>
+          <div className="text-[11px] self-start text-center">{item.quantity ?? 0}</div>
+          {includeUnits && (
+            <div className="text-[11px] self-start text-center">{item.unit || ""}</div>
+          )}
           <div className="text-[11px] self-start text-center">
-            {item.quantity ?? 0}
-          </div>
-          <div className="text-[11px] self-start text-center">
-            {currency && includeUnits && item.unit
-              ? `${formatAmount({
-                  currency,
-                  amount: item.price ?? 0,
-                  maximumFractionDigits,
-                  locale,
-                })}/${item.unit}`
-              : currency &&
-                formatAmount({
-                  currency,
-                  amount: item.price ?? 0,
-                  maximumFractionDigits,
-                  locale,
-                })}
+            {currency &&
+              formatAmount({
+                currency,
+                amount: item.price ?? 0,
+                maximumFractionDigits,
+                locale,
+              })}
           </div>
           {includeDiscount && (
-            <div className="text-[11px] self-start text-center">
-              {item.discount ?? 0}%
-            </div>
+            <div className="text-[11px] self-start text-center">{item.discount ?? 0}%</div>
           )}
           {includeVat && (
-            <div className="text-[11px] self-start text-center">
-              {item.vat ?? 20}%
-            </div>
+            <div className="text-[11px] self-start text-center">{item.vat ?? 20}%</div>
           )}
           <div className="text-[11px] text-right self-start">
             {currency &&
@@ -148,4 +137,3 @@ export function LineItems({
     </div>
   );
 }
-

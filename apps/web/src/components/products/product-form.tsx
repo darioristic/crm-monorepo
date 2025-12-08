@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import type {
+  CreateProductRequest,
   Product,
   ProductCategory,
-  CreateProductRequest,
   UpdateProductRequest,
 } from "@crm/types";
-import { productsApi } from "@/lib/api";
-import { useMutation } from "@/hooks/use-api";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -25,6 +25,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -33,16 +34,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { useMutation } from "@/hooks/use-api";
+import { productsApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
 const units = [
@@ -162,9 +156,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
     if (result.success) {
       toast.success(
-        mode === "create"
-          ? "Product created successfully"
-          : "Product updated successfully"
+        mode === "create" ? "Product created successfully" : "Product updated successfully"
       );
       router.push("/dashboard/products");
       router.refresh();
@@ -179,9 +171,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
   return (
     <Card className="max-w-2xl">
       <CardHeader>
-        <CardTitle>
-          {mode === "create" ? "Create Product" : "Edit Product"}
-        </CardTitle>
+        <CardTitle>{mode === "create" ? "Create Product" : "Edit Product"}</CardTitle>
         <CardDescription>
           {mode === "create"
             ? "Add a new product or service to your catalog"
@@ -235,10 +225,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Category</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
@@ -285,12 +272,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                   <FormItem>
                     <FormLabel>Unit Price *</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder="0.00"
-                        {...field}
-                      />
+                      <Input type="number" step="0.01" placeholder="0.00" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -308,7 +290,11 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                         type="number"
                         step="0.01"
                         placeholder="0.00"
-                        {...field}
+                        value={field.value ?? ""}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        name={field.name}
+                        ref={field.ref}
                       />
                     </FormControl>
                     <FormDescription>Your purchase cost</FormDescription>
@@ -323,10 +309,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Currency</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select currency" />
@@ -375,10 +358,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Unit</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select unit" />
@@ -412,7 +392,11 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                           type="number"
                           min="0"
                           placeholder="0"
-                          {...field}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                         />
                       </FormControl>
                       <FormMessage />
@@ -431,7 +415,11 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                           type="number"
                           min="0"
                           placeholder="10"
-                          {...field}
+                          value={field.value ?? ""}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
                         />
                       </FormControl>
                       <FormDescription>Alert when below this</FormDescription>
@@ -451,15 +439,10 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                   <FormItem className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Service</FormLabel>
-                      <FormDescription>
-                        This is a service (no stock tracking)
-                      </FormDescription>
+                      <FormDescription>This is a service (no stock tracking)</FormDescription>
                     </div>
                     <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -472,15 +455,10 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                   <FormItem className="flex items-center justify-between">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Active</FormLabel>
-                      <FormDescription>
-                        Product is available for sale
-                      </FormDescription>
+                      <FormDescription>Product is available for sale</FormDescription>
                     </div>
                     <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
                     </FormControl>
                   </FormItem>
                 )}
@@ -492,11 +470,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mode === "create" ? "Create Product" : "Update Product"}
               </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.back()}
-              >
+              <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
               </Button>
             </div>
@@ -506,4 +480,3 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
     </Card>
   );
 }
-

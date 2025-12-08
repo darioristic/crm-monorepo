@@ -1,9 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { FormContext, type InvoiceFormValues } from "@/components/invoice/form-context";
 import { InvoiceContent } from "@/components/invoice/invoice-content";
 import { Sheet } from "@/components/ui/sheet";
-import { useState } from "react";
 import type { InvoiceDefaultSettings } from "@/types/invoice";
 
 type Props = {
@@ -23,9 +23,7 @@ export function InvoiceSheet({
   defaultSettings,
   onSuccess,
 }: Props) {
-  const [type, setType] = useState<"create" | "edit" | "success">(
-    invoiceId ? "edit" : "create"
-  );
+  const [type, setType] = useState<"create" | "edit" | "success">(invoiceId ? "edit" : "create");
 
   const handleClose = () => {
     onOpenChange(false);
@@ -35,11 +33,14 @@ export function InvoiceSheet({
 
   return (
     <Sheet open={open} onOpenChange={handleClose}>
-      <FormContext defaultSettings={defaultSettings} data={invoiceData}>
+      <FormContext
+        defaultSettings={defaultSettings}
+        data={type === "edit" ? invoiceData : undefined}
+      >
         <InvoiceContent
           type={type}
           invoiceId={invoiceId}
-          data={invoiceData}
+          data={type === "edit" ? invoiceData : undefined}
           defaultSettings={defaultSettings}
           onClose={handleClose}
         />

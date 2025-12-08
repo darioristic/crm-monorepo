@@ -2,46 +2,47 @@
  * User Routes
  */
 
-import { errorResponse, successResponse } from "@crm/utils";
-import { usersService } from "../services/users.service";
-import {
-  RouteBuilder,
-  withAuth,
-  withAdminAuth,
-  parseBody,
-  parsePagination,
-  parseFilters,
-  json,
-} from "./helpers";
 import type { CreateUserRequest, UpdateUserRequest, UserRole } from "@crm/types";
+import { errorResponse, successResponse } from "@crm/utils";
+import { cache } from "../cache/redis";
+import { sql } from "../db/client";
 import { hasCompanyAccess } from "../db/queries/companies-members";
 import { userQueries } from "../db/queries/users";
-import { sql } from "../db/client";
-import { generateJWT } from "../services/auth.service";
-import { cache } from "../cache/redis";
+import { logger } from "../lib/logger";
 import type { SessionData } from "../services/auth.service";
+import { authService, generateJWT } from "../services/auth.service";
+import { usersService } from "../services/users.service";
+import {
+  json,
+  parseBody,
+  parseFilters,
+  parsePagination,
+  RouteBuilder,
+  withAdminAuth,
+  withAuth,
+} from "./helpers";
 
 // Import cookie helper from auth routes
 function getNodeEnv(): string {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const env = (globalThis as any).Bun?.env || process.env;
-	return String(env.NODE_ENV || "development");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const env = (globalThis as any).Bun?.env || process.env;
+  return String(env.NODE_ENV || "development");
 }
 
 function getCookieDomain(): string {
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	const env = (globalThis as any).Bun?.env || process.env;
-	return env.COOKIE_DOMAIN || "";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const env = (globalThis as any).Bun?.env || process.env;
+  return env.COOKIE_DOMAIN || "";
 }
 
 function setAccessTokenCookie(accessToken: string): Record<string, string> {
-	const isProduction = getNodeEnv() === "production";
-	const sameSite = isProduction ? "None" : "Lax";
-	const secure = isProduction ? "Secure; " : "";
-	const cookieDomain = getCookieDomain();
-	const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
-	const accessCookie = `access_token=${accessToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=900`;
-	return { "Set-Cookie": accessCookie };
+  const isProduction = getNodeEnv() === "production";
+  const sameSite = isProduction ? "None" : "Lax";
+  const secure = isProduction ? "Secure; " : "";
+  const cookieDomain = getCookieDomain();
+  const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
+  const accessCookie = `access_token=${accessToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=900`;
+  return { "Set-Cookie": accessCookie };
 }
 
 const router = new RouteBuilder();
@@ -55,6 +56,23 @@ router.get("/api/v1/users", async (request, url) => {
     const pagination = parsePagination(url);
     const filters = parseFilters(url);
     return usersService.getUsers(pagination, filters);
+  });
+});
+
+router.get("/api/v1/users/by-email", async (request, url) => {
+  return withAuth(request, async (auth) => {
+    if (auth.role !== "tenant_admin" && auth.role !== "superadmin") {
+      return errorResponse("FORBIDDEN", "Requires admin role");
+    }
+    const email = url.searchParams.get("email");
+    if (!email) {
+      return errorResponse("VALIDATION_ERROR", "Email is required");
+    }
+    const user = await userQueries.findByEmail(email.toLowerCase().trim());
+    if (!user) {
+      return errorResponse("NOT_FOUND", "User not found");
+    }
+    return successResponse(user);
   });
 });
 
@@ -92,67 +110,76 @@ router.post("/api/v1/users", async (request) => {
 // ============================================
 
 router.put("/api/v1/users/me", async (request) => {
-  console.log("🔄 PUT /api/v1/users/me - Company switch request received");
+  logger.info("PUT /api/v1/users/me - Company switch request received");
   return withAuth(request, async (auth) => {
     try {
       const body = await parseBody<{ companyId?: string }>(request);
-      console.log("📦 Request body:", body);
-      console.log("👤 Auth user:", { userId: auth.userId, role: auth.role });
-      
+      logger.debug({ body }, "Request body");
+      logger.debug({ userId: auth.userId, role: auth.role }, "Auth user");
+
       if (!body) {
-        console.error("❌ Invalid request body");
+        logger.error("Invalid request body");
         return errorResponse("VALIDATION_ERROR", "Invalid request body");
       }
 
       // If companyId is being updated, verify user has access to that company
       // Admin can switch to any company (for testing/admin purposes, similar to midday team switching)
       if (body.companyId !== undefined && body.companyId !== null && body.companyId !== "") {
-        console.log("✅ CompanyId provided:", body.companyId);
-        
+        logger.debug({ companyId: body.companyId }, "CompanyId provided");
+
         if (auth.role === "tenant_admin" || auth.role === "superadmin") {
           // Admin can switch to any company - verify it exists
-          console.log("🔍 Admin user - verifying company exists");
+          logger.debug("Admin user - verifying company exists");
           const companyExists = await sql`
             SELECT id FROM companies WHERE id = ${body.companyId}
           `;
           if (companyExists.length === 0) {
-            console.error("❌ Company not found:", body.companyId);
+            logger.error({ companyId: body.companyId }, "Company not found");
             return errorResponse("NOT_FOUND", "Company not found");
           }
-          console.log("✅ Company exists");
+          logger.debug("Company exists");
         } else {
           // Regular users can only switch to companies they're members of
-          console.log("🔍 Regular user - checking company access");
+          logger.debug("Regular user - checking company access");
           const hasAccess = await hasCompanyAccess(body.companyId, auth.userId);
           if (!hasAccess) {
-            console.error("❌ User does not have access to company:", body.companyId);
+            logger.error(
+              { companyId: body.companyId, userId: auth.userId },
+              "User does not have access to company"
+            );
             return errorResponse("FORBIDDEN", "Not a member of this company");
           }
-          console.log("✅ User has access to company");
+          logger.debug("User has access to company");
         }
 
         // Update user's current company using service for proper error handling
-        console.log("🔄 Updating user company...");
+        logger.debug("Updating user company");
         const result = await usersService.updateUser(auth.userId, {
           companyId: body.companyId,
         });
 
         if (!result.success) {
-          console.error("❌ Failed to update user company:", result.error);
+          logger.error({ error: result.error }, "Failed to update user company");
           // Ensure we return a non-empty error object
-          if (!result.error || (typeof result.error === "object" && Object.keys(result.error).length === 0)) {
+          if (
+            !result.error ||
+            (typeof result.error === "object" && Object.keys(result.error).length === 0)
+          ) {
             return errorResponse("UPDATE_FAILED", "Failed to update user company");
           }
           return result;
         }
 
-        console.log("✅ User company updated successfully:", {
-          userId: result.data?.id,
-          companyId: result.data?.companyId,
-        });
+        logger.info(
+          {
+            userId: result.data?.id,
+            companyId: result.data?.companyId,
+          },
+          "User company updated successfully"
+        );
 
         // Invalidate additional caches that depend on companyId
-        console.log("🔄 Invalidating company-dependent caches...");
+        logger.debug("Invalidating company-dependent caches");
         try {
           // Invalidate documents cache for the user
           await cache.invalidatePattern(`documents:*:${auth.userId}*`);
@@ -164,14 +191,14 @@ router.put("/api/v1/users/me", async (request) => {
           await cache.invalidatePattern(`orders:*:${body.companyId}*`);
           // Invalidate quotes cache
           await cache.invalidatePattern(`quotes:*:${body.companyId}*`);
-          console.log("✅ Company-dependent caches invalidated");
+          logger.debug("Company-dependent caches invalidated");
         } catch (cacheError) {
-          console.error("⚠️ Error invalidating caches:", cacheError);
+          logger.error({ error: cacheError }, "Error invalidating caches");
           // Continue anyway - cache invalidation is not critical
         }
 
         // Update session in Redis with new companyId and ensure tenantId is set
-        console.log("🔄 Updating session with new companyId and tenantId...");
+        logger.debug("Updating session with new companyId and tenantId");
         try {
           const session = await cache.getSession<SessionData>(auth.sessionId);
           if (session) {
@@ -179,7 +206,8 @@ router.put("/api/v1/users/me", async (request) => {
             // Ensure tenantId is present; if missing, derive from company or user
             if (!session.tenantId) {
               try {
-                const tenantRows = await sql`SELECT tenant_id FROM companies WHERE id = ${body.companyId} LIMIT 1`;
+                const tenantRows =
+                  await sql`SELECT tenant_id FROM companies WHERE id = ${body.companyId} LIMIT 1`;
                 const derivedTenantId = tenantRows[0]?.tenant_id as string | undefined;
                 if (derivedTenantId) {
                   session.tenantId = derivedTenantId;
@@ -190,30 +218,36 @@ router.put("/api/v1/users/me", async (request) => {
                   }
                 }
               } catch (deriveError) {
-                console.warn("⚠️ Could not derive tenantId during session update:", deriveError);
+                logger.warn("⚠️ Could not derive tenantId during session update:", deriveError);
               }
             }
             const JWT_REFRESH_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
-            await cache.setSession(auth.sessionId, (session as unknown) as Record<string, unknown>, JWT_REFRESH_EXPIRY);
-            console.log("✅ Session updated in Redis");
+            await cache.setSession(
+              auth.sessionId,
+              session as unknown as Record<string, unknown>,
+              JWT_REFRESH_EXPIRY
+            );
+            logger.info("✅ Session updated in Redis");
           } else {
-            console.warn("⚠️ Session not found in Redis, continuing anyway");
+            logger.warn("⚠️ Session not found in Redis, continuing anyway");
           }
         } catch (error) {
-          console.error("❌ Error updating session:", error);
+          logger.error("❌ Error updating session:", error);
           // Continue anyway - token will still be generated
         }
 
         // Generate new JWT token with updated companyId
-        console.log("🔄 Generating new JWT token...");
+        logger.info("🔄 Generating new JWT token...");
         let newAccessToken: string;
         try {
           // Determine effective tenantId for the new token
           let effectiveTenantId = auth.tenantId;
           if (!effectiveTenantId) {
             try {
-              const tenantRows = await sql`SELECT tenant_id FROM companies WHERE id = ${body.companyId} LIMIT 1`;
-              effectiveTenantId = (tenantRows[0]?.tenant_id as string | undefined) ?? effectiveTenantId;
+              const tenantRows =
+                await sql`SELECT tenant_id FROM companies WHERE id = ${body.companyId} LIMIT 1`;
+              effectiveTenantId =
+                (tenantRows[0]?.tenant_id as string | undefined) ?? effectiveTenantId;
             } catch {}
             if (!effectiveTenantId) {
               const user = await userQueries.findById(auth.userId);
@@ -228,9 +262,9 @@ router.put("/api/v1/users/me", async (request) => {
             body.companyId,
             auth.sessionId
           );
-          console.log("✅ New JWT token generated");
+          logger.info("✅ New JWT token generated");
         } catch (tokenError) {
-          console.error("❌ Error generating JWT token:", tokenError);
+          logger.error("❌ Error generating JWT token:", tokenError);
           return errorResponse(
             "TOKEN_GENERATION_FAILED",
             tokenError instanceof Error ? tokenError.message : "Failed to generate access token"
@@ -253,16 +287,16 @@ router.put("/api/v1/users/me", async (request) => {
         Object.entries(cookieHeaders).forEach(([key, value]) => {
           response.headers.set(key, value);
         });
-        
+
         return response;
       }
 
-      console.error("❌ CompanyId not provided or empty");
+      logger.error("❌ CompanyId not provided or empty");
       return errorResponse("VALIDATION_ERROR", "companyId is required");
     } catch (error) {
-      console.error("❌ Error updating user company:", error);
+      logger.error("❌ Error updating user company:", error);
       if (error instanceof Error) {
-        console.error("Error stack:", error.stack);
+        logger.error("Error stack:", error.stack);
       }
       return errorResponse(
         "SERVER_ERROR",
@@ -277,31 +311,35 @@ router.put("/api/v1/users/me", async (request) => {
 // ============================================
 
 router.post("/api/v1/users/me/seed-admin-companies", async (request) => {
-  return withAuth(request, async (auth) => {
-    // Only admins can seed
-    if (auth.role !== "tenant_admin" && auth.role !== "superadmin") {
-      return errorResponse("FORBIDDEN", "Requires admin role");
-    }
+  return withAuth(
+    request,
+    async (auth) => {
+      // Only admins can seed
+      if (auth.role !== "tenant_admin" && auth.role !== "superadmin") {
+        return errorResponse("FORBIDDEN", "Requires admin role");
+      }
 
-    const names = ["Admin Company A", "Admin Company B"];
-    const created: string[] = [];
-    for (const name of names) {
-      const id = await (async () => {
-        const { createCompany } = await import("../db/queries/companies-members");
-        return createCompany({
-          name,
-          industry: "General",
-          address: "N/A",
-          userId: auth.userId,
-          source: "account",
-          switchCompany: false,
-        });
-      })();
-      created.push(id);
-    }
+      const names = ["Admin Company A", "Admin Company B"];
+      const created: string[] = [];
+      for (const name of names) {
+        const id = await (async () => {
+          const { createCompany } = await import("../db/queries/companies-members");
+          return createCompany({
+            name,
+            industry: "General",
+            address: "N/A",
+            userId: auth.userId,
+            source: "account",
+            switchCompany: false,
+          });
+        })();
+        created.push(id);
+      }
 
-    return successResponse({ userId: auth.userId, companyIds: created });
-  }, 201);
+      return successResponse({ userId: auth.userId, companyIds: created });
+    },
+    201
+  );
 });
 
 // ============================================
@@ -318,7 +356,7 @@ router.put("/api/v1/users/:id", async (request, _url, params) => {
     if (!body) {
       return errorResponse("VALIDATION_ERROR", "Invalid request body");
     }
-    
+
     // If companyId is being updated, verify user has access to that company
     if (body.companyId !== undefined) {
       const hasAccess = await hasCompanyAccess(body.companyId, auth.userId);
@@ -326,12 +364,29 @@ router.put("/api/v1/users/:id", async (request, _url, params) => {
         return errorResponse("FORBIDDEN", "Not a member of this company");
       }
     }
-    
+
     // Non-admins cannot change their role
     if (auth.role !== "tenant_admin" && auth.role !== "superadmin" && body.role) {
       delete (body as { role?: string }).role;
     }
     return usersService.updateUser(params.id, body);
+  });
+});
+
+router.put("/api/v1/users/:id/password", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    if (auth.role !== "tenant_admin" && auth.role !== "superadmin") {
+      return errorResponse("FORBIDDEN", "Requires admin role");
+    }
+    const body = await parseBody<{ password: string }>(request);
+    if (!body || !body.password) {
+      return errorResponse("VALIDATION_ERROR", "Password is required");
+    }
+    const result = await authService.setPassword(params.id, body.password);
+    if (!result.success) {
+      return result;
+    }
+    return successResponse({ success: true });
   });
 });
 
@@ -344,7 +399,7 @@ router.patch("/api/v1/users/:id", async (request, _url, params) => {
     if (!body) {
       return errorResponse("VALIDATION_ERROR", "Invalid request body");
     }
-    
+
     // If companyId is being updated, verify user has access to that company
     if (body.companyId !== undefined) {
       const hasAccess = await hasCompanyAccess(body.companyId, auth.userId);
@@ -352,7 +407,7 @@ router.patch("/api/v1/users/:id", async (request, _url, params) => {
         return errorResponse("FORBIDDEN", "Not a member of this company");
       }
     }
-    
+
     if (auth.role !== "tenant_admin" && auth.role !== "superadmin" && body.role) {
       delete (body as { role?: string }).role;
     }

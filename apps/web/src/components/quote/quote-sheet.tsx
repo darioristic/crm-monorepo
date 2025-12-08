@@ -1,25 +1,22 @@
 "use client";
 
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { useCallback, useState } from "react";
-import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { Copy, Download, Loader2 } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useCallback, useState } from "react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
+import { useApi } from "@/hooks/use-api";
+import { quotesApi } from "@/lib/api";
+import type { QuoteDefaultSettings, QuoteFormValues } from "@/types/quote";
+import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
 import { ProductEditProvider } from "./product-edit-context";
 import { ProductEditSheet } from "./product-edit-sheet";
-import { Copy, Download, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import type {
-  QuoteFormValues,
-  QuoteDefaultSettings,
-} from "@/types/quote";
-import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
-import { quotesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { toast } from "sonner";
 
 // API Quote Response Type
 interface QuoteApiResponse {
@@ -76,9 +73,10 @@ interface QuoteApiResponse {
 
 type QuoteSheetProps = {
   defaultSettings?: Partial<QuoteDefaultSettings>;
+  onQuoteCreated?: (id: string) => void;
 };
 
-export function QuoteSheet({ defaultSettings }: QuoteSheetProps) {
+export function QuoteSheet({ defaultSettings, onQuoteCreated }: QuoteSheetProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -89,15 +87,12 @@ export function QuoteSheet({ defaultSettings }: QuoteSheetProps) {
   const isOpen = type === "create" || type === "edit" || type === "success";
 
   // Fetch quote data when editing or showing success
-  const { data: quoteData, isLoading: isLoadingQuote } = useApi(
-    () => quotesApi.getById(quoteId!),
-    { autoFetch: !!quoteId && (type === "edit" || type === "success") }
-  );
+  const { data: quoteData, isLoading: isLoadingQuote } = useApi(() => quotesApi.getById(quoteId!), {
+    autoFetch: !!quoteId && (type === "edit" || type === "success"),
+  });
 
   // Transform API quote to form values
-  const formData = quoteData
-    ? transformQuoteToFormValues(quoteData)
-    : undefined;
+  const formData = quoteData ? transformQuoteToFormValues(quoteData) : undefined;
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -111,7 +106,9 @@ export function QuoteSheet({ defaultSettings }: QuoteSheetProps) {
 
   const handleSuccess = useCallback(
     (id: string) => {
-      // Show success state
+      if (type === "create") {
+        onQuoteCreated?.(id);
+      }
       const params = new URLSearchParams(searchParams);
       params.set("type", "success");
       params.set("quoteId", id);
@@ -124,7 +121,11 @@ export function QuoteSheet({ defaultSettings }: QuoteSheetProps) {
     <ProductEditProvider>
       <Sheet open={isOpen} onOpenChange={handleOpenChange}>
         {isOpen && (
-          <FormContext defaultSettings={defaultSettings} data={formData}>
+          <FormContext
+            key={`${type}-${quoteId || "new"}`}
+            defaultSettings={defaultSettings}
+            data={formData}
+          >
             <QuoteSheetContent
               type={type!}
               quoteId={quoteId}
@@ -159,6 +160,16 @@ function QuoteSheetContent({
   isLoading,
 }: QuoteSheetContentProps) {
   const [size] = useState(700);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const handleCreateAnother = () => {
+    const params = new URLSearchParams(searchParams);
+    params.set("type", "create");
+    params.delete("quoteId");
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   if (isLoading) {
     return (
@@ -189,13 +200,16 @@ function QuoteSheetContent({
         <VisuallyHidden>
           <SheetTitle>Quote Created</SheetTitle>
         </VisuallyHidden>
+        {/* Success state with actions */}
+        {/* Ensure "Create another" opens fresh create editor without reloading */}
+        {/* Use router and current path to set type=create and clear quoteId */}
         <SuccessContent
           quoteId={quoteId!}
           quote={quoteData}
           onViewQuote={() => {
             window.open(`/q/id/${quoteId}`, "_blank", "noopener,noreferrer");
           }}
-          onCreateAnother={() => window.location.reload()}
+          onCreateAnother={handleCreateAnother}
         />
       </SheetContent>
     );
@@ -210,9 +224,7 @@ function QuoteSheetContent({
       hideCloseButton
     >
       <VisuallyHidden>
-        <SheetTitle>
-          {type === "edit" ? "Edit Quote" : "New Quote"}
-        </SheetTitle>
+        <SheetTitle>{type === "edit" ? "Edit Quote" : "New Quote"}</SheetTitle>
       </VisuallyHidden>
       <div className="h-full overflow-y-auto">
         <Form quoteId={quoteId || undefined} onSuccess={onSuccess} />
@@ -228,15 +240,8 @@ type SuccessContentProps = {
   onCreateAnother: () => void;
 };
 
-function SuccessContent({
-  quoteId,
-  quote,
-  onViewQuote,
-  onCreateAnother,
-}: SuccessContentProps) {
-  const shareUrl = typeof window !== "undefined" 
-    ? `${window.location.origin}/q/id/${quoteId}` 
-    : "";
+function SuccessContent({ quoteId, quote, onViewQuote, onCreateAnother }: SuccessContentProps) {
+  const shareUrl = typeof window !== "undefined" ? `${window.location.origin}/q/id/${quoteId}` : "";
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(shareUrl);
@@ -259,9 +264,7 @@ function SuccessContent({
       {/* Header */}
       <div className="p-8 pb-0">
         <h1 className="text-2xl font-semibold mb-1">Created</h1>
-        <p className="text-muted-foreground">
-          Your quote was created successfully
-        </p>
+        <p className="text-muted-foreground">Your quote was created successfully</p>
       </div>
 
       {/* Quote Preview Card */}
@@ -271,14 +274,12 @@ function SuccessContent({
           <div className="flex justify-between items-start mb-6">
             <div>
               <span className="text-xs text-muted-foreground">Quote No:</span>
-              <span className="text-sm font-medium ml-1">
-                {quote?.quoteNumber || "—"}
-              </span>
+              <span className="text-sm font-medium ml-1">{quote?.quoteNumber || "—"}</span>
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Valid Until:</span>
               <span className="text-sm font-medium ml-1">
-                {quote?.validUntil ? formatDate(quote.validUntil) : "—"}
+                {quote?.validUntil ? formatDateDMY(quote.validUntil) : "—"}
               </span>
             </div>
           </div>
@@ -287,12 +288,8 @@ function SuccessContent({
           <div className="mb-6">
             <p className="text-xs font-medium text-foreground mb-2">To</p>
             <div className="space-y-0.5">
-              {companyName && (
-                <p className="text-sm text-muted-foreground">{companyName}</p>
-              )}
-              {addressLine && (
-                <p className="text-sm text-muted-foreground">{addressLine}</p>
-              )}
+              {companyName && <p className="text-sm text-muted-foreground">{companyName}</p>}
+              {addressLine && <p className="text-sm text-muted-foreground">{addressLine}</p>}
               {company?.country && (
                 <p className="text-sm text-muted-foreground">{company.country}</p>
               )}
@@ -320,7 +317,7 @@ function SuccessContent({
           <div className="flex justify-between items-center mb-6">
             <span className="text-sm text-muted-foreground">Total</span>
             <span className="text-2xl font-semibold">
-              {formatCurrency(quote?.total || 0, quote?.currency || "EUR")}
+              {formatCurrency(quote?.total || 0, quote?.currency || "EUR", "sr-RS")}
             </span>
           </div>
 
@@ -330,15 +327,11 @@ function SuccessContent({
           {/* Details Section */}
           <div>
             <h3 className="text-base font-medium mb-4">Details</h3>
-            
+
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">Share link</p>
               <div className="flex gap-2">
-                <Input
-                  value={shareUrl}
-                  readOnly
-                  className="bg-background text-sm font-mono"
-                />
+                <Input value={shareUrl} readOnly className="bg-background text-sm font-mono" />
                 <Button
                   variant="secondary"
                   size="icon"
@@ -389,9 +382,7 @@ function SuccessContent({
 }
 
 // Transform API quote to form values
-function transformQuoteToFormValues(
-  quote: QuoteApiResponse
-): Partial<QuoteFormValues> {
+function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormValues> {
   return {
     id: quote.id,
     status: quote.status,
@@ -441,4 +432,3 @@ function transformQuoteToFormValues(
     token: quote.token,
   };
 }
-

@@ -1,19 +1,15 @@
 "use client";
 
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
+import type { Invoice } from "@crm/types";
+import { formatCurrency, formatDateDMY } from "@crm/utils";
+import { Copy, Download, Printer } from "lucide-react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { Download, ExternalLink, Copy, Printer } from "lucide-react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
-import { toast } from "sonner";
-import type { Invoice } from "@crm/types";
+import { extractTextFromEditorDoc } from "@/types/invoice";
 
 type Props = {
   open: boolean;
@@ -59,9 +55,7 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
         <SheetHeader>
           <div className="flex items-center justify-between">
             <SheetTitle>{invoice.invoiceNumber}</SheetTitle>
-            <Badge variant={getStatusBadge(invoice.status)}>
-              {invoice.status}
-            </Badge>
+            <Badge variant={getStatusBadge(invoice.status)}>{invoice.status}</Badge>
           </div>
         </SheetHeader>
 
@@ -84,16 +78,74 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
 
           <Separator />
 
+          {/* Bill To */}
+          <div className="space-y-2">
+            <h4 className="font-medium">Bill to</h4>
+            <div className="text-sm space-y-0.5 text-muted-foreground">
+              {(() => {
+                const cd = invoice.customerDetails as any;
+                let doc: any = null;
+                if (cd && typeof cd === "string") {
+                  try {
+                    const parsed = JSON.parse(cd);
+                    if (parsed && typeof parsed === "object" && parsed.type === "doc") {
+                      doc = parsed;
+                    }
+                  } catch {}
+                } else if (cd && typeof cd === "object" && cd.type === "doc") {
+                  doc = cd;
+                }
+
+                if (doc) {
+                  const lines = extractTextFromEditorDoc(doc)
+                    .split("\n")
+                    .map((l) => l.trim())
+                    .filter(Boolean);
+                  return lines.length ? lines.map((line, idx) => <p key={idx}>{line}</p>) : null;
+                }
+
+                if (cd && typeof cd === "object") {
+                  const lines: string[] = [];
+                  if (cd.name) lines.push(String(cd.name));
+                  if (cd.address) lines.push(String(cd.address));
+                  const cityZipCountry = [cd.zip, cd.city, cd.country].filter(Boolean).join(" ");
+                  if (cityZipCountry) lines.push(cityZipCountry);
+                  if (cd.email) lines.push(String(cd.email));
+                  if (cd.phone) lines.push(String(cd.phone));
+                  if (cd.vatNumber) lines.push(`PIB: ${String(cd.vatNumber)}`);
+                  return lines.length ? lines.map((line, idx) => <p key={idx}>{line}</p>) : null;
+                }
+
+                const companyName = invoice.company?.name;
+                const addressLine =
+                  [invoice.company?.zip, invoice.company?.city].filter(Boolean).join(" ") ||
+                  invoice.company?.address ||
+                  invoice.company?.addressLine1;
+                return (
+                  <>
+                    {companyName && <p>{companyName}</p>}
+                    {addressLine && <p>{addressLine}</p>}
+                    {invoice.company?.country && <p>{invoice.company.country}</p>}
+                    {invoice.company?.vatNumber && <p>{`PIB: ${invoice.company.vatNumber}`}</p>}
+                    {(invoice.company?.email || invoice.company?.billingEmail) && (
+                      <p>E-mail: {invoice.company.email || invoice.company.billingEmail}</p>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
           {/* Details */}
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Issue Date</p>
-                <p className="font-medium">{formatDate(invoice.issueDate)}</p>
+                <p className="font-medium">{formatDateDMY(invoice.issueDate)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Due Date</p>
-                <p className="font-medium">{formatDate(invoice.dueDate)}</p>
+                <p className="font-medium">{formatDateDMY(invoice.dueDate)}</p>
               </div>
             </div>
 
@@ -111,10 +163,13 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
                     <div>
                       <p className="font-medium">{item.productName}</p>
                       <p className="text-muted-foreground text-xs">
-                        {item.quantity} × {formatCurrency(item.unitPrice)}
+                        {item.quantity} ×{" "}
+                        {formatCurrency(item.unitPrice, invoice.currency || "EUR", "sr-RS")}
                       </p>
                     </div>
-                    <p className="font-medium">{formatCurrency(item.total)}</p>
+                    <p className="font-medium">
+                      {formatCurrency(item.total, invoice.currency || "EUR", "sr-RS")}
+                    </p>
                   </div>
                 ))}
               </div>
@@ -126,20 +181,18 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-muted-foreground">Subtotal</span>
-                <span>{formatCurrency(invoice.subtotal)}</span>
+                <span>{formatCurrency(invoice.subtotal, invoice.currency || "EUR", "sr-RS")}</span>
               </div>
               {invoice.tax > 0 && (
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">
-                    Tax ({invoice.taxRate}%)
-                  </span>
-                  <span>{formatCurrency(invoice.tax)}</span>
+                  <span className="text-muted-foreground">Tax ({invoice.taxRate}%)</span>
+                  <span>{formatCurrency(invoice.tax, invoice.currency || "EUR", "sr-RS")}</span>
                 </div>
               )}
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
-                <span>{formatCurrency(invoice.total)}</span>
+                <span>{formatCurrency(invoice.total, invoice.currency || "EUR", "sr-RS")}</span>
               </div>
             </div>
 
@@ -159,4 +212,3 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
     </Sheet>
   );
 }
-

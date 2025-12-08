@@ -1,10 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -16,6 +15,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { logger } from "@/lib/logger";
 
 interface Company {
   id: string;
@@ -26,8 +27,7 @@ interface Company {
 export default function CRMPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const companyId =
-    searchParams.get("companyId") || localStorage.getItem("selectedCompanyId");
+  const companyId = searchParams.get("companyId") || localStorage.getItem("selectedCompanyId");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -47,7 +47,7 @@ export default function CRMPage() {
         setCompanies(data.data || []);
       }
     } catch (error) {
-      console.error("Error fetching companies:", error);
+      logger.error("Error fetching companies:", error);
     } finally {
       setLoading(false);
     }
@@ -73,7 +73,7 @@ export default function CRMPage() {
         toast.error(data.error?.message || "Failed to delete company");
       }
     } catch (error) {
-      console.error("Error deleting company:", error);
+      logger.error("Error deleting company:", error);
       toast.error("Failed to delete company");
     } finally {
       setDeleting(false);
@@ -92,7 +92,7 @@ export default function CRMPage() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold">Select a Company</h2>
           <Button
-            onClick={() => router.push("/dashboard/companies/create")}
+            onClick={() => router.push("/dashboard/settings/companies")}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -107,9 +107,7 @@ export default function CRMPage() {
             >
               <Link href={`/crm?companyId=${company.id}`} className="flex-1">
                 <h3 className="font-semibold">{company.name}</h3>
-                <p className="text-sm text-muted-foreground">
-                  {company.industry}
-                </p>
+                <p className="text-sm text-muted-foreground">{company.industry}</p>
               </Link>
               <Button
                 variant="ghost"
@@ -126,13 +124,8 @@ export default function CRMPage() {
           ))}
           {companies.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
-              <p>
-                No companies found. Create your first company to get started.
-              </p>
-              <Button
-                onClick={() => router.push("/dashboard/companies/create")}
-                className="mt-4"
-              >
+              <p>No companies found. Create your first company to get started.</p>
+              <Button onClick={() => router.push("/dashboard/settings/companies")} className="mt-4">
                 <Plus className="h-4 w-4 mr-2" />
                 Create Company
               </Button>
@@ -144,9 +137,9 @@ export default function CRMPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>Are you sure?</AlertDialogTitle>
               <AlertDialogDescription>
-                This action cannot be undone. This will permanently delete the
-                company and all associated data (contacts, documents,
-                activities, invoices, quotes, invoices, orders).
+                This action cannot be undone. This will permanently delete the company and all
+                associated data (contacts, documents, activities, invoices, quotes, invoices,
+                orders).
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
@@ -175,9 +168,7 @@ export default function CRMPage() {
           className="border rounded-lg p-6 hover:bg-accent transition-colors"
         >
           <h3 className="font-semibold mb-2">Documents</h3>
-          <p className="text-sm text-muted-foreground">
-            View and manage company documents
-          </p>
+          <p className="text-sm text-muted-foreground">View and manage company documents</p>
         </Link>
 
         <Link
@@ -185,9 +176,7 @@ export default function CRMPage() {
           className="border rounded-lg p-6 hover:bg-accent transition-colors"
         >
           <h3 className="font-semibold mb-2">Contacts</h3>
-          <p className="text-sm text-muted-foreground">
-            Manage company contacts
-          </p>
+          <p className="text-sm text-muted-foreground">Manage company contacts</p>
         </Link>
 
         <Link
@@ -195,9 +184,7 @@ export default function CRMPage() {
           className="border rounded-lg p-6 hover:bg-accent transition-colors"
         >
           <h3 className="font-semibold mb-2">Activities</h3>
-          <p className="text-sm text-muted-foreground">
-            View company activities
-          </p>
+          <p className="text-sm text-muted-foreground">View company activities</p>
         </Link>
       </div>
     </div>

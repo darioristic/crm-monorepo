@@ -1,13 +1,11 @@
-import React from "react";
 import { cookies } from "next/headers";
-
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
+import type React from "react";
 import { SiteHeader } from "@/components/layout/header";
-import { CompanySheets } from "@/components/sheets/company-sheets";
+import { AppSidebar } from "@/components/layout/sidebar/app-sidebar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 
 export default async function DashboardLayout({
-  children
+  children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
@@ -22,9 +20,10 @@ export default async function DashboardLayout({
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 64)",
-          "--header-height": "calc(var(--spacing) * 14)"
+          "--header-height": "calc(var(--spacing) * 14)",
         } as React.CSSProperties
-      }>
+      }
+    >
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
@@ -35,9 +34,7 @@ export default async function DashboardLayout({
         </div>
       </SidebarInset>
 
-      {/* Global Sheets */}
-      <CompanySheets />
+      {/* Global Sheets removed */}
     </SidebarProvider>
   );
 }
-

@@ -1,32 +1,34 @@
 "use client";
 
-import * as React from "react";
+import type { Company, DeliveryNote } from "@crm/types";
 import {
   flexRender,
   getCoreRowModel,
+  type RowSelectionState,
   useReactTable,
-  RowSelectionState,
 } from "@tanstack/react-table";
-import type { DeliveryNote, Company } from "@crm/types";
 import { Trash2 } from "lucide-react";
-
+import * as React from "react";
+import { toast } from "sonner";
+import {
+  type DeliveryNoteWithCompany,
+  getDeliveryColumns,
+} from "@/components/sales/delivery/DeliveryColumns";
+import { DeliveryToolbar } from "@/components/sales/delivery/DeliveryToolbar";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import { deliveryNotesApi, companiesApi } from "@/lib/api";
-import { usePaginatedApi, useMutation } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { toast } from "sonner";
+import { useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { companiesApi, deliveryNotesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
-import { getDeliveryColumns, type DeliveryNoteWithCompany } from "@/components/sales/delivery/DeliveryColumns";
-import { DeliveryToolbar } from "@/components/sales/delivery/DeliveryToolbar";
 
 export function DeliveryNotesDataTable() {
   const [searchValue, setSearchValue] = React.useState("");
@@ -38,10 +40,8 @@ export function DeliveryNotesDataTable() {
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Fetch companies for name lookup - use paginated API to get all companies
-  const {
-    data: companies,
-  } = usePaginatedApi<Company>(
-    (params) => companiesApi.getAll({ ...params, pageSize: 1000 }), // Get all companies
+  const { data: companies } = usePaginatedApi<Company>(
+    (params) => companiesApi.getAll({ ...params, pageSize: 1000, source: "customer" }), // Customers only
     {}
   );
 
@@ -69,11 +69,11 @@ export function DeliveryNotesDataTable() {
     totalCount,
     totalPages,
     setPage,
-    setFilters
-  } = usePaginatedApi<DeliveryNote>(
-    (params) => deliveryNotesApi.getAll(params),
-    { search: searchValue, status: statusFilter === "all" ? undefined : statusFilter }
-  );
+    setFilters,
+  } = usePaginatedApi<DeliveryNote>((params) => deliveryNotesApi.getAll(params), {
+    search: searchValue,
+    status: statusFilter === "all" ? undefined : statusFilter,
+  });
 
   // Delete mutation
   const deleteMutation = useMutation<void, string>((id) => deliveryNotesApi.delete(id));
@@ -82,16 +82,16 @@ export function DeliveryNotesDataTable() {
   const enrichedNotes: DeliveryNoteWithCompany[] = React.useMemo(() => {
     return (deliveryNotes || []).map((note) => ({
       ...note,
-      companyName: companyMap.get(note.companyId) || "Unknown Company"
+      companyName: companyMap.get(note.companyId) || "Unknown Company",
     }));
   }, [deliveryNotes, companyMap]);
 
   // Handle search with debounce
   React.useEffect(() => {
     const timer = setTimeout(() => {
-      setFilters({ 
-        search: searchValue, 
-        status: statusFilter === "all" ? undefined : statusFilter 
+      setFilters({
+        search: searchValue,
+        status: statusFilter === "all" ? undefined : statusFilter,
       });
     }, 300);
     return () => clearTimeout(timer);
@@ -132,7 +132,7 @@ export function DeliveryNotesDataTable() {
     let failCount = 0;
 
     for (const rowIndex of selectedRows) {
-      const note = enrichedNotes[parseInt(rowIndex)];
+      const note = enrichedNotes[parseInt(rowIndex, 10)];
       if (note) {
         const result = await deleteMutation.mutate(note.id);
         if (result.success) {
@@ -214,11 +214,7 @@ export function DeliveryNotesDataTable() {
           />
         </div>
         {selectedCount > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setBulkDeleteDialogOpen(true)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete ({selectedCount})
           </Button>
@@ -265,9 +261,14 @@ export function DeliveryNotesDataTable() {
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
           {selectedCount > 0 ? (
-            <span>{selectedCount} of {totalCount} row(s) selected</span>
+            <span>
+              {selectedCount} of {totalCount} row(s) selected
+            </span>
           ) : (
-            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} delivery notes</span>
+            <span>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of{" "}
+              {totalCount} delivery notes
+            </span>
           )}
         </div>
         <div className="flex items-center space-x-2">

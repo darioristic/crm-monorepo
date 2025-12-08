@@ -1,10 +1,11 @@
+import { logger } from "../../lib/logger";
 import { sql as db } from "../client";
 
 export const name = "011_add_invoice_token_and_timestamps";
 
 /**
  * Migration: Add token and timestamp fields to invoices table
- * 
+ *
  * This migration adds support for:
  * - token: Unique public access token for invoice sharing
  * - viewed_at: Timestamp when invoice was first viewed
@@ -48,7 +49,7 @@ export async function up() {
     WHERE token IS NULL
   `;
 
-  console.log("✅ Migration 011: Added invoice token and timestamp fields");
+  logger.info("✅ Migration 011: Added invoice token and timestamp fields");
 }
 
 export async function down() {
@@ -57,7 +58,6 @@ export async function down() {
   await db`ALTER TABLE invoices DROP COLUMN IF EXISTS viewed_at`;
   await db`ALTER TABLE invoices DROP COLUMN IF EXISTS sent_at`;
   await db`ALTER TABLE invoices DROP COLUMN IF EXISTS paid_at`;
-  
-  console.log("✅ Migration 011: Removed invoice token and timestamp fields");
-}
 
+  logger.info("✅ Migration 011: Removed invoice token and timestamp fields");
+}

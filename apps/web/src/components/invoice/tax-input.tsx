@@ -1,10 +1,12 @@
 "use client";
 
-import { NumericFormat } from "react-number-format";
+import { useId } from "react";
 import { useController, useFormContext } from "react-hook-form";
+import { NumericFormat } from "react-number-format";
 
 export function TaxInput() {
   const { control } = useFormContext();
+  const id = useId();
 
   const {
     field: { value, onChange },
@@ -15,6 +17,8 @@ export function TaxInput() {
 
   return (
     <NumericFormat
+      name="template.taxRate"
+      id={id}
       suffix="%)"
       prefix="("
       autoComplete="off"
@@ -28,9 +32,7 @@ export function TaxInput() {
       decimalScale={2}
       isAllowed={(values) => {
         const { floatValue } = values;
-        return (
-          floatValue === undefined || (floatValue >= 0 && floatValue <= 100)
-        );
+        return floatValue === undefined || (floatValue >= 0 && floatValue <= 100);
       }}
       allowNegative={false}
     />

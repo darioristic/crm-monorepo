@@ -1,19 +1,19 @@
 import type { UserRole } from "@crm/types";
 import { errorResponse } from "@crm/utils";
-import { validateJWT, type JWTPayload, type SessionData } from "../services/auth.service";
 import { cache } from "../cache/redis";
 import { logger } from "../lib/logger";
+import { type JWTPayload, type SessionData, validateJWT } from "../services/auth.service";
 
 // ============================================
 // Auth Context Type
 // ============================================
 
 export interface AuthContext {
-	userId: string;
-	role: UserRole;
-	tenantId?: string; // null for superadmin, required for tenant_admin and crm_user
-	companyId?: string; // optional for crm_user, null for others
-	sessionId: string;
+  userId: string;
+  role: UserRole;
+  tenantId?: string; // null for superadmin, required for tenant_admin and crm_user
+  companyId?: string; // optional for crm_user, null for others
+  sessionId: string;
 }
 
 // ============================================
@@ -21,116 +21,148 @@ export interface AuthContext {
 // ============================================
 
 export function extractJWT(request: Request): string | null {
-	const authHeader = request.headers.get("Authorization");
+  const authHeader = request.headers.get("Authorization");
 
-	if (authHeader?.startsWith("Bearer ")) {
-		return authHeader.substring(7);
-	}
+  if (authHeader?.startsWith("Bearer ")) {
+    return authHeader.substring(7);
+  }
 
-	// Also check for token in cookie
-	const cookieHeader = request.headers.get("Cookie");
-	if (cookieHeader) {
-		const cookies = parseCookies(cookieHeader);
-		if (cookies.access_token) {
-			return cookies.access_token;
-		}
-	}
+  // Also check for token in cookie
+  const cookieHeader = request.headers.get("Cookie");
+  if (cookieHeader) {
+    const cookies = parseCookies(cookieHeader);
+    if (cookies.access_token) {
+      return cookies.access_token;
+    }
+  }
 
-	return null;
+  return null;
 }
 
 function parseCookies(cookieHeader: string): Record<string, string> {
-	const cookies: Record<string, string> = {};
-	for (const cookie of cookieHeader.split(";")) {
-		const [name, ...rest] = cookie.trim().split("=");
-		if (name && rest.length > 0) {
-			cookies[name] = rest.join("=");
-		}
-	}
-	return cookies;
+  const cookies: Record<string, string> = {};
+  for (const cookie of cookieHeader.split(";")) {
+    const [name, ...rest] = cookie.trim().split("=");
+    if (name && rest.length > 0) {
+      cookies[name] = rest.join("=");
+    }
+  }
+  return cookies;
 }
 
 // ============================================
 // Token Validation
 // ============================================
 
-export async function verifyAndGetUser(
-    request: Request,
-): Promise<AuthContext | null> {
-	try {
-		const token = extractJWT(request);
-		if (!token) {
-			return null;
-		}
+export async function verifyAndGetUser(request: Request): Promise<AuthContext | null> {
+  try {
+    const token = extractJWT(request);
+    if (!token) {
+      logger.warn({ path: request.url }, "Auth failed: missing token");
+      return null;
+    }
 
-		const payload = await validateJWT(token);
-		if (!payload) {
-			return null;
-		}
+    const payload = await validateJWT(token);
+    if (!payload) {
+      logger.warn({ path: request.url }, "Auth failed: invalid JWT");
+      return null;
+    }
 
-		// Verify session still exists in Redis
-		// Wrap in try-catch to handle Redis connection errors gracefully
-		let session: SessionData | null;
-		try {
-			session = await cache.getSession(payload.sessionId);
-		} catch (redisError) {
-			logger.error({ error: redisError }, "Redis error in verifyAndGetUser");
-			// If Redis fails, we can still proceed with JWT validation
-			// This allows the system to continue working even if Redis is down
-			session = null;
-		}
+    // Verify session still exists in Redis
+    // Wrap in try-catch to handle Redis connection errors gracefully
+    let session: SessionData | null;
+    try {
+      session = await cache.getSession(payload.sessionId);
+    } catch (redisError) {
+      logger.error({ error: redisError }, "Redis error in verifyAndGetUser");
+      // If Redis fails, we can still proceed with JWT validation
+      // This allows the system to continue working even if Redis is down
+      session = null;
+    }
 
-		if (!session) {
-			return null;
-		}
+    if (!session) {
+      logger.warn(
+        { userId: payload.userId, sessionId: payload.sessionId },
+        "Auth failed: session not found"
+      );
+      return null;
+    }
 
-		// Get tenantId from payload, or fallback to database if not in token (for old tokens)
-		let tenantId = payload.tenantId;
-		if (!tenantId && payload.role !== "superadmin") {
-			try {
-				const { userQueries } = await import("../db/queries/users");
-				const user = await userQueries.findById(payload.userId);
-				if (user?.tenantId) {
-					tenantId = user.tenantId;
-					// Optionally update session with tenantId for future requests
-            if (session) {
-                session.tenantId = tenantId;
-                await cache.setSession(payload.sessionId, (session as unknown) as Record<string, unknown>);
-            }
-				}
-			} catch (error) {
-				logger.error({ error, userId: payload.userId }, "Failed to fetch tenantId from database");
-			}
-		}
-
-        // Build auth context with tenantId and companyId from payload
-        // tenantId is now populated from database if not in token
-        const authContext: AuthContext = {
-            userId: payload.userId,
-            role: payload.role,
-            tenantId: tenantId,
-            companyId: payload.companyId,
-            sessionId: payload.sessionId,
-        };
-
-        // Override companyId from header if provided and allowed
-        const headerCompanyId = request.headers.get("x-company-id");
-        if (headerCompanyId) {
-            try {
-                const allowed = await canAccessCompany(authContext, headerCompanyId);
-                if (allowed) {
-                    authContext.companyId = headerCompanyId;
-                }
-            } catch {
-                // Ignore errors in access check; fallback to payload companyId
-            }
+    // Get tenantId from payload, or fallback to database if not in token (for old tokens)
+    let tenantId = payload.tenantId;
+    if (!tenantId && payload.role !== "superadmin") {
+      try {
+        const { userQueries } = await import("../db/queries/users");
+        const user = await userQueries.findById(payload.userId);
+        if (user?.tenantId) {
+          tenantId = user.tenantId;
+          if (session) {
+            session.tenantId = tenantId;
+            await cache.setSession(
+              payload.sessionId,
+              session as unknown as Record<string, unknown>
+            );
+          }
         }
+      } catch (error) {
+        logger.error({ error, userId: payload.userId }, "Failed to fetch tenantId from database");
+      }
+    }
 
-        return authContext;
-	} catch (error) {
-		logger.error({ error }, "Error in verifyAndGetUser");
-		return null;
-	}
+    // Ensure tenantId exists for tenant_admin by provisioning a default tenant if missing
+    if (!tenantId && payload.role === "tenant_admin") {
+      try {
+        const { getOrCreateDefaultTenant } = await import("../db/queries/tenants");
+        const defaultTenantId = await getOrCreateDefaultTenant();
+        tenantId = defaultTenantId;
+        try {
+          const { sql } = await import("../db/client");
+          await sql`
+                  UPDATE users
+                  SET tenant_id = ${defaultTenantId}, updated_at = NOW()
+                  WHERE id = ${payload.userId}
+                `;
+        } catch {}
+        if (session) {
+          session.tenantId = tenantId;
+          await cache.setSession(payload.sessionId, session as unknown as Record<string, unknown>);
+        }
+      } catch (error) {
+        logger.error(
+          { error, userId: payload.userId },
+          "Failed to provision default tenant for tenant_admin"
+        );
+      }
+    }
+
+    // Build auth context with tenantId and companyId from payload
+    // tenantId is now populated from database if not in token
+    const authContext: AuthContext = {
+      userId: payload.userId,
+      role: payload.role,
+      tenantId: tenantId,
+      companyId: payload.companyId,
+      sessionId: payload.sessionId,
+    };
+
+    // Override companyId from header if provided and allowed
+    const headerCompanyId = request.headers.get("x-company-id");
+    if (headerCompanyId) {
+      try {
+        const allowed = await canAccessCompany(authContext, headerCompanyId);
+        if (allowed) {
+          authContext.companyId = headerCompanyId;
+        }
+      } catch {
+        // Ignore errors in access check; fallback to payload companyId
+      }
+    }
+
+    return authContext;
+  } catch (error) {
+    logger.error({ error }, "Error in verifyAndGetUser");
+    return null;
+  }
 }
 
 // ============================================
@@ -138,17 +170,17 @@ export async function verifyAndGetUser(
 // ============================================
 
 export type RouteHandler = (
-	request: Request,
-	url: URL,
-	params: Record<string, string>,
-	auth?: AuthContext,
+  request: Request,
+  url: URL,
+  params: Record<string, string>,
+  auth?: AuthContext
 ) => Promise<Response>;
 
 export type AuthenticatedRouteHandler = (
-	request: Request,
-	url: URL,
-	params: Record<string, string>,
-	auth: AuthContext,
+  request: Request,
+  url: URL,
+  params: Record<string, string>,
+  auth: AuthContext
 ) => Promise<Response>;
 
 // ============================================
@@ -159,66 +191,63 @@ export type AuthenticatedRouteHandler = (
  * Requires authentication - returns 401 if not authenticated
  */
 export function requireAuth(handler: AuthenticatedRouteHandler): RouteHandler {
-	return async (request, url, params) => {
-		const auth = await verifyAndGetUser(request);
+  return async (request, url, params) => {
+    const auth = await verifyAndGetUser(request);
 
-		if (!auth) {
-			return unauthorizedResponse("Authentication required");
-		}
+    if (!auth) {
+      return unauthorizedResponse("Authentication required");
+    }
 
-		return handler(request, url, params, auth);
-	};
+    return handler(request, url, params, auth);
+  };
 }
 
 /**
  * Requires specific role - returns 403 if role doesn't match
  */
-export function requireRole(
-	role: UserRole,
-	handler: AuthenticatedRouteHandler,
-): RouteHandler {
-	return async (request, url, params) => {
-		const auth = await verifyAndGetUser(request);
+export function requireRole(role: UserRole, handler: AuthenticatedRouteHandler): RouteHandler {
+  return async (request, url, params) => {
+    const auth = await verifyAndGetUser(request);
 
-		if (!auth) {
-			return unauthorizedResponse("Authentication required");
-		}
+    if (!auth) {
+      return unauthorizedResponse("Authentication required");
+    }
 
-		if (auth.role !== role && auth.role !== "superadmin") {
-			return forbiddenResponse(`Requires ${role} role`);
-		}
+    if (auth.role !== role && auth.role !== "superadmin") {
+      return forbiddenResponse(`Requires ${role} role`);
+    }
 
-		return handler(request, url, params, auth);
-	};
+    return handler(request, url, params, auth);
+  };
 }
 
 /**
  * Requires admin role - returns 403 if not admin
  */
 export function requireAdmin(handler: AuthenticatedRouteHandler): RouteHandler {
-	return async (request, url, params) => {
-		const auth = await verifyAndGetUser(request);
+  return async (request, url, params) => {
+    const auth = await verifyAndGetUser(request);
 
-		if (!auth) {
-			return unauthorizedResponse("Authentication required");
-		}
+    if (!auth) {
+      return unauthorizedResponse("Authentication required");
+    }
 
-		if (auth.role !== "superadmin") {
-			return forbiddenResponse("Superadmin access required");
-		}
+    if (auth.role !== "superadmin") {
+      return forbiddenResponse("Superadmin access required");
+    }
 
-		return handler(request, url, params, auth);
-	};
+    return handler(request, url, params, auth);
+  };
 }
 
 /**
  * Optional auth - attaches user if authenticated, but doesn't require it
  */
 export function optionalAuth(handler: RouteHandler): RouteHandler {
-	return async (request, url, params) => {
-		const auth = await verifyAndGetUser(request);
-		return handler(request, url, params, auth || undefined);
-	};
+  return async (request, url, params) => {
+    const auth = await verifyAndGetUser(request);
+    return handler(request, url, params, auth || undefined);
+  };
 }
 
 // ============================================
@@ -226,11 +255,11 @@ export function optionalAuth(handler: RouteHandler): RouteHandler {
 // ============================================
 
 export function isSuperadmin(auth: AuthContext): boolean {
-	return auth.role === "superadmin";
+  return auth.role === "superadmin";
 }
 
 export function isTenantAdmin(auth: AuthContext): boolean {
-	return auth.role === "tenant_admin";
+  return auth.role === "tenant_admin";
 }
 
 export function isCrmUser(auth: AuthContext): boolean {
@@ -246,38 +275,32 @@ export function isUser(auth: AuthContext): boolean {
   return auth.role === "user" || auth.role === "crm_user";
 }
 
-export async function canAccessCompany(
-	auth: AuthContext,
-	companyId: string,
-): Promise<boolean> {
-	// Superadmin can access any company
-	if (auth.role === "superadmin") return true;
+export async function canAccessCompany(auth: AuthContext, companyId: string): Promise<boolean> {
+  // Superadmin can access any company
+  if (auth.role === "superadmin") return true;
 
-	// Tenant admin can access companies in their tenant
-	if (auth.role === "tenant_admin") {
-		// TODO: Add tenant-scoped company access check
-		return true;
-	}
+  // Tenant admin can access companies in their tenant
+  if (auth.role === "tenant_admin") {
+    // TODO: Add tenant-scoped company access check
+    return true;
+  }
 
-	// Use company permission check with cache
-	const { checkCompanyPermission } = await import("./company-permission");
-	const result = await checkCompanyPermission(auth.userId, companyId);
-	return result.allowed;
+  // Use company permission check with cache
+  const { checkCompanyPermission } = await import("./company-permission");
+  const result = await checkCompanyPermission(auth.userId, companyId);
+  return result.allowed;
 }
 
-export function canAccessUser(
-	auth: AuthContext,
-	targetUserId: string,
-): boolean {
-	// Superadmin can access any user
-	if (auth.role === "superadmin") return true;
-	// Tenant admin can access users in their tenant
-	if (auth.role === "tenant_admin") {
-		// TODO: Add tenant-scoped user access check
-		return true;
-	}
-	// CRM user can only access themselves
-	return auth.userId === targetUserId;
+export function canAccessUser(auth: AuthContext, targetUserId: string): boolean {
+  // Superadmin can access any user
+  if (auth.role === "superadmin") return true;
+  // Tenant admin can access users in their tenant
+  if (auth.role === "tenant_admin") {
+    // TODO: Add tenant-scoped user access check
+    return true;
+  }
+  // CRM user can only access themselves
+  return auth.userId === targetUserId;
 }
 
 // ============================================
@@ -285,20 +308,20 @@ export function canAccessUser(
 // ============================================
 
 function unauthorizedResponse(message: string): Response {
-	return new Response(JSON.stringify(errorResponse("UNAUTHORIZED", message)), {
-		status: 401,
-		headers: {
-			"Content-Type": "application/json",
-			"WWW-Authenticate": 'Bearer realm="CRM API"',
-		},
-	});
+  return new Response(JSON.stringify(errorResponse("UNAUTHORIZED", message)), {
+    status: 401,
+    headers: {
+      "Content-Type": "application/json",
+      "WWW-Authenticate": 'Bearer realm="CRM API"',
+    },
+  });
 }
 
 function forbiddenResponse(message: string): Response {
-	return new Response(JSON.stringify(errorResponse("FORBIDDEN", message)), {
-		status: 403,
-		headers: { "Content-Type": "application/json" },
-	});
+  return new Response(JSON.stringify(errorResponse("FORBIDDEN", message)), {
+    status: 403,
+    headers: { "Content-Type": "application/json" },
+  });
 }
 
 // ============================================

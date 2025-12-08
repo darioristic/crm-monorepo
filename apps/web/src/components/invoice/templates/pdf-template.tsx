@@ -1,19 +1,9 @@
-import {
-  Document,
-  Page,
-  View,
-  Text,
-  Image,
-  Font,
-} from "@react-pdf/renderer";
+import { Document, Font, Image, Page, Text, View } from "@react-pdf/renderer";
 import { format, parseISO } from "date-fns";
 import QRCodeUtil from "qrcode";
-import type { Invoice, EditorDoc } from "@/types/invoice";
+import type { EditorDoc, Invoice } from "@/types/invoice";
 import { extractTextFromEditorDoc } from "@/types/invoice";
-import {
-  calculateTotal,
-  formatInvoiceAmount,
-} from "@/utils/invoice-calculate";
+import { calculateTotal, formatInvoiceAmount } from "@/utils/invoice-calculate";
 
 // Register Inter font - matching Midday's approach with .ttf files
 Font.register({
@@ -85,13 +75,11 @@ function calculateLineItemTotalWithDiscount({
  */
 function renderEditorContent(content: EditorDoc | string | null) {
   const text = extractTextFromEditorDoc(content);
-  return text
-    .split("\n")
-    .map((line, i) => (
-      <Text key={i} style={{ fontSize: 9, lineHeight: 1.6 }}>
-        {line || " "}
-      </Text>
-    ));
+  return text.split("\n").map((line, i) => (
+    <Text key={i} style={{ fontSize: 9, lineHeight: 1.6 }}>
+      {line || " "}
+    </Text>
+  ));
 }
 
 // Async function matching Midday's approach
@@ -174,34 +162,25 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                 <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
                   {template.invoiceNoLabel}:
                 </Text>
-                <Text style={{ fontSize: 9 }}>
-                  {invoice.invoiceNumber || "-"}
-                </Text>
+                <Text style={{ fontSize: 9 }}>{invoice.invoiceNumber || "-"}</Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
                   {template.issueDateLabel}:
                 </Text>
-                <Text style={{ fontSize: 9 }}>
-                  {formatDate(invoice.issueDate)}
-                </Text>
+                <Text style={{ fontSize: 9 }}>{formatDate(invoice.issueDate)}</Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
                   {template.dueDateLabel}:
                 </Text>
-                <Text style={{ fontSize: 9 }}>
-                  {formatDate(invoice.dueDate)}
-                </Text>
+                <Text style={{ fontSize: 9 }}>{formatDate(invoice.dueDate)}</Text>
               </View>
             </View>
           </View>
           {template.logoUrl && (
             <View style={{ maxWidth: 300 }}>
-              <Image
-                src={template.logoUrl}
-                style={{ height: 75, objectFit: "contain" }}
-              />
+              <Image src={template.logoUrl} style={{ height: 75, objectFit: "contain" }} />
             </View>
           )}
         </View>
@@ -212,17 +191,13 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
             <Text style={{ fontSize: 9, fontWeight: 500, marginBottom: 4 }}>
               {template.fromLabel}
             </Text>
-            <View style={{ marginTop: 10 }}>
-              {renderEditorContent(invoice.fromDetails)}
-            </View>
+            <View style={{ marginTop: 10 }}>{renderEditorContent(invoice.fromDetails)}</View>
           </View>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={{ fontSize: 9, fontWeight: 500, marginBottom: 4 }}>
               {template.customerLabel}
             </Text>
-            <View style={{ marginTop: 10 }}>
-              {renderEditorContent(invoice.customerDetails)}
-            </View>
+            <View style={{ marginTop: 10 }}>{renderEditorContent(invoice.customerDetails)}</View>
           </View>
         </View>
 
@@ -237,34 +212,82 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
               marginBottom: 5,
             }}
           >
-            <Text style={{ width: 25, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
+            <Text
+              style={{
+                width: 25,
+                fontSize: 9,
+                fontWeight: 500,
+                textAlign: "center",
+              }}
+            >
               #
             </Text>
             <Text style={{ flex: 3, fontSize: 9, fontWeight: 500 }}>
               {template.descriptionLabel}
             </Text>
-            <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 500,
+                textAlign: "center",
+              }}
+            >
               {template.quantityLabel}
             </Text>
-            <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
+            {template.includeUnits && (
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 9,
+                  fontWeight: 500,
+                  textAlign: "center",
+                }}
+              >
+                Unit
+              </Text>
+            )}
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 500,
+                textAlign: "center",
+              }}
+            >
               {template.priceLabel}
             </Text>
             {template.includeDiscount && (
               <Text
-                style={{ flex: 0.7, fontSize: 9, fontWeight: 500, textAlign: "center" }}
+                style={{
+                  flex: 0.7,
+                  fontSize: 9,
+                  fontWeight: 500,
+                  textAlign: "center",
+                }}
               >
                 {template.discountLabel || "Pop."}
               </Text>
             )}
             {template.includeVat && (
               <Text
-                style={{ flex: 0.7, fontSize: 9, fontWeight: 500, textAlign: "center" }}
+                style={{
+                  flex: 0.7,
+                  fontSize: 9,
+                  fontWeight: 500,
+                  textAlign: "center",
+                }}
               >
                 {template.vatLabel || "PDV"}
               </Text>
             )}
             <Text
-              style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "right" }}
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 500,
+                textAlign: "right",
+              }}
             >
               {template.totalLabel}
             </Text>
@@ -288,14 +311,18 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                 }}
                 wrap={false}
               >
-                <Text style={{ width: 25, fontSize: 9, textAlign: "center" }}>
-                  {index + 1}
-                </Text>
+                <Text style={{ width: 25, fontSize: 9, textAlign: "center" }}>{index + 1}</Text>
                 <Text style={{ flex: 3, fontSize: 9 }}>{item.name}</Text>
-                <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>{item.quantity ?? 0}</Text>
+                <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
+                  {item.quantity ?? 0}
+                </Text>
+                {template.includeUnits && (
+                  <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
+                    {item.unit || ""}
+                  </Text>
+                )}
                 <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
                   {formatAmount(item.price ?? 0)}
-                  {template.includeUnits && item.unit ? ` / ${item.unit}` : ""}
                 </Text>
                 {template.includeDiscount && (
                   <Text style={{ flex: 0.7, fontSize: 9, textAlign: "center" }}>
@@ -337,10 +364,8 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
               borderBottomColor: "#e5e5e5",
             }}
           >
-            <Text style={{ fontSize: 9, flex: 1, color: "#878787" }}>
-              Amount before discount:
-            </Text>
-            <Text style={{ fontSize: 9, textAlign: "right", color: "#878787" }}>
+            <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>Amount before discount:</Text>
+            <Text style={{ fontSize: 9, textAlign: "right", color: "#000" }}>
               {formatAmount(result.grossTotal)}
             </Text>
           </View>
@@ -355,10 +380,8 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
               borderBottomColor: "#e5e5e5",
             }}
           >
-            <Text style={{ fontSize: 9, flex: 1, color: "#878787" }}>
-              {template.discountLabel}:
-            </Text>
-            <Text style={{ fontSize: 9, textAlign: "right", color: "#878787" }}>
+            <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>{template.discountLabel}:</Text>
+            <Text style={{ fontSize: 9, textAlign: "right", color: "#000" }}>
               -{formatAmount(result.discountAmount)}
             </Text>
           </View>
@@ -373,10 +396,8 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
               borderBottomColor: "#e5e5e5",
             }}
           >
-            <Text style={{ fontSize: 9, flex: 1, color: "#878787" }}>
-              {template.subtotalLabel}:
-            </Text>
-            <Text style={{ fontSize: 9, textAlign: "right", color: "#878787" }}>
+            <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>{template.subtotalLabel}:</Text>
+            <Text style={{ fontSize: 9, textAlign: "right", color: "#000" }}>
               {formatAmount(result.subTotal)}
             </Text>
           </View>
@@ -392,10 +413,10 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                 borderBottomColor: "#e5e5e5",
               }}
             >
-              <Text style={{ fontSize: 9, flex: 1, color: "#878787" }}>
+              <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>
                 VAT Amount ({template.vatRate}%):
               </Text>
-              <Text style={{ fontSize: 9, textAlign: "right", color: "#878787" }}>
+              <Text style={{ fontSize: 9, textAlign: "right", color: "#000" }}>
                 {formatAmount(result.vat)}
               </Text>
             </View>
@@ -412,10 +433,10 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                 borderBottomColor: "#e5e5e5",
               }}
             >
-              <Text style={{ fontSize: 9, flex: 1, color: "#878787" }}>
+              <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>
                 {template.taxLabel} ({template.taxRate}%):
               </Text>
-              <Text style={{ fontSize: 9, textAlign: "right", color: "#878787" }}>
+              <Text style={{ fontSize: 9, textAlign: "right", color: "#000" }}>
                 {formatAmount(result.tax)}
               </Text>
             </View>
@@ -426,15 +447,13 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
             style={{
               flexDirection: "row",
               marginTop: 5,
-              borderTopWidth: 0.5,
-              borderTopColor: "#000",
               justifyContent: "space-between",
               alignItems: "center",
               paddingTop: 5,
               width: "100%",
             }}
           >
-            <Text style={{ fontSize: 9, marginRight: 10, color: "#878787" }}>
+            <Text style={{ fontSize: 9, marginRight: 10, color: "#000" }}>
               {template.totalSummaryLabel}:
             </Text>
             <Text style={{ fontSize: 21 }}>{formatAmount(result.total)}</Text>
@@ -444,28 +463,24 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
         {/* Note - Full width above payment */}
         {invoice.noteDetails && (
           <View style={{ marginTop: 20 }} wrap={false}>
-            <Text style={{ fontSize: 9, fontWeight: 500 }}>
-              {template.noteLabel}
-            </Text>
-            <View style={{ marginTop: 6 }}>
-              {renderEditorContent(invoice.noteDetails)}
-            </View>
+            <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.noteLabel}</Text>
+            <View style={{ marginTop: 6 }}>{renderEditorContent(invoice.noteDetails)}</View>
           </View>
         )}
 
         {/* Payment Details - Single row at bottom */}
         {invoice.paymentDetails && (
           <View
-            style={{ marginTop: 20, flexDirection: "row", alignItems: "flex-start" }}
+            style={{
+              marginTop: 20,
+              flexDirection: "row",
+              alignItems: "flex-start",
+            }}
             wrap={false}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 9, fontWeight: 500 }}>
-                {template.paymentLabel}
-              </Text>
-              <View style={{ marginTop: 6 }}>
-                {renderEditorContent(invoice.paymentDetails)}
-              </View>
+              <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.paymentLabel}</Text>
+              <View style={{ marginTop: 6 }}>{renderEditorContent(invoice.paymentDetails)}</View>
             </View>
             {qrCode && (
               <View style={{ marginLeft: 20 }}>

@@ -1,120 +1,100 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import { sql } from '../../db/client';
-import { createTestUser, createTestSession, getAuthHeaders } from './helpers';
+import { beforeAll, describe, expect, it } from "vitest";
+import { createTestSession, createTestUser, getAuthHeaders, integrationEnabled } from "./helpers";
 
-const API_URL = process.env.API_URL || 'http://localhost:3001';
+const API_URL = process.env.API_URL || `http://localhost:${process.env.PORT || "3002"}`;
 
-describe('Authentication Integration Tests', () => {
-	let testUser: { email: string; password: string; id?: string };
+const describeFn = integrationEnabled ? describe : describe.skip;
 
-	beforeAll(async () => {
-		testUser = await createTestUser({
-			email: 'integration-test@example.com',
-			password: 'TestPassword123!',
-		});
-	});
+describeFn("Authentication Integration Tests", () => {
+  let testUser: { email: string; password: string; id?: string };
 
-	it('should register a new user', async () => {
-		const response = await fetch(`${API_URL}/api/v1/auth/register`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				email: `newuser-${Date.now()}@example.com`,
-				password: 'SecurePassword123!',
-				name: 'Test User',
-			}),
-		});
+  beforeAll(async () => {
+    testUser = await createTestUser({
+      email: `integration-${Date.now()}@example.com`,
+      password: "TestPassword123!",
+    });
+  });
 
-		expect(response.status).toBe(201);
+  it("should login with valid credentials", async () => {
+    const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: testUser.email,
+        password: testUser.password,
+      }),
+    });
+
+    expect(response.status).toBe(200);
     const data: any = await response.json();
-		expect(data.success).toBe(true);
-		expect(data.data).toHaveProperty('user');
-		expect(data.data.user).toHaveProperty('email');
-	});
+    expect(data.success).toBe(true);
+    expect(data.data).toHaveProperty("user");
+    expect(data.data).toHaveProperty("expiresIn");
+    expect(response.headers.get("set-cookie")).toBeTruthy();
+  });
 
-	it('should login with valid credentials', async () => {
-		const response = await fetch(`${API_URL}/api/v1/auth/login`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				email: testUser.email,
-				password: testUser.password,
-			}),
-		});
+  it("should reject login with invalid credentials", async () => {
+    const response = await fetch(`${API_URL}/api/v1/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: testUser.email,
+        password: "WrongPassword123!",
+      }),
+    });
 
-		expect(response.status).toBe(200);
+    expect(response.status).toBe(401);
     const data: any = await response.json();
-		expect(data.success).toBe(true);
-		expect(data.data).toHaveProperty('accessToken');
-		expect(data.data).toHaveProperty('refreshToken');
-		expect(response.headers.get('set-cookie')).toBeTruthy();
-	});
+    expect(data.success).toBe(false);
+  });
 
-	it('should reject login with invalid credentials', async () => {
-		const response = await fetch(`${API_URL}/api/v1/auth/login`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				email: testUser.email,
-				password: 'WrongPassword123!',
-			}),
-		});
+  it("should refresh access token", async () => {
+    // First login to get cookies
+    const loginResponse = await fetch(`${API_URL}/api/v1/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: testUser.email,
+        password: testUser.password,
+      }),
+    });
 
-		expect(response.status).toBe(401);
-    const data: any = await response.json();
-		expect(data.success).toBe(false);
-	});
+    const setCookieHeader = loginResponse.headers.get("set-cookie") || "";
+    const match = setCookieHeader.match(/refresh_token=([^;]+)/);
+    const refreshCookie = match ? `refresh_token=${match[1]}` : "";
 
-	it('should refresh access token', async () => {
-		// First login to get tokens
-		const loginResponse = await fetch(`${API_URL}/api/v1/auth/login`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				email: testUser.email,
-				password: testUser.password,
-			}),
-		});
+    // Use refresh token via Cookie header
+    const refreshResponse = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(refreshCookie ? { Cookie: refreshCookie } : {}),
+      },
+    });
 
-    const loginData: any = await loginResponse.json();
-		const refreshToken = loginData.data.refreshToken;
-
-		// Use refresh token
-		const refreshResponse = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-			method: 'POST',
-			headers: {
-				'Content-Type': 'application/json',
-			},
-			body: JSON.stringify({
-				refreshToken,
-			}),
-		});
-
-		expect(refreshResponse.status).toBe(200);
+    expect(refreshResponse.status).toBe(200);
     const refreshData: any = await refreshResponse.json();
-		expect(refreshData.success).toBe(true);
-		expect(refreshData.data).toHaveProperty('accessToken');
-	});
+    expect(refreshData.success).toBe(true);
+    expect(refreshData.data).toHaveProperty("expiresIn");
+  });
 
-	it('should logout and invalidate session', async () => {
-		// Create a session first
-		const sessionToken = await createTestSession(testUser.id!);
+  it("should logout and invalidate session", async () => {
+    // Create a session first
+    const sessionToken = await createTestSession(testUser.id!);
 
-		const response = await fetch(`${API_URL}/api/v1/auth/logout`, {
-			method: 'POST',
-			headers: await getAuthHeaders(sessionToken),
-		});
+    const response = await fetch(`${API_URL}/api/v1/auth/logout`, {
+      method: "POST",
+      headers: await getAuthHeaders(sessionToken),
+    });
 
-		expect(response.status).toBe(200);
+    expect(response.status).toBe(200);
     const data: any = await response.json();
-		expect(data.success).toBe(true);
-	});
+    expect(data.success).toBe(true);
+  });
 });

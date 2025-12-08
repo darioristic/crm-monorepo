@@ -1,12 +1,12 @@
 import type {
-  Payment,
-  PaymentWithInvoice,
-  PaymentSummary,
-  PaymentStatus,
-  PaymentMethod,
   CreatePaymentRequest,
-  UpdatePaymentRequest,
   PaginationParams,
+  Payment,
+  PaymentMethod,
+  PaymentStatus,
+  PaymentSummary,
+  PaymentWithInvoice,
+  UpdatePaymentRequest,
 } from "@crm/types";
 import { generateUUID, now } from "@crm/utils";
 import { sql as db } from "../client";
@@ -64,7 +64,11 @@ export const paymentQueries = {
       LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
 
-    const payments = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
+    const payments = await db.unsafe(selectQuery, [
+      ...whereValues,
+      safePageSize,
+      safeOffset,
+    ] as QueryParam[]);
 
     return { payments: payments.map(mapPayment), total };
   },
@@ -180,9 +184,9 @@ export const paymentQueries = {
     `;
 
     return {
-      totalPaid: parseFloat(result[0]?.totalPaid as string || "0"),
-      totalPending: parseFloat(result[0]?.totalPending as string || "0"),
-      totalRefunded: parseFloat(result[0]?.totalRefunded as string || "0"),
+      totalPaid: parseFloat((result[0]?.totalPaid as string) || "0"),
+      totalPending: parseFloat((result[0]?.totalPending as string) || "0"),
+      totalRefunded: parseFloat((result[0]?.totalRefunded as string) || "0"),
       paymentCount: Number(result[0]?.paymentCount || 0),
       currency: (result[0]?.currency as string) || "EUR",
     };
@@ -202,7 +206,7 @@ export const paymentQueries = {
 
     const totalsQuery = `
       SELECT 
-        COALESCE(SUM(amount), 0) as "totalAmount",
+        COALESCE(SUM(amount::numeric), 0) as "totalAmount",
         COUNT(*) as "paymentCount"
       FROM payments ${whereClause}
     `;
@@ -211,7 +215,7 @@ export const paymentQueries = {
     const byMethodQuery = `
       SELECT 
         payment_method as method,
-        COALESCE(SUM(amount), 0) as amount,
+        COALESCE(SUM(amount::numeric), 0) as amount,
         COUNT(*) as count
       FROM payments ${whereClause}
       GROUP BY payment_method
@@ -221,7 +225,7 @@ export const paymentQueries = {
     const byStatusQuery = `
       SELECT 
         status,
-        COALESCE(SUM(amount), 0) as amount,
+        COALESCE(SUM(amount::numeric), 0) as amount,
         COUNT(*) as count
       FROM payments ${whereClause}
       GROUP BY status
@@ -229,7 +233,7 @@ export const paymentQueries = {
     const byStatusResult = await db.unsafe(byStatusQuery, whereValues as QueryParam[]);
 
     return {
-      totalAmount: parseFloat(totalsResult[0]?.totalAmount as string || "0"),
+      totalAmount: parseFloat((totalsResult[0]?.totalAmount as string) || "0"),
       paymentCount: Number(totalsResult[0]?.paymentCount || 0),
       byMethod: byMethodResult.map((r: Record<string, unknown>) => ({
         method: r.method as PaymentMethod,
