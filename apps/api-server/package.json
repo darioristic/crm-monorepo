@@ -41,6 +41,7 @@
     "@ai-sdk/openai": "^2.0.62",
     "@crm/types": "workspace:*",
     "@crm/utils": "workspace:*",
+    "@hono/zod-validator": "0.7.5",
     "@sentry/bun": "10.28.0",
     "ai": "^5.0.87",
     "bcryptjs": "3.0.3",

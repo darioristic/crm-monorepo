@@ -25,6 +25,15 @@ export async function createSchema(): Promise<void> {
     END $$
   `;
 
+  // Create enum type for company types (seller vs customer)
+  await db`
+    DO $$ BEGIN
+      CREATE TYPE company_type AS ENUM ('seller', 'customer');
+    EXCEPTION
+      WHEN duplicate_object THEN null;
+    END $$
+  `;
+
   // Companies table (must be created before users due to FK)
   await db`
     CREATE TABLE IF NOT EXISTS companies (
@@ -32,6 +41,7 @@ export async function createSchema(): Promise<void> {
       name VARCHAR(255) NOT NULL,
       industry VARCHAR(255) NOT NULL,
       address TEXT NOT NULL,
+      company_type company_type DEFAULT 'customer',
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -214,7 +224,8 @@ export async function createSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS quotes (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       quote_number VARCHAR(50) UNIQUE NOT NULL,
-      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      customer_company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      seller_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
       contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
       status VARCHAR(50) NOT NULL DEFAULT 'draft',
       issue_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -253,7 +264,8 @@ export async function createSchema(): Promise<void> {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       invoice_number VARCHAR(50) UNIQUE NOT NULL,
       quote_id UUID REFERENCES quotes(id) ON DELETE SET NULL,
-      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      customer_company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      seller_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
       contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
       status VARCHAR(50) NOT NULL DEFAULT 'draft',
       issue_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -293,7 +305,8 @@ export async function createSchema(): Promise<void> {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       delivery_number VARCHAR(50) UNIQUE NOT NULL,
       invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
-      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      customer_company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      seller_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
       contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
       status VARCHAR(50) NOT NULL DEFAULT 'pending',
       ship_date TIMESTAMPTZ,
@@ -366,6 +379,7 @@ export async function createSchema(): Promise<void> {
   // Create indexes for companies
   await db`CREATE INDEX IF NOT EXISTS idx_companies_name ON companies(name)`;
   await db`CREATE INDEX IF NOT EXISTS idx_companies_industry ON companies(industry)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_companies_company_type ON companies(company_type)`;
 
   // Create indexes for users
   await db`CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email)`;
@@ -410,20 +424,23 @@ export async function createSchema(): Promise<void> {
   await db`CREATE INDEX IF NOT EXISTS idx_activities_user_id ON activities(user_id)`;
 
   // Create indexes for quotes
-  await db`CREATE INDEX IF NOT EXISTS idx_quotes_company_id ON quotes(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_quotes_customer_company_id ON quotes(customer_company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_quotes_seller_company_id ON quotes(seller_company_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status)`;
   await db`CREATE INDEX IF NOT EXISTS idx_quotes_created_by ON quotes(created_by)`;
   await db`CREATE INDEX IF NOT EXISTS idx_quote_items_quote_id ON quote_items(quote_id)`;
 
   // Create indexes for invoices
-  await db`CREATE INDEX IF NOT EXISTS idx_invoices_company_id ON invoices(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_invoices_customer_company_id ON invoices(customer_company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_invoices_seller_company_id ON invoices(seller_company_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_invoices_quote_id ON invoices(quote_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status)`;
   await db`CREATE INDEX IF NOT EXISTS idx_invoices_created_by ON invoices(created_by)`;
   await db`CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id)`;
 
   // Create indexes for delivery notes
-  await db`CREATE INDEX IF NOT EXISTS idx_delivery_notes_company_id ON delivery_notes(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_delivery_notes_customer_company_id ON delivery_notes(customer_company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_delivery_notes_seller_company_id ON delivery_notes(seller_company_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_delivery_notes_invoice_id ON delivery_notes(invoice_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_delivery_notes_status ON delivery_notes(status)`;
   await db`CREATE INDEX IF NOT EXISTS idx_delivery_notes_created_by ON delivery_notes(created_by)`;
@@ -626,7 +643,8 @@ export async function createSchema(): Promise<void> {
     CREATE TABLE IF NOT EXISTS orders (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       order_number VARCHAR(50) UNIQUE NOT NULL,
-      company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      customer_company_id UUID NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+      seller_company_id UUID REFERENCES companies(id) ON DELETE SET NULL,
       contact_id UUID REFERENCES contacts(id) ON DELETE SET NULL,
       quote_id UUID REFERENCES quotes(id) ON DELETE SET NULL,
       invoice_id UUID REFERENCES invoices(id) ON DELETE SET NULL,
@@ -642,7 +660,8 @@ export async function createSchema(): Promise<void> {
     )
   `;
 
-  await db`CREATE INDEX IF NOT EXISTS idx_orders_company_id ON orders(company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_customer_company_id ON orders(customer_company_id)`;
+  await db`CREATE INDEX IF NOT EXISTS idx_orders_seller_company_id ON orders(seller_company_id)`;
   await db`CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status)`;
   await db`CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number)`;
   await db`CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at DESC)`;
@@ -744,6 +763,7 @@ export async function dropSchema(): Promise<void> {
   await db`DROP TABLE IF EXISTS users_on_company CASCADE`;
   await db`DROP TABLE IF EXISTS users CASCADE`;
   await db`DROP TABLE IF EXISTS companies CASCADE`;
+  await db`DROP TYPE IF EXISTS company_type`;
   await db`DROP TYPE IF EXISTS company_role`;
   await db`DROP TYPE IF EXISTS user_role`;
 

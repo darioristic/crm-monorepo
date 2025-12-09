@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useFormContext, useWatch, Controller } from "react-hook-form";
 import { Plus } from "lucide-react";
+import { useState } from "react";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { Editor } from "@/components/invoice/editor";
 import type { FormValues } from "./form-context";
 
@@ -17,9 +17,7 @@ export function EditBlock({ name }: EditBlockProps) {
   const id = watch("id");
 
   const label = name === "topBlock" ? "Header" : "Footer";
-  const placeholder = name === "topBlock" 
-    ? "Add header text..." 
-    : "Add footer text...";
+  const placeholder = name === "topBlock" ? "Add header text..." : "Add footer text...";
 
   if (!isEditing) {
     return (
@@ -43,7 +41,7 @@ export function EditBlock({ name }: EditBlockProps) {
         render={({ field }) => (
           <Editor
             key={id}
-            initialContent={field.value}
+            initialContent={field.value ?? undefined}
             onChange={field.onChange}
             placeholder={placeholder}
             className="min-h-[70px] [&>div]:min-h-[70px]"

@@ -76,7 +76,7 @@ export function MemberActions({ member, table }: Props) {
     },
     onSuccess: async () => {
       queryClient.invalidateQueries();
-      router.push("/dashboard/settings/companies");
+      router.push("/dashboard");
     },
     onError: () => {
       toast.error("Failed to leave team");

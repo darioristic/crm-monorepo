@@ -1,11 +1,10 @@
 "use client";
 
-import type { Quote } from "@crm/types";
+import type { CreateQuoteRequest, Quote, UpdateQuoteRequest } from "@crm/types";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useApi, useMutation } from "@/hooks/use-api";
 import { quotesApi } from "@/lib/api";
-import type { QuoteFormValues } from "@/types/quote";
 
 // Hook for fetching quotes list
 export function useQuotes(params?: {
@@ -31,9 +30,9 @@ export function useQuote(id: string | undefined) {
 
 // Hook for quote mutations
 export function useQuoteMutations() {
-  const createMutation = useMutation((data: QuoteFormValues) => quotesApi.create(data));
-  const updateMutation = useMutation(
-    ({ id, data }: { id: string; data: Partial<QuoteFormValues> }) => quotesApi.update(id, data)
+  const createMutation = useMutation((data: CreateQuoteRequest) => quotesApi.create(data));
+  const updateMutation = useMutation(({ id, data }: { id: string; data: UpdateQuoteRequest }) =>
+    quotesApi.update(id, data)
   );
   const deleteMutation = useMutation((id: string) => quotesApi.delete(id));
   const markAsAcceptedMutation = useMutation((id: string) =>

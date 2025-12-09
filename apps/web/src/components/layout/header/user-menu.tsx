@@ -1,6 +1,6 @@
 "use client";
 
-import { BadgeCheck, Bell, LogOut, Settings, Shield } from "lucide-react";
+import { BadgeCheck, Bell, LogOut, Shield } from "lucide-react";
 import Link from "next/link";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -75,13 +75,7 @@ export default function UserMenu() {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/dashboard/settings">
-              <Settings />
-              Settings
-            </Link>
-          </DropdownMenuItem>
-          <DropdownMenuItem asChild>
-            <Link href="/dashboard/settings/notifications">
+            <Link href="/dashboard/notifications">
               <Bell />
               Notifications
             </Link>

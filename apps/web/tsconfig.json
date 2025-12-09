@@ -1,11 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": [
-      "DOM",
-      "DOM.Iterable",
-      "ES2022"
-    ],
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -17,6 +13,7 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
+    "types": ["vitest", "node"],
     "plugins": [
       {
         "name": "next"
@@ -24,21 +21,11 @@
     ],
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./src/*"
-      ],
-      "@crm/types": [
-        "../../packages/types/src"
-      ],
-      "@crm/types/*": [
-        "../../packages/types/src/*"
-      ],
-      "@crm/utils": [
-        "../../packages/utils/src"
-      ],
-      "@crm/utils/*": [
-        "../../packages/utils/src/*"
-      ]
+      "@/*": ["./src/*"],
+      "@crm/types": ["../../packages/types/src"],
+      "@crm/types/*": ["../../packages/types/src/*"],
+      "@crm/utils": ["../../packages/utils/src"],
+      "@crm/utils/*": ["../../packages/utils/src/*"]
     }
   },
   "include": [
@@ -51,6 +38,12 @@
   "exclude": [
     "node_modules",
     "playwright.config.ts",
+    "vitest.config.ts",
+    "vitest.config.*",
+    "**/*.config.ts",
+    "**/*.config.*",
+    "src/**/*.test.*",
+    "src/**/*.spec.*",
     "e2e/**",
     "src/components/chat/**"
   ]

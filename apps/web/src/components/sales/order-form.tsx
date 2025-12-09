@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/auth-context";
 import { useApi, useMutation } from "@/hooks/use-api";
 import { companiesApi, invoicesApi, ordersApi, quotesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
@@ -75,6 +76,7 @@ interface OrderFormProps {
 
 export function OrderForm({ order, mode }: OrderFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
 
   const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
@@ -198,7 +200,8 @@ export function OrderForm({ order, mode }: OrderFormProps) {
 
   const onSubmit = async (values: OrderFormValues) => {
     const data = {
-      companyId: values.companyId,
+      customerCompanyId: values.companyId,
+      sellerCompanyId: user?.companyId,
       contactId: values.contactId || undefined,
       quoteId: values.quoteId || undefined,
       invoiceId: values.invoiceId || undefined,
@@ -208,7 +211,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
       total: values.total,
       currency: values.currency,
       notes: values.notes || undefined,
-      createdBy: "current-user-id", // This would come from auth context
+      createdBy: user?.id || "current-user-id",
       items: values.items,
     };
 

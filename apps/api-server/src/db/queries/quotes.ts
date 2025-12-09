@@ -34,9 +34,20 @@ export const quoteQueries = {
 
       // Koristi query builder za sigurne upite
       const qb = createQueryBuilder("quotes");
-      // Only filter by companyId if provided (admin can see all)
+      // Filter by tenant_id (quotes created by this tenant)
+      // Note: companyId parameter actually represents tenant ID in multi-tenant architecture
+      logger.info(
+        { companyId, pagination, filters },
+        "[QUOTES DEBUG] findAll called with companyId"
+      );
       if (companyId) {
-        qb.addEqualCondition("company_id", companyId);
+        // Filter by tenant_id to show quotes created by the tenant
+        qb.addEqualCondition("tenant_id", companyId);
+        logger.info({ companyId }, "[QUOTES DEBUG] Adding tenant_id filter");
+      } else {
+        logger.warn(
+          "[QUOTES DEBUG] No companyId provided - will return ALL quotes (no tenant filter)"
+        );
       }
       qb.addSearchCondition(["quote_number"], filters.search);
       qb.addEqualCondition("status", filters.status);
@@ -206,16 +217,17 @@ export const quoteQueries = {
     quote: Omit<Quote, "items">,
     items: Omit<QuoteItem, "id" | "quoteId">[]
   ): Promise<Quote> {
+    // Note: quote.sellerCompanyId from service actually contains tenant_id
     const result = await db`
       INSERT INTO quotes (
         id, quote_number, company_id, contact_id, status, issue_date, valid_until,
-        subtotal, tax_rate, tax, total, notes, terms, from_details, created_by, created_at, updated_at
+        subtotal, tax_rate, tax, total, notes, terms, from_details, created_by, tenant_id, created_at, updated_at
       ) VALUES (
         ${quote.id}, ${quote.quoteNumber}, ${quote.companyId}, ${quote.contactId || null},
         ${quote.status}, ${quote.issueDate}, ${quote.validUntil},
         ${quote.subtotal}, ${quote.taxRate}, ${quote.tax}, ${quote.total},
         ${quote.notes || null}, ${quote.terms || null}, ${quote.fromDetails ? JSON.stringify(quote.fromDetails) : null}, ${quote.createdBy},
-        ${quote.createdAt}, ${quote.updatedAt}
+        ${(quote as any).sellerCompanyId || null}, ${quote.createdAt}, ${quote.updatedAt}
       )
       RETURNING *
     `;
@@ -399,6 +411,7 @@ function mapQuote(row: Record<string, unknown>, items: unknown[]): Quote {
     terms: row.terms as string | undefined,
     fromDetails,
     createdBy: row.created_by as string,
+    tenantId: row.tenant_id as string | undefined,
   };
 }
 

@@ -1,22 +1,12 @@
-import type { Metadata } from "next";
-import { TeamMembers } from "@/components/team-members";
+"use client";
 
-export const metadata: Metadata = {
-  title: "Users",
-  description: "Manage users in your tenant.",
-};
-
-export default function UsersPage() {
+export default function SettingsUsersPage() {
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-xl font-semibold mb-1">Users</h2>
-        <p className="text-sm text-muted-foreground">
-          View and manage members of your current company.
-        </p>
+    <main className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">User Settings</h1>
+      <div className="text-sm text-muted-foreground">
+        Manage personal preferences and account details.
       </div>
-
-      <TeamMembers />
-    </div>
+    </main>
   );
 }

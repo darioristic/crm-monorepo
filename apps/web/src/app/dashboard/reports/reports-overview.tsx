@@ -41,7 +41,7 @@ export function ReportsOverview() {
       }
     } catch (err) {
       setError("Failed to load report data");
-      logger.error(err);
+      logger.error("Failed to load report data", err);
     } finally {
       setLoading(false);
     }

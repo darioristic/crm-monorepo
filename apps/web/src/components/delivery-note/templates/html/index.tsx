@@ -1,11 +1,11 @@
-import { ScrollArea } from "@/components/ui/scroll-area";
 import type { DeliveryNote } from "@crm/types";
+import { format, parseISO } from "date-fns";
 import { EditorContent } from "@/components/invoice/templates/html/components/editor-content";
 import { LineItems } from "@/components/invoice/templates/html/components/line-items";
 import { Logo } from "@/components/invoice/templates/html/components/logo";
 import { Summary } from "@/components/invoice/templates/html/components/summary";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { format, parseISO } from "date-fns";
 
 type DeliveryNoteTemplate = {
   logoUrl?: string | null;
@@ -55,12 +55,7 @@ function formatDate(dateStr: string | null | undefined, dateFormat: string = "dd
   }
 }
 
-export function HtmlTemplate({
-  data,
-  width,
-  height,
-  disableScroll = false,
-}: Props) {
+export function HtmlTemplate({ data, width, height, disableScroll = false }: Props) {
   if (!data || !data.deliveryNote) {
     return null;
   }
@@ -97,15 +92,16 @@ export function HtmlTemplate({
   };
 
   // Transform delivery note items to line items format
-  const lineItems = deliveryNote.items?.map((item) => ({
-    name: item.productName,
-    description: item.description || "",
-    quantity: item.quantity,
-    price: item.unitPrice || 0,
-    unit: item.unit || "pcs",
-    discount: item.discount || 0,
-    vat: 0,
-  })) || [];
+  const lineItems =
+    deliveryNote.items?.map((item) => ({
+      name: item.productName,
+      description: item.description || "",
+      quantity: item.quantity,
+      price: item.unitPrice || 0,
+      unit: item.unit || "pcs",
+      discount: item.discount || 0,
+      vat: 0,
+    })) || [];
 
   const contentStyles = {
     width: "100%",
@@ -114,15 +110,10 @@ export function HtmlTemplate({
   };
 
   const content = (
-    <div
-      className="p-4 sm:p-6 md:p-8 h-full flex flex-col"
-      style={{ minHeight: height - 5 }}
-    >
+    <div className="p-4 sm:p-6 md:p-8 h-full flex flex-col" style={{ minHeight: height - 5 }}>
       <div className="flex justify-between">
         <div className="mb-2">
-          <h2 className="text-[21px] font-medium mb-1 w-fit min-w-[100px]">
-            {config.title}
-          </h2>
+          <h2 className="text-[21px] font-medium mb-1 w-fit min-w-[100px]">{config.title}</h2>
           <div className="flex flex-col gap-0.5">
             <div className="flex space-x-1 items-center">
               <div className="flex items-center flex-shrink-0 space-x-1">
@@ -164,31 +155,32 @@ export function HtmlTemplate({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mt-6 mb-4">
+      {/* Header with 3 columns: From | Customer | Shipping Address */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 mt-6 mb-4">
         <div>
-          <p className="text-[11px] text-[#878787] mb-2 block">
-            {config.fromLabel}
-          </p>
+          <p className="text-[11px] text-[#878787] mb-2 block">{config.fromLabel}</p>
           <EditorContent content={fromDetails} />
         </div>
         <div className="mt-4 md:mt-0">
-          <p className="text-[11px] text-[#878787] mb-2 block">
-            {config.customerLabel}
-          </p>
+          <p className="text-[11px] text-[#878787] mb-2 block">{config.customerLabel}</p>
           <EditorContent content={customerDetails} />
+        </div>
+        <div className="mt-4 md:mt-0">
+          <p className="text-[11px] text-[#878787] mb-2 block">{config.shippingAddressLabel}</p>
+          {deliveryNote.shippingAddress ? (
+            <p className="text-[11px] whitespace-pre-line leading-relaxed">
+              {deliveryNote.shippingAddress}
+            </p>
+          ) : (
+            <p className="text-[11px] text-muted-foreground">-</p>
+          )}
         </div>
       </div>
 
-      {/* Shipping Information */}
-      {(deliveryNote.shippingAddress || deliveryNote.trackingNumber || deliveryNote.carrier) && (
-        <div className="mb-4 p-4 bg-muted/30 rounded">
-          <p className="text-[11px] text-[#878787] mb-2 block">
-            {config.shippingAddressLabel}
-          </p>
-          {deliveryNote.shippingAddress && (
-            <p className="text-sm whitespace-pre-line">{deliveryNote.shippingAddress}</p>
-          )}
-          <div className="grid grid-cols-2 gap-4 mt-2 pt-2 border-t border-border">
+      {/* Shipping Tracking Information */}
+      {(deliveryNote.trackingNumber || deliveryNote.carrier) && (
+        <div className="mb-4 p-3 bg-muted/30 rounded">
+          <div className="flex flex-wrap gap-4">
             {deliveryNote.trackingNumber && (
               <div>
                 <span className="text-[11px] text-[#878787]">{config.trackingNumberLabel}: </span>
@@ -214,18 +206,18 @@ export function HtmlTemplate({
         quantityLabel="Qty"
         priceLabel="Price"
         totalLabel="Total"
-        includeDecimals={config.includeDecimals}
+        includeDecimals={config.includeDecimals ?? true}
         locale={config.locale || "sr-RS"}
         includeUnits={true}
-        includeDiscount={config.includeDiscount}
-        includeVat={config.includeVat}
+        includeDiscount={config.includeDiscount ?? true}
+        includeVat={config.includeVat ?? false}
       />
 
       {deliveryNote.subtotal > 0 && (
         <div className="mt-10 md:mt-12 flex justify-end mb-6 md:mb-8">
           <Summary
-            includeVat={config.includeVat}
-            includeTax={config.includeTax}
+            includeVat={config.includeVat ?? false}
+            includeTax={config.includeTax ?? true}
             taxRate={deliveryNote.taxRate || 0}
             vatRate={0}
             currency={config.currency || "EUR"}
@@ -233,10 +225,10 @@ export function HtmlTemplate({
             taxLabel="Tax"
             totalLabel="Total"
             lineItems={lineItems}
-            includeDiscount={config.includeDiscount}
+            includeDiscount={config.includeDiscount ?? true}
             discountLabel="Discount"
             locale={config.locale || "sr-RS"}
-            includeDecimals={config.includeDecimals}
+            includeDecimals={config.includeDecimals ?? true}
             subtotalLabel="Subtotal"
           />
         </div>
@@ -246,17 +238,13 @@ export function HtmlTemplate({
         <div className="flex flex-col gap-4 md:gap-6">
           {noteDetails && (
             <div>
-              <p className="text-[11px] text-[#878787] mb-2 block">
-                Notes
-              </p>
+              <p className="text-[11px] text-[#878787] mb-2 block">Notes</p>
               <EditorContent content={noteDetails} />
             </div>
           )}
           {paymentDetails && (
             <div>
-              <p className="text-[11px] text-[#878787] mb-2 block">
-                Terms & Conditions
-              </p>
+              <p className="text-[11px] text-[#878787] mb-2 block">Terms & Conditions</p>
               <EditorContent content={paymentDetails} />
             </div>
           )}
@@ -269,10 +257,7 @@ export function HtmlTemplate({
 
   if (disableScroll) {
     return (
-      <div
-        className="bg-background border border-border w-full md:w-auto"
-        style={contentStyles}
-      >
+      <div className="bg-background border border-border w-full md:w-auto" style={contentStyles}>
         {content}
       </div>
     );
@@ -292,4 +277,3 @@ export function HtmlTemplate({
     </ScrollArea>
   );
 }
-

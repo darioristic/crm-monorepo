@@ -1,23 +1,82 @@
 "use client";
 
-import type { DeliveryNote } from "@crm/types";
+import type { Company, EnhancedCompany } from "@crm/types";
+import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Copy, Download, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import { DeliveryNoteForm } from "@/components/sales/delivery-note-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { SHEET_SIZES } from "@/constants/sheet-sizes";
 import { useApi } from "@/hooks/use-api";
-import { useCopyLink } from "@/hooks/use-copy-link";
-import { deliveryNotesApi } from "@/lib/api";
-import { logger } from "@/lib/logger";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { companiesApi, deliveryNotesApi } from "@/lib/api";
+import type { DeliveryNoteDefaultSettings, DeliveryNoteFormValues } from "@/types/delivery-note";
+import { DEFAULT_DELIVERY_NOTE_TEMPLATE, formatDeliveryNoteNumber } from "@/types/delivery-note";
+import { Form } from "./form";
+import { FormContext } from "./form-context";
 
-export function DeliveryNoteSheet() {
+// API Delivery Note Response Type
+interface DeliveryNoteApiResponse {
+  id: string;
+  deliveryNumber: string | null;
+  deliveryDate?: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  total: number;
+  currency?: string | null;
+  items?: Array<{
+    productName?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    discount?: number;
+    vat?: number;
+    vatRate?: number;
+  }>;
+  terms?: string | null;
+  notes?: string | null;
+  companyId: string;
+  companyName?: string;
+  company?: {
+    name?: string;
+    addressLine1?: string;
+    address?: string;
+    addressLine2?: string;
+    city?: string;
+    zip?: string;
+    postalCode?: string;
+    country?: string;
+    email?: string;
+    billingEmail?: string;
+    phone?: string;
+    vatNumber?: string;
+    website?: string;
+  };
+  vat?: number | null;
+  tax?: number | null;
+  discount?: number | null;
+  subtotal: number;
+  status: string;
+  taxRate?: number;
+  vatRate?: number;
+  shippingAddress?: string;
+  trackingNumber?: string;
+  carrier?: string;
+  token?: string;
+}
+
+type DeliveryNoteSheetProps = {
+  defaultSettings?: Partial<DeliveryNoteDefaultSettings>;
+  onDeliveryNoteCreated?: () => void;
+};
+
+export function DeliveryNoteSheet({
+  defaultSettings,
+  onDeliveryNoteCreated,
+}: DeliveryNoteSheetProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -28,12 +87,17 @@ export function DeliveryNoteSheet() {
   const isOpen = type === "create" || type === "edit" || type === "success";
 
   // Fetch delivery note data when editing or showing success
-  const { data: deliveryNoteData, isLoading: isLoadingDeliveryNote } = useApi<DeliveryNote>(
+  const { data: deliveryNoteData, isLoading: isLoadingDeliveryNote } = useApi(
     () => deliveryNotesApi.getById(deliveryNoteId!),
     {
       autoFetch: !!deliveryNoteId && (type === "edit" || type === "success"),
     }
   );
+
+  // Transform API delivery note to form values
+  const formData = deliveryNoteData
+    ? transformDeliveryNoteToFormValues(deliveryNoteData as DeliveryNoteApiResponse)
+    : undefined;
 
   const handleOpenChange = useCallback(
     (open: boolean) => {
@@ -47,26 +111,31 @@ export function DeliveryNoteSheet() {
 
   const handleSuccess = useCallback(
     (id: string) => {
+      // Trigger refresh callback
+      onDeliveryNoteCreated?.();
+
       // Show success state
       const params = new URLSearchParams(searchParams);
       params.set("type", "success");
       params.set("deliveryNoteId", id);
       router.push(`${pathname}?${params.toString()}`);
     },
-    [router, pathname, searchParams]
+    [router, pathname, searchParams, onDeliveryNoteCreated]
   );
 
   return (
     <Sheet open={isOpen} onOpenChange={handleOpenChange}>
       {isOpen && (
-        <DeliveryNoteSheetContent
-          type={type!}
-          deliveryNoteId={deliveryNoteId}
-          deliveryNoteData={deliveryNoteData}
-          onSuccess={handleSuccess}
-          onClose={() => handleOpenChange(false)}
-          isLoading={isLoadingDeliveryNote && (type === "edit" || type === "success")}
-        />
+        <FormContext defaultSettings={defaultSettings} data={formData}>
+          <DeliveryNoteSheetContent
+            type={type!}
+            deliveryNoteId={deliveryNoteId}
+            deliveryNoteData={deliveryNoteData as DeliveryNoteApiResponse}
+            onSuccess={handleSuccess}
+            onClose={() => handleOpenChange(false)}
+            isLoading={isLoadingDeliveryNote && (type === "edit" || type === "success")}
+          />
+        </FormContext>
       )}
     </Sheet>
   );
@@ -75,7 +144,7 @@ export function DeliveryNoteSheet() {
 type DeliveryNoteSheetContentProps = {
   type: "create" | "edit" | "success";
   deliveryNoteId?: string | null;
-  deliveryNoteData?: DeliveryNote;
+  deliveryNoteData?: DeliveryNoteApiResponse;
   onSuccess: (id: string) => void;
   onClose: () => void;
   isLoading?: boolean;
@@ -89,7 +158,7 @@ function DeliveryNoteSheetContent({
   onClose,
   isLoading,
 }: DeliveryNoteSheetContentProps) {
-  const size = SHEET_SIZES.DEFAULT;
+  const [size] = useState(700);
 
   if (isLoading) {
     return (
@@ -144,12 +213,7 @@ function DeliveryNoteSheetContent({
         <SheetTitle>{type === "edit" ? "Edit Delivery Note" : "New Delivery Note"}</SheetTitle>
       </VisuallyHidden>
       <div className="h-full overflow-y-auto">
-        <DeliveryNoteForm
-          deliveryNote={deliveryNoteData}
-          mode={type}
-          onSuccess={onSuccess}
-          onClose={onClose}
-        />
+        <Form deliveryNoteId={deliveryNoteId || undefined} onSuccess={onSuccess} />
       </div>
     </SheetContent>
   );
@@ -157,7 +221,7 @@ function DeliveryNoteSheetContent({
 
 type SuccessContentProps = {
   deliveryNoteId: string;
-  deliveryNote?: DeliveryNote;
+  deliveryNote?: DeliveryNoteApiResponse;
   onViewDeliveryNote: () => void;
   onCreateAnother: () => void;
 };
@@ -169,31 +233,39 @@ function SuccessContent({
   onCreateAnother,
 }: SuccessContentProps) {
   const shareUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/dashboard/sales/delivery-notes/${deliveryNoteId}`
-      : "";
-
-  const { copyLink } = useCopyLink();
+    typeof window !== "undefined" ? `${window.location.origin}/d/id/${deliveryNoteId}` : "";
 
   const handleCopyLink = () => {
-    copyLink(shareUrl);
+    navigator.clipboard.writeText(shareUrl);
+    toast.success("Link copied to clipboard");
   };
 
   const handleDownload = () => {
-    try {
-      window.open(`/api/download/delivery-note?id=${deliveryNoteId}`, "_blank");
-    } catch (error) {
-      logger.error("Failed to open download link:", error);
-      toast.error("Failed to download delivery note");
-    }
+    window.open(`/api/download/delivery-note?id=${deliveryNoteId}`, "_blank");
   };
 
-  // Get company data
-  const company = deliveryNote?.company;
+  const [company, setCompany] = useState<EnhancedCompany | Company | null>(null);
   const companyName = company?.name || deliveryNote?.companyName;
 
   // Build address line (zip + city) or use full address
   const addressLine = [company?.zip, company?.city].filter(Boolean).join(" ") || company?.address;
+
+  useEffect(() => {
+    let active = true;
+    async function loadCompany() {
+      if (company || !deliveryNote?.companyId) return;
+      try {
+        const res = await companiesApi.getById(deliveryNote.companyId);
+        if (res && (res as any).success && (res as any).data && active) {
+          setCompany((res as any).data as Company);
+        }
+      } catch {}
+    }
+    loadCompany();
+    return () => {
+      active = false;
+    };
+  }, [company, deliveryNote?.companyId]);
 
   return (
     <div className="flex flex-col h-full">
@@ -209,22 +281,24 @@ function SuccessContent({
           {/* Delivery Note Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
-              <span className="text-xs text-muted-foreground">Delivery Note No:</span>
+              <span className="text-xs text-muted-foreground">Delivery No:</span>
               <span className="text-sm font-medium ml-1">
-                {deliveryNote?.deliveryNumber || "—"}
+                {formatDeliveryNoteNumber(deliveryNote?.deliveryNumber)}
               </span>
             </div>
             <div>
-              <span className="text-xs text-muted-foreground">Delivery Date:</span>
+              <span className="text-xs text-muted-foreground">Date:</span>
               <span className="text-sm font-medium ml-1">
-                {deliveryNote?.deliveryDate ? formatDate(deliveryNote.deliveryDate) : "—"}
+                {deliveryNote?.deliveryDate || deliveryNote?.createdAt
+                  ? formatDateDMY(deliveryNote?.deliveryDate || (deliveryNote?.createdAt as string))
+                  : "—"}
               </span>
             </div>
           </div>
 
           {/* Customer Info */}
           <div className="mb-6">
-            <p className="text-xs font-medium text-foreground mb-2">To</p>
+            <p className="text-xs font-medium text-foreground mb-2">Deliver to</p>
             <div className="space-y-0.5">
               {companyName && <p className="text-sm text-muted-foreground">{companyName}</p>}
               {addressLine && <p className="text-sm text-muted-foreground">{addressLine}</p>}
@@ -237,11 +311,14 @@ function SuccessContent({
               {company?.phone && (
                 <p className="text-sm text-muted-foreground">Tel: {company.phone}</p>
               )}
-              {(company?.email || company?.billingEmail) && (
+              {(company?.email || (company as any)?.billingEmail) && (
                 <p className="text-sm text-muted-foreground">
                   E-mail:{" "}
-                  <a href={`mailto:${company.email || company.billingEmail}`} className="underline">
-                    {company.email || company.billingEmail}
+                  <a
+                    href={`mailto:${company?.email || (company as any)?.billingEmail}`}
+                    className="underline"
+                  >
+                    {company?.email || (company as any)?.billingEmail}
                   </a>
                 </p>
               )}
@@ -251,22 +328,12 @@ function SuccessContent({
             </div>
           </div>
 
-          {/* Shipping Address */}
-          {deliveryNote?.shippingAddress && (
-            <div className="mb-6">
-              <p className="text-xs font-medium text-foreground mb-2">Shipping Address</p>
-              <p className="text-sm text-muted-foreground whitespace-pre-line">
-                {deliveryNote.shippingAddress}
-              </p>
-            </div>
-          )}
-
           {/* Total */}
           {deliveryNote && deliveryNote.total > 0 && (
             <div className="flex justify-between items-center mb-6">
               <span className="text-sm text-muted-foreground">Total</span>
               <span className="text-2xl font-semibold">
-                {formatCurrency(deliveryNote.total || 0, "EUR")}
+                {formatCurrency(deliveryNote.total || 0, deliveryNote.currency || "EUR", "sr-RS")}
               </span>
             </div>
           )}
@@ -329,4 +396,48 @@ function SuccessContent({
       </div>
     </div>
   );
+}
+
+// Transform API delivery note to form values
+function transformDeliveryNoteToFormValues(
+  deliveryNote: DeliveryNoteApiResponse
+): Partial<DeliveryNoteFormValues> {
+  return {
+    id: deliveryNote.id,
+    status: deliveryNote.status,
+    deliveryNumber: deliveryNote.deliveryNumber ?? "",
+    issueDate: (deliveryNote.deliveryDate ?? deliveryNote.createdAt ?? "") as string,
+    customerId: deliveryNote.companyId,
+    customerName: deliveryNote.companyName,
+    amount: deliveryNote.total || 0,
+    subtotal: deliveryNote.subtotal || 0,
+    vat: deliveryNote.vat || 0,
+    tax: deliveryNote.tax || 0,
+    discount: deliveryNote.discount || 0,
+    noteDetails: deliveryNote.notes
+      ? {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: deliveryNote.notes }],
+            },
+          ],
+        }
+      : null,
+    paymentDetails: null,
+    lineItems: (deliveryNote.items || []).map((item) => ({
+      name: item.productName || item.description || "",
+      quantity: item.quantity || 1,
+      price: item.unitPrice || 0,
+      unit: item.unit || "pcs",
+      discount: item.discount || 0,
+    })),
+    template: {
+      ...DEFAULT_DELIVERY_NOTE_TEMPLATE,
+      currency: deliveryNote.currency || "EUR",
+      taxRate: deliveryNote.taxRate || 0,
+    },
+    token: deliveryNote.token,
+  };
 }

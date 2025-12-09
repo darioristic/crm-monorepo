@@ -5,9 +5,11 @@ import {
   flexRender,
   getCoreRowModel,
   type RowSelectionState,
+  type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
 import {
@@ -26,11 +28,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAuth } from "@/contexts/auth-context";
 import { useMutation, usePaginatedApi } from "@/hooks/use-api";
 import { companiesApi, deliveryNotesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
-export function DeliveryNotesDataTable() {
+export function DeliveryNotesDataTable({ refreshSignal }: { refreshSignal?: number }) {
+  const { user } = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
   const [searchValue, setSearchValue] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -38,6 +44,7 @@ export function DeliveryNotesDataTable() {
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
 
   // Fetch companies for name lookup - use paginated API to get all companies
   const { data: companies } = usePaginatedApi<Company>(
@@ -73,6 +80,9 @@ export function DeliveryNotesDataTable() {
   } = usePaginatedApi<DeliveryNote>((params) => deliveryNotesApi.getAll(params), {
     search: searchValue,
     status: statusFilter === "all" ? undefined : statusFilter,
+    companyId: user?.companyId,
+    sortBy: sorting[0]?.id,
+    sortOrder: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
   });
 
   // Delete mutation
@@ -92,10 +102,19 @@ export function DeliveryNotesDataTable() {
       setFilters({
         search: searchValue,
         status: statusFilter === "all" ? undefined : statusFilter,
+        sortBy: sorting[0]?.id,
+        sortOrder: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchValue, statusFilter, setFilters]);
+  }, [searchValue, statusFilter, sorting, setFilters]);
+
+  // Refresh table when refreshSignal changes
+  React.useEffect(() => {
+    if (refreshSignal !== undefined) {
+      refetch();
+    }
+  }, [refreshSignal, refetch]);
 
   // Handle delete
   const handleDelete = async () => {
@@ -179,7 +198,10 @@ export function DeliveryNotesDataTable() {
     onRowSelectionChange: setRowSelection,
     state: {
       rowSelection,
+      sorting,
     },
+    manualSorting: true,
+    onSortingChange: setSorting,
   });
 
   if (isLoading && !deliveryNotes?.length) {
@@ -211,6 +233,7 @@ export function DeliveryNotesDataTable() {
             onStatusFilterChange={setStatusFilter}
             onRefresh={refetch}
             isLoading={isLoading}
+            onNewDeliveryNote={() => router.push(`${pathname}?type=create`)}
           />
         </div>
         {selectedCount > 0 && (

@@ -60,7 +60,7 @@ export function CompanyHeaderDropdown() {
   // Company switching mutation
   const changeCompanyMutation = useMutation({
     mutationFn: async (companyId: string) => {
-      logger.info("🔄 Frontend: Switching to company:", companyId);
+      logger.info("🔄 Frontend: Switching to company", { companyId });
       const result = await switchCompany(companyId);
 
       if (!result.success) {
@@ -68,7 +68,7 @@ export function CompanyHeaderDropdown() {
         const errorMessage =
           result.error?.message || result.error?.code || "Failed to switch company";
 
-        logger.error("❌ Frontend: Switch failed:", {
+        logger.error("❌ Frontend: Switch failed", {
           error: result.error || { code: "UNKNOWN", message: errorMessage },
           message: errorMessage,
         });
@@ -126,12 +126,38 @@ export function CompanyHeaderDropdown() {
       await queryClient.invalidateQueries({ queryKey: ["order-products"] });
       await queryClient.invalidateQueries({ queryKey: ["payments"] });
 
-      // Refetch all data immediately
+      // Persist selected companyId locally as fallback for X-Company-Id header extraction
+      try {
+        if (result.data?.companyId) {
+          window.localStorage?.setItem("selectedCompanyId", String(result.data.companyId));
+          document.cookie = `selected_company_id=${String(
+            result.data.companyId
+          )}; path=/; max-age=31536000; SameSite=Lax`;
+        }
+      } catch {}
+
+      // Refetch key company-dependent queries immediately
       await Promise.all([
-        queryClient.refetchQueries({ queryKey: ["team", "current"] }),
-        queryClient.refetchQueries({ queryKey: ["companies"] }),
-        queryClient.refetchQueries({ queryKey: ["company", "members"] }),
-        queryClient.refetchQueries({ queryKey: ["company", "invites"] }),
+        queryClient.refetchQueries({
+          queryKey: ["team", "current"],
+          type: "active",
+        }),
+        queryClient.refetchQueries({ queryKey: ["companies"], type: "active" }),
+        queryClient.refetchQueries({
+          queryKey: ["company", "members"],
+          type: "active",
+        }),
+        queryClient.refetchQueries({
+          queryKey: ["company", "invites"],
+          type: "active",
+        }),
+        queryClient.refetchQueries({ queryKey: ["invoices"], type: "active" }),
+        queryClient.refetchQueries({ queryKey: ["orders"], type: "active" }),
+        queryClient.refetchQueries({ queryKey: ["quotes"], type: "active" }),
+        queryClient.refetchQueries({
+          queryKey: ["delivery-notes"],
+          type: "active",
+        }),
       ]);
 
       setIsChangingCompany(false);
@@ -141,6 +167,9 @@ export function CompanyHeaderDropdown() {
       toast.success("Company switched successfully");
 
       // Refresh server components
+      try {
+        router.push(`/c/${String(result.data?.companyId ?? selectedId)}/dashboard`);
+      } catch {}
       router.refresh();
     },
     onError: (error) => {
@@ -156,13 +185,15 @@ export function CompanyHeaderDropdown() {
     }
   }, [user?.companyId]);
 
-  // Sort companies - selected first
+  // Filter and sort companies - only show seller companies, with selected first
   const sortedCompanies =
-    companiesResponse?.sort((a, b) => {
-      if (a.id === selectedId) return -1;
-      if (b.id === selectedId) return 1;
-      return (a.name ?? "").localeCompare(b.name ?? "");
-    }) ?? [];
+    companiesResponse
+      ?.filter((company) => company.companyType === "seller")
+      ?.sort((a, b) => {
+        if (a.id === selectedId) return -1;
+        if (b.id === selectedId) return 1;
+        return (a.name ?? "").localeCompare(b.name ?? "");
+      }) ?? [];
 
   const handleCompanyChange = (companyId: string) => {
     if (companyId === selectedId) {
@@ -216,7 +247,7 @@ export function CompanyHeaderDropdown() {
             <>
               <DropdownMenuSeparator />
               <Button className="w-full" asChild>
-                <Link href="/dashboard/settings/companies" onClick={() => setActive(false)}>
+                <Link href="/dashboard/accounts/organizations" onClick={() => setActive(false)}>
                   <Plus className="mr-2 h-4 w-4" />
                   Manage Companies
                 </Link>
@@ -292,7 +323,7 @@ export function CompanyHeaderDropdown() {
           <>
             <DropdownMenuSeparator />
             <Button className="w-full" asChild>
-              <Link href="/dashboard/settings/companies" onClick={() => setActive(false)}>
+              <Link href="/dashboard/accounts/organizations" onClick={() => setActive(false)}>
                 <Plus className="mr-2 h-4 w-4" />
                 Manage Companies
               </Link>

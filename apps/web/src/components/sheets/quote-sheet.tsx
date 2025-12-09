@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Reorder, useDragControls } from "framer-motion";
 import { AlertCircle, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { Resolver } from "react-hook-form";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -203,7 +204,7 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
     .split("T")[0];
 
   const form = useForm<QuoteFormValues>({
-    resolver: zodResolver(quoteFormSchema) as any,
+    resolver: zodResolver(quoteFormSchema) as Resolver<QuoteFormValues>,
     shouldUnregister: true,
     defaultValues: {
       companyId: "",
@@ -217,7 +218,7 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
     },
   });
 
-  const { fields, append, remove, move } = useFieldArray({
+  const { fields, append, remove, move, replace } = useFieldArray({
     control: form.control,
     name: "items",
   });

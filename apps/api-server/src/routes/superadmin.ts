@@ -370,6 +370,195 @@ router.get(
   })
 );
 
+// ============================================
+// Tenant Users Management
+// ============================================
+
+// List users for a tenant
+router.get(
+  "/api/superadmin/tenants/:id/users",
+  requireAdmin(async (_request, _url, params) => {
+    try {
+      const rows = await db
+        .select({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+          phone: users.phone,
+          avatarUrl: users.avatarUrl,
+          lastLoginAt: users.lastLoginAt,
+          createdAt: users.createdAt,
+        })
+        .from(users)
+        .where(eq(users.tenantId, params.id));
+      return json(successResponse(rows));
+    } catch (error) {
+      logger.error({ error, tenantId: params.id }, "Error listing tenant users");
+      return json(errorResponse("INTERNAL_ERROR", "Failed to list users"), 500);
+    }
+  })
+);
+
+// Create user under a tenant
+router.post(
+  "/api/superadmin/tenants/:id/users",
+  requireAdmin(async (request, _url, params) => {
+    try {
+      const body = (await request.json()) as {
+        firstName: string;
+        lastName: string;
+        email: string;
+        password: string;
+        role?: "tenant_admin" | "crm_user";
+        phone?: string;
+        avatarUrl?: string;
+      };
+
+      if (!body?.firstName || !body?.lastName || !body?.email || !body?.password) {
+        return json(
+          errorResponse("VALIDATION_ERROR", "firstName, lastName, email and password are required"),
+          400
+        );
+      }
+
+      // Check if user with this email already exists
+      const existingUser = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, body.email))
+        .limit(1);
+
+      if (existingUser.length > 0) {
+        return json(errorResponse("VALIDATION_ERROR", "User with this email already exists"), 409);
+      }
+
+      // Hash password
+      const hashedPassword = await Bun.password.hash(body.password);
+
+      const [created] = await db
+        .insert(users)
+        .values({
+          tenantId: params.id,
+          firstName: body.firstName,
+          lastName: body.lastName,
+          email: body.email,
+          passwordHash: hashedPassword,
+          role: body.role || "crm_user",
+          status: "active",
+          phone: body.phone,
+          avatarUrl: body.avatarUrl,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .returning({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+          phone: users.phone,
+          avatarUrl: users.avatarUrl,
+          createdAt: users.createdAt,
+        });
+
+      // Invalidate cache
+      await cache.invalidatePattern("users:*");
+
+      return json(successResponse(created), 201);
+    } catch (error) {
+      logger.error({ error, tenantId: params.id }, "Error creating tenant user");
+      return json(errorResponse("INTERNAL_ERROR", "Failed to create user"), 500);
+    }
+  })
+);
+
+// Update user
+router.put(
+  "/api/superadmin/tenants/:id/users/:userId",
+  requireAdmin(async (request, _url, params) => {
+    try {
+      const body = (await request.json()) as {
+        firstName?: string;
+        lastName?: string;
+        email?: string;
+        role?: "tenant_admin" | "crm_user";
+        status?: string;
+        phone?: string;
+        avatarUrl?: string;
+      };
+
+      const [updated] = await db
+        .update(users)
+        .set({
+          ...(body.firstName && { firstName: body.firstName }),
+          ...(body.lastName && { lastName: body.lastName }),
+          ...(body.email && { email: body.email }),
+          ...(body.role && { role: body.role }),
+          ...(body.status && { status: body.status }),
+          ...(body.phone !== undefined && { phone: body.phone }),
+          ...(body.avatarUrl !== undefined && { avatarUrl: body.avatarUrl }),
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, params.userId))
+        .returning({
+          id: users.id,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          email: users.email,
+          role: users.role,
+          status: users.status,
+          phone: users.phone,
+          avatarUrl: users.avatarUrl,
+        });
+
+      if (!updated) {
+        return json(errorResponse("NOT_FOUND", "User not found"), 404);
+      }
+
+      // Invalidate cache
+      await cache.invalidatePattern("users:*");
+
+      return json(successResponse(updated));
+    } catch (error) {
+      logger.error({ error, userId: params.userId }, "Error updating user");
+      return json(errorResponse("INTERNAL_ERROR", "Failed to update user"), 500);
+    }
+  })
+);
+
+// Delete user (soft delete by setting status to inactive)
+router.delete(
+  "/api/superadmin/tenants/:id/users/:userId",
+  requireAdmin(async (_request, _url, params) => {
+    try {
+      const [deleted] = await db
+        .update(users)
+        .set({
+          status: "inactive",
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, params.userId))
+        .returning({ id: users.id });
+
+      if (!deleted) {
+        return json(errorResponse("NOT_FOUND", "User not found"), 404);
+      }
+
+      // Invalidate cache
+      await cache.invalidatePattern("users:*");
+
+      return json(successResponse({ message: "User deleted" }));
+    } catch (error) {
+      logger.error({ error, userId: params.userId }, "Error deleting user");
+      return json(errorResponse("INTERNAL_ERROR", "Failed to delete user"), 500);
+    }
+  })
+);
+
 export const superadminRoutes = router.getRoutes();
 
 // ============================================
@@ -411,6 +600,7 @@ router.post(
         companyNumber?: string;
         logoUrl?: string;
         source?: string;
+        companyType?: "seller" | "customer";
         note?: string;
         metadata?: Record<string, unknown>;
       };
@@ -441,6 +631,7 @@ router.post(
           companyNumber: body.companyNumber,
           logoUrl: body.logoUrl,
           source: body.source,
+          companyType: body.companyType || (body.source === "account" ? "seller" : "customer"),
           note: body.note,
           metadata: body.metadata,
           createdAt: new Date(),
@@ -452,6 +643,99 @@ router.post(
     } catch (error) {
       logger.error({ error, tenantId: params.id }, "Error creating tenant company");
       return json(errorResponse("INTERNAL_ERROR", "Failed to create company"), 500);
+    }
+  })
+);
+
+// Delete company under a tenant
+router.delete(
+  "/api/superadmin/tenants/:id/companies/:companyId",
+  requireAdmin(async (_request, _url, params) => {
+    try {
+      const existing = await db
+        .select({ id: companies.id })
+        .from(companies)
+        .where(eq(companies.id, params.companyId))
+        .limit(1);
+
+      if (existing.length === 0) {
+        return json(errorResponse("NOT_FOUND", "Company not found"), 404);
+      }
+
+      await db.delete(companies).where(eq(companies.id, params.companyId));
+
+      await cache.invalidatePattern("companies:*");
+
+      return json(successResponse({ message: "Company deleted" }));
+    } catch (error) {
+      logger.error({ error, companyId: params.companyId }, "Error deleting company");
+      return json(errorResponse("INTERNAL_ERROR", "Failed to delete company"), 500);
+    }
+  })
+);
+
+// Update company under a tenant
+router.put(
+  "/api/superadmin/tenants/:id/companies/:companyId",
+  requireAdmin(async (request, _url, params) => {
+    try {
+      const body = (await request.json()) as {
+        name?: string;
+        industry?: string;
+        address?: string;
+        email?: string;
+        phone?: string;
+        website?: string;
+        contact?: string;
+        city?: string;
+        zip?: string;
+        country?: string;
+        countryCode?: string;
+        vatNumber?: string;
+        companyNumber?: string;
+        logoUrl?: string;
+        source?: string;
+        companyType?: "seller" | "customer";
+        note?: string;
+        metadata?: Record<string, unknown>;
+      };
+
+      const [updated] = await db
+        .update(companies)
+        .set({
+          ...(body.name !== undefined && { name: body.name }),
+          ...(body.industry !== undefined && { industry: body.industry }),
+          ...(body.address !== undefined && { address: body.address }),
+          ...(body.email !== undefined && { email: body.email }),
+          ...(body.phone !== undefined && { phone: body.phone }),
+          ...(body.website !== undefined && { website: body.website }),
+          ...(body.contact !== undefined && { contact: body.contact }),
+          ...(body.city !== undefined && { city: body.city }),
+          ...(body.zip !== undefined && { zip: body.zip }),
+          ...(body.country !== undefined && { country: body.country }),
+          ...(body.countryCode !== undefined && { countryCode: body.countryCode }),
+          ...(body.vatNumber !== undefined && { vatNumber: body.vatNumber }),
+          ...(body.companyNumber !== undefined && { companyNumber: body.companyNumber }),
+          ...(body.logoUrl !== undefined && { logoUrl: body.logoUrl }),
+          ...(body.source !== undefined && { source: body.source }),
+          ...(body.companyType !== undefined && { companyType: body.companyType }),
+          ...(body.note !== undefined && { note: body.note }),
+          ...(body.metadata !== undefined && { metadata: body.metadata }),
+          updatedAt: new Date(),
+        })
+        .where(eq(companies.id, params.companyId))
+        .returning();
+
+      if (!updated) {
+        return json(errorResponse("NOT_FOUND", "Company not found"), 404);
+      }
+
+      await cache.invalidatePattern("companies:*");
+
+      return json(successResponse(updated));
+    } catch (error) {
+      logger.error({ error, companyId: params.companyId }, "Error updating company");
+      return json(errorResponse("INTERNAL_ERROR", "Failed to update company"), 500);
     }
   })
 );

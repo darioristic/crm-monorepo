@@ -1,17 +1,19 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import type { DeliveryNote } from "@crm/types";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowUpDown,
+  Download,
+  Eye,
+  Link2,
   MoreHorizontal,
   Pencil,
   Trash2,
-  Eye,
   Truck,
-  Download,
-  Link2,
 } from "lucide-react";
-import type { DeliveryNote } from "@crm/types";
+import { toast } from "sonner";
+import { type DeliveryStatus, DeliveryStatusBadge } from "@/components/sales/status";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -21,12 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { formatDate, formatCurrency } from "@/lib/utils";
-import {
-  DeliveryStatusBadge,
-  type DeliveryStatus,
-} from "@/components/sales/status";
-import { toast } from "sonner";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 export type DeliveryNoteWithCompany = DeliveryNote & {
   companyName?: string;
@@ -85,11 +82,7 @@ export function getDeliveryColumns({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            window.open(
-              `/d/id/${row.original.id}`,
-              "_blank",
-              "noopener,noreferrer"
-            );
+            window.open(`/d/id/${row.original.id}`, "_blank", "noopener,noreferrer");
           }}
           className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
@@ -100,20 +93,13 @@ export function getDeliveryColumns({
     {
       accessorKey: "companyName",
       header: "Company",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.companyName}
-        </span>
-      ),
+      cell: ({ row }) => <span className="text-muted-foreground">{row.original.companyName}</span>,
     },
     {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <DeliveryStatusBadge
-          status={row.original.status as DeliveryStatus}
-          showTooltip={false}
-        />
+        <DeliveryStatusBadge status={row.original.status as DeliveryStatus} showTooltip={false} />
       ),
     },
     {
@@ -129,16 +115,21 @@ export function getDeliveryColumns({
       accessorKey: "trackingNumber",
       header: "Tracking",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.trackingNumber || "-"}
-        </span>
+        <span className="text-muted-foreground">{row.original.trackingNumber || "-"}</span>
       ),
     },
     {
       accessorKey: "deliveryDate",
-      header: "Delivery Date",
-      cell: ({ row }) =>
-        row.original.deliveryDate ? formatDate(row.original.deliveryDate) : "-",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Delivery Date
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
+      cell: ({ row }) => (row.original.deliveryDate ? formatDate(row.original.deliveryDate) : "-"),
     },
     {
       accessorKey: "total",
@@ -152,14 +143,20 @@ export function getDeliveryColumns({
         </Button>
       ),
       cell: ({ row }) => (
-        <span className="font-medium">
-          {formatCurrency(row.original.total || 0)}
-        </span>
+        <span className="font-medium">{formatCurrency(row.original.total || 0)}</span>
       ),
     },
     {
       accessorKey: "createdAt",
-      header: "Created",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Created
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => formatDate(row.original.createdAt),
     },
     {
@@ -176,10 +173,7 @@ export function getDeliveryColumns({
         };
 
         const handleDownload = () => {
-          window.open(
-            `/api/download/delivery-note?id=${row.original.id}`,
-            "_blank"
-          );
+          window.open(`/api/download/delivery-note?id=${row.original.id}`, "_blank");
         };
 
         return (
@@ -195,11 +189,7 @@ export function getDeliveryColumns({
                   if (onView) {
                     onView(row.original);
                   } else {
-                    window.open(
-                      `/d/id/${row.original.id}`,
-                      "_blank",
-                      "noopener,noreferrer"
-                    );
+                    window.open(`/d/id/${row.original.id}`, "_blank", "noopener,noreferrer");
                   }
                 }}
               >
@@ -233,9 +223,7 @@ export function getDeliveryColumns({
               {row.original.status !== "delivered" && onMarkDelivered && (
                 <>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onClick={() => onMarkDelivered(row.original)}
-                  >
+                  <DropdownMenuItem onClick={() => onMarkDelivered(row.original)}>
                     <Truck className="mr-2 h-4 w-4" />
                     Mark as Delivered
                   </DropdownMenuItem>

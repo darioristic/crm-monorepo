@@ -115,7 +115,10 @@ export async function rollbackEnhanceCompaniesTable(): Promise<void> {
   logger.info("✅ Companies enhancement rolled back");
 }
 
-if (import.meta.main) {
+export const name = "005_enhance_companies";
+export async function up(): Promise<void> {
   await enhanceCompaniesTable();
-  process.exit(0);
+}
+export async function down(): Promise<void> {
+  await rollbackEnhanceCompaniesTable();
 }

@@ -307,7 +307,31 @@ export async function meHandler(request: Request, _url: URL): Promise<Response> 
     role: result.data.role,
     companyId: result.data.companyId,
     avatarUrl: result.data.avatarUrl,
+    // Multi-tenant support with frontend-compatible field names
+    activeTenantId: auth.activeTenantId,
+    tenantRoles: auth.tenantRoles.map((t) => ({
+      id: t.tenantId,
+      slug: t.tenantSlug,
+      name: t.tenantName,
+      logoUrl: t.tenantLogoUrl || null,
+      role: t.role,
+    })),
   };
+
+  // Add active tenant details if available
+  let activeTenant = null;
+  if (auth.activeTenantId && auth.tenantRoles.length > 0) {
+    const tenant = auth.tenantRoles.find((t) => t.tenantId === auth.activeTenantId);
+    if (tenant) {
+      activeTenant = {
+        id: tenant.tenantId,
+        slug: tenant.tenantSlug,
+        name: tenant.tenantName,
+        role: tenant.role,
+        logoUrl: tenant.tenantLogoUrl || null,
+      };
+    }
+  }
 
   // Add company information if user has an active company
   if (result.data.companyId) {
@@ -315,12 +339,13 @@ export async function meHandler(request: Request, _url: URL): Promise<Response> 
       const { getCompanyById } = await import("../db/queries/companies-members");
       const company = await getCompanyById(result.data.companyId);
       if (company) {
-        // Return user with company info
+        // Return user with company info and tenant data
         return json({
           success: true,
           data: {
             ...userData,
             company,
+            activeTenant,
           },
         });
       }
@@ -330,11 +355,96 @@ export async function meHandler(request: Request, _url: URL): Promise<Response> 
     }
   }
 
-  // Return user without company
+  // Return user without company but with tenant data
   return json({
     success: true,
-    data: userData,
+    data: {
+      ...userData,
+      activeTenant,
+    },
   });
+}
+
+/**
+ * POST /api/v1/auth/switch-tenant
+ */
+export async function switchTenantHandler(request: Request, _url: URL): Promise<Response> {
+  const auth = await verifyAndGetUser(request);
+
+  if (!auth) {
+    return json(errorResponse("UNAUTHORIZED", "Not authenticated"), 401);
+  }
+
+  const body = await parseBody<{ tenantId: string }>(request);
+
+  if (!body?.tenantId) {
+    return json(errorResponse("BAD_REQUEST", "tenantId is required"), 400);
+  }
+
+  try {
+    const { sql } = await import("../db/client");
+
+    // Verify user belongs to this tenant
+    const userTenantRole = await sql`
+      SELECT utr.role, t.name as tenant_name, t.slug as tenant_slug
+      FROM user_tenant_roles utr
+      JOIN tenants t ON utr.tenant_id = t.id
+      WHERE utr.user_id = ${auth.userId}
+        AND utr.tenant_id = ${body.tenantId}
+        AND t.status = 'active'
+      LIMIT 1
+    `;
+
+    if (userTenantRole.length === 0) {
+      return json(errorResponse("FORBIDDEN", "You don't have access to this tenant"), 403);
+    }
+
+    // Update active tenant
+    await sql`
+      INSERT INTO user_active_tenant (user_id, active_tenant_id, updated_at)
+      VALUES (${auth.userId}, ${body.tenantId}, NOW())
+      ON CONFLICT (user_id)
+      DO UPDATE SET active_tenant_id = ${body.tenantId}, updated_at = NOW()
+    `;
+
+    // Generate new tokens with updated tenant context
+    const result = await authService.refreshSession(auth.sessionId);
+
+    if (!result.success) {
+      return json(errorResponse("SERVER_ERROR", "Failed to generate new tokens"), 500);
+    }
+
+    // Log tenant switch
+    auditService.logAction({
+      userId: auth.userId,
+      action: "TENANT_SWITCH",
+      entityType: "tenant",
+      entityId: body.tenantId,
+      ipAddress: getClientIp(request),
+      userAgent: getUserAgent(request),
+      metadata: { tenantName: userTenantRole[0].tenant_name },
+    });
+
+    // Set new cookies with updated tokens
+    const cookies = setAuthCookies(
+      result.data!.accessToken,
+      result.data!.refreshToken,
+      result.data!.sessionId
+    );
+
+    return json(
+      successResponse({
+        success: true,
+        tenantId: body.tenantId,
+        expiresIn: result.data!.expiresIn,
+      }),
+      200,
+      cookies
+    );
+  } catch (error) {
+    logger.error({ error, userId: auth.userId, tenantId: body.tenantId }, "Error switching tenant");
+    return json(errorResponse("SERVER_ERROR", "Failed to switch tenant"), 500);
+  }
 }
 
 /**

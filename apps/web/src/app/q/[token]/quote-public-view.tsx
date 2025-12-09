@@ -1,21 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Download, Link2, Check, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { ArrowRightCircle, Check, Download, Link2, Pencil } from "lucide-react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { HtmlTemplate } from "@/components/quote/templates/html";
-import type { Quote, EditorDoc } from "@/types/quote";
-import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
+import type { EditorDoc, Quote } from "@/types/quote";
+import { DEFAULT_QUOTE_TEMPLATE, formatQuoteNumber } from "@/types/quote";
 
 // API Quote Response Type
 interface QuoteApiResponse {
@@ -199,9 +200,7 @@ function buildCustomerDetails(quote: QuoteApiResponse): EditorDoc | null {
 }
 
 // Build from details (seller info) - uses localStorage or defaults
-function buildFromDetails(
-  storedFromDetails: EditorDoc | null
-): EditorDoc | null {
+function buildFromDetails(storedFromDetails: EditorDoc | null): EditorDoc | null {
   // If stored details exist, use them
   if (storedFromDetails) return storedFromDetails;
 
@@ -240,13 +239,12 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
   }, []);
 
   // Get customer name from company object
-  const customerName =
-    quote.companyName || quote.company?.name || "Customer";
+  const customerName = quote.companyName || quote.company?.name || "Customer";
 
   // Transform API data to Quote type
   const quoteData: Quote = {
     id: quote.id,
-    quoteNumber: quote.quoteNumber,
+    quoteNumber: formatQuoteNumber(quote.quoteNumber),
     issueDate: quote.issueDate,
     validUntil: quote.validUntil,
     createdAt: quote.createdAt,
@@ -294,12 +292,9 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
     tax: quote.tax || null,
     discount: quote.discount || null,
     subtotal: quote.subtotal,
-    status:
-      ["draft", "sent", "accepted", "rejected", "expired"].includes(
-        quote.status,
-      )
-        ? (quote.status as Quote["status"]) 
-        : "draft",
+    status: ["draft", "sent", "accepted", "rejected", "expired"].includes(quote.status)
+      ? (quote.status as Quote["status"])
+      : "draft",
     template: {
       ...DEFAULT_QUOTE_TEMPLATE,
       logoUrl: logoUrl,
@@ -354,15 +349,61 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
     }
   };
 
+  const handleConvertToOrder = async () => {
+    try {
+      toast.info("Converting quote to order...");
+      const { quotesApi } = await import("@/lib/api");
+      const result = await quotesApi.convertToOrder(quote.id);
+
+      // Handle both possible response structures (API returns order with 'id', not 'orderId')
+      const orderId = result?.data?.id || (result as any)?.id;
+
+      if (orderId) {
+        toast.success("Quote successfully converted to order!");
+        // Navigate to the newly created order
+        window.location.href = `/dashboard/sales/orders?type=edit&orderId=${orderId}`;
+      } else {
+        console.error("No order id in response. Full result:", JSON.stringify(result, null, 2));
+        toast.error("Failed to convert quote to order - no order ID returned");
+      }
+    } catch (error) {
+      console.error("Convert to order error:", error);
+      toast.error(
+        `Failed to convert quote to order: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  };
+
+  const handleConvertToInvoice = async () => {
+    try {
+      toast.info("Converting quote to invoice...");
+      const { quotesApi } = await import("@/lib/api");
+      const result = await quotesApi.convertToInvoice(quote.id);
+
+      // Handle both possible response structures
+      const invoiceId = result?.data?.invoiceId || (result as any)?.invoiceId;
+      if (invoiceId) {
+        toast.success("Quote successfully converted to invoice!");
+        // Navigate to the newly created invoice
+        window.location.href = `/dashboard/sales/invoices?type=edit&invoiceId=${invoiceId}`;
+      } else {
+        console.error("No invoiceId in response:", result);
+        toast.error("Failed to convert quote to invoice - no invoice ID returned");
+      }
+    } catch (error) {
+      console.error("Convert to invoice error:", error);
+      toast.error(
+        `Failed to convert quote to invoice: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  };
+
   const width = quoteData.template?.size === "letter" ? 780 : 625;
   const height = quoteData.template?.size === "letter" ? 1056 : 842;
 
   return (
     <div className="flex flex-col justify-center items-center min-h-screen dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         {/* Customer Header */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -380,12 +421,7 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
         {/* Quote Template */}
         <div className="pb-24 md:pb-0">
           <div className="shadow-[0_24px_48px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
-            <HtmlTemplate
-              data={quoteData}
-              width={width}
-              height={height}
-              disableScroll
-            />
+            <HtmlTemplate data={quoteData} width={width} height={height} disableScroll />
           </div>
         </div>
       </div>
@@ -446,28 +482,58 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
           </TooltipProvider>
 
           {isAuthenticated && (
-            <TooltipProvider delayDuration={0}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="rounded-full size-8"
-                    onClick={() => {
-                      window.location.href = `/dashboard/sales/quotes?type=edit&quoteId=${quote.id}`;
-                    }}
+            <>
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="rounded-full size-8">
+                          <ArrowRightCircle className="size-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleConvertToOrder}>
+                          Convert to Order
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleConvertToInvoice}>
+                          Convert to Invoice
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    sideOffset={15}
+                    className="text-[10px] px-2 py-1 rounded-sm font-medium"
                   >
-                    <Pencil className="size-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent
-                  sideOffset={15}
-                  className="text-[10px] px-2 py-1 rounded-sm font-medium"
-                >
-                  <p>Edit quote</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+                    <p>Convert</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
+              <TooltipProvider delayDuration={0}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full size-8"
+                      onClick={() => {
+                        window.location.href = `/dashboard/sales/quotes?type=edit&quoteId=${quote.id}`;
+                      }}
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    sideOffset={15}
+                    className="text-[10px] px-2 py-1 rounded-sm font-medium"
+                  >
+                    <p>Edit quote</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </>
           )}
         </div>
       </motion.div>

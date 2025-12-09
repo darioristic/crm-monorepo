@@ -128,16 +128,27 @@ router.put("/api/v1/users/me", async (request) => {
         logger.debug({ companyId: body.companyId }, "CompanyId provided");
 
         if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-          // Admin can switch to any company - verify it exists
-          logger.debug("Admin user - verifying company exists");
+          // Admin can switch to any company - verify it exists AND is a seller company
+          logger.debug("Admin user - verifying company exists and is seller");
           const companyExists = await sql`
-            SELECT id FROM companies WHERE id = ${body.companyId}
+            SELECT id, company_type FROM companies WHERE id = ${body.companyId}
           `;
           if (companyExists.length === 0) {
             logger.error({ companyId: body.companyId }, "Company not found");
             return errorResponse("NOT_FOUND", "Company not found");
           }
-          logger.debug("Company exists");
+          // Prevent switching to customer companies - only allow seller companies
+          if (companyExists[0].company_type === "customer") {
+            logger.error(
+              { companyId: body.companyId, companyType: companyExists[0].company_type },
+              "Cannot switch to customer company"
+            );
+            return errorResponse(
+              "FORBIDDEN",
+              "Cannot switch to customer company. Only seller companies are allowed as active context."
+            );
+          }
+          logger.debug("Company exists and is a seller");
         } else {
           // Regular users can only switch to companies they're members of
           logger.debug("Regular user - checking company access");

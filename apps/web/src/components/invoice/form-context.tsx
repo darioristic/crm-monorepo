@@ -1,15 +1,16 @@
 "use client";
 
-import {
-  type InvoiceFormValues,
-  type InvoiceTemplate,
-  invoiceFormSchema,
-  type LineItem,
-} from "@crm/schemas";
+import { invoiceFormSchema } from "@crm/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
+import type { Resolver } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
-import type { InvoiceDefaultSettings } from "@/types/invoice";
+import type {
+  InvoiceDefaultSettings,
+  InvoiceFormValues,
+  InvoiceTemplate,
+  LineItem,
+} from "@/types/invoice";
 import {
   DEFAULT_INVOICE_TEMPLATE,
   generateInvoiceNumber,
@@ -19,6 +20,7 @@ import {
 export type FormValues = InvoiceFormValues;
 export type LineItemFormValues = LineItem;
 export type TemplateFormValues = InvoiceTemplate;
+export type { InvoiceFormValues } from "@/types/invoice";
 
 // Generate default values for new invoice
 const getDefaultValues = (): FormValues => {
@@ -32,7 +34,7 @@ const getDefaultValues = (): FormValues => {
     template: DEFAULT_INVOICE_TEMPLATE,
     fromDetails: null,
     customerDetails: null,
-    customerId: undefined,
+    customerId: "",
     customerName: undefined,
     paymentDetails: null,
     noteDetails: null,
@@ -61,7 +63,7 @@ type FormContextProps = {
 
 export function FormContext({ children, data, defaultSettings }: FormContextProps) {
   const form = useForm<FormValues>({
-    resolver: zodResolver(invoiceFormSchema),
+    resolver: zodResolver(invoiceFormSchema) as Resolver<FormValues>,
     defaultValues: getDefaultValues(),
     mode: "onChange",
   });

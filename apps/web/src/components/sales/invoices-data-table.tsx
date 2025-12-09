@@ -5,6 +5,7 @@ import {
   flexRender,
   getCoreRowModel,
   type RowSelectionState,
+  type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
@@ -28,6 +29,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useAuth } from "@/contexts/auth-context";
 import { useMutation, usePaginatedApi } from "@/hooks/use-api";
 import { companiesApi, invoicesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
@@ -35,6 +37,8 @@ import { getErrorMessage } from "@/lib/utils";
 export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
+  const selectedCompanyId = user?.companyId;
   const [searchValue, setSearchValue] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
@@ -42,6 +46,7 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
 
   // Open invoice in sheet
   const handleOpenSheet = React.useCallback(
@@ -85,6 +90,9 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
   } = usePaginatedApi<Invoice>((params) => invoicesApi.getAll(params), {
     search: searchValue,
     status: statusFilter === "all" ? undefined : statusFilter,
+    companyId: selectedCompanyId,
+    sortBy: sorting[0]?.id,
+    sortOrder: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
   });
 
   // Delete mutation
@@ -104,10 +112,13 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
       setFilters({
         search: searchValue,
         status: statusFilter === "all" ? undefined : statusFilter,
+        companyId: selectedCompanyId,
+        sortBy: sorting[0]?.id,
+        sortOrder: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchValue, statusFilter, setFilters]);
+  }, [searchValue, statusFilter, selectedCompanyId, sorting, setFilters]);
 
   // Handle external refresh trigger
   React.useEffect(() => {
@@ -115,6 +126,13 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
       refetch();
     }
   }, [refreshTrigger, refetch]);
+
+  // Surface backend error details to the user
+  React.useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   // Handle delete
   const handleDelete = async () => {
@@ -194,8 +212,18 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
           setPaymentDialogOpen(true);
         },
         onOpenSheet: handleOpenSheet,
+        onConvertToDeliveryNote: async (invoice) => {
+          try {
+            await invoicesApi.convertToDeliveryNote(invoice.id);
+            toast.success("Invoice successfully converted to delivery note!");
+            refetch();
+          } catch (error) {
+            toast.error("Failed to convert invoice to delivery note");
+            console.error(error);
+          }
+        },
       }),
-    [handleOpenSheet]
+    [handleOpenSheet, refetch]
   );
 
   const table = useReactTable({
@@ -207,7 +235,10 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
     onRowSelectionChange: setRowSelection,
     state: {
       rowSelection,
+      sorting,
     },
+    manualSorting: true,
+    onSortingChange: setSorting,
   });
 
   if (isLoading && !invoices?.length) {
@@ -239,6 +270,7 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
             onStatusFilterChange={setStatusFilter}
             onRefresh={refetch}
             isLoading={isLoading}
+            onNewInvoice={() => router.push(`${pathname}?type=create`)}
           />
         </div>
         {selectedCount > 0 && (

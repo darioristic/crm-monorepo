@@ -53,6 +53,7 @@ export function LineItems({
   currency,
   descriptionLabel,
   quantityLabel,
+  unitLabel,
   priceLabel,
   totalLabel,
   includeDecimals = false,

@@ -174,6 +174,21 @@ apps/api-server/src/
 - Svi kompanijski entiteti moraju imati companyId
 - API routing i middleware striktno vezuju svaki request za companyId
 - Database query-ji automatski filtriraju po tenantId + companyId
+- `X-Company-Id` header se koristi za identifikaciju aktivne kompanije i server ga
+  automatski propagira u query parametre kada nedostaje.
+
+### Ažurirano ponašanje lista (ponude, računi, otpremnice, narudžbe)
+
+- Rute za listanje više ne koriste fallback na `createdBy`.
+- Prvo se identifikuje kompanija (`X-Company-Id` ili aktivna kompanija korisnika),
+  zatim se podaci dohvataju isključivo po `companyId` i provjerava se članstvo korisnika.
+
+### Unazad kompatibilnost
+
+- Klijenti koji ne šalju `X-Company-Id` nastavljaju rad jer server koristi aktivnu
+  kompaniju korisnika iz JWT ili baze.
+- Migracija `021_backfill_documents_company_id` popunjava `documents.company_id` iz
+  tagova i članstava korisnika.
 
 ### Superadmin Izolacija
 - Superadmin vidi sve tenant-e
@@ -198,4 +213,3 @@ Testovi treba da pokrivaju:
 - Provisioning workflow
 - Auth za sve tri sloja
 - Middleware validaciju
-

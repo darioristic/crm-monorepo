@@ -113,22 +113,21 @@ export function TenantCompanyForm({ company, onSuccess }: Props) {
         throw new Error(result.error?.message || "Failed to create company");
       }
 
-      // Upload logo if provided; otherwise set initials-generated logo
+      const created = result.data as TenantCompany;
       try {
         if (logoFile) {
-          await uploadCompanyLogo(result.data.id, logoFile);
+          await uploadCompanyLogo(created.id, logoFile);
         } else {
-          // Fallback: set initials logo via update
           const initialsLogo = generateInitialsLogo(values.name);
-          await tenantAdminApi.companies.update(result.data.id, {
+          await tenantAdminApi.companies.update(created.id, {
             logoUrl: initialsLogo,
           });
         }
       } catch (e) {
         // If logo upload fails, company still exists; surface error but continue
-        logger.error(e);
+        logger.error("Logo upload failed", e);
       }
-      return result.data;
+      return created;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -518,7 +517,7 @@ async function uploadCompanyLogo(companyId: string, file: File): Promise<string>
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`${API_URL}/api/v1/companies/${companyId}/logo`, {
+  const response = await fetch(`/api/v1/companies/${companyId}/logo`, {
     method: "POST",
     body: formData,
     credentials: "include",

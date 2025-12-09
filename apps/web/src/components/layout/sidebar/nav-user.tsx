@@ -1,7 +1,7 @@
 "use client";
 
 import { DotsVerticalIcon } from "@radix-ui/react-icons";
-import { BellIcon, LogOutIcon, SettingsIcon, UserCircle2Icon } from "lucide-react";
+import { BellIcon, LogOutIcon, UserCircle2Icon } from "lucide-react";
 import Link from "next/link";
 import * as React from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -93,13 +93,7 @@ export function NavUser() {
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings">
-                  <SettingsIcon />
-                  Settings
-                </Link>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild>
-                <Link href="/dashboard/settings/notifications">
+                <Link href="/dashboard/notifications">
                   <BellIcon />
                   Notifications
                 </Link>

@@ -247,26 +247,58 @@ export function generateOrderToken(): string {
 
 // Generate next order number
 export function generateOrderNumber(lastNumber?: string): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const year = new Date().getFullYear();
 
   if (!lastNumber) {
-    return `ORD-${year}${month}-001`;
+    return `ORD-${year}-001`;
   }
 
-  const match = lastNumber.match(/ORD-(\d{6})-(\d+)/);
-  if (!match) {
-    return `ORD-${year}${month}-001`;
+  const patterns = [
+    /^ORD-(\d{13})-[A-Z0-9]+$/, // ORD-<timestamp>-<random>
+    /^ORD-(\d{6})-(\d+)$/, // ORD-YYYYMM-xxx
+    /^ORD-(\d{4})-(\d+)$/, // ORD-YYYY-xxx
+  ];
+
+  for (const re of patterns) {
+    const m = lastNumber.match(re);
+    if (m) {
+      const lastYear =
+        m[1].length === 13
+          ? new Date(parseInt(m[1], 10)).getFullYear().toString()
+          : m[1].length === 6
+            ? m[1].slice(0, 4)
+            : m[1];
+      const lastSeqRaw = m[2];
+      const lastSeq = lastSeqRaw ? parseInt(lastSeqRaw, 10) : 0;
+      if (String(year) === lastYear) {
+        return `ORD-${year}-${String(lastSeq + 1).padStart(3, "0")}`;
+      }
+      return `ORD-${year}-001`;
+    }
   }
 
-  const lastYearMonth = match[1];
-  const lastSeq = parseInt(match[2], 10);
-  const currentYearMonth = `${year}${month}`;
+  return `ORD-${year}-001`;
+}
 
-  if (lastYearMonth === currentYearMonth) {
-    return `ORD-${currentYearMonth}-${String(lastSeq + 1).padStart(3, "0")}`;
+export function formatOrderNumber(num: string | null | undefined): string {
+  if (!num) return "-";
+  let m = num.match(/^ORD-(\d{13})-[A-Z0-9]+$/);
+  if (m) {
+    const ts = parseInt(m[1], 10);
+    const year = new Date(ts).getFullYear();
+    return `ORD-${year}-001`;
   }
-
-  return `ORD-${currentYearMonth}-001`;
+  m = num.match(/^ORD-(\d{6})-(\d+)$/);
+  if (m) {
+    const year = m[1].slice(0, 4);
+    const seq = String(parseInt(m[2], 10)).padStart(3, "0");
+    return `ORD-${year}-${seq}`;
+  }
+  m = num.match(/^ORD-(\d{4})-(\d+)$/);
+  if (m) {
+    const year = m[1];
+    const seq = String(parseInt(m[2], 10)).padStart(3, "0");
+    return `ORD-${year}-${seq}`;
+  }
+  return num;
 }

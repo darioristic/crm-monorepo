@@ -5,6 +5,7 @@ import {
   flexRender,
   getCoreRowModel,
   type RowSelectionState,
+  type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
 import { Trash2 } from "lucide-react";
@@ -27,17 +28,20 @@ import {
 import { useAuth } from "@/contexts/auth-context";
 import { useMutation, usePaginatedApi } from "@/hooks/use-api";
 import { companiesApi, quotesApi } from "@/lib/api";
+import { logger } from "@/lib/logger";
 import { getErrorMessage } from "@/lib/utils";
 
 export function QuotesDataTable({ refreshSignal }: { refreshSignal?: number | string }) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
+  const selectedCompanyId = user?.companyId;
   const [searchValue, setSearchValue] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [selectedQuote, setSelectedQuote] = React.useState<QuoteWithCompany | null>(null);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
+  const [sorting, setSorting] = React.useState<SortingState>([]);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
@@ -84,6 +88,9 @@ export function QuotesDataTable({ refreshSignal }: { refreshSignal?: number | st
   } = usePaginatedApi<Quote>((params) => quotesApi.getAll(params), {
     search: searchValue,
     status: statusFilter === "all" ? undefined : statusFilter,
+    companyId: selectedCompanyId,
+    sortBy: sorting[0]?.id,
+    sortOrder: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
   });
 
   React.useEffect(() => {
@@ -109,10 +116,20 @@ export function QuotesDataTable({ refreshSignal }: { refreshSignal?: number | st
       setFilters({
         search: searchValue,
         status: statusFilter === "all" ? undefined : statusFilter,
+        companyId: selectedCompanyId,
+        sortBy: sorting[0]?.id,
+        sortOrder: sorting[0] ? (sorting[0].desc ? "desc" : "asc") : undefined,
       });
     }, 300);
     return () => clearTimeout(timer);
-  }, [searchValue, statusFilter, setFilters]);
+  }, [searchValue, statusFilter, selectedCompanyId, sorting, setFilters]);
+
+  // Surface backend error details to the user
+  React.useEffect(() => {
+    if (error) {
+      toast.error(error);
+    }
+  }, [error]);
 
   // Handle delete
   const handleDelete = async () => {
@@ -165,6 +182,68 @@ export function QuotesDataTable({ refreshSignal }: { refreshSignal?: number | st
 
   const selectedCount = Object.keys(rowSelection).length;
 
+  // Handle conversion to Order
+  const handleConvertToOrder = async () => {
+    const selectedRows = Object.keys(rowSelection);
+    if (selectedRows.length === 0) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const rowIndex of selectedRows) {
+      const quote = enrichedQuotes[parseInt(rowIndex, 10)];
+      if (quote) {
+        try {
+          await quotesApi.convertToOrder(quote.id);
+          successCount++;
+        } catch (error) {
+          logger.error("Failed to convert quote to order:", error);
+          failCount++;
+        }
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Successfully converted ${successCount} quote(s) to order(s)`);
+      setRowSelection({});
+      refetch();
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to convert ${failCount} quote(s)`);
+    }
+  };
+
+  // Handle conversion to Invoice
+  const handleConvertToInvoice = async () => {
+    const selectedRows = Object.keys(rowSelection);
+    if (selectedRows.length === 0) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const rowIndex of selectedRows) {
+      const quote = enrichedQuotes[parseInt(rowIndex, 10)];
+      if (quote) {
+        try {
+          await quotesApi.convertToInvoice(quote.id);
+          successCount++;
+        } catch (error) {
+          logger.error("Failed to convert quote to invoice:", error);
+          failCount++;
+        }
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`Successfully converted ${successCount} quote(s) to invoice(s)`);
+      setRowSelection({});
+      refetch();
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to convert ${failCount} quote(s)`);
+    }
+  };
+
   const columns = React.useMemo(
     () =>
       getQuotesColumns({
@@ -188,7 +267,10 @@ export function QuotesDataTable({ refreshSignal }: { refreshSignal?: number | st
     onRowSelectionChange: setRowSelection,
     state: {
       rowSelection,
+      sorting,
     },
+    manualSorting: true,
+    onSortingChange: setSorting,
   });
 
   if (isLoading && !quotes?.length) {
@@ -220,6 +302,10 @@ export function QuotesDataTable({ refreshSignal }: { refreshSignal?: number | st
             onStatusFilterChange={setStatusFilter}
             onRefresh={refetch}
             isLoading={isLoading}
+            selectedCount={selectedCount}
+            onConvertToOrder={handleConvertToOrder}
+            onConvertToInvoice={handleConvertToInvoice}
+            onNewQuote={() => router.push(`${pathname}?type=create`)}
           />
         </div>
         {selectedCount > 0 && (

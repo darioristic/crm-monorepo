@@ -32,7 +32,7 @@ export function PerformanceErrorSuppressor() {
       }
 
       // Pass through all other errors
-      originalConsoleError.apply(console, args);
+      originalConsoleError(...(args as Parameters<typeof logger.error>));
     };
 
     return () => {

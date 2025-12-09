@@ -1,13 +1,11 @@
 "use client";
 
-import { PlusCircledIcon } from "@radix-ui/react-icons";
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useState } from "react";
 import { InvoicesDataTable } from "@/components/sales/invoices-data-table";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useInvoiceSettings } from "@/hooks/use-invoice";
+import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 
 // Dynamic import for InvoiceSheet to reduce initial bundle size
 // This component includes Tiptap editor which is heavy
@@ -22,7 +20,7 @@ function InvoicesPageContent() {
   const { defaultSettings } = useInvoiceSettings();
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleNewInvoice = () => {
+  const _handleNewInvoice = () => {
     router.push(`${pathname}?type=create`);
   };
 
@@ -37,10 +35,6 @@ function InvoicesPageContent() {
           <h1 className="text-2xl font-bold tracking-tight">Invoices</h1>
           <p className="text-muted-foreground">Create and manage your invoices</p>
         </div>
-        <Button onClick={handleNewInvoice}>
-          <PlusCircledIcon className="mr-2 h-4 w-4" />
-          New Invoice
-        </Button>
       </div>
       <InvoicesDataTable refreshTrigger={refreshKey} />
 

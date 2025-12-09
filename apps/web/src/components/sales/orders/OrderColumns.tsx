@@ -3,7 +3,7 @@
 import type { Order } from "@crm/types";
 import { formatCurrency, formatDateDMY } from "@crm/utils";
 import type { ColumnDef } from "@tanstack/react-table";
-import { ArrowUpDown, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { ArrowUpDown, Eye, FileText, MoreHorizontal, Package, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { type OrderStatus, OrderStatusBadge } from "@/components/sales/status";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatOrderNumber } from "@/types/order";
 
 export type OrderWithCompany = Order & {
   companyName?: string;
@@ -24,12 +25,16 @@ interface OrderColumnsOptions {
   onView?: (order: OrderWithCompany) => void;
   onEdit?: (order: OrderWithCompany) => void;
   onDelete?: (order: OrderWithCompany) => void;
+  onConvertToInvoice?: (order: OrderWithCompany) => void;
+  onConvertToDeliveryNote?: (order: OrderWithCompany) => void;
 }
 
 export function getOrderColumns({
   onView,
   onEdit,
   onDelete,
+  onConvertToInvoice,
+  onConvertToDeliveryNote,
 }: OrderColumnsOptions = {}): ColumnDef<OrderWithCompany>[] {
   return [
     {
@@ -74,7 +79,7 @@ export function getOrderColumns({
           }}
           className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
-          {row.original.orderNumber}
+          {formatOrderNumber(row.original.orderNumber)}
         </button>
       ),
     },
@@ -101,15 +106,19 @@ export function getOrderColumns({
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => (
-        <span className="font-medium">
-          {formatCurrency(row.original.total, row.original.currency || "EUR", "sr-RS")}
-        </span>
-      ),
+      cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.total)}</span>,
     },
     {
       accessorKey: "createdAt",
-      header: "Created",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Created
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => formatDateDMY(row.original.createdAt),
     },
     {
@@ -148,6 +157,19 @@ export function getOrderColumns({
                 </Link>
               )}
             </DropdownMenuItem>
+            {(onConvertToInvoice || onConvertToDeliveryNote) && <DropdownMenuSeparator />}
+            {onConvertToInvoice && (
+              <DropdownMenuItem onClick={() => onConvertToInvoice(row.original)}>
+                <FileText className="mr-2 h-4 w-4" />
+                Convert to Invoice
+              </DropdownMenuItem>
+            )}
+            {onConvertToDeliveryNote && (
+              <DropdownMenuItem onClick={() => onConvertToDeliveryNote(row.original)}>
+                <Package className="mr-2 h-4 w-4" />
+                Convert to Delivery Note
+              </DropdownMenuItem>
+            )}
             {onDelete && (
               <>
                 <DropdownMenuSeparator />

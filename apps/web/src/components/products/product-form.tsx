@@ -169,7 +169,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
   const error = createMutation.error || updateMutation.error;
 
   return (
-    <Card className="max-w-2xl">
+    <Card className="w-full">
       <CardHeader>
         <CardTitle>{mode === "create" ? "Create Product" : "Edit Product"}</CardTitle>
         <CardDescription>
@@ -189,12 +189,12 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Basic Info */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-12 gap-6">
               <FormField
                 control={form.control}
                 name="name"
                 render={({ field }) => (
-                  <FormItem className="md:col-span-2">
+                  <FormItem className="col-span-12">
                     <FormLabel>Product Name *</FormLabel>
                     <FormControl>
                       <Input placeholder="Enter product name" {...field} />
@@ -208,7 +208,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 control={form.control}
                 name="sku"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="col-span-12 sm:col-span-6">
                     <FormLabel>SKU</FormLabel>
                     <FormControl>
                       <Input placeholder="PRD-001" {...field} />
@@ -223,7 +223,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 control={form.control}
                 name="categoryId"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="col-span-12 sm:col-span-6">
                     <FormLabel>Category</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value ?? ""}>
                       <FormControl>
@@ -249,7 +249,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
               control={form.control}
               name="description"
               render={({ field }) => (
-                <FormItem>
+                <FormItem className="col-span-12">
                   <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea
@@ -264,12 +264,12 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
             />
 
             {/* Pricing */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid grid-cols-12 gap-6">
               <FormField
                 control={form.control}
                 name="unitPrice"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="col-span-12 sm:col-span-6">
                     <FormLabel>Unit Price *</FormLabel>
                     <FormControl>
                       <Input type="number" step="0.01" placeholder="0.00" {...field} />
@@ -283,7 +283,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 control={form.control}
                 name="costPrice"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="col-span-12 sm:col-span-6">
                     <FormLabel>Cost Price</FormLabel>
                     <FormControl>
                       <Input
@@ -307,7 +307,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 control={form.control}
                 name="currency"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="col-span-12">
                     <FormLabel>Currency</FormLabel>
                     <Select onValueChange={field.onChange} value={field.value ?? ""}>
                       <FormControl>
@@ -330,12 +330,12 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
             </div>
 
             {/* Tax and Unit */}
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-12 gap-6">
               <FormField
                 control={form.control}
                 name="taxRate"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="col-span-12 sm:col-span-6">
                     <FormLabel>Tax Rate (%)</FormLabel>
                     <FormControl>
                       <Input
@@ -356,9 +356,9 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 control={form.control}
                 name="unit"
                 render={({ field }) => (
-                  <FormItem>
+                  <FormItem className="col-span-12 sm:col-span-6">
                     <FormLabel>Unit</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value ?? ""}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select unit" />
@@ -380,12 +380,12 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
 
             {/* Stock (only for products, not services) */}
             {!isService && (
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-12 gap-6">
                 <FormField
                   control={form.control}
                   name="stockQuantity"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="col-span-12 sm:col-span-6">
                       <FormLabel>Stock Quantity</FormLabel>
                       <FormControl>
                         <Input
@@ -408,7 +408,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                   control={form.control}
                   name="minStockLevel"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="col-span-12 sm:col-span-6">
                       <FormLabel>Min Stock Level</FormLabel>
                       <FormControl>
                         <Input
@@ -431,12 +431,12 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
             )}
 
             {/* Toggles */}
-            <div className="flex flex-col gap-4 rounded-lg border p-4">
+            <div className="grid grid-cols-12 gap-6 rounded-lg border p-4">
               <FormField
                 control={form.control}
                 name="isService"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between">
+                  <FormItem className="col-span-12 sm:col-span-6 flex items-center justify-between">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Service</FormLabel>
                       <FormDescription>This is a service (no stock tracking)</FormDescription>
@@ -452,7 +452,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
                 control={form.control}
                 name="isActive"
                 render={({ field }) => (
-                  <FormItem className="flex items-center justify-between">
+                  <FormItem className="col-span-12 sm:col-span-6 flex items-center justify-between">
                     <div className="space-y-0.5">
                       <FormLabel className="text-base">Active</FormLabel>
                       <FormDescription>Product is available for sale</FormDescription>
@@ -465,7 +465,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
               />
             </div>
 
-            <div className="flex gap-4">
+            <div className="flex justify-end gap-3">
               <Button type="submit" disabled={isLoading}>
                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {mode === "create" ? "Create Product" : "Update Product"}

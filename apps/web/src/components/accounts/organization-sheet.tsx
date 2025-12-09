@@ -8,24 +8,6 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { CreateCompanyInlineForm } from "@/components/shared/documents/create-company-inline-form";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { organizationsApi } from "@/lib/api";
 
@@ -162,188 +144,20 @@ export function OrganizationSheet({ onSaved }: OrganizationSheetProps) {
               <h2 className="text-2xl font-semibold mb-1">Edit Organization</h2>
               <p className="text-sm text-muted-foreground">Update organization details</p>
             </div>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(async (data) => {
-                  if (organizationId) {
-                    const res = await organizationsApi.update(organizationId, {
-                      name: data.name,
-                      email: data.email || "",
-                      phone: data.phone,
-                      pib: data.pib,
-                      companyNumber: data.companyNumber,
-                      contactPerson: data.contactPerson,
-                      status: data.status,
-                      roles: data.roles,
-                      tags: (data.tagsCsv || "")
-                        .split(",")
-                        .map((t) => t.trim())
-                        .filter((t) => t.length > 0),
-                    } as any);
-                    if (res.success) {
-                      handleSuccess(organizationId);
-                    }
-                  }
-                })}
-                className="space-y-4"
-              >
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Organization Name</FormLabel>
-                      <FormControl>
-                        <InputGroup>
-                          <InputGroupInput {...field} />
-                        </InputGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Email</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Phone</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="status"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Status</FormLabel>
-                        <Select value={field.value} onValueChange={field.onChange}>
-                          <FormControl>
-                            <SelectTrigger>
-                              <SelectValue />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            <SelectItem value="lead">Lead</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="inactive">Inactive</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <FormField
-                    control={form.control}
-                    name="tagsCsv"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Tags</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="tag1, tag2" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <FormField
-                  control={form.control}
-                  name="roles"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Roles</FormLabel>
-                      <div className="flex flex-wrap gap-3">
-                        {["customer", "partner", "vendor", "supplier", "prospect"].map((role) => (
-                          <label key={role} className="flex items-center gap-2 text-sm">
-                            <Checkbox
-                              checked={field.value?.includes(role)}
-                              onCheckedChange={(checked) => {
-                                const next = new Set(field.value || []);
-                                if (checked) next.add(role as any);
-                                else next.delete(role as any);
-                                form.setValue("roles", Array.from(next));
-                              }}
-                            />
-                            <span className="capitalize">{role}</span>
-                          </label>
-                        ))}
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <FormField
-                    control={form.control}
-                    name="pib"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">PIB / VAT Number</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={form.control}
-                    name="companyNumber"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">Matični broj</FormLabel>
-                        <FormControl>
-                          <Input {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                <FormField
-                  control={form.control}
-                  name="contactPerson"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel className="text-xs">Kontakt osoba</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <div className="flex items-center justify-end gap-2">
-                  <Button variant="outline" type="button" onClick={() => handleOpenChange(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit">Save</Button>
-                </div>
-              </form>
-            </Form>
+            <CreateCompanyInlineForm
+              mode="edit"
+              companyId={organizationId || undefined}
+              initialValues={{
+                name: form.getValues("name"),
+                email: form.getValues("email"),
+                phone: form.getValues("phone"),
+                vatNumber: form.getValues("pib"),
+                companyNumber: form.getValues("companyNumber"),
+                contact: form.getValues("contactPerson"),
+              }}
+              onSuccess={(id) => handleSuccess(id)}
+              onCancel={() => handleOpenChange(false)}
+            />
           </div>
         </SheetContent>
       )}

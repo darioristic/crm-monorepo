@@ -149,9 +149,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   // Logout handler
   const logout = useCallback(async () => {
-    await authLogout();
+    const result = await authLogout();
     setUser(null);
     router.push("/login");
+    if (!result.success) {
+      router.refresh();
+    }
   }, [router]);
 
   // Refresh user data

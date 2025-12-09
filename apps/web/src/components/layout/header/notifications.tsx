@@ -101,18 +101,18 @@ const Notifications = () => {
         setNotifications(notifResult.data.notifications || []);
       } else if (!notifResult.success) {
         // Log error but don't show toast for background polling
-        logger.warn("Failed to fetch notifications:", notifResult.error?.message);
+        logger.warn("Failed to fetch notifications", { error: notifResult.error?.message });
       }
 
       if (countResult.success && countResult.data) {
         setUnreadCount(countResult.data.count);
       } else if (!countResult.success) {
         // Log error but don't show toast for background polling
-        logger.warn("Failed to fetch notification count:", countResult.error?.message);
+        logger.warn("Failed to fetch notification count", { error: countResult.error?.message });
       }
     } catch (error) {
       // Only log, don't show toast for background polling errors
-      logger.warn("Failed to fetch notifications:", error);
+      logger.warn("Failed to fetch notifications", { error });
     } finally {
       setIsLoading(false);
     }

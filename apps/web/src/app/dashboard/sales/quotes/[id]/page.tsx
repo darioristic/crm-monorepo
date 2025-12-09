@@ -83,7 +83,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
 
   const handleConvertToOrder = async () => {
     try {
-      const result = await convertToOrder.mutateAsync({ id });
+      const result = await convertToOrder.mutate({ id });
       if (result && (result as any).success) {
         const order = (result as any).data;
         toast.success("Quote converted to order");
@@ -98,7 +98,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
 
   const handleConvertToInvoice = async () => {
     try {
-      const result = await convertToInvoice.mutateAsync({ id });
+      const result = await convertToInvoice.mutate({ id });
       if (result && (result as any).success) {
         const { invoiceId } = (result as any).data || {};
         if (invoiceId) {
@@ -263,7 +263,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
             size="sm"
             className="h-8 text-xs"
             onClick={handleConvertToOrder}
-            disabled={convertToOrder.isPending || (quote.status === "accepted" ? false : false)}
+            disabled={convertToOrder.isLoading || (quote.status === "accepted" ? false : false)}
           >
             Convert to Order
           </Button>
@@ -272,7 +272,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
             size="sm"
             className="h-8 ml-2 text-xs"
             onClick={handleConvertToInvoice}
-            disabled={convertToInvoice.isPending}
+            disabled={convertToInvoice.isLoading}
           >
             Convert to Invoice
           </Button>
@@ -295,6 +295,7 @@ function transformQuoteToTemplateData(quote: any): QuoteType {
     descriptionLabel: "Description",
     priceLabel: "Price",
     quantityLabel: "Quantity",
+    unitLabel: "Unit",
     totalLabel: "Total",
     totalSummaryLabel: "Total",
     vatLabel: "VAT",

@@ -60,7 +60,7 @@ export function DiscountInput() {
           name="discount"
           render={({ field }) => (
             <DiscountInputEditor
-              value={field.value}
+              value={field.value ?? 0}
               onChange={field.onChange}
               onFinish={() => setIsEditing(false)}
             />

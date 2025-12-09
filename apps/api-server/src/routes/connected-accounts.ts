@@ -2,24 +2,24 @@
  * Connected Accounts Routes
  */
 
-import { successResponse, errorResponse } from "@crm/utils";
-import { RouteBuilder, withAuth } from "./helpers";
+import { errorResponse, successResponse } from "@crm/utils";
 import { connectedAccountQueries } from "../db/queries/connected-accounts";
-import { userQueries } from "../db/queries/users";
+import { RouteBuilder, withAuth } from "./helpers";
 
 const router = new RouteBuilder();
 
 router.get("/api/v1/connected-accounts", async (request) => {
-	return withAuth(request, async (auth) => {
-		const companyId = await userQueries.getUserCompanyId(auth.userId);
-		if (!companyId) {
-			return errorResponse("NOT_FOUND", "No active company found for user");
-		}
+  return withAuth(request, async (auth) => {
+    // Use active tenant ID from auth context (tenant-based architecture)
+    if (!auth.activeTenantId) {
+      return errorResponse("NOT_FOUND", "No active tenant found for user");
+    }
 
-		const accounts = await connectedAccountQueries.findByCompany(companyId);
-		return successResponse(accounts);
-	});
+    // Note: findByCompany uses company_id column which actually stores tenant ID
+    // This will be renamed in a future migration to tenant_id for clarity
+    const accounts = await connectedAccountQueries.findByCompany(auth.activeTenantId);
+    return successResponse(accounts);
+  });
 });
 
 export const connectedAccountRoutes = router.getRoutes();
-

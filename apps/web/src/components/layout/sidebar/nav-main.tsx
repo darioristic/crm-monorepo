@@ -201,6 +201,11 @@ export const navItems: NavGroup[] = [
         title: "Settings",
         href: "/dashboard/settings",
         icon: SettingsIcon,
+        items: [
+          { title: "Workspace", href: "/dashboard/settings/workspace" },
+          { title: "Members", href: "/dashboard/settings/members" },
+          { title: "Notifications", href: "/dashboard/settings/notifications" },
+        ],
       },
     ],
   },
@@ -226,86 +231,91 @@ export function NavMain() {
           <SidebarGroupLabel>{nav.title}</SidebarGroupLabel>
           <SidebarGroupContent className="flex flex-col gap-2">
             <SidebarMenu>
-              {nav.items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  {Array.isArray(item.items) && item.items.length > 0 ? (
-                    <>
-                      <div className="hidden group-data-[collapsible=icon]:block">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <SidebarMenuButton tooltip={item.title}>
+              {nav.items.map((item) => {
+                const slug = item.title.toLowerCase().replace(/\s+/g, "-");
+                const contentId = `collapsible-content-${slug}`;
+                const triggerId = `dropdown-trigger-${slug}`;
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    {Array.isArray(item.items) && item.items.length > 0 ? (
+                      <>
+                        <div className="hidden group-data-[collapsible=icon]:block">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <SidebarMenuButton tooltip={item.title} id={triggerId}>
+                                {item.icon && <item.icon className="h-4 w-4" />}
+                                <span>{item.title}</span>
+                                <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                              </SidebarMenuButton>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent
+                              side={dropdownSide}
+                              align={dropdownAlign}
+                              forceMount
+                              className="min-w-48 rounded-lg"
+                            >
+                              <DropdownMenuLabel>{item.title}</DropdownMenuLabel>
+                              {item.items?.map((subItem) => (
+                                <DropdownMenuItem
+                                  className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
+                                  asChild
+                                  key={subItem.title}
+                                >
+                                  <Link href={subItem.href}>{subItem.title}</Link>
+                                </DropdownMenuItem>
+                              ))}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                        <Collapsible
+                          className="group/collapsible block group-data-[collapsible=icon]:hidden"
+                          defaultOpen={!!item.items.find((s) => s.href === pathname)}
+                        >
+                          <CollapsibleTrigger asChild>
+                            <SidebarMenuButton
+                              className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
+                              tooltip={item.title}
+                            >
                               {item.icon && <item.icon className="h-4 w-4" />}
                               <span>{item.title}</span>
                               <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                             </SidebarMenuButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            side={dropdownSide}
-                            align={dropdownAlign}
-                            forceMount
-                            className="min-w-48 rounded-lg"
-                          >
-                            <DropdownMenuLabel>{item.title}</DropdownMenuLabel>
-                            {item.items?.map((subItem) => (
-                              <DropdownMenuItem
-                                className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
-                                asChild
-                                key={subItem.title}
-                              >
-                                <Link href={subItem.href}>{subItem.title}</Link>
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                      <Collapsible
-                        className="group/collapsible block group-data-[collapsible=icon]:hidden"
-                        defaultOpen={!!item.items.find((s) => s.href === pathname)}
+                          </CollapsibleTrigger>
+                          <CollapsibleContent forceMount id={contentId}>
+                            <SidebarMenuSub>
+                              {item?.items?.map((subItem, key) => (
+                                <SidebarMenuSubItem key={key}>
+                                  <SidebarMenuSubButton
+                                    asChild
+                                    className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 w-full"
+                                    isActive={pathname === subItem.href}
+                                  >
+                                    <Link href={subItem.href}>
+                                      <span>{subItem.title}</span>
+                                    </Link>
+                                  </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                              ))}
+                            </SidebarMenuSub>
+                          </CollapsibleContent>
+                        </Collapsible>
+                      </>
+                    ) : (
+                      <SidebarMenuButton
+                        asChild
+                        className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 w-full"
+                        isActive={pathname === item.href}
+                        tooltip={item.title}
                       >
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton
-                            className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
-                            tooltip={item.title}
-                          >
-                            {item.icon && <item.icon className="h-4 w-4" />}
-                            <span>{item.title}</span>
-                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent forceMount>
-                          <SidebarMenuSub>
-                            {item?.items?.map((subItem, key) => (
-                              <SidebarMenuSubItem key={key}>
-                                <SidebarMenuSubButton
-                                  asChild
-                                  className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 w-full"
-                                  isActive={pathname === subItem.href}
-                                >
-                                  <Link href={subItem.href}>
-                                    <span>{subItem.title}</span>
-                                  </Link>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </Collapsible>
-                    </>
-                  ) : (
-                    <SidebarMenuButton
-                      asChild
-                      className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 w-full"
-                      isActive={pathname === item.href}
-                      tooltip={item.title}
-                    >
-                      <Link href={item.href}>
-                        {item.icon && <item.icon className="h-4 w-4" />}
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  )}
-                </SidebarMenuItem>
-              ))}
+                        <Link href={item.href}>
+                          {item.icon && <item.icon className="h-4 w-4" />}
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    )}
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

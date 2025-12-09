@@ -4,6 +4,7 @@ import type { Quote } from "@crm/types";
 import { formatCurrency, formatDateDMY } from "@crm/utils";
 import type { ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown, Eye, MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { type QuoteStatus, QuoteStatusBadge } from "@/components/sales/status";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -14,6 +15,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { formatQuoteNumber } from "@/types/quote";
 
 export type QuoteWithCompany = Quote & {
   companyName?: string;
@@ -73,7 +75,7 @@ export function getQuotesColumns({
           }}
           className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
-          {row.original.quoteNumber}
+          {formatQuoteNumber(row.original.quoteNumber)}
         </button>
       ),
     },
@@ -100,20 +102,32 @@ export function getQuotesColumns({
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => (
-        <span className="font-medium">
-          {formatCurrency(row.original.total, row.original.currency || "EUR", "sr-RS")}
-        </span>
-      ),
+      cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.total)}</span>,
     },
     {
       accessorKey: "validUntil",
-      header: "Valid Until",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Valid Until
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => formatDateDMY(row.original.validUntil),
     },
     {
       accessorKey: "createdAt",
-      header: "Created",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Created
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => formatDateDMY(row.original.createdAt),
     },
     {

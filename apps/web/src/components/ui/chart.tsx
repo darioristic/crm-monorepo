@@ -58,7 +58,8 @@ function ChartContainer({
           "[&_.recharts-cartesian-axis-tick_text]:fill-muted-foreground [&_.recharts-cartesian-grid_line[stroke='#ccc']]:stroke-border/50 [&_.recharts-curve.recharts-tooltip-cursor]:stroke-border [&_.recharts-polar-grid_[stroke='#ccc']]:stroke-border [&_.recharts-radial-bar-background-sector]:fill-muted [&_.recharts-rectangle.recharts-tooltip-cursor]:fill-muted [&_.recharts-reference-line_[stroke='#ccc']]:stroke-border flex aspect-video justify-center text-xs [&_.recharts-dot[stroke='#fff']]:stroke-transparent [&_.recharts-layer]:outline-hidden [&_.recharts-sector]:outline-hidden [&_.recharts-sector[stroke='#fff']]:stroke-transparent [&_.recharts-surface]:outline-hidden",
           className
         )}
-        {...props}>
+        {...props}
+      >
         <ChartStyle id={chartId} config={config} />
         <RechartsPrimitive.ResponsiveContainer>{children}</RechartsPrimitive.ResponsiveContainer>
       </div>
@@ -76,34 +77,30 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   // Sanitize CSS values to prevent CSS injection
   const sanitizeCSSValue = (value: string): string => {
     // Remove any characters that could break out of CSS context
-    return value.replace(/[<>{}]/g, '').trim();
+    return value.replace(/[<>{}]/g, "").trim();
   };
 
   const sanitizeCSSKey = (key: string): string => {
     // Only allow alphanumeric, hyphen, and underscore
-    return key.replace(/[^a-zA-Z0-9_-]/g, '');
+    return key.replace(/[^a-zA-Z0-9_-]/g, "");
   };
 
-  return (
-    <style
-      dangerouslySetInnerHTML={{
-        __html: Object.entries(THEMES)
-          .map(
-            ([theme, prefix]) => `
-${prefix} [data-chart=${id}] {
-${colorConfig
-  .map(([key, itemConfig]) => {
-    const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
-    return color ? `  --color-${sanitizeCSSKey(key)}: ${sanitizeCSSValue(color)};` : null;
-  })
-  .join("\n")}
-}
-`
-          )
-          .join("\n")
-      }}
-    />
-  );
+  return (() => {
+    const css = Object.entries(THEMES)
+      .map(([theme, prefix]) => {
+        const lines = colorConfig
+          .map(([key, itemConfig]) => {
+            const color =
+              itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+            return color ? `  --color-${sanitizeCSSKey(key)}: ${sanitizeCSSValue(color)};` : null;
+          })
+          .filter(Boolean)
+          .join("\n");
+        return `${prefix} [data-chart=${id}] {\n${lines}\n}`;
+      })
+      .join("\n");
+    return <style suppressHydrationWarning>{css}</style>;
+  })();
 };
 
 const ChartTooltip = RechartsPrimitive.Tooltip;
@@ -121,7 +118,7 @@ function ChartTooltipContent({
   formatter,
   color,
   nameKey,
-  labelKey
+  labelKey,
 }: React.ComponentProps<typeof RechartsPrimitive.Tooltip> &
   React.ComponentProps<"div"> & {
     hideLabel?: boolean;
@@ -169,7 +166,8 @@ function ChartTooltipContent({
       className={cn(
         "border-border/50 bg-background grid min-w-[8rem] items-start gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs shadow-xl",
         className
-      )}>
+      )}
+    >
       {!nestLabel ? tooltipLabel : null}
       <div className="grid gap-1.5">
         {payload.map((item, index) => {
@@ -183,7 +181,8 @@ function ChartTooltipContent({
               className={cn(
                 "[&>svg]:text-muted-foreground flex w-full flex-wrap items-stretch gap-2 [&>svg]:h-2.5 [&>svg]:w-2.5",
                 indicator === "dot" && "items-center"
-              )}>
+              )}
+            >
               {formatter && item?.value !== undefined && item.name ? (
                 formatter(item.value, item.name, item, index, item.payload)
               ) : (
@@ -200,13 +199,13 @@ function ChartTooltipContent({
                             "w-1": indicator === "line",
                             "w-0 border-[1.5px] border-dashed bg-transparent":
                               indicator === "dashed",
-                            "my-0.5": nestLabel && indicator === "dashed"
+                            "my-0.5": nestLabel && indicator === "dashed",
                           }
                         )}
                         style={
                           {
                             "--color-bg": indicatorColor,
-                            "--color-border": indicatorColor
+                            "--color-border": indicatorColor,
                           } as React.CSSProperties
                         }
                       />
@@ -216,7 +215,8 @@ function ChartTooltipContent({
                     className={cn(
                       "flex flex-1 justify-between leading-none",
                       nestLabel ? "items-end" : "items-center"
-                    )}>
+                    )}
+                  >
                     <div className="grid gap-1.5">
                       {nestLabel ? tooltipLabel : null}
                       <span className="text-muted-foreground">
@@ -246,7 +246,7 @@ function ChartLegendContent({
   hideIcon = false,
   payload,
   verticalAlign = "bottom",
-  nameKey
+  nameKey,
 }: React.ComponentProps<"div"> &
   Pick<RechartsPrimitive.LegendProps, "payload" | "verticalAlign"> & {
     hideIcon?: boolean;
@@ -264,7 +264,8 @@ function ChartLegendContent({
         "flex items-center justify-center gap-4",
         verticalAlign === "top" ? "pb-3" : "pt-3",
         className
-      )}>
+      )}
+    >
       {payload.map((item) => {
         const key = `${nameKey || item.dataKey || "value"}`;
         const itemConfig = getPayloadConfigFromPayload(config, item, key);
@@ -274,14 +275,15 @@ function ChartLegendContent({
             key={item.value}
             className={cn(
               "[&>svg]:text-muted-foreground flex items-center gap-1.5 [&>svg]:h-3 [&>svg]:w-3"
-            )}>
+            )}
+          >
             {itemConfig?.icon && !hideIcon ? (
               <itemConfig.icon />
             ) : (
               <div
                 className="h-2 w-2 shrink-0 rounded-[2px]"
                 style={{
-                  backgroundColor: item.color
+                  backgroundColor: item.color,
                 }}
               />
             )}
@@ -325,5 +327,5 @@ export {
   ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
-  ChartStyle
+  ChartStyle,
 };

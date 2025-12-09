@@ -109,7 +109,7 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
     })
   );
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<z.input<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: prefillName ?? "",
@@ -189,7 +189,7 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
     }
   }, [form]);
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (values: z.input<typeof formSchema>) => {
     // Generate logo from initials if no logo provided
     const { generateLogoFromInitials } = await import("@/lib/logo-generator");
     const logoUrl = values.logoUrl || generateLogoFromInitials(values.name);

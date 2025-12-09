@@ -1,19 +1,13 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Download, Link2, Check, Pencil } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { toast } from "sonner";
 import { motion } from "framer-motion";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Check, Download, Link2, Pencil } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { HtmlTemplate } from "@/components/delivery-note/templates/html";
-import type { DeliveryNote } from "@crm/types";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
 
 type DeliveryNotePublicViewProps = {
@@ -69,7 +63,7 @@ function buildCustomerDetails(deliveryNote: any): any {
   }
 
   const lines: string[] = [];
-  const companyName = deliveryNote.companyName || deliveryNote.company?.name;
+  const companyName = (deliveryNote as any).companyName || deliveryNote.company?.name;
   if (companyName) {
     lines.push(companyName);
   }
@@ -104,16 +98,13 @@ function buildCustomerDetails(deliveryNote: any): any {
   };
 }
 
-export function DeliveryNotePublicView({
-  deliveryNote,
-  token,
-}: DeliveryNotePublicViewProps) {
+export function DeliveryNotePublicView({ deliveryNote, token }: DeliveryNotePublicViewProps) {
   const { isAuthenticated } = useAuth();
   const [isCopied, setIsCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const customerName =
-    deliveryNote.companyName || deliveryNote.company?.name || "Customer";
+    (deliveryNote as any).companyName || deliveryNote.company?.name || "Customer";
 
   const customerDetails = buildCustomerDetails(deliveryNote);
   const fromDetails = getStoredFromDetails();
@@ -135,10 +126,7 @@ export function DeliveryNotePublicView({
   const handleDownload = async () => {
     setIsDownloading(true);
     try {
-      window.open(
-        `/api/download/delivery-note?id=${deliveryNote.id}`,
-        "_blank"
-      );
+      window.open(`/api/download/delivery-note?id=${deliveryNote.id}`, "_blank");
     } catch {
       toast.error("Failed to download delivery note");
     } finally {
@@ -148,10 +136,7 @@ export function DeliveryNotePublicView({
 
   return (
     <div className="flex flex-col justify-center items-center min-h-screen dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
             <Avatar className="size-5 object-contain border border-border">

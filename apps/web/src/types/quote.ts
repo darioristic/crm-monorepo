@@ -247,26 +247,55 @@ export function generateQuoteToken(): string {
 
 // Generate next quote number
 export function generateQuoteNumber(lastNumber?: string): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const year = new Date().getFullYear();
 
   if (!lastNumber) {
-    return `QUO-${year}${month}-001`;
+    return `QUO-${year}-001`;
   }
 
-  const match = lastNumber.match(/QUO-(\d{6})-(\d+)/);
-  if (!match) {
-    return `QUO-${year}${month}-001`;
+  // Support previous formats and extract year + sequence
+  const patterns = [
+    /^QUO-(\d{4})-(\d{5})-(\d+)$/, // QUO-YYYY-00008-5772
+    /^QUO-(\d{6})-(\d+)$/, // QUO-YYYYMM-008
+    /^QUO-(\d{4})-(\d+)$/, // QUO-YYYY-008
+  ];
+
+  for (const re of patterns) {
+    const m = lastNumber.match(re);
+    if (m) {
+      const lastYear = m[1].length === 6 ? m[1].slice(0, 4) : m[1];
+      const lastSeqRaw = m[2];
+      const lastSeq = parseInt(lastSeqRaw, 10);
+      if (String(year) === lastYear) {
+        return `QUO-${year}-${String(lastSeq + 1).padStart(3, "0")}`;
+      }
+      return `QUO-${year}-001`;
+    }
   }
 
-  const lastYearMonth = match[1];
-  const lastSeq = parseInt(match[2], 10);
-  const currentYearMonth = `${year}${month}`;
+  // Fallback if pattern not recognized
+  return `QUO-${year}-001`;
+}
 
-  if (lastYearMonth === currentYearMonth) {
-    return `QUO-${currentYearMonth}-${String(lastSeq + 1).padStart(3, "0")}`;
+export function formatQuoteNumber(num: string | null | undefined): string {
+  if (!num) return "-";
+  let m = num.match(/^QUO-(\d{4})-(\d{5})-(\d+)$/);
+  if (m) {
+    const year = m[1];
+    const seq = String(parseInt(m[2], 10)).padStart(3, "0");
+    return `QUO-${year}-${seq}`;
   }
-
-  return `QUO-${currentYearMonth}-001`;
+  m = num.match(/^QUO-(\d{6})-(\d+)$/);
+  if (m) {
+    const year = m[1].slice(0, 4);
+    const seq = String(parseInt(m[2], 10)).padStart(3, "0");
+    return `QUO-${year}-${seq}`;
+  }
+  m = num.match(/^QUO-(\d{4})-(\d+)$/);
+  if (m) {
+    const year = m[1];
+    const seq = String(parseInt(m[2], 10)).padStart(3, "0");
+    return `QUO-${year}-${seq}`;
+  }
+  return num;
 }

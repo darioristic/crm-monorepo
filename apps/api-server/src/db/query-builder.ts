@@ -31,7 +31,7 @@ const ALLOWED_SORT_COLUMNS: Record<string, string[]> = {
   users: ["created_at", "updated_at", "first_name", "last_name", "email", "role", "status"],
   companies: ["created_at", "updated_at", "name", "industry"],
   leads: ["created_at", "updated_at", "name", "email", "status", "source", "value"],
-  contacts: ["created_at", "updated_at", "first_name", "last_name", "email", "company"],
+  contacts: ["created_at", "updated_at", "first_name", "last_name", "email", "company", "jmbg"],
   deals: ["created_at", "updated_at", "title", "value", "stage", "priority", "probability"],
   projects: ["created_at", "updated_at", "name", "status", "start_date", "end_date", "budget"],
   tasks: ["created_at", "updated_at", "title", "status", "priority", "due_date"],
@@ -70,6 +70,17 @@ const ALLOWED_SORT_COLUMNS: Record<string, string[]> = {
   product_categories: ["created_at", "updated_at", "name", "sort_order"],
   notifications: ["created_at", "type", "is_read"],
   payments: ["created_at", "updated_at", "payment_date", "amount", "status"],
+  customer_organizations: [
+    "created_at",
+    "updated_at",
+    "name",
+    "email",
+    "phone",
+    "pib",
+    "company_number",
+    "contact_person",
+    "is_favorite",
+  ],
 };
 
 // ============================================

@@ -48,7 +48,7 @@ export function DeleteTeam() {
       // Invalidate queries and redirect
       queryClient.invalidateQueries();
       toast.success("Team deleted successfully");
-      router.push("/dashboard/settings/companies");
+      router.push("/dashboard");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to delete team");

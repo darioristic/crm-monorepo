@@ -27,6 +27,7 @@ export interface Company {
   website?: string | null;
   contact?: string | null;
   note?: string | null;
+  companyType?: "seller" | "customer";
   createdAt: string;
   updatedAt?: string;
   role?: "owner" | "member" | "admin";

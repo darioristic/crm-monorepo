@@ -6,6 +6,8 @@ import { logger } from "@/lib/logger";
 import type { Invoice } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
+export const runtime = "nodejs";
+
 // Get logo as base64 data URL for PDF rendering
 // PDF renderer can't fetch from localhost, so we read the file directly
 function getLogoDataUrl(logoPath?: string): string | null {
@@ -33,7 +35,7 @@ function getLogoDataUrl(logoPath?: string): string | null {
     }
 
     if (!existsSync(filePath)) {
-      logger.warn("Logo file not found at:", filePath);
+      logger.warn("Logo file not found", { filePath });
       return null;
     }
 
@@ -68,7 +70,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const cookieHeader = request.headers.get("cookie") || "";
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
     let resolvedId = invoiceId || null;
     if (token && !resolvedId) {
@@ -153,6 +155,41 @@ export async function GET(request: NextRequest) {
         typeof apiInvoice.fromDetails === "string"
           ? JSON.parse(apiInvoice.fromDetails)
           : apiInvoice.fromDetails;
+    } else if (apiInvoice.tenantId) {
+      // Fallback: fetch the tenant account (seller business details)
+      try {
+        const accountRes = await fetch(`${baseUrl}/api/v1/tenant-accounts/${apiInvoice.tenantId}`, {
+          headers: { Cookie: cookieHeader },
+        });
+        if (accountRes.ok) {
+          const accountData = await accountRes.json();
+          const account = accountData.data;
+          const lines: string[] = [];
+          if (account?.name) lines.push(account.name);
+          if (account?.address) lines.push(account.address);
+          const cityLine = [account?.city, account?.zip, account?.country]
+            .filter(Boolean)
+            .join(", ");
+          if (cityLine) lines.push(cityLine);
+          if (account?.email) lines.push(account.email);
+          if (account?.phone) lines.push(account.phone);
+          if (account?.website) lines.push(account.website);
+          if (account?.vatNumber) lines.push(`PIB: ${account.vatNumber}`);
+          if (account?.companyNumber) lines.push(`MB: ${account.companyNumber}`);
+          fromDetails =
+            lines.length > 0
+              ? {
+                  type: "doc",
+                  content: lines.map((line) => ({
+                    type: "paragraph",
+                    content: [{ type: "text", text: line }],
+                  })),
+                }
+              : null;
+        }
+      } catch {
+        // Ignore errors, fromDetails will remain null
+      }
     }
 
     const companyName = apiInvoice.companyName || apiInvoice.company?.name;
@@ -238,16 +275,22 @@ export async function GET(request: NextRequest) {
       scheduledAt: null,
     };
 
-    const { renderToStream } = await import("@react-pdf/renderer");
+    const { renderToBuffer } = await import("@react-pdf/renderer");
     const { PdfTemplate } = await import("@/components/invoice/templates/pdf-template");
     const pdfDocument = await PdfTemplate({ invoice });
-    const stream = await renderToStream(pdfDocument as any);
+    const buffer = await renderToBuffer(pdfDocument as any);
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",
       "Cache-Control": "no-store, max-age=0",
       "Content-Disposition": `attachment; filename="${invoice.invoiceNumber || resolvedId}.pdf"`,
     };
-    return new Response(stream as any, { headers });
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(buffer);
+        controller.close();
+      },
+    });
+    return new Response(readable, { headers });
   } catch (error) {
     logger.error("Error generating PDF:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
@@ -344,6 +387,41 @@ export async function POST(request: NextRequest) {
         typeof apiInvoice.fromDetails === "string"
           ? JSON.parse(apiInvoice.fromDetails)
           : apiInvoice.fromDetails;
+    } else if (apiInvoice.tenantId) {
+      // Fallback: fetch the tenant account (seller business details)
+      try {
+        const accountRes = await fetch(`${baseUrl}/api/v1/tenant-accounts/${apiInvoice.tenantId}`, {
+          headers: { Cookie: cookieHeader },
+        });
+        if (accountRes.ok) {
+          const accountData = await accountRes.json();
+          const account = accountData.data;
+          const lines: string[] = [];
+          if (account?.name) lines.push(account.name);
+          if (account?.address) lines.push(account.address);
+          const cityLine = [account?.city, account?.zip, account?.country]
+            .filter(Boolean)
+            .join(", ");
+          if (cityLine) lines.push(cityLine);
+          if (account?.email) lines.push(account.email);
+          if (account?.phone) lines.push(account.phone);
+          if (account?.website) lines.push(account.website);
+          if (account?.vatNumber) lines.push(`PIB: ${account.vatNumber}`);
+          if (account?.companyNumber) lines.push(`MB: ${account.companyNumber}`);
+          fromDetails =
+            lines.length > 0
+              ? {
+                  type: "doc",
+                  content: lines.map((line) => ({
+                    type: "paragraph",
+                    content: [{ type: "text", text: line }],
+                  })),
+                }
+              : null;
+        }
+      } catch {
+        // Ignore errors, fromDetails will remain null
+      }
     }
 
     const companyName = apiInvoice.companyName || apiInvoice.company?.name;
@@ -429,16 +507,22 @@ export async function POST(request: NextRequest) {
       scheduledAt: null,
     };
 
-    const { renderToStream } = await import("@react-pdf/renderer");
+    const { renderToBuffer } = await import("@react-pdf/renderer");
     const { PdfTemplate } = await import("@/components/invoice/templates/pdf-template");
     const pdfDocument = await PdfTemplate({ invoice });
-    const stream = await renderToStream(pdfDocument as any);
+    const buffer = await renderToBuffer(pdfDocument as any);
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",
       "Cache-Control": "no-store, max-age=0",
       "Content-Disposition": `attachment; filename="${invoice.invoiceNumber || resolvedId}.pdf"`,
     };
-    return new Response(stream as any, { headers });
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(buffer);
+        controller.close();
+      },
+    });
+    return new Response(readable, { headers });
   } catch (error) {
     logger.error("Error generating PDF:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";

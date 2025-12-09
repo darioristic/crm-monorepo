@@ -116,19 +116,20 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
                   return lines.length ? lines.map((line, idx) => <p key={idx}>{line}</p>) : null;
                 }
 
-                const companyName = invoice.company?.name;
+                const company = (invoice as any).company;
+                const companyName = (invoice as any).companyName || company?.name;
                 const addressLine =
-                  [invoice.company?.zip, invoice.company?.city].filter(Boolean).join(" ") ||
-                  invoice.company?.address ||
-                  invoice.company?.addressLine1;
+                  [company?.zip, company?.city].filter(Boolean).join(" ") ||
+                  company?.address ||
+                  company?.addressLine1;
                 return (
                   <>
                     {companyName && <p>{companyName}</p>}
                     {addressLine && <p>{addressLine}</p>}
-                    {invoice.company?.country && <p>{invoice.company.country}</p>}
-                    {invoice.company?.vatNumber && <p>{`PIB: ${invoice.company.vatNumber}`}</p>}
-                    {(invoice.company?.email || invoice.company?.billingEmail) && (
-                      <p>E-mail: {invoice.company.email || invoice.company.billingEmail}</p>
+                    {company?.country && <p>{company.country}</p>}
+                    {company?.vatNumber && <p>{`PIB: ${company.vatNumber}`}</p>}
+                    {(company?.email || company?.billingEmail) && (
+                      <p>E-mail: {company.email || company.billingEmail}</p>
                     )}
                   </>
                 );

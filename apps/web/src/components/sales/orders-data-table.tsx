@@ -1,18 +1,25 @@
 "use client";
+
 /* eslint-disable react/no-array-index-key */
 
-import * as React from "react";
-import { useRouter, usePathname } from "next/navigation";
+import type { Company, Order } from "@crm/types";
 import {
   flexRender,
   getCoreRowModel,
-  useReactTable,
   type RowSelectionState,
+  type SortingState,
+  useReactTable,
 } from "@tanstack/react-table";
-import type { Order, Company } from "@crm/types";
 import { Trash2 } from "lucide-react";
-
+import { usePathname, useRouter } from "next/navigation";
+import * as React from "react";
+import { toast } from "sonner";
+import { OrderSheet } from "@/components/order";
+import { getOrderColumns, type OrderWithCompany } from "@/components/sales/orders/OrderColumns";
+import { OrderToolbar } from "@/components/sales/orders/OrderToolbar";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -21,30 +28,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ordersApi, companiesApi } from "@/lib/api";
-import { usePaginatedApi, useMutation } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { toast } from "sonner";
+import { useAuth } from "@/contexts/auth-context";
+import { useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { companiesApi, ordersApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
-import {
-  getOrderColumns,
-  type OrderWithCompany,
-} from "@/components/sales/orders/OrderColumns";
-import { OrderToolbar } from "@/components/sales/orders/OrderToolbar";
-import { OrderSheet } from "@/components/order";
 
-export function OrdersDataTable() {
+type OrdersDataTableProps = {
+  refreshTrigger?: number;
+};
+
+export function OrdersDataTable({ refreshTrigger }: OrdersDataTableProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
   const [searchValue, setSearchValue] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [selectedOrder, setSelectedOrder] =
-    React.useState<OrderWithCompany | null>(null);
+  const [selectedOrder, setSelectedOrder] = React.useState<OrderWithCompany | null>(null);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
+  const [sorting, setSorting] = React.useState<SortingState>([]);
 
   // Open order in sheet
   const handleOpenSheet = React.useCallback(
@@ -79,8 +83,11 @@ export function OrdersDataTable() {
     () => ({
       search: searchValue,
       status: statusFilter === "all" ? undefined : statusFilter,
+      companyId: user?.companyId,
+      sortBy: sorting[0]?.id,
+      sortOrder: sorting[0] ? ((sorting[0].desc ? "desc" : "asc") as "asc" | "desc") : undefined,
     }),
-    [searchValue, statusFilter]
+    [searchValue, statusFilter, user?.companyId, sorting]
   );
 
   const {
@@ -94,15 +101,17 @@ export function OrdersDataTable() {
     totalPages,
     setPage,
     setFilters,
-  } = usePaginatedApi<Order>(
-    (params) => ordersApi.getAll(params),
-    initialFilters
-  );
+  } = usePaginatedApi<Order>((params) => ordersApi.getAll(params), initialFilters);
+
+  // Refresh data when refreshTrigger changes
+  React.useEffect(() => {
+    if (refreshTrigger !== undefined && refreshTrigger > 0) {
+      refetch();
+    }
+  }, [refreshTrigger, refetch]);
 
   // Delete mutation
-  const deleteMutation = useMutation<void, string>((id) =>
-    ordersApi.delete(id)
-  );
+  const deleteMutation = useMutation<void, string>((id) => ordersApi.delete(id));
 
   // Enrich orders with company names
   const enrichedOrders: OrderWithCompany[] = React.useMemo(() => {
@@ -183,8 +192,28 @@ export function OrdersDataTable() {
           setSelectedOrder(order);
           setDeleteDialogOpen(true);
         },
+        onConvertToInvoice: async (order) => {
+          try {
+            await ordersApi.convertToInvoice(order.id);
+            toast.success("Order successfully converted to invoice!");
+            refetch();
+          } catch (error) {
+            toast.error("Failed to convert order to invoice");
+            console.error(error);
+          }
+        },
+        onConvertToDeliveryNote: async (order) => {
+          try {
+            await ordersApi.convertToDeliveryNote(order.id);
+            toast.success("Order successfully converted to delivery note!");
+            refetch();
+          } catch (error) {
+            toast.error("Failed to convert order to delivery note");
+            console.error(error);
+          }
+        },
       }),
-    [handleOpenSheet]
+    [handleOpenSheet, refetch]
   );
 
   const table = useReactTable({
@@ -195,9 +224,12 @@ export function OrdersDataTable() {
     onRowSelectionChange: setRowSelection,
     state: {
       rowSelection,
+      sorting,
     },
     manualPagination: true,
     pageCount: totalPages,
+    manualSorting: true,
+    onSortingChange: setSorting,
   });
 
   const selectedCount = Object.keys(rowSelection).length;
@@ -207,9 +239,7 @@ export function OrdersDataTable() {
       <div className="rounded-md border border-destructive bg-destructive/10 p-4">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-medium text-destructive">
-              Failed to load orders
-            </p>
+            <p className="text-sm font-medium text-destructive">Failed to load orders</p>
             <p className="text-sm text-destructive/80 mt-1">{error}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => refetch()}>
@@ -230,18 +260,13 @@ export function OrdersDataTable() {
           onStatusFilterChange={setStatusFilter}
           onRefresh={refetch}
           isLoading={isLoading}
+          onNewOrder={() => router.push(`${pathname}?type=create`)}
         />
 
         {selectedCount > 0 && (
           <div className="flex items-center justify-between rounded-md border bg-muted/50 p-2">
-            <span className="text-sm text-muted-foreground">
-              {selectedCount} order(s) selected
-            </span>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setBulkDeleteDialogOpen(true)}
-            >
+            <span className="text-sm text-muted-foreground">{selectedCount} order(s) selected</span>
+            <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Selected
             </Button>
@@ -257,10 +282,7 @@ export function OrdersDataTable() {
                     <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   ))}
                 </TableRow>
@@ -279,26 +301,17 @@ export function OrdersDataTable() {
                 ))
               ) : table.getRowModel().rows?.length ? (
                 table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                  >
+                  <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext()
-                        )}
+                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
                       </TableCell>
                     ))}
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell
-                    colSpan={columns.length}
-                    className="h-24 text-center"
-                  >
+                  <TableCell colSpan={columns.length} className="h-24 text-center">
                     No orders found.
                   </TableCell>
                 </TableRow>
@@ -311,8 +324,8 @@ export function OrdersDataTable() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between">
             <div className="text-sm text-muted-foreground">
-              Showing {(page - 1) * pageSize + 1} to{" "}
-              {Math.min(page * pageSize, totalCount)} of {totalCount} orders
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of{" "}
+              {totalCount} orders
             </div>
             <div className="flex gap-2">
               <Button

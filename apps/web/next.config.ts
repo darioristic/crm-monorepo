@@ -5,14 +5,10 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
   output: "standalone",
   transpilePackages: ["@crm/types", "@crm/utils"],
-  // Enable TypeScript checking during build
-  typescript: {
-    ignoreBuildErrors: true,
-  },
   env: {
-    API_URL: process.env.API_URL || "http://localhost:3002",
+    API_URL: process.env.API_URL || "http://localhost:3001",
     NEXT_PUBLIC_API_URL:
-      process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:3002",
+      process.env.NEXT_PUBLIC_API_URL || process.env.API_URL || "http://localhost:3001",
   },
   // Configure Turbopack for monorepo structure
   turbopack: {
@@ -26,7 +22,7 @@ const nextConfig: NextConfig = {
     const apiUrl =
       process.env.NODE_ENV === "production"
         ? "http://crm-backend:3001"
-        : process.env.API_URL || "http://localhost:3002";
+        : process.env.API_URL || "http://localhost:3001";
     return [
       {
         source: "/api/:path*",

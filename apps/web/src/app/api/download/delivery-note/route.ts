@@ -19,7 +19,7 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
     let response: Response;
 
     if (token) {
@@ -35,30 +35,43 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
     const apiDeliveryNote = data.data;
 
+    // Extract customerDetails
+    let customerDetails = null;
+    if (apiDeliveryNote.customerDetails) {
+      customerDetails =
+        typeof apiDeliveryNote.customerDetails === "string"
+          ? JSON.parse(apiDeliveryNote.customerDetails)
+          : apiDeliveryNote.customerDetails;
+    }
+
     let fromDetails = null;
     if (apiDeliveryNote.fromDetails) {
       fromDetails =
         typeof apiDeliveryNote.fromDetails === "string"
           ? JSON.parse(apiDeliveryNote.fromDetails)
           : apiDeliveryNote.fromDetails;
-    } else {
+    } else if (apiDeliveryNote.tenantId) {
+      // Fallback: fetch the tenant account (seller business details)
       try {
-        const userRes = await fetch(
-          `${baseUrl}/api/v1/users/${apiDeliveryNote.createdBy}`,
+        const accountRes = await fetch(
+          `${baseUrl}/api/v1/tenant-accounts/${apiDeliveryNote.tenantId}`,
           fetchOptions
         );
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          const company = userData.data?.company;
+        if (accountRes.ok) {
+          const accountData = await accountRes.json();
+          const account = accountData.data;
           const lines: string[] = [];
-          if (company?.name) lines.push(company.name);
-          if (company?.address) lines.push(company.address);
-          const cityLine = [company?.city, company?.zip, company?.country]
+          if (account?.name) lines.push(account.name);
+          if (account?.address) lines.push(account.address);
+          const cityLine = [account?.city, account?.zip, account?.country]
             .filter(Boolean)
             .join(", ");
           if (cityLine) lines.push(cityLine);
-          if (company?.email) lines.push(company.email);
-          if (company?.phone) lines.push(company.phone);
+          if (account?.email) lines.push(account.email);
+          if (account?.phone) lines.push(account.phone);
+          if (account?.website) lines.push(account.website);
+          if (account?.vatNumber) lines.push(`PIB: ${account.vatNumber}`);
+          if (account?.companyNumber) lines.push(`MB: ${account.companyNumber}`);
 
           fromDetails =
             lines.length > 0
@@ -82,6 +95,7 @@ export async function GET(request: NextRequest) {
     const pdfDocument = await PdfTemplate({
       deliveryNote: apiDeliveryNote,
       fromDetails: fromDetails,
+      customerDetails: customerDetails,
     });
     const buffer = await renderToBuffer(pdfDocument as any);
 

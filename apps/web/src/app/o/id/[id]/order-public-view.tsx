@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
 import type { EditorDoc, Order } from "@/types/order";
-import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
+import { DEFAULT_ORDER_TEMPLATE, formatOrderNumber } from "@/types/order";
 
 // API Order Response Type
 interface OrderApiResponse {
@@ -241,7 +241,7 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
 
   const orderData: Order = {
     id: order.id,
-    orderNumber: order.orderNumber,
+    orderNumber: formatOrderNumber(order.orderNumber),
     issueDate: order.createdAt,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,

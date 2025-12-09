@@ -1,8 +1,8 @@
-import { cn } from "@/lib/utils";
 import { marked } from "marked";
 import { memo, useId, useMemo } from "react";
-import ReactMarkdown, { Components } from "react-markdown";
+import ReactMarkdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { cn } from "@/lib/utils";
 import { CodeBlock, CodeBlockCode } from "./code-block";
 
 export type MarkdownProps = {
@@ -33,7 +33,8 @@ const INITIAL_COMPONENTS: Partial<Components> = {
       return (
         <span
           className={cn("bg-background rounded-sm px-1 font-mono text-sm", className)}
-          {...props}>
+          {...props}
+        >
           {children}
         </span>
       );
@@ -49,13 +50,13 @@ const INITIAL_COMPONENTS: Partial<Components> = {
   },
   pre: function PreComponent({ children }) {
     return <>{children}</>;
-  }
+  },
 };
 
 const MemoizedMarkdownBlock = memo(
   function MarkdownBlock({
     content,
-    components = INITIAL_COMPONENTS
+    components = INITIAL_COMPONENTS,
   }: {
     content: string;
     components?: Partial<Components>;
@@ -77,7 +78,7 @@ function MarkdownComponent({
   children,
   id,
   className,
-  components = INITIAL_COMPONENTS
+  components = INITIAL_COMPONENTS,
 }: MarkdownProps) {
   const generatedId = useId();
   const blockId = id ?? generatedId;
@@ -85,9 +86,9 @@ function MarkdownComponent({
 
   return (
     <div className={className}>
-      {blocks.map((block, index) => (
+      {blocks.map((block) => (
         <MemoizedMarkdownBlock
-          key={`${blockId}-block-${index}`}
+          key={`${blockId}-block-${block}`}
           content={block}
           components={components}
         />

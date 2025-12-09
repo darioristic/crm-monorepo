@@ -100,7 +100,7 @@ export async function convertQuoteToOrder(input: ConvertQuoteToOrderInput): Prom
     const orderItemsData = quoteItems.map((item, index) => ({
       orderId: order.id,
       quoteItemId: item.id,
-      productId: item.productId,
+      productId: item.productId || null,
       productName: item.productName,
       description: item.description,
       sku: item.sku,
@@ -211,7 +211,7 @@ export async function convertQuoteToInvoice(input: ConvertQuoteToInvoiceInput): 
     const invoiceItemsData = quoteItems.map((item, index) => ({
       invoiceId: invoice.id,
       quoteItemId: item.id,
-      productId: item.productId,
+      productId: item.productId || null,
       productName: item.productName,
       description: item.description,
       sku: item.sku,
@@ -353,8 +353,8 @@ export async function convertOrderToInvoice(input: ConvertOrderToInvoiceInput): 
       return {
         invoiceId: invoice.id,
         orderItemId: item.id,
-        quoteItemId: item.quoteItemId,
-        productId: item.productId,
+        quoteItemId: item.quoteItemId || null,
+        productId: item.productId || null,
         productName: item.productName,
         description: item.description,
         sku: item.sku,
@@ -536,7 +536,7 @@ export async function createConsolidatedInvoice(
     // 6. Create aggregated invoice items
     const invoiceItemsData = Array.from(itemsMap.values()).map((item, index) => ({
       invoiceId: invoice.id,
-      productId: item.productId,
+      productId: item.productId || null,
       productName: item.productName,
       description: item.description,
       sku: item.sku,
@@ -627,4 +627,196 @@ export async function getDocumentChain(quoteId: string, tenantId: string): Promi
     orders: ordersWithItems,
     invoices: uniqueInvoices,
   };
+}
+
+// ============================================
+// Order to Delivery Note Conversion
+// ============================================
+
+interface ConvertOrderToDeliveryNoteInput {
+  orderId: string;
+  userId: string;
+  tenantId: string;
+  customizations?: {
+    deliveryNumber?: string;
+    deliveryDate?: Date;
+    shipDate?: Date;
+    shippingAddress?: string;
+    carrier?: string;
+    trackingNumber?: string;
+    notes?: string;
+  };
+}
+
+export async function convertOrderToDeliveryNote(
+  input: ConvertOrderToDeliveryNoteInput
+): Promise<string> {
+  const { orderId, userId, tenantId, customizations } = input;
+
+  return await db.transaction(async (tx) => {
+    // 1. Fetch order with items
+    const [order] = await tx
+      .select()
+      .from(ordersImproved)
+      .where(and(eq(ordersImproved.id, orderId), eq(ordersImproved.tenantId, tenantId)));
+
+    if (!order) {
+      throw new Error(`Order ${orderId} not found`);
+    }
+
+    const orderItems = await tx
+      .select()
+      .from(orderItemsImproved)
+      .where(eq(orderItemsImproved.orderId, orderId));
+
+    // 2. Create delivery note from order
+    const deliveryNumber = customizations?.deliveryNumber ?? `DN-${nanoid(10).toUpperCase()}`;
+
+    const { deliveryNoteQueries } = await import("../db/queries/delivery-notes");
+
+    const deliveryNoteData = {
+      id: nanoid(),
+      deliveryNumber,
+      companyId: order.companyId,
+      contactId: order.contactId ?? null,
+      status: "pending" as const,
+      shipDate: customizations?.shipDate ?? new Date(),
+      deliveryDate: customizations?.deliveryDate ?? null,
+      shippingAddress: customizations?.shippingAddress ?? order.shippingAddress ?? "",
+      trackingNumber: customizations?.trackingNumber ?? null,
+      carrier: customizations?.carrier ?? null,
+      taxRate: order.taxRate ?? 0,
+      subtotal: order.subtotal,
+      tax: order.tax ?? 0,
+      total: order.total,
+      notes: customizations?.notes ?? order.notes ?? null,
+      terms: order.terms ?? null,
+      customerDetails: order.customerDetails ?? null,
+      fromDetails: order.fromDetails ?? null,
+      createdBy: userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      sellerCompanyId: tenantId,
+      invoiceId: null,
+    };
+
+    const deliveryNoteItems = orderItems.map((item) => ({
+      productName: item.productName ?? "",
+      description: item.description ?? "",
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      unit: item.unit ?? "pcs",
+      discount: item.discount ?? 0,
+      vat: item.vat ?? 0,
+      total: item.total,
+    }));
+
+    const deliveryNote = await deliveryNoteQueries.create(
+      deliveryNoteData as any,
+      deliveryNoteItems
+    );
+
+    logger.info(
+      { orderId, deliveryNoteId: deliveryNote.id, deliveryNumber },
+      "Converted order to delivery note"
+    );
+
+    return deliveryNote.id;
+  });
+}
+
+// ============================================
+// Invoice to Delivery Note Conversion
+// ============================================
+
+interface ConvertInvoiceToDeliveryNoteInput {
+  invoiceId: string;
+  userId: string;
+  tenantId: string;
+  customizations?: {
+    deliveryNumber?: string;
+    deliveryDate?: Date;
+    shipDate?: Date;
+    shippingAddress?: string;
+    carrier?: string;
+    trackingNumber?: string;
+    notes?: string;
+  };
+}
+
+export async function convertInvoiceToDeliveryNote(
+  input: ConvertInvoiceToDeliveryNoteInput
+): Promise<string> {
+  const { invoiceId, userId, tenantId, customizations } = input;
+
+  return await db.transaction(async (tx) => {
+    // 1. Fetch invoice with items
+    const [invoice] = await tx
+      .select()
+      .from(invoicesImproved)
+      .where(and(eq(invoicesImproved.id, invoiceId), eq(invoicesImproved.tenantId, tenantId)));
+
+    if (!invoice) {
+      throw new Error(`Invoice ${invoiceId} not found`);
+    }
+
+    const invoiceItems = await tx
+      .select()
+      .from(invoiceItemsImproved)
+      .where(eq(invoiceItemsImproved.invoiceId, invoiceId));
+
+    // 2. Create delivery note from invoice
+    const deliveryNumber = customizations?.deliveryNumber ?? `DN-${nanoid(10).toUpperCase()}`;
+
+    const { deliveryNoteQueries } = await import("../db/queries/delivery-notes");
+
+    const deliveryNoteData = {
+      id: nanoid(),
+      deliveryNumber,
+      companyId: invoice.companyId,
+      contactId: invoice.contactId ?? null,
+      invoiceId: invoice.id,
+      status: "pending" as const,
+      shipDate: customizations?.shipDate ?? new Date(),
+      deliveryDate: customizations?.deliveryDate ?? null,
+      shippingAddress: customizations?.shippingAddress ?? invoice.shippingAddress ?? "",
+      trackingNumber: customizations?.trackingNumber ?? null,
+      carrier: customizations?.carrier ?? null,
+      taxRate: invoice.taxRate ?? 0,
+      subtotal: invoice.subtotal,
+      tax: invoice.tax ?? 0,
+      total: invoice.total,
+      notes: customizations?.notes ?? invoice.notes ?? null,
+      terms: invoice.terms ?? null,
+      customerDetails: invoice.customerDetails ?? null,
+      fromDetails: invoice.fromDetails ?? null,
+      createdBy: userId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      sellerCompanyId: tenantId,
+    };
+
+    const deliveryNoteItems = invoiceItems.map((item) => ({
+      productName: item.productName ?? "",
+      description: item.description ?? "",
+      quantity: item.quantity,
+      unitPrice: item.unitPrice,
+      unit: item.unit ?? "pcs",
+      discount: item.discount ?? 0,
+      vat: item.vat ?? 0,
+      total: item.total,
+    }));
+
+    const deliveryNote = await deliveryNoteQueries.create(
+      deliveryNoteData as any,
+      deliveryNoteItems
+    );
+
+    logger.info(
+      { invoiceId, deliveryNoteId: deliveryNote.id, deliveryNumber },
+      "Converted invoice to delivery note"
+    );
+
+    return deliveryNote.id;
+  });
 }

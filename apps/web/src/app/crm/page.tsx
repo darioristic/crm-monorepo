@@ -53,10 +53,10 @@ export default function CRMPage() {
     }
   };
 
-  const handleDelete = async (companyId: string) => {
+  const handleDelete = async (deletedId: string) => {
     setDeleting(true);
     try {
-      const response = await fetch(`/api/crm/companies/${companyId}`, {
+      const response = await fetch(`/api/crm/companies/${deletedId}`, {
         method: "DELETE",
       });
 
@@ -64,7 +64,7 @@ export default function CRMPage() {
         toast.success("Company deleted successfully");
         await fetchCompanies();
         // If deleted company was selected, clear selection
-        if (id === companyId) {
+        if (companyId === deletedId) {
           localStorage.removeItem("selectedCompanyId");
           router.push("/crm");
         }
@@ -92,7 +92,7 @@ export default function CRMPage() {
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-3xl font-bold">Select a Company</h2>
           <Button
-            onClick={() => router.push("/dashboard/settings/companies")}
+            onClick={() => router.push("/dashboard/accounts/organizations")}
             className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
@@ -125,7 +125,10 @@ export default function CRMPage() {
           {companies.length === 0 && (
             <div className="text-center py-8 text-muted-foreground">
               <p>No companies found. Create your first company to get started.</p>
-              <Button onClick={() => router.push("/dashboard/settings/companies")} className="mt-4">
+              <Button
+                onClick={() => router.push("/dashboard/accounts/organizations")}
+                className="mt-4"
+              >
                 <Plus className="h-4 w-4 mr-2" />
                 Create Company
               </Button>

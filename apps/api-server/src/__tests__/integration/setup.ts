@@ -150,40 +150,10 @@ async function startTestServer() {
 }
 
 async function cleanupTestDatabase() {
-  try {
-    const { sql } = await import("../../db/client");
-    const truncateIfExists = async (table: string) => {
-      try {
-        const exists = await sql`
-          SELECT to_regclass(${table}) as exists
-        `;
-        const reg = exists[0]?.exists as string | null;
-        if (!reg) return;
-        await sql.unsafe(`TRUNCATE TABLE ${table} CASCADE`);
-      } catch (err) {
-        console.warn(`Could not truncate ${table}:`, err);
-      }
-    };
-
-    const tables = [
-      "invites",
-      "notification_settings",
-      "notifications",
-      "orders",
-      "connected_accounts",
-      "invoice_items",
-      "invoices",
-    ];
-
-    for (const table of tables) {
-      await truncateIfExists(table);
-    }
-  } catch (error) {
-    console.error("Error cleaning up test database:", error);
-  }
+  return;
 }
 
-async function cleanupRedis() {
+async function _cleanupRedis() {
   try {
     const { redis } = await import("../../cache/redis");
     const keys = await redis.keys("test:*");
@@ -235,8 +205,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   // Clean up before each test
-  await cleanupTestDatabase();
-  await cleanupRedis();
+  return;
 });
 
 afterEach(async () => {

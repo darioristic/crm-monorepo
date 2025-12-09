@@ -53,25 +53,18 @@ export function buildCustomerDetails(
 
   // Build from company fields
   const lines: string[] = [];
-  const companyName = deliveryNote.companyName || deliveryNote.company?.name;
+  const companyName = (deliveryNote as any).companyName || (deliveryNote as any).company?.name;
   if (companyName) lines.push(companyName);
 
-  if (deliveryNote.company) {
-    const street =
-      (deliveryNote.company as any).addressLine1 || deliveryNote.company.address || null;
-    const zipCity = [
-      deliveryNote.company.zip || deliveryNote.company.postalCode,
-      deliveryNote.company.city,
-    ]
-      .filter(Boolean)
-      .join(" ");
+  const company = (deliveryNote as any).company;
+  if (company) {
+    const street = (company as any).addressLine1 || company.address || null;
+    const zipCity = [company.zip || company.postalCode, company.city].filter(Boolean).join(" ");
     const addressLine = [street, zipCity].filter(Boolean).join(", ");
-    const country = deliveryNote.company.country || null;
-    const email = (deliveryNote.company as any).billingEmail || deliveryNote.company.email || null;
-    const pib = deliveryNote.company.vatNumber ? `PIB: ${deliveryNote.company.vatNumber}` : null;
-    const mbSource =
-      (deliveryNote.company as any).companyNumber ||
-      (deliveryNote.company as any).registrationNumber;
+    const country = company.country || null;
+    const email = (company as any).billingEmail || company.email || null;
+    const pib = company.vatNumber ? `PIB: ${company.vatNumber}` : null;
+    const mbSource = (company as any).companyNumber || (company as any).registrationNumber;
     const mb = mbSource ? `MB: ${String(mbSource)}` : null;
 
     if (addressLine) lines.push(addressLine);

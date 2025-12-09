@@ -1,7 +1,7 @@
-import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
-import { afterEach, vi } from 'vitest';
-import React from 'react';
+import "@testing-library/jest-dom/vitest";
+import { cleanup } from "@testing-library/react";
+import React from "react";
+import { afterEach, vi } from "vitest";
 
 // Cleanup after each test
 afterEach(() => {
@@ -9,20 +9,20 @@ afterEach(() => {
 });
 
 // Mock Next.js router
-vi.mock('next/navigation', () => ({
+vi.mock("next/navigation", () => ({
   useRouter() {
     return {
       push: vi.fn(),
       replace: vi.fn(),
       prefetch: vi.fn(),
       back: vi.fn(),
-      pathname: '/',
+      pathname: "/",
       query: {},
-      asPath: '/',
+      asPath: "/",
     };
   },
   usePathname() {
-    return '/';
+    return "/";
   },
   useSearchParams() {
     return new URLSearchParams();
@@ -30,9 +30,18 @@ vi.mock('next/navigation', () => ({
 }));
 
 // Mock Next.js Image component
-vi.mock('next/image', () => ({
+vi.mock("next/image", () => ({
   default: (props: any) => {
     // eslint-disable-next-line @next/next/no-img-element
-    return React.createElement('img', props);
+    return React.createElement("img", props);
   },
 }));
+
+// Make navigator.clipboard writable for tests that mock it
+try {
+  Object.defineProperty(globalThis.navigator, "clipboard", {
+    value: { writeText: vi.fn(() => Promise.resolve()) },
+    writable: true,
+    configurable: true,
+  });
+} catch {}

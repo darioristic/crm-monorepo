@@ -1,17 +1,17 @@
 import type {
-  User,
-  UserWithCompany,
   Company,
-  UserRole,
-  PaginationParams,
   FilterParams,
+  PaginationParams,
+  User,
+  UserRole,
+  UserWithCompany,
 } from "@crm/types";
 import { sql as db, sql } from "../client";
 import {
   createQueryBuilder,
+  type QueryParam,
   sanitizeSortColumn,
   sanitizeSortOrder,
-  type QueryParam,
 } from "../query-builder";
 
 // ============================================
@@ -51,12 +51,19 @@ export const userQueries = {
 
     // Izvršavaj select sa JOIN-om
     const selectQuery = `
-      SELECT 
+      SELECT
         u.*,
         c.id as company_id_join,
         c.name as company_name,
         c.industry as company_industry,
         c.address as company_address,
+        c.city as company_city,
+        c.zip as company_zip,
+        c.country as company_country,
+        c.email as company_email,
+        c.phone as company_phone,
+        c.vat_number as company_vat_number,
+        c.company_number as company_company_number,
         c.created_at as company_created_at,
         c.updated_at as company_updated_at
       FROM users u
@@ -66,19 +73,30 @@ export const userQueries = {
       LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
 
-    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
+    const data = await db.unsafe(selectQuery, [
+      ...whereValues,
+      safePageSize,
+      safeOffset,
+    ] as QueryParam[]);
 
     return { data: data.map(mapUserWithCompany), total };
   },
 
   async findById(id: string): Promise<(UserWithCompany & { tenantId?: string }) | null> {
     const result = await db`
-      SELECT 
+      SELECT
         u.*,
         c.id as company_id_join,
         c.name as company_name,
         c.industry as company_industry,
         c.address as company_address,
+        c.city as company_city,
+        c.zip as company_zip,
+        c.country as company_country,
+        c.email as company_email,
+        c.phone as company_phone,
+        c.vat_number as company_vat_number,
+        c.company_number as company_company_number,
         c.created_at as company_created_at,
         c.updated_at as company_updated_at
       FROM users u
@@ -90,12 +108,19 @@ export const userQueries = {
 
   async findByEmail(email: string): Promise<(UserWithCompany & { tenantId?: string }) | null> {
     const result = await db`
-      SELECT 
+      SELECT
         u.*,
         c.id as company_id_join,
         c.name as company_name,
         c.industry as company_industry,
         c.address as company_address,
+        c.city as company_city,
+        c.zip as company_zip,
+        c.country as company_country,
+        c.email as company_email,
+        c.phone as company_phone,
+        c.vat_number as company_vat_number,
+        c.company_number as company_company_number,
         c.created_at as company_created_at,
         c.updated_at as company_updated_at
       FROM users u
@@ -147,23 +172,24 @@ export const userQueries = {
   async update(id: string, data: Partial<User & { tenantId?: string }>): Promise<User> {
     // If companyId is being updated, we need to invalidate cache
     const shouldInvalidateCache = data.companyId !== undefined;
-    
+
     // Build the update query conditionally
     // For companyId: if undefined, use COALESCE to keep current value; if set, update it
     let result: Array<Record<string, unknown>>;
-    
+
     const tenantId = (data as { tenantId?: string }).tenantId;
 
     // Detect if tenant_id column exists to avoid errors on legacy schemas
     let hasTenantIdColumn = true;
     try {
-      const columnCheck = await db`SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'tenant_id' LIMIT 1`;
+      const columnCheck =
+        await db`SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'tenant_id' LIMIT 1`;
       hasTenantIdColumn = columnCheck.length > 0;
     } catch {
       // If check fails, assume column exists to avoid accidental schema drift; subsequent error will be caught
       hasTenantIdColumn = true;
     }
-    
+
     if (data.companyId !== undefined) {
       // companyId is explicitly provided - update it (can be null to clear it)
       if (hasTenantIdColumn) {
@@ -174,7 +200,7 @@ export const userQueries = {
             email = COALESCE(${data.email ?? null}, email),
             role = COALESCE(${data.role ?? null}, role),
             company_id = ${data.companyId || null},
-            tenant_id = ${tenantId !== undefined ? (tenantId || null) : sql`tenant_id`},
+            tenant_id = ${tenantId !== undefined ? tenantId || null : sql`tenant_id`},
             status = COALESCE(${data.status ?? null}, status),
             avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
             phone = COALESCE(${data.phone ?? null}, phone),
@@ -207,7 +233,7 @@ export const userQueries = {
             last_name = COALESCE(${data.lastName ?? null}, last_name),
             email = COALESCE(${data.email ?? null}, email),
             role = COALESCE(${data.role ?? null}, role),
-            tenant_id = ${tenantId !== undefined ? (tenantId || null) : sql`tenant_id`},
+            tenant_id = ${tenantId !== undefined ? tenantId || null : sql`tenant_id`},
             status = COALESCE(${data.status ?? null}, status),
             avatar_url = COALESCE(${data.avatarUrl ?? null}, avatar_url),
             phone = COALESCE(${data.phone ?? null}, phone),
@@ -231,18 +257,18 @@ export const userQueries = {
         `;
       }
     }
-    
+
     if (result.length === 0) {
       throw new Error(`User with id ${id} not found`);
     }
-    
+
     // Invalidate cache if companyId was updated
     if (shouldInvalidateCache) {
       const { cache } = await import("../../cache/redis");
       const cacheKey = `user:${id}:company`;
       await cache.del(cacheKey);
     }
-    
+
     return mapUser(result[0]);
   },
 
@@ -307,7 +333,7 @@ export const userQueries = {
 
 function toISOString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'string') return new Date(value).toISOString();
+  if (typeof value === "string") return new Date(value).toISOString();
   return new Date().toISOString();
 }
 
@@ -341,6 +367,13 @@ function mapUserWithCompany(row: Record<string, unknown>): UserWithCompany {
       name: row.company_name as string,
       industry: row.company_industry as string,
       address: row.company_address as string,
+      city: row.company_city as string | undefined,
+      zip: row.company_zip as string | undefined,
+      country: row.company_country as string | undefined,
+      email: row.company_email as string | undefined,
+      phone: row.company_phone as string | undefined,
+      vatNumber: row.company_vat_number as string | undefined,
+      companyNumber: row.company_company_number as string | undefined,
     };
   }
 

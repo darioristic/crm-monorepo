@@ -27,11 +27,7 @@ export function initSentry() {
       // Performance monitoring
       tracesSampleRate: 0.1, // 10% of transactions
       // Capture unhandled promise rejections
-      integrations: [
-        new Sentry.BrowserTracing({
-          tracePropagationTargets: ["localhost", /^https:\/\/.*\.vercel\.app/],
-        }),
-      ],
+      integrations: [Sentry.browserTracingIntegration()],
       // Filter out health check requests
       beforeSend(event, _hint) {
         // Don't send events for health check endpoints
@@ -69,7 +65,7 @@ export async function captureMessage(
   if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_SENTRY_DSN) {
     const Sentry = await import("@sentry/nextjs");
     Sentry.captureMessage(message, {
-      level: level as Sentry.SeverityLevel,
+      level: level as any,
       extra: context,
     });
   }

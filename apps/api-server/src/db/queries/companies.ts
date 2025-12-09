@@ -72,6 +72,16 @@ export const companyQueries = {
     return result.length > 0 ? mapCompany(result[0]) : null;
   },
 
+  async findSellerByTenantId(tenantId: string): Promise<Company | null> {
+    const result = await db`
+      SELECT * FROM companies
+      WHERE tenant_id = ${tenantId}
+        AND company_type = 'seller'
+      LIMIT 1
+    `;
+    return result.length > 0 ? mapCompany(result[0]) : null;
+  },
+
   async findByName(name: string): Promise<Company | null> {
     const result = await db`SELECT * FROM companies WHERE name = ${name}`;
     return result.length > 0 ? mapCompany(result[0]) : null;
@@ -256,6 +266,7 @@ function mapCompany(row: Record<string, unknown>): Company {
     companyNumber: row.company_number as string | null,
     logoUrl: row.logo_url as string | null,
     note: row.note as string | null,
+    companyType: (row.company_type as "seller" | "customer") || "customer",
     isFavorite: (row.is_favorite as boolean | null) ?? null,
     source: (row.source as "account" | "customer") || "account",
   } as Company;

@@ -1,6 +1,6 @@
 "use client";
 
-import type { Company } from "@crm/types";
+import type { Company, EnhancedCompany } from "@crm/types";
 import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Copy, Download, Loader2 } from "lucide-react";
@@ -13,7 +13,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useApi } from "@/hooks/use-api";
 import { companiesApi, ordersApi } from "@/lib/api";
 import type { OrderDefaultSettings, OrderFormValues } from "@/types/order";
-import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
+import { DEFAULT_ORDER_TEMPLATE, formatOrderNumber } from "@/types/order";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
 import { ProductEditProvider } from "./product-edit-context";
@@ -23,7 +23,7 @@ import { ProductEditSheet } from "./product-edit-sheet";
 interface OrderApiResponse {
   id: string;
   orderNumber: string | null;
-  issueDate: string | null;
+  issueDate?: string | null;
   createdAt: string;
   updatedAt: string | null;
   total: number;
@@ -38,8 +38,8 @@ interface OrderApiResponse {
     vat?: number;
     vatRate?: number;
   }>;
-  terms?: string;
-  notes?: string;
+  terms?: string | null;
+  notes?: string | null;
   companyId: string;
   companyName?: string;
   company?: {
@@ -75,9 +75,10 @@ interface OrderApiResponse {
 
 type OrderSheetProps = {
   defaultSettings?: Partial<OrderDefaultSettings>;
+  onOrderCreated?: () => void;
 };
 
-export function OrderSheet({ defaultSettings }: OrderSheetProps) {
+export function OrderSheet({ defaultSettings, onOrderCreated }: OrderSheetProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -107,13 +108,16 @@ export function OrderSheet({ defaultSettings }: OrderSheetProps) {
 
   const handleSuccess = useCallback(
     (id: string) => {
+      // Trigger refresh callback
+      onOrderCreated?.();
+
       // Show success state
       const params = new URLSearchParams(searchParams);
       params.set("type", "success");
       params.set("orderId", id);
       router.push(`${pathname}?${params.toString()}`);
     },
-    [router, pathname, searchParams]
+    [router, pathname, searchParams, onOrderCreated]
   );
 
   return (
@@ -234,7 +238,7 @@ function SuccessContent({ orderId, order, onViewOrder, onCreateAnother }: Succes
     window.open(`/api/download/order?id=${orderId}`, "_blank");
   };
 
-  const [company, setCompany] = useState<Company | null>(order?.company || null);
+  const [company, setCompany] = useState<EnhancedCompany | Company | null>(null);
   const companyName = company?.name || order?.companyName;
 
   // Build address line (zip + city) or use full address
@@ -272,7 +276,9 @@ function SuccessContent({ orderId, order, onViewOrder, onCreateAnother }: Succes
           <div className="flex justify-between items-start mb-6">
             <div>
               <span className="text-xs text-muted-foreground">Order No:</span>
-              <span className="text-sm font-medium ml-1">{order?.orderNumber || "—"}</span>
+              <span className="text-sm font-medium ml-1">
+                {formatOrderNumber(order?.orderNumber)}
+              </span>
             </div>
             <div>
               <span className="text-xs text-muted-foreground">Issue Date:</span>
@@ -299,11 +305,14 @@ function SuccessContent({ orderId, order, onViewOrder, onCreateAnother }: Succes
               {company?.phone && (
                 <p className="text-sm text-muted-foreground">Tel: {company.phone}</p>
               )}
-              {(company?.email || company?.billingEmail) && (
+              {(company?.email || (company as any)?.billingEmail) && (
                 <p className="text-sm text-muted-foreground">
                   E-mail:{" "}
-                  <a href={`mailto:${company.email || company.billingEmail}`} className="underline">
-                    {company.email || company.billingEmail}
+                  <a
+                    href={`mailto:${company?.email || (company as any)?.billingEmail}`}
+                    className="underline"
+                  >
+                    {company?.email || (company as any)?.billingEmail}
                   </a>
                 </p>
               )}
@@ -386,8 +395,8 @@ function transformOrderToFormValues(order: OrderApiResponse): Partial<OrderFormV
   return {
     id: order.id,
     status: order.status,
-    orderNumber: order.orderNumber,
-    issueDate: order.issueDate,
+    orderNumber: order.orderNumber ?? "",
+    issueDate: (order.issueDate ?? order.createdAt ?? "") as string,
     customerId: order.companyId,
     customerName: order.companyName,
     amount: order.total || 0,
@@ -395,7 +404,6 @@ function transformOrderToFormValues(order: OrderApiResponse): Partial<OrderFormV
     vat: order.vat || 0,
     tax: order.tax || 0,
     discount: order.discount || 0,
-    orderId: order.orderId,
     invoiceId: order.invoiceId,
     noteDetails: order.notes
       ? {

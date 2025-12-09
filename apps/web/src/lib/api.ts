@@ -18,6 +18,7 @@ import type {
   CreateQuoteRequest,
   CreateTaskRequest,
   CreateUserRequest,
+  CustomerOrganization,
   DeliveryNote,
   DeliveryNoteReport,
   Invoice,
@@ -137,20 +138,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   let companyHeader: Record<string, string> = {};
   if (typeof window !== "undefined") {
     try {
-      const cookie = document.cookie || "";
-      const token = cookie
-        .split(";")
-        .map((c) => c.trim())
-        .find((c) => c.startsWith("access_token="))
-        ?.split("=")[1];
-      if (token) {
-        const parts = token.split(".");
-        if (parts.length === 3) {
-          const payload = JSON.parse(atob(parts[1]));
-          if (payload?.companyId) {
-            companyHeader = { "X-Company-Id": String(payload.companyId) };
-          }
-        }
+      const path = window.location?.pathname ?? "";
+      const m = path.match(/^\/c\/([^/]+)/);
+      if (m?.[1]) {
+        companyHeader = { "X-Company-Id": String(m[1]) };
       }
       if (!companyHeader["X-Company-Id"]) {
         const lsCompany = window.localStorage?.getItem("selectedCompanyId");
@@ -158,18 +149,52 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
           companyHeader = { "X-Company-Id": lsCompany };
         }
       }
+      if (!companyHeader["X-Company-Id"]) {
+        const cookie = document.cookie || "";
+        const selectedCookie = cookie
+          .split(";")
+          .map((c) => c.trim())
+          .find((c) => c.startsWith("selected_company_id="))
+          ?.split("=")[1];
+        if (selectedCookie) {
+          companyHeader = { "X-Company-Id": String(selectedCookie) };
+        }
+      }
+      if (!companyHeader["X-Company-Id"]) {
+        const cookie = document.cookie || "";
+        const token = cookie
+          .split(";")
+          .map((c) => c.trim())
+          .find((c) => c.startsWith("access_token="))
+          ?.split("=")[1];
+        if (token) {
+          const parts = token.split(".");
+          if (parts.length === 3) {
+            const payload = JSON.parse(atob(parts[1]));
+            if (payload?.companyId) {
+              companyHeader = { "X-Company-Id": String(payload.companyId) };
+            }
+          }
+        }
+      }
     } catch {}
   } else {
     try {
       const { cookies } = await import("next/headers");
-      const cookieStore = cookies();
-      const token = cookieStore.get("access_token")?.value;
-      if (token) {
-        const parts = token.split(".");
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf8"));
-          if (payload?.companyId) {
-            companyHeader = { "X-Company-Id": String(payload.companyId) };
+      const cookieStore = await cookies();
+      const selectedCookie = cookieStore.get("selected_company_id")?.value;
+      if (selectedCookie) {
+        companyHeader = { "X-Company-Id": String(selectedCookie) };
+      }
+      if (!companyHeader["X-Company-Id"]) {
+        const token = cookieStore.get("access_token")?.value;
+        if (token) {
+          const parts = token.split(".");
+          if (parts.length === 3) {
+            const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf8"));
+            if (payload?.companyId) {
+              companyHeader = { "X-Company-Id": String(payload.companyId) };
+            }
           }
         }
       }
@@ -249,6 +274,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     // Try to parse as JSON - even if content-type header is missing
     // (Next.js proxy might not forward headers correctly)
     let text = await response.text();
+
+    // Debug: log raw response for convert-to-order requests
+    if (endpoint.includes("convert-to-order") || endpoint.includes("convert-to-invoice")) {
+    }
 
     // Try to parse as JSON
     try {
@@ -571,6 +600,23 @@ export const invoicesApi = {
       method: "POST",
       body: JSON.stringify({ amount }),
     }),
+
+  convertToDeliveryNote: (
+    id: string,
+    customizations?: {
+      deliveryNumber?: string;
+      deliveryDate?: string;
+      shipDate?: string;
+      shippingAddress?: string;
+      carrier?: string;
+      trackingNumber?: string;
+      notes?: string;
+    }
+  ) =>
+    request<{ deliveryNoteId: string }>(`/api/v1/invoices/${id}/convert-to-delivery-note`, {
+      method: "POST",
+      body: JSON.stringify(customizations ? { customizations } : {}),
+    }),
 };
 
 function toIso(date: string | undefined | null): string | undefined {
@@ -630,16 +676,16 @@ function sanitizeInvoiceCreatePayload(data: CreateInvoiceRequest): CreateInvoice
   const anyData = data as Record<string, unknown>;
   const payload: Record<string, unknown> = {
     ...anyData,
-    companyId: cleanString(anyData.companyId),
-    contactId: cleanString(anyData.contactId),
-    quoteId: cleanString(anyData.quoteId),
-    status: cleanString(anyData.status) || "draft",
-    issueDate: toIso(anyData.issueDate),
-    dueDate: toIso(anyData.dueDate),
-    notes: cleanString(anyData.notes),
-    terms: cleanString(anyData.terms),
-    currency: cleanString(anyData.currency),
-    logoUrl: cleanString(anyData.logoUrl),
+    customerCompanyId: cleanString(anyData.customerCompanyId as string),
+    contactId: cleanString(anyData.contactId as string),
+    quoteId: cleanString(anyData.quoteId as string),
+    status: cleanString(anyData.status as string) || "draft",
+    issueDate: toIso(anyData.issueDate as string),
+    dueDate: toIso(anyData.dueDate as string),
+    notes: cleanString(anyData.notes as string),
+    terms: cleanString(anyData.terms as string),
+    currency: cleanString(anyData.currency as string),
+    logoUrl: cleanString(anyData.logoUrl as string),
     fromDetails: anyData.fromDetails ?? undefined,
     customerDetails: anyData.customerDetails ?? undefined,
     templateSettings: anyData.templateSettings ?? undefined,
@@ -648,7 +694,7 @@ function sanitizeInvoiceCreatePayload(data: CreateInvoiceRequest): CreateInvoice
     subtotal: typeof anyData.subtotal === "number" ? anyData.subtotal : Number(anyData.subtotal),
     tax: typeof anyData.tax === "number" ? anyData.tax : Number(anyData.tax),
     total: typeof anyData.total === "number" ? anyData.total : Number(anyData.total),
-    items: sanitizeItems(anyData.items),
+    items: sanitizeItems((anyData.items as unknown[]) || []),
   };
   delete payload.invoiceNumber;
   return payload as CreateInvoiceRequest;
@@ -658,20 +704,20 @@ function sanitizeInvoiceUpdatePayload(data: UpdateInvoiceRequest): UpdateInvoice
   const anyData = (data || {}) as Record<string, unknown>;
   const payload: Record<string, unknown> = {
     ...anyData,
-    companyId: cleanString(anyData.companyId),
-    contactId: cleanString(anyData.contactId),
-    quoteId: cleanString(anyData.quoteId),
-    status: cleanString(anyData.status),
-    issueDate: toIso(anyData.issueDate),
-    dueDate: toIso(anyData.dueDate),
-    notes: cleanString(anyData.notes),
-    terms: cleanString(anyData.terms),
-    currency: cleanString(anyData.currency),
-    logoUrl: cleanString(anyData.logoUrl),
+    customerCompanyId: cleanString(anyData.customerCompanyId as string),
+    contactId: cleanString(anyData.contactId as string),
+    quoteId: cleanString(anyData.quoteId as string),
+    status: cleanString(anyData.status as string),
+    issueDate: toIso(anyData.issueDate as string),
+    dueDate: toIso(anyData.dueDate as string),
+    notes: cleanString(anyData.notes as string),
+    terms: cleanString(anyData.terms as string),
+    currency: cleanString(anyData.currency as string),
+    logoUrl: cleanString(anyData.logoUrl as string),
     fromDetails: anyData.fromDetails ?? undefined,
     customerDetails: anyData.customerDetails ?? undefined,
     templateSettings: anyData.templateSettings ?? undefined,
-    items: anyData.items ? sanitizeItems(anyData.items) : undefined,
+    items: anyData.items ? sanitizeItems(anyData.items as unknown[]) : undefined,
   };
   delete payload.invoiceNumber;
   return payload as UpdateInvoiceRequest;
@@ -709,6 +755,8 @@ export const ordersApi = {
 
   getById: (id: string) => request<Order>(`/api/v1/orders/${id}`),
 
+  getNextNumber: () => request<{ orderNumber: string }>("/api/v1/orders/next-number"),
+
   create: (data: CreateOrderRequest) =>
     request<Order>("/api/v1/orders", {
       method: "POST",
@@ -738,6 +786,23 @@ export const ordersApi = {
     }
   ) =>
     request<{ invoiceId: string }>(`/api/v1/orders/${id}/convert-to-invoice`, {
+      method: "POST",
+      body: JSON.stringify(customizations ? { customizations } : {}),
+    }),
+
+  convertToDeliveryNote: (
+    id: string,
+    customizations?: {
+      deliveryNumber?: string;
+      deliveryDate?: string;
+      shipDate?: string;
+      shippingAddress?: string;
+      carrier?: string;
+      trackingNumber?: string;
+      notes?: string;
+    }
+  ) =>
+    request<{ deliveryNoteId: string }>(`/api/v1/orders/${id}/convert-to-delivery-note`, {
       method: "POST",
       body: JSON.stringify(customizations ? { customizations } : {}),
     }),
@@ -1180,9 +1245,82 @@ export const documentsApi = {
 
     const url = `${typeof window === "undefined" ? process.env.API_URL || "http://localhost:3001" : ""}/api/v1/documents/upload`;
 
+    let companyHeader: Record<string, string> = {};
+    try {
+      if (typeof window !== "undefined") {
+        const path = window.location?.pathname ?? "";
+        const m = path.match(/^\/c\/([^/]+)/);
+        if (m?.[1]) {
+          companyHeader = { "X-Company-Id": String(m[1]) };
+        }
+        if (!companyHeader["X-Company-Id"]) {
+          const lsCompany = window.localStorage?.getItem("selectedCompanyId");
+          if (lsCompany) {
+            companyHeader = { "X-Company-Id": lsCompany };
+          }
+        }
+        if (!companyHeader["X-Company-Id"]) {
+          const cookie = document.cookie || "";
+          const selectedCookie = cookie
+            .split(";")
+            .map((c) => c.trim())
+            .find((c) => c.startsWith("selected_company_id="))
+            ?.split("=")[1];
+          if (selectedCookie) {
+            companyHeader = { "X-Company-Id": String(selectedCookie) };
+          }
+        }
+        if (!companyHeader["X-Company-Id"]) {
+          const cookie = document.cookie || "";
+          const token = cookie
+            .split(";")
+            .map((c) => c.trim())
+            .find((c) => c.startsWith("access_token="))
+            ?.split("=")[1];
+          if (token) {
+            const parts = token.split(".");
+            if (parts.length === 3) {
+              const payload = JSON.parse(atob(parts[1]));
+              if (payload?.companyId) {
+                companyHeader = { "X-Company-Id": String(payload.companyId) };
+              }
+            }
+          }
+        }
+      } else {
+        const { cookies } = await import("next/headers");
+        const cookieStore = await cookies();
+        const selectedCookie = cookieStore.get("selected_company_id")?.value;
+        if (selectedCookie) {
+          companyHeader = { "X-Company-Id": String(selectedCookie) };
+        }
+        if (!companyHeader["X-Company-Id"]) {
+          const token = cookieStore.get("access_token")?.value;
+          if (token) {
+            const parts = token.split(".");
+            if (parts.length === 3) {
+              const payload = JSON.parse(Buffer.from(parts[1], "base64").toString("utf8"));
+              if (payload?.companyId) {
+                companyHeader = { "X-Company-Id": String(payload.companyId) };
+              }
+            }
+          }
+        }
+      }
+    } catch {}
+
+    const csrfHeader: Record<string, string> = {};
+    try {
+      const token = await getCsrfToken();
+      if (token) {
+        csrfHeader["X-CSRF-Token"] = token;
+      }
+    } catch {}
+
     const response = await fetch(url, {
       method: "POST",
       credentials: "include",
+      headers: { ...companyHeader, ...csrfHeader },
       body: formData,
     });
 

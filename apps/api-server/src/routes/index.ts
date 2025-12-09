@@ -28,6 +28,7 @@ import {
   logoutHandler,
   meHandler,
   refreshHandler,
+  switchTenantHandler,
 } from "./auth";
 import { chatRoutes } from "./chat";
 import { companyRoutes } from "./companies";
@@ -138,6 +139,7 @@ registerAuthRoute("POST", "/api/v1/auth/login", loginHandler);
 registerAuthRoute("POST", "/api/v1/auth/logout", logoutHandler);
 registerAuthRoute("POST", "/api/v1/auth/refresh", refreshHandler);
 registerAuthRoute("GET", "/api/v1/auth/me", meHandler);
+registerAuthRoute("POST", "/api/v1/auth/switch-tenant", switchTenantHandler);
 registerAuthRoute("POST", "/api/v1/auth/change-password", changePasswordHandler);
 
 // ============================================
@@ -366,49 +368,39 @@ function notFoundResponse(): Response {
 }
 
 // ============================================
+// Sort Routes by Specificity
+// ============================================
+
+// Sort routes by specificity: routes without params first, then by number of params
+// This ensures /api/v1/users/me matches before /api/v1/users/:id
+const sortedRoutes = [...routes].sort((a, b) => {
+  if (a.method !== b.method) return 0; // Only compare same method
+
+  // Routes without params come first
+  const aHasParams = a.params.length > 0;
+  const bHasParams = b.params.length > 0;
+  if (aHasParams !== bHasParams) {
+    return aHasParams ? 1 : -1;
+  }
+
+  // If both have params, fewer params = more specific
+  if (aHasParams && bHasParams) {
+    return a.params.length - b.params.length;
+  }
+
+  // If neither has params, sort by path length (longer = more specific)
+  const aPathLength = a.pattern.source.length;
+  const bPathLength = b.pattern.source.length;
+  return bPathLength - aPathLength;
+});
+
+// ============================================
 // Main Request Handler
 // ============================================
 
 export async function handleRequest(request: Request, url: URL): Promise<Response> {
   const path = url.pathname;
   const method = request.method;
-
-  // Debug: Log delivery-notes requests
-  if (path.includes("delivery-notes")) {
-    logger.info(
-      {
-        path,
-        method,
-        totalRoutes: routes.length,
-        deliveryNoteRoutes: routes.filter((r) => r.pattern.source.includes("delivery-notes"))
-          .length,
-      },
-      "Delivery notes request received"
-    );
-  }
-
-  // Sort routes by specificity: routes without params first, then by number of params
-  // This ensures /api/v1/users/me matches before /api/v1/users/:id
-  const sortedRoutes = [...routes].sort((a, b) => {
-    if (a.method !== b.method) return 0; // Only compare same method
-
-    // Routes without params come first
-    const aHasParams = a.params.length > 0;
-    const bHasParams = b.params.length > 0;
-    if (aHasParams !== bHasParams) {
-      return aHasParams ? 1 : -1;
-    }
-
-    // If both have params, fewer params = more specific
-    if (aHasParams && bHasParams) {
-      return a.params.length - b.params.length;
-    }
-
-    // If neither has params, sort by path length (longer = more specific)
-    const aPathLength = a.pattern.source.length;
-    const bPathLength = b.pattern.source.length;
-    return bPathLength - aPathLength;
-  });
 
   // Find matching route
   for (const route of sortedRoutes) {
@@ -458,28 +450,6 @@ export async function handleRequest(request: Request, url: URL): Promise<Respons
       const errorMessage = error instanceof Error ? error.message : "Internal server error";
       return json(errorResponse("INTERNAL_ERROR", errorMessage), 500);
     }
-  }
-
-  // Log 404 for delivery-notes to help debug
-  if (path.includes("delivery-notes")) {
-    logger.warn(
-      {
-        path,
-        method,
-        availableMethods: [
-          ...new Set(
-            routes.filter((r) => r.pattern.source.includes("delivery-notes")).map((r) => r.method)
-          ),
-        ],
-        matchingRoutes: routes
-          .filter((r) => r.method === method && r.pattern.source.includes("delivery-notes"))
-          .map((r) => ({
-            pattern: r.pattern.source,
-            params: r.params,
-          })),
-      },
-      "Delivery notes endpoint not found"
-    );
   }
 
   return notFoundResponse();

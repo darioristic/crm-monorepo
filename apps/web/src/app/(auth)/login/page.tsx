@@ -1,29 +1,16 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { RiEyeLine, RiEyeOffLine, RiLoader4Line, RiLockLine, RiMailLine } from "@remixicon/react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  RiLockLine,
-  RiMailLine,
-  RiLoader4Line,
-  RiEyeLine,
-  RiEyeOffLine,
-} from "@remixicon/react";
-import { login } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
+import { login } from "@/lib/auth";
 
 // ============================================
 // Form Schema
@@ -43,7 +30,7 @@ type LoginFormData = z.infer<typeof loginSchema>;
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const returnUrl = searchParams.get("returnUrl") || "/dashboard";
+  const returnUrl = searchParams.get("redirect") || searchParams.get("returnUrl") || "/dashboard";
 
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -70,17 +57,16 @@ function LoginForm() {
 
       if (result.success) {
         router.push(returnUrl);
-        router.refresh();
       } else {
         const errorMsg =
           typeof result.error === "object" && result.error?.message
             ? result.error.message
             : typeof result.error === "string"
-            ? result.error
-            : "Login failed";
+              ? result.error
+              : "Login failed";
         setError(errorMsg);
       }
-    } catch (err) {
+    } catch (_err) {
       setError("An error occurred. Please try again.");
     } finally {
       setIsLoading(false);
@@ -112,9 +98,7 @@ function LoginForm() {
             {...register("email")}
           />
         </div>
-        {errors.email && (
-          <p className="text-xs text-destructive">{errors.email.message}</p>
-        )}
+        {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
       </div>
 
       {/* Password Field */}
@@ -145,9 +129,7 @@ function LoginForm() {
             )}
           </button>
         </div>
-        {errors.password && (
-          <p className="text-xs text-destructive">{errors.password.message}</p>
-        )}
+        {errors.password && <p className="text-xs text-destructive">{errors.password.message}</p>}
       </div>
 
       {/* Submit Button */}
@@ -205,16 +187,13 @@ export default function LoginPage() {
             {/* Development Helper */}
             {process.env.NODE_ENV === "development" && (
               <div className="mt-6 rounded-lg border border-dashed border-muted-foreground/30 bg-muted/30 p-3">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">
-                  Demo Credentials:
-                </p>
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Demo Credentials:</p>
                 <div className="space-y-1 text-xs text-muted-foreground">
                   <p>
                     <span className="font-medium">Admin:</span> admin@crm.local
                   </p>
                   <p>
-                    <span className="font-medium">User:</span>{" "}
-                    sarah.johnson@techcorp.com
+                    <span className="font-medium">User:</span> sarah.johnson@techcorp.com
                   </p>
                   <p>
                     <span className="font-medium">Password:</span> changeme123

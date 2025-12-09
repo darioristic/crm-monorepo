@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Resolver } from "react-hook-form";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -44,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/auth-context";
 import { useMutation } from "@/hooks/use-api";
 import { companiesApi, invoicesApi } from "@/lib/api";
 import { logger } from "@/lib/logger";
@@ -91,6 +93,7 @@ interface InvoiceFormProps {
 
 export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(false);
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
@@ -133,7 +136,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   }, []);
 
   const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(invoiceFormSchema) as any,
+    resolver: zodResolver(invoiceFormSchema) as Resolver<InvoiceFormValues>,
     defaultValues: {
       companyId: invoice?.companyId || "",
       issueDate: invoice?.issueDate?.split("T")[0] || today,
@@ -148,7 +151,15 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         discount: item.discount,
-      })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
+      })) || [
+        {
+          productName: "",
+          description: "",
+          quantity: 1,
+          unitPrice: 0,
+          discount: 0,
+        },
+      ],
     },
   });
 
@@ -173,7 +184,15 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
           quantity: item.quantity,
           unitPrice: item.unitPrice,
           discount: item.discount,
-        })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0 }],
+        })) || [
+          {
+            productName: "",
+            description: "",
+            quantity: 1,
+            unitPrice: 0,
+            discount: 0,
+          },
+        ],
       });
       // Fetch company details for existing invoice
       if (invoice.companyId) {
@@ -232,7 +251,8 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
       : undefined;
 
     const data = {
-      companyId: values.companyId,
+      customerCompanyId: values.companyId,
+      sellerCompanyId: user?.companyId,
       issueDate: new Date(values.issueDate).toISOString(),
       dueDate: new Date(values.dueDate).toISOString(),
       status: values.status,
@@ -244,6 +264,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
       terms: values.terms || undefined,
       items,
       customerDetails,
+      createdBy: (user?.id as string) || "current-user-id",
     };
 
     let result;
@@ -713,7 +734,10 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
             prefillName={""}
             onSuccess={(newCompanyId) => {
               setShowCreateCustomer(false);
-              form.setValue("companyId", newCompanyId, { shouldDirty: true, shouldTouch: true });
+              form.setValue("companyId", newCompanyId, {
+                shouldDirty: true,
+                shouldTouch: true,
+              });
             }}
             onCancel={() => setShowCreateCustomer(false)}
           />

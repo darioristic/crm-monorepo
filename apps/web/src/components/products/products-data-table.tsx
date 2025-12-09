@@ -1,32 +1,35 @@
 "use client";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
+import type { ProductWithCategory } from "@crm/types";
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
+  type ColumnDef,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type SortingState,
   useReactTable,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
-  Package,
   Columns,
-  MoreHorizontal,
-  RefreshCwIcon,
-  Pencil,
-  Trash2,
   Eye,
+  MoreHorizontal,
+  Package,
+  Pencil,
+  RefreshCwIcon,
+  Trash2,
 } from "lucide-react";
-import type { ProductWithCategory } from "@crm/types";
-
+import { useRouter } from "next/navigation";
+import * as React from "react";
+import { toast } from "sonner";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -44,12 +47,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { productsApi } from "@/lib/api";
 import { useMutation } from "@/hooks/use-api";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { toast } from "sonner";
+import { productsApi } from "@/lib/api";
 
 interface ProductsDataTableProps {
   data: ProductWithCategory[];
@@ -85,31 +84,25 @@ function formatCurrency(value: number, currency: string = "EUR"): string {
 export function ProductsDataTable({ data }: ProductsDataTableProps) {
   const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    []
-  );
-  const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [productToDelete, setProductToDelete] =
-    React.useState<ProductWithCategory | null>(null);
+  const [productToDelete, setProductToDelete] = React.useState<ProductWithCategory | null>(null);
   const [tableData, setTableData] = React.useState(data);
 
   React.useEffect(() => {
     setTableData(data);
   }, [data]);
 
-  const deleteMutation = useMutation<void, string>((id) =>
-    productsApi.delete(id)
-  );
+  const deleteMutation = useMutation<void, string>((id) => productsApi.delete(id));
 
   const handleView = (product: ProductWithCategory) => {
-    router.push(`/dashboard/products/${product.id}`);
+    router.push(`/dashboard/products?type=view&productId=${product.id}`);
   };
 
   const handleEdit = (product: ProductWithCategory) => {
-    router.push(`/dashboard/products/${product.id}/edit`);
+    router.push(`/dashboard/products?type=edit&productId=${product.id}`);
   };
 
   const handleDelete = (product: ProductWithCategory) => {
@@ -179,11 +172,18 @@ export function ProductsDataTable({ data }: ProductsDataTableProps) {
               <Package className="text-muted-foreground h-4 w-4" />
             </div>
             <div>
-              <div className="font-medium">{row.original.name}</div>
+              <button
+                className="font-medium text-primary hover:underline text-left"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleEdit(row.original);
+                }}
+              >
+                {row.original.name}
+              </button>
               {row.original.sku && (
-                <div className="text-muted-foreground text-xs">
-                  SKU: {row.original.sku}
-                </div>
+                <div className="text-muted-foreground text-xs">SKU: {row.original.sku}</div>
               )}
             </div>
           </div>
@@ -215,11 +215,7 @@ export function ProductsDataTable({ data }: ProductsDataTableProps) {
       },
       cell: ({ row }) => {
         const price = Number(row.original.unitPrice) || 0;
-        return (
-          <span className="font-medium">
-            {formatCurrency(price, row.original.currency)}
-          </span>
-        );
+        return <span className="font-medium">{formatCurrency(price, row.original.currency)}</span>;
       },
     },
     {
@@ -288,10 +284,7 @@ export function ProductsDataTable({ data }: ProductsDataTableProps) {
                 Edit Product
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive"
-                onClick={() => handleDelete(product)}
-              >
+              <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(product)}>
                 <Trash2 className="mr-2 h-4 w-4" />
                 Delete
               </DropdownMenuItem>
@@ -327,9 +320,7 @@ export function ProductsDataTable({ data }: ProductsDataTableProps) {
         <Input
           placeholder="Search products..."
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(event) =>
-            table.getColumn("name")?.setFilterValue(event.target.value)
-          }
+          onChange={(event) => table.getColumn("name")?.setFilterValue(event.target.value)}
           className="max-w-sm"
         />
         <Button variant="outline" size="icon" onClick={handleRefresh}>
@@ -371,10 +362,7 @@ export function ProductsDataTable({ data }: ProductsDataTableProps) {
                     <TableHead key={header.id}>
                       {header.isPlaceholder
                         ? null
-                        : flexRender(
-                            header.column.columnDef.header,
-                            header.getContext()
-                          )}
+                        : flexRender(header.column.columnDef.header, header.getContext())}
                     </TableHead>
                   );
                 })}
@@ -384,26 +372,17 @@ export function ProductsDataTable({ data }: ProductsDataTableProps) {
           <TableBody>
             {table.getRowModel().rows?.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
+                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell
-                  colSpan={columns.length}
-                  className="h-24 text-center"
-                >
+                <TableCell colSpan={columns.length} className="h-24 text-center">
                   No products found.
                 </TableCell>
               </TableRow>
@@ -447,4 +426,3 @@ export function ProductsDataTable({ data }: ProductsDataTableProps) {
     </div>
   );
 }
-

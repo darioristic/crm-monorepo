@@ -271,6 +271,7 @@ function transformOrderToTemplateData(order: any): OrderType {
     descriptionLabel: "Description",
     priceLabel: "Price",
     quantityLabel: "Quantity",
+    unitLabel: "Unit",
     totalLabel: "Total",
     totalSummaryLabel: "Total",
     vatLabel: "VAT",

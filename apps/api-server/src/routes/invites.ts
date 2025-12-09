@@ -4,8 +4,7 @@
 
 import { errorResponse } from "@crm/utils";
 import { invitesService } from "../services/invites.service";
-import { RouteBuilder, withAuth, parseBody } from "./helpers";
-import { userQueries } from "../db/queries/users";
+import { parseBody, RouteBuilder, withAuth } from "./helpers";
 
 const router = new RouteBuilder();
 
@@ -14,15 +13,15 @@ const router = new RouteBuilder();
 // ============================================
 
 router.get("/api/v1/invites", async (request) => {
-	return withAuth(request, async (auth) => {
-		// Get user's current company
-		const companyId = await userQueries.getUserCompanyId(auth.userId);
-		if (!companyId) {
-			return errorResponse("NOT_FOUND", "No active company found for user");
-		}
+  return withAuth(request, async (auth) => {
+    // Get user's active tenant (seller organization)
+    const tenantId = auth.activeTenantId;
+    if (!tenantId) {
+      return errorResponse("NOT_FOUND", "No active tenant found for user");
+    }
 
-		return invitesService.getInvites(companyId);
-	});
+    return invitesService.getInvites(tenantId);
+  });
 });
 
 // ============================================
@@ -30,28 +29,32 @@ router.get("/api/v1/invites", async (request) => {
 // ============================================
 
 router.post("/api/v1/invites", async (request) => {
-	return withAuth(request, async (auth) => {
-		// Get user's current company
-		const companyId = await userQueries.getUserCompanyId(auth.userId);
-		if (!companyId) {
-			return errorResponse("NOT_FOUND", "No active company found for user");
-		}
+  return withAuth(
+    request,
+    async (auth) => {
+      // Get user's active tenant (seller organization)
+      const tenantId = auth.activeTenantId;
+      if (!tenantId) {
+        return errorResponse("NOT_FOUND", "No active tenant found for user");
+      }
 
-		const body = await parseBody<{
-			email: string;
-			role: "owner" | "member" | "admin";
-		}>(request);
+      const body = await parseBody<{
+        email: string;
+        role: "owner" | "member" | "admin";
+      }>(request);
 
-		if (!body || !body.email || !body.role) {
-			return errorResponse("VALIDATION_ERROR", "Email and role are required");
-		}
+      if (!body || !body.email || !body.role) {
+        return errorResponse("VALIDATION_ERROR", "Email and role are required");
+      }
 
-		return invitesService.createInvite(
-			companyId,
-			{ email: body.email, role: body.role },
-			auth.userId,
-		);
-	}, 201);
+      return invitesService.createInvite(
+        tenantId,
+        { email: body.email, role: body.role },
+        auth.userId
+      );
+    },
+    201
+  );
 });
 
 // ============================================
@@ -59,15 +62,15 @@ router.post("/api/v1/invites", async (request) => {
 // ============================================
 
 router.delete("/api/v1/invites/:id", async (request, _url, params) => {
-	return withAuth(request, async (auth) => {
-		// Get user's current company
-		const companyId = await userQueries.getUserCompanyId(auth.userId);
-		if (!companyId) {
-			return errorResponse("NOT_FOUND", "No active company found for user");
-		}
+  return withAuth(request, async (auth) => {
+    // Get user's active tenant (seller organization)
+    const tenantId = auth.activeTenantId;
+    if (!tenantId) {
+      return errorResponse("NOT_FOUND", "No active tenant found for user");
+    }
 
-		return invitesService.deleteInvite(params.id, companyId);
-	});
+    return invitesService.deleteInvite(params.id, tenantId);
+  });
 });
 
 // ============================================
@@ -75,10 +78,9 @@ router.delete("/api/v1/invites/:id", async (request, _url, params) => {
 // ============================================
 
 router.post("/api/v1/invites/accept/:token", async (request, _url, params) => {
-	return withAuth(request, async (auth) => {
-		return invitesService.acceptInvite(params.token, auth.userId);
-	});
+  return withAuth(request, async (auth) => {
+    return invitesService.acceptInvite(params.token, auth.userId);
+  });
 });
 
 export const inviteRoutes = router.getRoutes();
-

@@ -71,7 +71,6 @@ export function HtmlTemplate({ data, width, height, disableScroll = false }: Pro
         currency={currency || "EUR"}
         descriptionLabel={template.descriptionLabel}
         quantityLabel={template.quantityLabel}
-        unitLabel={template.unitLabel}
         priceLabel={template.priceLabel}
         totalLabel={template.totalLabel}
         includeDecimals={template.includeDecimals}

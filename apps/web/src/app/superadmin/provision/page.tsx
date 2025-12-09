@@ -12,15 +12,32 @@ export default function ProvisionPage() {
     slug: "",
     adminEmail: "",
     adminPassword: "",
+    adminConfirmPassword: "",
     adminFirstName: "",
     adminLastName: "",
   });
+  const [passwordError, setPasswordError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
+      const pw = formData.adminPassword.trim();
+      const cpw = formData.adminConfirmPassword.trim();
+      const strong = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+      if (!strong.test(pw)) {
+        setPasswordError("Lozinka mora imati najmanje 8 karaktera i bar jedno slovo i broj.");
+        setLoading(false);
+        return;
+      }
+      if (pw !== cpw) {
+        setPasswordError("Lozinke se ne poklapaju.");
+        setLoading(false);
+        return;
+      }
+      setPasswordError(null);
+
       const response = await fetch("/api/superadmin/provision", {
         method: "POST",
         headers: {
@@ -113,6 +130,18 @@ export default function ProvisionPage() {
             onChange={(e) => setFormData({ ...formData, adminPassword: e.target.value })}
             className="w-full px-3 py-2 border rounded-md"
           />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-1">Confirm Password</label>
+          <input
+            type="password"
+            required
+            value={formData.adminConfirmPassword}
+            onChange={(e) => setFormData({ ...formData, adminConfirmPassword: e.target.value })}
+            className="w-full px-3 py-2 border rounded-md"
+          />
+          {passwordError && <p className="mt-1 text-xs text-destructive">{passwordError}</p>}
         </div>
 
         <button

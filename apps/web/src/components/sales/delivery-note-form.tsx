@@ -18,13 +18,16 @@ import {
   Phone,
   Plus,
   Trash2,
+  X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { Resolver } from "react-hook-form";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { SelectCompany } from "@/components/companies/select-company";
+import { CreateCompanyInlineForm } from "@/components/shared/documents/create-company-inline-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,7 +48,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/contexts/auth-context";
 import { useMutation } from "@/hooks/use-api";
 import { companiesApi, deliveryNotesApi } from "@/lib/api";
 import { logger } from "@/lib/logger";
@@ -69,8 +74,7 @@ const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
   description: z.string().optional(),
   quantity: z.coerce.number().min(1, "Quantity must be at least 1"),
-  unit: z.string().min(1, "Unit is required"),
-  unitPrice: z.coerce.number().min(0, "Unit price must be positive").default(0),
+  unitPrice: z.coerce.number().min(0, "Unit price must be positive"),
   discount: z.coerce.number().min(0).max(100).default(0),
 });
 
@@ -104,8 +108,10 @@ export function DeliveryNoteForm({
   onClose,
 }: DeliveryNoteFormProps) {
   const router = useRouter();
+  const { user } = useAuth();
   const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
   const [isLoadingCompany, setIsLoadingCompany] = useState(false);
+  const [showCreateCustomer, setShowCreateCustomer] = useState(false);
 
   const createMutation = useMutation<DeliveryNote, CreateDeliveryNoteRequest>((data) =>
     deliveryNotesApi.create(data)
@@ -140,7 +146,7 @@ export function DeliveryNoteForm({
   }, []);
 
   const form = useForm<DeliveryNoteFormValues>({
-    resolver: zodResolver(deliveryNoteFormSchema),
+    resolver: zodResolver(deliveryNoteFormSchema) as Resolver<DeliveryNoteFormValues>,
     defaultValues: {
       companyId: deliveryNote?.companyId || "",
       shippingAddress: deliveryNote?.shippingAddress || "",
@@ -149,22 +155,20 @@ export function DeliveryNoteForm({
       status: deliveryNote?.status || "pending",
       trackingNumber: deliveryNote?.trackingNumber || "",
       carrier: deliveryNote?.carrier || "",
-      taxRate: 0,
+      taxRate: deliveryNote?.taxRate ?? 0,
       notes: deliveryNote?.notes || "",
       terms: "",
       items: deliveryNote?.items?.map((item) => ({
         productName: item.productName,
         description: item.description || "",
-        quantity: item.quantity,
-        unit: item.unit,
-        unitPrice: 0,
-        discount: 0,
+        quantity: item.quantity ?? 1,
+        unitPrice: item.unitPrice ?? 0,
+        discount: item.discount ?? 0,
       })) || [
         {
           productName: "",
           description: "",
           quantity: 1,
-          unit: "pcs",
           unitPrice: 0,
           discount: 0,
         },
@@ -187,22 +191,20 @@ export function DeliveryNoteForm({
         status: deliveryNote.status,
         trackingNumber: deliveryNote.trackingNumber || "",
         carrier: deliveryNote.carrier || "",
-        taxRate: 0,
+        taxRate: deliveryNote.taxRate ?? 0,
         notes: deliveryNote.notes || "",
         terms: "",
         items: deliveryNote.items?.map((item) => ({
           productName: item.productName,
           description: item.description || "",
-          quantity: item.quantity,
-          unit: item.unit,
-          unitPrice: 0,
-          discount: 0,
+          quantity: item.quantity ?? 1,
+          unitPrice: item.unitPrice ?? 0,
+          discount: item.discount ?? 0,
         })) || [
           {
             productName: "",
             description: "",
             quantity: 1,
-            unit: "pcs",
             unitPrice: 0,
             discount: 0,
           },
@@ -243,6 +245,7 @@ export function DeliveryNoteForm({
       const discountAmount = lineTotal * (item.discount / 100);
       return {
         ...item,
+        unit: "pcs", // Default unit value to match backend schema
         total: lineTotal - discountAmount,
       };
     });
@@ -265,7 +268,8 @@ export function DeliveryNoteForm({
       : undefined;
 
     const data = {
-      companyId: values.companyId,
+      customerCompanyId: values.companyId,
+      sellerCompanyId: user?.companyId,
       shippingAddress: values.shippingAddress,
       shipDate: values.shipDate ? new Date(values.shipDate).toISOString() : undefined,
       deliveryDate: values.deliveryDate ? new Date(values.deliveryDate).toISOString() : undefined,
@@ -275,8 +279,12 @@ export function DeliveryNoteForm({
       notes: values.notes || undefined,
       terms: values.terms || undefined,
       items,
+      subtotal: calculations.subtotal,
+      taxRate: values.taxRate || 0,
+      tax: calculations.tax,
+      total: calculations.total,
       customerDetails,
-      createdBy: "current-user-id", // This would come from auth context
+      createdBy: user?.id || "current-user-id",
     };
 
     let result: { success: boolean; data?: DeliveryNote; error?: unknown };
@@ -305,9 +313,6 @@ export function DeliveryNoteForm({
 
   const isLoading = createMutation.isLoading || updateMutation.isLoading;
   const error = createMutation.error || updateMutation.error;
-
-  // Common unit options
-  const unitOptions = ["pcs", "kg", "g", "l", "ml", "m", "cm", "box", "pack", "set"];
 
   return (
     <div className="space-y-6">
@@ -345,6 +350,16 @@ export function DeliveryNoteForm({
                           placeholder="Select or search company..."
                         />
                       </FormControl>
+                      <div className="mt-2">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          onClick={() => setShowCreateCustomer(true)}
+                          className="text-xs p-0 h-auto hover:bg-transparent"
+                        >
+                          + Create new customer
+                        </Button>
+                      </div>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -566,7 +581,6 @@ export function DeliveryNoteForm({
                         productName: "",
                         description: "",
                         quantity: 1,
-                        unit: "pcs",
                         unitPrice: 0,
                         discount: 0,
                       })
@@ -615,33 +629,6 @@ export function DeliveryNoteForm({
                       <div className="sm:col-span-2">
                         <FormField
                           control={form.control}
-                          name={`items.${index}.unit`}
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Unit *</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <FormControl>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Unit" />
-                                  </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                  {unitOptions.map((unit) => (
-                                    <SelectItem key={unit} value={unit}>
-                                      {unit}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                      </div>
-
-                      <div className="sm:col-span-2">
-                        <FormField
-                          control={form.control}
                           name={`items.${index}.unitPrice`}
                           render={({ field }) => (
                             <FormItem>
@@ -655,7 +642,7 @@ export function DeliveryNoteForm({
                         />
                       </div>
 
-                      <div className="sm:col-span-1">
+                      <div className="sm:col-span-2">
                         <FormField
                           control={form.control}
                           name={`items.${index}.discount`}
@@ -671,7 +658,7 @@ export function DeliveryNoteForm({
                         />
                       </div>
 
-                      <div className="sm:col-span-1 flex items-end gap-2">
+                      <div className="sm:col-span-1 flex items-end">
                         <div className="text-sm font-medium mb-2">
                           {formatCurrency(
                             (watchedItems[index]?.quantity || 0) *
@@ -679,17 +666,19 @@ export function DeliveryNoteForm({
                               (1 - (watchedItems[index]?.discount || 0) / 100)
                           )}
                         </div>
-                        {fields.length > 1 && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => remove(index)}
-                            className="mb-2"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
+                      </div>
+
+                      <div className="sm:col-span-1 flex items-end">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => remove(index)}
+                          disabled={fields.length === 1}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
 
@@ -791,6 +780,32 @@ export function DeliveryNoteForm({
           </Form>
         </CardContent>
       </Card>
+      <Sheet open={showCreateCustomer} onOpenChange={setShowCreateCustomer}>
+        <SheetContent className="sm:max-w-[480px]">
+          <SheetHeader className="mb-6 flex justify-between items-center flex-row">
+            <h2 className="text-xl">Create Customer</h2>
+            <Button
+              size="icon"
+              variant="ghost"
+              onClick={() => setShowCreateCustomer(false)}
+              className="p-0 m-0 size-auto hover:bg-transparent"
+            >
+              <X className="size-5" />
+            </Button>
+          </SheetHeader>
+          <CreateCompanyInlineForm
+            prefillName={""}
+            onSuccess={(newCompanyId) => {
+              setShowCreateCustomer(false);
+              form.setValue("companyId", newCompanyId, {
+                shouldDirty: true,
+                shouldTouch: true,
+              });
+            }}
+            onCancel={() => setShowCreateCustomer(false)}
+          />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

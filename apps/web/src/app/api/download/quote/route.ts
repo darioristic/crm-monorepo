@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
   try {
     const cookieHeader = request.headers.get("cookie") || "";
     const fetchOptions: RequestInit = { headers: { Cookie: cookieHeader } };
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3002";
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
     if (token && !resolvedId) {
       const res = await fetch(`${baseUrl}/api/quotes/token/${token}`, fetchOptions);
@@ -111,21 +111,28 @@ export async function GET(request: NextRequest) {
         typeof apiQuote.fromDetails === "string"
           ? JSON.parse(apiQuote.fromDetails)
           : apiQuote.fromDetails;
-    } else {
+    } else if (apiQuote.tenantId) {
+      // Fallback: fetch the tenant account (seller business details)
       try {
-        const userRes = await fetch(`${baseUrl}/api/v1/users/${apiQuote.createdBy}`, fetchOptions);
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          const company = userData.data?.company;
+        const accountRes = await fetch(
+          `${baseUrl}/api/v1/tenant-accounts/${apiQuote.tenantId}`,
+          fetchOptions
+        );
+        if (accountRes.ok) {
+          const accountData = await accountRes.json();
+          const account = accountData.data;
           const lines: string[] = [];
-          if (company?.name) lines.push(company.name);
-          if (company?.address) lines.push(company.address);
-          const cityLine = [company?.city, company?.zip, company?.country]
+          if (account?.name) lines.push(account.name);
+          if (account?.address) lines.push(account.address);
+          const cityLine = [account?.city, account?.zip, account?.country]
             .filter(Boolean)
             .join(", ");
           if (cityLine) lines.push(cityLine);
-          if (company?.email) lines.push(company.email);
-          if (company?.phone) lines.push(company.phone);
+          if (account?.email) lines.push(account.email);
+          if (account?.phone) lines.push(account.phone);
+          if (account?.website) lines.push(account.website);
+          if (account?.vatNumber) lines.push(`PIB: ${account.vatNumber}`);
+          if (account?.companyNumber) lines.push(`MB: ${account.companyNumber}`);
           fromDetails =
             lines.length > 0
               ? {
@@ -225,11 +232,10 @@ export async function GET(request: NextRequest) {
       scheduledAt: null,
     };
 
-    const { renderToStream } = await import("@react-pdf/renderer");
+    const { renderToBuffer } = await import("@react-pdf/renderer");
     const { PdfTemplate } = await import("@/components/quote/templates/pdf-template");
     const pdfDocument = await PdfTemplate({ quote });
-    const stream = await renderToStream(pdfDocument as any);
-    const blob = await new Response(stream).blob();
+    const buffer = await renderToBuffer(pdfDocument as any);
 
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",
@@ -237,7 +243,13 @@ export async function GET(request: NextRequest) {
       "Content-Disposition": `attachment; filename="${quote.quoteNumber || resolvedId}.pdf"`,
     };
 
-    return new Response(blob, { headers });
+    const readable = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(buffer);
+        controller.close();
+      },
+    });
+    return new Response(readable, { headers });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(

@@ -4,6 +4,35 @@ import { logger } from "./logger";
 // Use empty string for client-side requests (will use proxy via rewrites)
 // Use full URL for server-side requests
 const API_URL = typeof window === "undefined" ? process.env.API_URL || "http://localhost:3001" : "";
+let csrfTokenCache: string | null = null;
+function _requiresCsrf(method?: string): boolean {
+  if (!method) return false;
+  const safeMethods = ["GET", "HEAD", "OPTIONS"];
+  return !safeMethods.includes(method.toUpperCase());
+}
+async function getCsrfToken(): Promise<string | null> {
+  try {
+    if (csrfTokenCache) return csrfTokenCache;
+    const resp = await fetch(`${API_URL}/api/v1/auth/csrf-token`, {
+      method: "GET",
+      credentials: "include",
+      headers: { Accept: "application/json" },
+    });
+    const text = await resp.text();
+    const data = JSON.parse(text) as {
+      success: boolean;
+      data?: { csrfToken: string };
+    };
+    const token = data?.data?.csrfToken;
+    if (token) {
+      csrfTokenCache = token;
+      return token;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 // ============================================
 // Auth Types
@@ -174,9 +203,13 @@ export async function login(credentials: LoginCredentials): Promise<AuthResponse
  */
 export async function logout(): Promise<{ success: boolean }> {
   try {
+    const headers: Record<string, string> = {};
+    const token = await getCsrfToken();
+    if (token) headers["X-CSRF-Token"] = token;
     const response = await fetch(`${API_URL}/api/v1/auth/logout`, {
       method: "POST",
       credentials: "include",
+      headers,
     });
 
     if (!response.ok) {
@@ -184,6 +217,19 @@ export async function logout(): Promise<{ success: boolean }> {
         success: boolean;
         error?: { code: string; message: string };
       }>(response, "LOGOUT_ERROR");
+      if (response.status === 403) {
+        csrfTokenCache = null;
+        const newToken = await getCsrfToken();
+        const retry = await fetch(`${API_URL}/api/v1/auth/logout`, {
+          method: "POST",
+          credentials: "include",
+          headers: newToken ? { "X-CSRF-Token": newToken } : {},
+        });
+        if (retry.ok) {
+          const data = await parseJsonResponse<{ success: boolean }>(retry);
+          return data;
+        }
+      }
       return { success: false };
     }
 
@@ -236,9 +282,24 @@ export async function getCurrentUser(): Promise<
   }
 > {
   try {
-    const response = await fetch(`${API_URL}/api/v1/auth/me`, {
-      credentials: "include",
-    });
+    const fetchOptions: RequestInit = { credentials: "include" };
+    if (typeof window === "undefined") {
+      try {
+        const { cookies } = await import("next/headers");
+        const cookieStore = await cookies();
+        const all = cookieStore.getAll();
+        const cookieHeader = all.map((c) => `${c.name}=${c.value}`).join("; ");
+        if (cookieHeader) {
+          fetchOptions.headers = {
+            ...(fetchOptions.headers || {}),
+            Cookie: cookieHeader,
+          };
+        }
+      } catch (_err) {
+        // ignore cookie forwarding errors and proceed without cookies
+      }
+    }
+    const response = await fetch(`${API_URL}/api/v1/auth/me`, fetchOptions);
 
     return handleApiResponse<
       MeResponse & {
@@ -274,19 +335,22 @@ export async function changePassword(
   newPassword: string
 ): Promise<{ success: boolean; error?: { code: string; message: string } }> {
   try {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    const token = await getCsrfToken();
+    if (token) headers["X-CSRF-Token"] = token;
     const response = await fetch(`${API_URL}/api/v1/auth/change-password`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers,
       body: JSON.stringify({ currentPassword, newPassword }),
       credentials: "include",
     });
 
-    return handleApiResponse<{ success: boolean; error?: { code: string; message: string } }>(
-      response,
-      "CHANGE_PASSWORD_ERROR"
-    );
+    return handleApiResponse<{
+      success: boolean;
+      error?: { code: string; message: string };
+    }>(response, "CHANGE_PASSWORD_ERROR");
   } catch (error) {
     logger.error("Change password error", error);
     return {

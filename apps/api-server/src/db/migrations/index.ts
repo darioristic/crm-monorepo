@@ -3,6 +3,7 @@ import { sql as db } from "../client";
 import * as migration001 from "./001_create_companies";
 import * as migration002 from "./002_create_users";
 import * as migration003 from "./003_create_auth";
+import * as migration005 from "./005_enhance_companies";
 import * as migration006 from "./006_add_invoice_discount";
 import * as migration007 from "./007_add_product_usage_tracking";
 import * as migration008 from "./008_create_vault_tables";
@@ -36,6 +37,7 @@ const migrations: Migration[] = [
   migration001,
   migration002,
   migration003,
+  migration005,
   migration006,
   migration007,
   migration008,

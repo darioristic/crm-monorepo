@@ -23,7 +23,7 @@ initSentry();
 const { PORT, HOST, ENABLE_WORKERS, NODE_ENV } = env;
 
 // Start background workers if enabled
-if (ENABLE_WORKERS) {
+if (ENABLE_WORKERS && NODE_ENV !== "test") {
   startWorkers();
   scheduleNotificationCleanup().catch((err) => {
     logger.error({ error: err }, "Failed to schedule notification cleanup");
@@ -200,7 +200,9 @@ performStartupWarming()
   .then(() => {
     logger.info("Cache warming completed successfully");
     // Start background cache warming (refresh every 30 minutes)
-    startBackgroundWarming(30);
+    if (NODE_ENV !== "test") {
+      startBackgroundWarming(30);
+    }
   })
   .catch((error) => {
     logger.error({ error }, "Cache warming failed - server will continue without warm cache");

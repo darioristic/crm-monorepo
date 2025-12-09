@@ -1,15 +1,12 @@
 "use client";
 
-import {
-  type LineItem,
-  type OrderFormValues,
-  type OrderTemplate,
-  orderFormSchema,
-} from "@crm/schemas";
+import { orderFormSchema } from "@crm/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
+import type { Resolver } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
-import type { OrderDefaultSettings } from "@/types/order";
+import { ordersApi } from "@/lib/api";
+import type { LineItem, OrderDefaultSettings, OrderFormValues, OrderTemplate } from "@/types/order";
 import { DEFAULT_ORDER_TEMPLATE, generateOrderNumber, generateOrderToken } from "@/types/order";
 
 export type FormValues = OrderFormValues;
@@ -26,7 +23,7 @@ const getDefaultValues = (): FormValues => {
     template: DEFAULT_ORDER_TEMPLATE,
     fromDetails: null,
     customerDetails: null,
-    customerId: undefined,
+    customerId: "",
     customerName: undefined,
     paymentDetails: null,
     noteDetails: null,
@@ -54,7 +51,7 @@ type FormContextProps = {
 
 export function FormContext({ children, data, defaultSettings }: FormContextProps) {
   const form = useForm<FormValues>({
-    resolver: zodResolver(orderFormSchema),
+    resolver: zodResolver(orderFormSchema) as Resolver<FormValues>,
     defaultValues: getDefaultValues(),
     mode: "onChange",
   });
@@ -95,6 +92,26 @@ export function FormContext({ children, data, defaultSettings }: FormContextProp
         : {}),
     } as FormValues);
   }, [data, defaultSettings, form]);
+
+  // Fetch next order number from API when creating a new order
+  useEffect(() => {
+    // Only fetch if creating new (no data.id means new order)
+    if (data?.id) return;
+
+    const fetchNextNumber = async () => {
+      try {
+        const result = await ordersApi.getNextNumber();
+        if (result && (result as any).success && (result as any).data?.orderNumber) {
+          form.setValue("orderNumber", (result as any).data.orderNumber);
+        }
+      } catch (error) {
+        // Fallback to client-side generation if API fails
+        console.error("Failed to fetch next order number:", error);
+      }
+    };
+
+    fetchNextNumber();
+  }, [data?.id, form]);
 
   return <FormProvider {...form}>{children}</FormProvider>;
 }

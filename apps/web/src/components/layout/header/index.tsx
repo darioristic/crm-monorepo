@@ -1,20 +1,19 @@
 "use client";
 
 import { PanelLeftIcon } from "lucide-react";
-
-import { Separator } from "@/components/ui/separator";
 import Notifications from "@/components/layout/header/notifications";
 import Search from "@/components/layout/header/search";
 import ThemeSwitch from "@/components/layout/header/theme-switch";
 import UserMenu from "@/components/layout/header/user-menu";
 import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 import { useSidebar } from "@/components/ui/sidebar";
 
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar();
 
   return (
-    <header 
+    <header
       className="bg-background/40 sticky top-0 z-50 flex h-(--header-height) shrink-0 items-center gap-2 border-b backdrop-blur-md transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-(--header-height) md:rounded-tl-xl md:rounded-tr-xl"
       suppressHydrationWarning
     >

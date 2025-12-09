@@ -1,5 +1,6 @@
 "use client";
 
+import { RefreshCwIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { OrganizationSheet } from "@/components/accounts/organization-sheet";
@@ -48,14 +49,29 @@ export default function OrganizationsPage() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <Input
-          placeholder="Search organizations..."
-          value={searchValue}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="md:max-w-sm"
-        />
-        <Button onClick={() => router.push(`${pathname}?type=create`)}>Add Organization</Button>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Organizacije</h1>
+          <p className="text-muted-foreground">
+            Upravljajte organizacijama: kreiranje, uređivanje, favoriti i pretraga
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Input
+            placeholder="Search organizations..."
+            value={searchValue}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="md:max-w-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <Button onClick={() => router.push(`${pathname}?type=create`)}>Add Organization</Button>
+          <Button variant="outline" size="icon" onClick={() => refetch()} aria-label="Refresh">
+            <RefreshCwIcon className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
       <OrganizationsDataTable
         data={companies || []}
@@ -65,6 +81,13 @@ export default function OrganizationsPage() {
         totalPages={totalPages}
         onPageChange={setPage}
         onRefresh={refetch}
+        onSortChange={(key, order) => {
+          setFilters({
+            search: searchValue || undefined,
+            sortBy: key,
+            sortOrder: order,
+          });
+        }}
       />
 
       <OrganizationSheet

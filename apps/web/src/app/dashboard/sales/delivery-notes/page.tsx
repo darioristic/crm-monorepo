@@ -1,46 +1,49 @@
 "use client";
 
-import { Suspense } from "react";
-import { useRouter, usePathname } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
+import dynamic from "next/dynamic";
+import { usePathname, useRouter } from "next/navigation";
+import { useCallback, useState } from "react";
 import { DeliveryNotesDataTable } from "@/components/sales/delivery-notes-data-table";
-import { DeliveryNoteSheet } from "@/components/delivery-note/delivery-note-sheet";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
-function DeliveryNotesPageContent() {
+// Dynamic import for DeliveryNoteSheet to reduce initial bundle size
+const DeliveryNoteSheet = dynamic(
+  () =>
+    import("@/components/delivery-note/delivery-note-sheet").then((mod) => ({
+      default: mod.DeliveryNoteSheet,
+    })),
+  { loading: () => <Skeleton className="h-full w-full" /> }
+);
+
+export default function DeliveryNotesPage() {
   const router = useRouter();
   const pathname = usePathname();
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleNewDeliveryNote = () => {
+  const handleCreateDeliveryNote = () => {
     router.push(`${pathname}?type=create`);
   };
+
+  const handleDeliveryNoteCreated = useCallback(() => {
+    setRefreshKey((prev) => prev + 1);
+  }, []);
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Delivery Notes</h1>
-          <p className="text-muted-foreground">
-            Track and manage product deliveries
-          </p>
+          <p className="text-muted-foreground">Track and manage product deliveries</p>
         </div>
-        <Button onClick={handleNewDeliveryNote}>
+        <Button onClick={handleCreateDeliveryNote}>
           <PlusCircledIcon className="mr-2 h-4 w-4" />
           New Delivery Note
         </Button>
       </div>
-      <DeliveryNotesDataTable />
-
-      {/* Delivery Note Sheet for URL-based opening */}
-      <DeliveryNoteSheet />
+      <DeliveryNotesDataTable refreshSignal={refreshKey} />
+      <DeliveryNoteSheet onDeliveryNoteCreated={handleDeliveryNoteCreated} />
     </div>
-  );
-}
-
-export default function DeliveryNotesPage() {
-  return (
-    <Suspense fallback={<div className="animate-pulse">Loading...</div>}>
-      <DeliveryNotesPageContent />
-    </Suspense>
   );
 }

@@ -1,5 +1,6 @@
 import type { CustomerOrganization, FilterParams, PaginationParams } from "@crm/types";
 import { sql as db } from "../client";
+import { sanitizeSortColumn, sanitizeSortOrder } from "../query-builder";
 
 export const organizationQueries = {
   async findAll(pagination: PaginationParams, filters: FilterParams & { search?: string }) {
@@ -36,12 +37,15 @@ export const organizationQueries = {
     const countResult = await db.unsafe(countQuery, values);
     const total = parseInt(String(countResult[0]?.count ?? 0), 10);
 
+    const sortBy = sanitizeSortColumn("customer_organizations", pagination.sortBy);
+    const sortOrder = sanitizeSortOrder(pagination.sortOrder);
+
     const selectQuery = `
       SELECT co.*
       FROM customer_organizations co
       ${joinClause}
       ${whereClause}
-      ORDER BY co.name ASC
+      ORDER BY co.${sortBy} ${sortOrder}
       LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
     `;
     const rows = await db.unsafe(selectQuery, [...values, safePageSize, offset]);

@@ -1,9 +1,10 @@
 "use client";
 
+import type { Company, CreateCompanyRequest, UpdateCompanyRequest } from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Globe, Loader2, Search } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -104,24 +105,37 @@ function getLogoUrl(domain: string): string {
 
 type Props = {
   prefillName?: string;
+  initialValues?: Partial<z.infer<typeof formSchema>>;
+  companyId?: string;
+  mode?: "create" | "edit";
   onSuccess: (companyId: string) => void;
   onCancel: () => void;
 };
 
-export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Props) {
+export function CreateCompanyInlineForm({
+  prefillName,
+  initialValues,
+  companyId,
+  mode = "create",
+  onSuccess,
+  onCancel,
+}: Props) {
   const queryClient = useQueryClient();
   const [isLookingUp, setIsLookingUp] = useState(false);
   const [_detectedDomain, setDetectedDomain] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
 
-  const createMutation = useMutation<any, any>((values) =>
-    companiesApi.create({
-      ...values,
-      source: "customer",
-    })
+  const createMutation = useMutation<Company, CreateCompanyRequest | UpdateCompanyRequest>(
+    (values) =>
+      mode === "edit" && companyId
+        ? companiesApi.update(companyId, values as UpdateCompanyRequest)
+        : companiesApi.create({
+            ...(values as CreateCompanyRequest),
+            source: "customer",
+          })
   );
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<z.input<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: prefillName ?? "",
@@ -142,6 +156,30 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
       logoUrl: "",
     },
   });
+
+  // Merge provided initial values into the form defaults
+  useEffect(() => {
+    if (initialValues) {
+      form.reset({
+        name: initialValues.name ?? "",
+        industry: initialValues.industry ?? "Other",
+        primaryRole: initialValues.primaryRole ?? "customer",
+        address: initialValues.address ?? "",
+        email: initialValues.email ?? "",
+        phone: initialValues.phone ?? "",
+        website: initialValues.website ?? "",
+        contact: initialValues.contact ?? "",
+        vatNumber: initialValues.vatNumber ?? "",
+        companyNumber: initialValues.companyNumber ?? "",
+        city: initialValues.city ?? "",
+        country: initialValues.country ?? "",
+        countryCode: initialValues.countryCode ?? "",
+        zip: initialValues.zip ?? "",
+        note: initialValues.note ?? "",
+        logoUrl: initialValues.logoUrl ?? "",
+      });
+    }
+  }, [initialValues, form]);
 
   // Handle domain detection from email or website
   const handleDomainDetection = useCallback(
@@ -202,7 +240,7 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
     }
   }, [form]);
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (values: z.input<typeof formSchema>) => {
     const logoUrl = values.logoUrl || generateLogoFromInitials(values.name);
 
     const formattedData = {
@@ -221,24 +259,37 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
       companyNumber: values.companyNumber || null,
       note: values.note || null,
       logoUrl: logoUrl, // Use generated logo or provided one
-      source: "customer" as const, // Mark as customer company (not shown in /dashboard/companies)
+      ...(mode === "create" ? { source: "customer" as const } : {}),
     };
 
     const result = await createMutation.mutate(formattedData);
 
-    if (result.success && result.data) {
+    if (result.success && (result.data || companyId)) {
       try {
-        await organizationsApi.create({
-          id: result.data.id,
-          name: values.name,
-          email: values.email || undefined,
-          phone: values.phone || undefined,
-          pib: values.vatNumber || undefined,
-          companyNumber: values.companyNumber || undefined,
-          contactPerson: values.contact || undefined,
-          isFavorite: false,
-          roles: values.primaryRole ? [values.primaryRole] : undefined,
-        });
+        if (mode === "create" && result.data) {
+          await organizationsApi.create({
+            id: result.data.id,
+            name: values.name,
+            email: values.email || undefined,
+            phone: values.phone || undefined,
+            pib: values.vatNumber || undefined,
+            companyNumber: values.companyNumber || undefined,
+            contactPerson: values.contact || undefined,
+            isFavorite: false,
+            roles: values.primaryRole ? [values.primaryRole] : undefined,
+          });
+        } else if (mode === "edit" && companyId) {
+          try {
+            await organizationsApi.update(companyId, {
+              name: values.name,
+              email: values.email || undefined,
+              phone: values.phone || undefined,
+              pib: values.vatNumber || undefined,
+              companyNumber: values.companyNumber || undefined,
+              contactPerson: values.contact || undefined,
+            } as any);
+          } catch {}
+        }
       } catch {}
       try {
         await queryClient.invalidateQueries({ queryKey: ["companies"] });
@@ -248,10 +299,13 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
       } catch {}
       try {
         if (typeof window !== "undefined") {
-          window.localStorage?.setItem("lastCreatedCompanyId", String(result.data.id));
+          const idToStore = (mode === "create" && result.data?.id) || companyId;
+          if (idToStore) {
+            window.localStorage?.setItem("lastCreatedCompanyId", String(idToStore));
+          }
         }
       } catch {}
-      onSuccess(result.data.id);
+      onSuccess((mode === "create" ? result.data.id : companyId!) as string);
     } else {
       toast.error(String((result as any)?.error || "Failed to create company"));
     }

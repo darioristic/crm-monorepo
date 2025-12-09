@@ -1,7 +1,7 @@
 "use client";
 
 import type { CustomerOrganization } from "@crm/types";
-import { Pencil, RefreshCcw, Star, StarOff, Trash2 } from "lucide-react";
+import { ArrowUpDown, Pencil, Star, StarOff, Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ type Props = {
   totalPages: number;
   onPageChange: (page: number) => void;
   onRefresh: () => void;
+  onSortChange?: (key: string, order: "asc" | "desc") => void;
 };
 
 export function OrganizationsDataTable({
@@ -34,10 +35,21 @@ export function OrganizationsDataTable({
   totalPages,
   onPageChange,
   onRefresh,
+  onSortChange,
 }: Props) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const router = useRouter();
   const pathname = usePathname();
+
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  const handleSort = (key: string) => {
+    const nextOrder = sortKey === key ? (sortOrder === "asc" ? "desc" : "asc") : "desc";
+    setSortKey(key);
+    setSortOrder(nextOrder);
+    onSortChange?.(key, nextOrder);
+  };
 
   const toggleFavorite = async (id: string, favorite: boolean) => {
     await organizationsApi.favorite(id, favorite);
@@ -51,22 +63,29 @@ export function OrganizationsDataTable({
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
-          {isLoading ? "Loading..." : error ? error : `${data.length} items`}
-        </div>
-        <Button variant="outline" size="sm" onClick={onRefresh}>
-          <RefreshCcw className="h-4 w-4" />
-        </Button>
-      </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead className="w-10"></TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Identifiers</TableHead>
-              <TableHead>Contact</TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort("name")}>
+                  Name
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort("pib")}>
+                  Identifiers
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
+              <TableHead>
+                <Button variant="ghost" onClick={() => handleSort("email")}>
+                  Contact
+                  <ArrowUpDown className="ml-2 h-4 w-4" />
+                </Button>
+              </TableHead>
               <TableHead className="w-32">Actions</TableHead>
             </TableRow>
           </TableHeader>

@@ -32,6 +32,8 @@ export const companies = pgTable(
     logoUrl: text("logo_url"),
     // Source (account/customer) for operational splits
     source: varchar("source", { length: 50 }),
+    // Company type (seller/customer) for business role classification
+    companyType: varchar("company_type", { length: 50 }),
     // Additional
     note: text("note"),
     metadata: jsonb("metadata").$type<Record<string, unknown>>(),

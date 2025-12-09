@@ -1,13 +1,6 @@
-import {
-  Document,
-  Page,
-  View,
-  Text,
-  Image,
-  Font,
-} from "@react-pdf/renderer";
-import { format, parseISO } from "date-fns";
 import type { DeliveryNote } from "@crm/types";
+import { Document, Font, Page, Text, View } from "@react-pdf/renderer";
+import { format, parseISO } from "date-fns";
 
 Font.register({
   family: "Inter",
@@ -34,6 +27,7 @@ Font.register({
 type PdfTemplateProps = {
   deliveryNote: DeliveryNote;
   fromDetails?: any;
+  customerDetails?: any;
 };
 
 function formatDate(dateStr: string | null | undefined): string {
@@ -55,34 +49,32 @@ function formatCurrency(amount: number, currency: string = "EUR"): string {
   }).format(amount);
 }
 
-export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProps) {
+export async function PdfTemplate({
+  deliveryNote,
+  fromDetails,
+  customerDetails,
+}: PdfTemplateProps) {
   return (
     <Document>
       <Page size="A4" style={{ padding: 40, fontFamily: "Inter" }}>
         {/* Header */}
         <View style={{ marginBottom: 30 }}>
-          <Text style={{ fontSize: 24, fontWeight: 600, marginBottom: 10 }}>
-            Delivery Note
-          </Text>
+          <Text style={{ fontSize: 24, fontWeight: 600, marginBottom: 10 }}>Delivery Note</Text>
           <View style={{ fontSize: 10 }}>
             <Text>Delivery Note No: {deliveryNote.deliveryNumber}</Text>
-            {deliveryNote.shipDate && (
-              <Text>Ship Date: {formatDate(deliveryNote.shipDate)}</Text>
-            )}
+            {deliveryNote.shipDate && <Text>Ship Date: {formatDate(deliveryNote.shipDate)}</Text>}
             {deliveryNote.deliveryDate && (
               <Text>Expected Delivery: {formatDate(deliveryNote.deliveryDate)}</Text>
             )}
           </View>
         </View>
 
-        {/* From and To Details */}
+        {/* Header with 3 columns: From | Customer | Shipping Address */}
         <View style={{ flexDirection: "row", marginBottom: 20 }}>
           {/* From Details */}
-          <View style={{ flex: 1, marginRight: 20 }}>
-            <Text style={{ fontSize: 10, fontWeight: 600, marginBottom: 5 }}>
-              From
-            </Text>
-            {fromDetails && fromDetails.content ? (
+          <View style={{ flex: 1, marginRight: 10 }}>
+            <Text style={{ fontSize: 10, fontWeight: 600, marginBottom: 5 }}>From</Text>
+            {fromDetails?.content ? (
               fromDetails.content.map((paragraph: any, idx: number) => (
                 <Text key={idx} style={{ fontSize: 9, marginBottom: 2 }}>
                   {paragraph.content?.map((text: any) => text.text).join("") || ""}
@@ -94,26 +86,46 @@ export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProp
           </View>
 
           {/* Customer Details */}
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 10, fontWeight: 600, marginBottom: 5 }}>
-              Deliver To
-            </Text>
-            {deliveryNote.companyName && (
-              <Text style={{ fontSize: 9, marginBottom: 2 }}>{deliveryNote.companyName}</Text>
+          <View style={{ flex: 1, marginHorizontal: 10 }}>
+            <Text style={{ fontSize: 10, fontWeight: 600, marginBottom: 5 }}>Deliver To</Text>
+            {(deliveryNote as any).companyName && (
+              <Text style={{ fontSize: 9, marginBottom: 2 }}>
+                {(deliveryNote as any).companyName}
+              </Text>
             )}
-            {deliveryNote.shippingAddress && (
+            {customerDetails?.content
+              ? customerDetails.content.map((paragraph: any, idx: number) => (
+                  <Text key={idx} style={{ fontSize: 9, marginBottom: 2 }}>
+                    {paragraph.content?.map((text: any) => text.text).join("") || ""}
+                  </Text>
+                ))
+              : null}
+          </View>
+
+          {/* Shipping Address */}
+          <View style={{ flex: 1, marginLeft: 10 }}>
+            <Text style={{ fontSize: 10, fontWeight: 600, marginBottom: 5 }}>Shipping Address</Text>
+            {deliveryNote.shippingAddress ? (
               <Text style={{ fontSize: 9 }}>{deliveryNote.shippingAddress}</Text>
+            ) : (
+              <Text style={{ fontSize: 9, color: "#666" }}>-</Text>
             )}
           </View>
         </View>
 
-        {/* Shipping Information */}
+        {/* Shipping Tracking Information */}
         {(deliveryNote.trackingNumber || deliveryNote.carrier) && (
-          <View style={{ marginBottom: 20, padding: 10, backgroundColor: "#f5f5f5" }}>
+          <View
+            style={{
+              marginBottom: 20,
+              padding: 10,
+              backgroundColor: "#f5f5f5",
+              flexDirection: "row",
+              gap: 20,
+            }}
+          >
             {deliveryNote.trackingNumber && (
-              <Text style={{ fontSize: 9, marginBottom: 2 }}>
-                Tracking: {deliveryNote.trackingNumber}
-              </Text>
+              <Text style={{ fontSize: 9 }}>Tracking: {deliveryNote.trackingNumber}</Text>
             )}
             {deliveryNote.carrier && (
               <Text style={{ fontSize: 9 }}>Carrier: {deliveryNote.carrier}</Text>
@@ -132,13 +144,34 @@ export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProp
             }}
           >
             <Text style={{ flex: 3, fontSize: 9, fontWeight: 600 }}>Description</Text>
-            <Text style={{ flex: 1, fontSize: 9, fontWeight: 600, textAlign: "right" }}>
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 600,
+                textAlign: "right",
+              }}
+            >
               Qty
             </Text>
-            <Text style={{ flex: 1, fontSize: 9, fontWeight: 600, textAlign: "right" }}>
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 600,
+                textAlign: "right",
+              }}
+            >
               Price
             </Text>
-            <Text style={{ flex: 1, fontSize: 9, fontWeight: 600, textAlign: "right" }}>
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 600,
+                textAlign: "right",
+              }}
+            >
               Total
             </Text>
           </View>
@@ -158,9 +191,7 @@ export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProp
                 }}
               >
                 <View style={{ flex: 3 }}>
-                  <Text style={{ fontSize: 9, fontWeight: 500 }}>
-                    {item.productName}
-                  </Text>
+                  <Text style={{ fontSize: 9, fontWeight: 500 }}>{item.productName}</Text>
                   {item.description && (
                     <Text style={{ fontSize: 8, color: "#666", marginTop: 2 }}>
                       {item.description}
@@ -173,7 +204,14 @@ export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProp
                 <Text style={{ flex: 1, fontSize: 9, textAlign: "right" }}>
                   {formatCurrency(item.unitPrice || 0)}
                 </Text>
-                <Text style={{ flex: 1, fontSize: 9, textAlign: "right", fontWeight: 500 }}>
+                <Text
+                  style={{
+                    flex: 1,
+                    fontSize: 9,
+                    textAlign: "right",
+                    fontWeight: 500,
+                  }}
+                >
                   {formatCurrency(itemTotal)}
                 </Text>
               </View>
@@ -183,7 +221,7 @@ export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProp
 
         {/* Summary */}
         {deliveryNote.subtotal > 0 && (
-          <View style={{ marginTop: "auto", alignItems: "flex-end", marginTop: 20 }}>
+          <View style={{ alignItems: "flex-end", marginTop: 20 }}>
             <View style={{ width: 200 }}>
               <View
                 style={{
@@ -203,9 +241,7 @@ export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProp
                     marginBottom: 5,
                   }}
                 >
-                  <Text style={{ fontSize: 9 }}>
-                    Tax ({deliveryNote.taxRate}%):
-                  </Text>
+                  <Text style={{ fontSize: 9 }}>Tax ({deliveryNote.taxRate}%):</Text>
                   <Text style={{ fontSize: 9 }}>{formatCurrency(deliveryNote.tax)}</Text>
                 </View>
               )}
@@ -240,9 +276,7 @@ export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProp
             )}
             {deliveryNote.notes && (
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 9, fontWeight: 600, marginBottom: 5 }}>
-                  Notes
-                </Text>
+                <Text style={{ fontSize: 9, fontWeight: 600, marginBottom: 5 }}>Notes</Text>
                 <Text style={{ fontSize: 8 }}>{deliveryNote.notes}</Text>
               </View>
             )}
@@ -252,4 +286,3 @@ export async function PdfTemplate({ deliveryNote, fromDetails }: PdfTemplateProp
     </Document>
   );
 }
-

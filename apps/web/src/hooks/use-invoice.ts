@@ -1,12 +1,11 @@
 "use client";
 
-import type { Invoice } from "@crm/types";
+import type { CreateInvoiceRequest, Invoice, UpdateInvoiceRequest } from "@crm/types";
 import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { useApi, useMutation } from "@/hooks/use-api";
 import { invoicesApi } from "@/lib/api";
 import { useInvoiceSettingsStore, useInvoiceSheetStore } from "@/store/invoice-store";
-import type { InvoiceFormValues } from "@/types/invoice";
 
 // Hook for fetching invoices list
 export function useInvoices(params?: {
@@ -28,9 +27,9 @@ export function useInvoice(id: string | undefined) {
 
 // Hook for invoice mutations
 export function useInvoiceMutations() {
-  const createMutation = useMutation((data: InvoiceFormValues) => invoicesApi.create(data));
-  const updateMutation = useMutation(
-    ({ id, data }: { id: string; data: Partial<InvoiceFormValues> }) => invoicesApi.update(id, data)
+  const createMutation = useMutation((data: CreateInvoiceRequest) => invoicesApi.create(data));
+  const updateMutation = useMutation(({ id, data }: { id: string; data: UpdateInvoiceRequest }) =>
+    invoicesApi.update(id, data)
   );
   const deleteMutation = useMutation((id: string) => invoicesApi.delete(id));
   const markAsPaidMutation = useMutation((id: string) =>

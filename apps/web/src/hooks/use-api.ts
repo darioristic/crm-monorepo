@@ -158,6 +158,12 @@ export function usePaginatedApi<T>(
     fetchData();
   }, [fetchData]);
 
+  // Update filters when initialFilters change (e.g., when companyId changes)
+  useEffect(() => {
+    setFilters(initialFilters);
+    setPage(1); // Reset to page 1 when filters change
+  }, [JSON.stringify(initialFilters)]);
+
   const handleSetPage = useCallback((newPage: number) => {
     setPage(newPage);
   }, []);

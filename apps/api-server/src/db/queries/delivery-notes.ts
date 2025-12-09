@@ -32,9 +32,10 @@ export const deliveryNoteQueries = {
 
     // Koristi query builder za sigurne upite
     const qb = createQueryBuilder("delivery_notes");
-    // Only filter by companyId if provided (admin can see all)
+    // Filter by tenant_id (delivery notes created by this tenant)
+    // Note: companyId parameter actually represents tenant ID in multi-tenant architecture
     if (companyId) {
-      qb.addEqualCondition("company_id", companyId);
+      qb.addEqualCondition("tenant_id", companyId);
     }
     qb.addSearchCondition(["delivery_number"], filters.search);
     qb.addEqualCondition("status", filters.status);
@@ -133,15 +134,16 @@ export const deliveryNoteQueries = {
     note: Omit<DeliveryNote, "items">,
     items: Omit<DeliveryNoteItem, "id" | "deliveryNoteId">[]
   ): Promise<DeliveryNote> {
+    // Note: note.sellerCompanyId from service actually contains tenant_id
     const result = await db`
       INSERT INTO delivery_notes (
-        id, delivery_number, invoice_id, company_id, contact_id, status,
+        id, delivery_number, invoice_id, company_id, tenant_id, contact_id, status,
         ship_date, delivery_date, shipping_address, tracking_number, carrier,
         tax_rate, subtotal, tax, total, notes, terms, customer_details, from_details,
         created_by, created_at, updated_at
       ) VALUES (
         ${note.id}, ${note.deliveryNumber}, ${note.invoiceId || null},
-        ${note.companyId}, ${note.contactId || null}, ${note.status},
+        ${note.companyId}, ${(note as any).sellerCompanyId || null}, ${note.contactId || null}, ${note.status},
         ${note.shipDate || null}, ${note.deliveryDate || null}, ${note.shippingAddress},
         ${note.trackingNumber || null}, ${note.carrier || null},
         ${note.taxRate || 0}, ${note.subtotal || 0}, ${note.tax || 0}, ${note.total || 0},
@@ -179,6 +181,7 @@ export const deliveryNoteQueries = {
       UPDATE delivery_notes SET
         invoice_id = COALESCE(${data.invoiceId ?? null}, invoice_id),
         company_id = COALESCE(${data.companyId ?? null}, company_id),
+        seller_company_id = COALESCE(${(data as any).sellerCompanyId ?? null}, seller_company_id),
         contact_id = COALESCE(${data.contactId ?? null}, contact_id),
         status = COALESCE(${data.status ?? null}, status),
         ship_date = COALESCE(${data.shipDate ?? null}, ship_date),
@@ -466,6 +469,7 @@ function mapDeliveryNote(row: Record<string, unknown>, items: unknown[]): Delive
     customerDetails,
     fromDetails,
     createdBy: row.created_by as string,
+    tenantId: row.tenant_id as string | undefined,
   };
 }
 

@@ -1,7 +1,6 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import React from "react";
 
 export interface LoaderProps {
   variant?:
@@ -24,7 +23,7 @@ export interface LoaderProps {
 
 export function CircularLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -32,7 +31,7 @@ export function CircularLoader({
   const sizeClasses = {
     sm: "size-4",
     md: "size-5",
-    lg: "size-6"
+    lg: "size-6",
   };
 
   return (
@@ -41,7 +40,8 @@ export function CircularLoader({
         "border-primary animate-spin rounded-full border-2 border-t-transparent",
         sizeClasses[size],
         className
-      )}>
+      )}
+    >
       <span className="sr-only">Loading</span>
     </div>
   );
@@ -49,7 +49,7 @@ export function CircularLoader({
 
 export function ClassicLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -57,21 +57,21 @@ export function ClassicLoader({
   const sizeClasses = {
     sm: "size-4",
     md: "size-5",
-    lg: "size-6"
+    lg: "size-6",
   };
 
   const barSizes = {
     sm: { height: "6px", width: "1.5px" },
     md: { height: "8px", width: "2px" },
-    lg: { height: "10px", width: "2.5px" }
+    lg: { height: "10px", width: "2.5px" },
   };
 
   return (
     <div className={cn("relative", sizeClasses[size], className)}>
       <div className="absolute h-full w-full">
-        {[...Array(12)].map((_, i) => (
+        {["b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "b10", "b11"].map((id, i) => (
           <div
-            key={i}
+            key={id}
             className="bg-primary absolute animate-[spinner-fade_1.2s_linear_infinite] rounded-full"
             style={{
               top: "0",
@@ -82,7 +82,7 @@ export function ClassicLoader({
               opacity: 0,
               animationDelay: `${i * 0.1}s`,
               height: barSizes[size].height,
-              width: barSizes[size].width
+              width: barSizes[size].width,
             }}
           />
         ))}
@@ -94,7 +94,7 @@ export function ClassicLoader({
 
 export function PulseLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -102,7 +102,7 @@ export function PulseLoader({
   const sizeClasses = {
     sm: "size-4",
     md: "size-5",
-    lg: "size-6"
+    lg: "size-6",
   };
 
   return (
@@ -115,7 +115,7 @@ export function PulseLoader({
 
 export function PulseDotLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -123,7 +123,7 @@ export function PulseDotLoader({
   const sizeClasses = {
     sm: "size-1",
     md: "size-2",
-    lg: "size-3"
+    lg: "size-3",
   };
 
   return (
@@ -132,7 +132,8 @@ export function PulseDotLoader({
         "bg-primary animate-[pulse-dot_1.2s_ease-in-out_infinite] rounded-full",
         sizeClasses[size],
         className
-      )}>
+      )}
+    >
       <span className="sr-only">Loading</span>
     </div>
   );
@@ -140,7 +141,7 @@ export function PulseDotLoader({
 
 export function DotsLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -148,26 +149,26 @@ export function DotsLoader({
   const dotSizes = {
     sm: "h-1.5 w-1.5",
     md: "h-2 w-2",
-    lg: "h-2.5 w-2.5"
+    lg: "h-2.5 w-2.5",
   };
 
   const containerSizes = {
     sm: "h-4",
     md: "h-5",
-    lg: "h-6"
+    lg: "h-6",
   };
 
   return (
     <div className={cn("flex items-center space-x-1", containerSizes[size], className)}>
-      {[...Array(3)].map((_, i) => (
+      {["d0", "d1", "d2"].map((id, i) => (
         <div
-          key={i}
+          key={id}
           className={cn(
             "bg-primary animate-[bounce-dots_1.4s_ease-in-out_infinite] rounded-full",
             dotSizes[size]
           )}
           style={{
-            animationDelay: `${i * 160}ms`
+            animationDelay: `${i * 160}ms`,
           }}
         />
       ))}
@@ -178,7 +179,7 @@ export function DotsLoader({
 
 export function TypingLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -186,23 +187,23 @@ export function TypingLoader({
   const dotSizes = {
     sm: "h-1 w-1",
     md: "h-1.5 w-1.5",
-    lg: "h-2 w-2"
+    lg: "h-2 w-2",
   };
 
   const containerSizes = {
     sm: "h-4",
     md: "h-5",
-    lg: "h-6"
+    lg: "h-6",
   };
 
   return (
     <div className={cn("flex items-center space-x-1", containerSizes[size], className)}>
-      {[...Array(3)].map((_, i) => (
+      {["t0", "t1", "t2"].map((id, i) => (
         <div
-          key={i}
+          key={id}
           className={cn("bg-primary animate-[typing_1s_infinite] rounded-full", dotSizes[size])}
           style={{
-            animationDelay: `${i * 250}ms`
+            animationDelay: `${i * 250}ms`,
           }}
         />
       ))}
@@ -213,7 +214,7 @@ export function TypingLoader({
 
 export function WaveLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -221,33 +222,33 @@ export function WaveLoader({
   const barWidths = {
     sm: "w-0.5",
     md: "w-0.5",
-    lg: "w-1"
+    lg: "w-1",
   };
 
   const containerSizes = {
     sm: "h-4",
     md: "h-5",
-    lg: "h-6"
+    lg: "h-6",
   };
 
   const heights = {
     sm: ["6px", "9px", "12px", "9px", "6px"],
     md: ["8px", "12px", "16px", "12px", "8px"],
-    lg: ["10px", "15px", "20px", "15px", "10px"]
+    lg: ["10px", "15px", "20px", "15px", "10px"],
   };
 
   return (
     <div className={cn("flex items-center gap-0.5", containerSizes[size], className)}>
-      {[...Array(5)].map((_, i) => (
+      {["w0", "w1", "w2", "w3", "w4"].map((id, i) => (
         <div
-          key={i}
+          key={id}
           className={cn(
             "bg-primary animate-[wave_1s_ease-in-out_infinite] rounded-full",
             barWidths[size]
           )}
           style={{
             animationDelay: `${i * 100}ms`,
-            height: heights[size][i]
+            height: heights[size][i],
           }}
         />
       ))}
@@ -258,7 +259,7 @@ export function WaveLoader({
 
 export function BarsLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -266,26 +267,26 @@ export function BarsLoader({
   const barWidths = {
     sm: "w-1",
     md: "w-1.5",
-    lg: "w-2"
+    lg: "w-2",
   };
 
   const containerSizes = {
     sm: "h-4 gap-1",
     md: "h-5 gap-1.5",
-    lg: "h-6 gap-2"
+    lg: "h-6 gap-2",
   };
 
   return (
     <div className={cn("flex", containerSizes[size], className)}>
-      {[...Array(3)].map((_, i) => (
+      {["b0", "b1", "b2"].map((id, i) => (
         <div
-          key={i}
+          key={id}
           className={cn(
             "bg-primary h-full animate-[wave-bars_1.2s_ease-in-out_infinite]",
             barWidths[size]
           )}
           style={{
-            animationDelay: `${i * 0.2}s`
+            animationDelay: `${i * 0.2}s`,
           }}
         />
       ))}
@@ -296,7 +297,7 @@ export function BarsLoader({
 
 export function TerminalLoader({
   className,
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   size?: "sm" | "md" | "lg";
@@ -304,19 +305,19 @@ export function TerminalLoader({
   const cursorSizes = {
     sm: "h-3 w-1.5",
     md: "h-4 w-2",
-    lg: "h-5 w-2.5"
+    lg: "h-5 w-2.5",
   };
 
   const textSizes = {
     sm: "text-xs",
     md: "text-sm",
-    lg: "text-base"
+    lg: "text-base",
   };
 
   const containerSizes = {
     sm: "h-4",
     md: "h-5",
-    lg: "h-6"
+    lg: "h-6",
   };
 
   return (
@@ -331,7 +332,7 @@ export function TerminalLoader({
 export function TextBlinkLoader({
   text = "Thinking",
   className,
-  size = "md"
+  size = "md",
 }: {
   text?: string;
   className?: string;
@@ -340,7 +341,7 @@ export function TextBlinkLoader({
   const textSizes = {
     sm: "text-xs",
     md: "text-sm",
-    lg: "text-base"
+    lg: "text-base",
   };
 
   return (
@@ -349,7 +350,8 @@ export function TextBlinkLoader({
         "animate-[text-blink_2s_ease-in-out_infinite] font-medium",
         textSizes[size],
         className
-      )}>
+      )}
+    >
       {text}
     </div>
   );
@@ -358,7 +360,7 @@ export function TextBlinkLoader({
 export function TextShimmerLoader({
   text = "Thinking",
   className,
-  size = "md"
+  size = "md",
 }: {
   text?: string;
   className?: string;
@@ -367,7 +369,7 @@ export function TextShimmerLoader({
   const textSizes = {
     sm: "text-xs",
     md: "text-sm",
-    lg: "text-base"
+    lg: "text-base",
   };
 
   return (
@@ -378,7 +380,8 @@ export function TextShimmerLoader({
         "animate-[shimmer_4s_infinite_linear]",
         textSizes[size],
         className
-      )}>
+      )}
+    >
       {text}
     </div>
   );
@@ -387,7 +390,7 @@ export function TextShimmerLoader({
 export function TextDotsLoader({
   className,
   text = "Thinking",
-  size = "md"
+  size = "md",
 }: {
   className?: string;
   text?: string;
@@ -396,7 +399,7 @@ export function TextDotsLoader({
   const textSizes = {
     sm: "text-xs",
     md: "text-sm",
-    lg: "text-base"
+    lg: "text-base",
   };
 
   return (

@@ -1,17 +1,17 @@
 "use client";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { differenceInCalendarDays } from "date-fns";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import * as React from "react";
 import {
   DayPicker,
+  type DayPickerProps,
   labelNext,
   labelPrevious,
   useDayPicker,
-  type DayPickerProps
 } from "react-day-picker";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type CalendarProps = DayPickerProps & {
   /**
@@ -75,12 +75,12 @@ function Calendar({
       const currentYear = new Date().getFullYear();
       return {
         from: currentYear - Math.floor(yearRange / 2 - 1),
-        to: currentYear + Math.ceil(yearRange / 2)
+        to: currentYear + Math.ceil(yearRange / 2),
       };
     }, [yearRange])
   );
 
-  const { onNextClick, onPrevClick, startMonth, endMonth } = props;
+  const { onPrevClick, startMonth, endMonth } = props;
 
   const columnsDisplayed = navView === "years" ? 1 : numberOfMonths;
 
@@ -102,7 +102,7 @@ function Calendar({
   const _captionLabelClassName = cn("truncate text-sm font-medium", props.captionLabelClassName);
   const buttonNavClassName = buttonVariants({
     variant: "outline",
-    className: "absolute h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100"
+    className: "absolute h-7 w-7 bg-transparent p-0 opacity-50 hover:opacity-100",
   });
   const _buttonNextClassName = cn(buttonNavClassName, "right-0", props.buttonNextClassName);
   const _buttonPreviousClassName = cn(buttonNavClassName, "left-0", props.buttonPreviousClassName);
@@ -154,7 +154,7 @@ function Calendar({
       showOutsideDays={showOutsideDays}
       className={cn("p-3", className)}
       style={{
-        width: 248.8 * (columnsDisplayed ?? 1) + "px"
+        width: `${248.8 * (columnsDisplayed ?? 1)}px`,
       }}
       classNames={{
         months: _monthsClassName,
@@ -178,7 +178,7 @@ function Calendar({
         today: _todayClassName,
         outside: _outsideClassName,
         disabled: _disabledClassName,
-        hidden: _hiddenClassName
+        hidden: _hiddenClassName,
       }}
       components={{
         Chevron: ({ orientation }) => {
@@ -207,7 +207,6 @@ function Calendar({
         ),
         MonthGrid: ({ className, children, ...props }) => (
           <MonthGrid
-            children={children}
             className={className}
             displayYears={displayYears}
             startMonth={startMonth}
@@ -215,8 +214,10 @@ function Calendar({
             navView={navView}
             setNavView={setNavView}
             {...props}
-          />
-        )
+          >
+            {children}
+          </MonthGrid>
+        ),
       }}
       numberOfMonths={columnsDisplayed}
       {...props}
@@ -233,7 +234,7 @@ function Nav({
   displayYears,
   setDisplayYears,
   onPrevClick,
-  onNextClick
+  onNextClick,
 }: {
   className?: string;
   navView: NavView;
@@ -273,7 +274,7 @@ function Nav({
     if (navView === "years") {
       setDisplayYears((prev) => ({
         from: prev.from - (prev.to - prev.from + 1),
-        to: prev.to - (prev.to - prev.from + 1)
+        to: prev.to - (prev.to - prev.from + 1),
       }));
       onPrevClick?.(new Date(displayYears.from - (displayYears.to - displayYears.from), 0, 1));
       return;
@@ -287,7 +288,7 @@ function Nav({
     if (navView === "years") {
       setDisplayYears((prev) => ({
         from: prev.from + (prev.to - prev.from + 1),
-        to: prev.to + (prev.to - prev.from + 1)
+        to: prev.to + (prev.to - prev.from + 1),
       }));
       onNextClick?.(new Date(displayYears.from + (displayYears.to - displayYears.from), 0, 1));
       return;
@@ -308,7 +309,8 @@ function Nav({
             ? `Go to the previous ${displayYears.to - displayYears.from + 1} years`
             : labelPrevious(previousMonth)
         }
-        onClick={handlePreviousClick}>
+        onClick={handlePreviousClick}
+      >
         <ChevronLeft className="h-4 w-4" />
       </Button>
 
@@ -323,7 +325,8 @@ function Nav({
             ? `Go to the next ${displayYears.to - displayYears.from + 1} years`
             : labelNext(nextMonth)
         }
-        onClick={handleNextClick}>
+        onClick={handleNextClick}
+      >
         <ChevronRight className="h-4 w-4" />
       </Button>
     </nav>
@@ -349,8 +352,9 @@ function CaptionLabel({
       className="h-7 w-full truncate text-sm font-medium"
       variant="ghost"
       size="sm"
-      onClick={() => setNavView((prev) => (prev === "days" ? "years" : "days"))}>
-      {navView === "days" ? children : displayYears.from + " - " + displayYears.to}
+      onClick={() => setNavView((prev) => (prev === "days" ? "years" : "days"))}
+    >
+      {navView === "days" ? children : `${displayYears.from} - ${displayYears.to}`}
     </Button>
   );
 }
@@ -410,34 +414,36 @@ function YearGrid({
   navView: NavView;
 } & React.HTMLAttributes<HTMLDivElement>) {
   const { goToMonth, selected } = useDayPicker();
+  const years = React.useMemo(
+    () =>
+      Array.from(
+        { length: displayYears.to - displayYears.from + 1 },
+        (_, i) => displayYears.from + i
+      ),
+    [displayYears.from, displayYears.to]
+  );
 
   return (
     <div className={cn("grid grid-cols-4 gap-y-2", className)} {...props}>
-      {Array.from({ length: displayYears.to - displayYears.from + 1 }, (_, i) => {
-        const isBefore =
-          differenceInCalendarDays(new Date(displayYears.from + i, 11, 31), startMonth!) < 0;
-
-        const isAfter =
-          differenceInCalendarDays(new Date(displayYears.from + i, 0, 0), endMonth!) > 0;
-
+      {years.map((year) => {
+        const isBefore = differenceInCalendarDays(new Date(year, 11, 31), startMonth!) < 0;
+        const isAfter = differenceInCalendarDays(new Date(year, 0, 0), endMonth!) > 0;
         const isDisabled = isBefore || isAfter;
         return (
           <Button
-            key={i}
+            key={year}
             className={cn(
               "text-foreground h-7 w-full text-sm font-normal",
-              displayYears.from + i === new Date().getFullYear() &&
-                "bg-accent text-accent-foreground font-medium"
+              year === new Date().getFullYear() && "bg-accent text-accent-foreground font-medium"
             )}
             variant="ghost"
             onClick={() => {
               setNavView("days");
-              goToMonth(
-                new Date(displayYears.from + i, (selected as Date | undefined)?.getMonth() ?? 0)
-              );
+              goToMonth(new Date(year, (selected as Date | undefined)?.getMonth() ?? 0));
             }}
-            disabled={navView === "years" ? isDisabled : undefined}>
-            {displayYears.from + i}
+            disabled={navView === "years" ? isDisabled : undefined}
+          >
+            {year}
           </Button>
         );
       })}

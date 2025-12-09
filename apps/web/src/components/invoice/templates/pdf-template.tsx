@@ -409,8 +409,6 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                 flexDirection: "row",
                 paddingVertical: 4,
                 width: "100%",
-                borderBottomWidth: 0.5,
-                borderBottomColor: "#e5e5e5",
               }}
             >
               <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>
@@ -429,8 +427,6 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                 flexDirection: "row",
                 paddingVertical: 4,
                 width: "100%",
-                borderBottomWidth: 0.5,
-                borderBottomColor: "#e5e5e5",
               }}
             >
               <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>
@@ -456,7 +452,7 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
             <Text style={{ fontSize: 9, marginRight: 10, color: "#000" }}>
               {template.totalSummaryLabel}:
             </Text>
-            <Text style={{ fontSize: 21 }}>{formatAmount(result.total)}</Text>
+            <Text style={{ fontSize: 21, color: "#000" }}>{formatAmount(result.total)}</Text>
           </View>
         </View>
 

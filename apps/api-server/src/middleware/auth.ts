@@ -8,11 +8,20 @@ import { type JWTPayload, type SessionData, validateJWT } from "../services/auth
 // Auth Context Type
 // ============================================
 
+export interface TenantRole {
+  tenantId: string;
+  tenantSlug: string;
+  tenantName: string;
+  tenantLogoUrl?: string | null;
+  role: "admin" | "manager" | "user";
+}
+
 export interface AuthContext {
   userId: string;
   role: UserRole;
-  tenantId?: string; // null for superadmin, required for tenant_admin and crm_user
-  companyId?: string; // optional for crm_user, null for others
+  activeTenantId?: string; // Currently active tenant for multi-tenant users
+  tenantRoles: TenantRole[]; // All tenants this user belongs to
+  companyId?: string; // Deprecated: will be removed in future
   sessionId: string;
 }
 
@@ -88,75 +97,71 @@ export async function verifyAndGetUser(request: Request): Promise<AuthContext | 
       return null;
     }
 
-    // Get tenantId from payload, or fallback to database if not in token (for old tokens)
-    let tenantId = payload.tenantId;
-    if (!tenantId && payload.role !== "superadmin") {
-      try {
-        const { userQueries } = await import("../db/queries/users");
-        const user = await userQueries.findById(payload.userId);
-        if (user?.tenantId) {
-          tenantId = user.tenantId;
-          if (session) {
-            session.tenantId = tenantId;
-            await cache.setSession(
-              payload.sessionId,
-              session as unknown as Record<string, unknown>
-            );
-          }
-        }
-      } catch (error) {
-        logger.error({ error, userId: payload.userId }, "Failed to fetch tenantId from database");
+    // Load user's tenant roles from database
+    let tenantRoles: TenantRole[] = [];
+    let activeTenantId: string | undefined;
+
+    try {
+      const { sql } = await import("../db/client");
+
+      // Query user_tenant_roles joined with tenants table
+      const userTenantRolesResult = await sql`
+        SELECT
+          utr.tenant_id,
+          utr.role,
+          t.slug as tenant_slug,
+          t.name as tenant_name,
+          t.metadata->>'logoUrl' as tenant_logo_url
+        FROM user_tenant_roles utr
+        JOIN tenants t ON utr.tenant_id = t.id
+        WHERE utr.user_id = ${payload.userId}
+          AND t.status = 'active'
+        ORDER BY t.name ASC
+      `;
+
+      tenantRoles = userTenantRolesResult.map((row: any) => ({
+        tenantId: row.tenant_id,
+        tenantSlug: row.tenant_slug,
+        tenantName: row.tenant_name,
+        tenantLogoUrl: row.tenant_logo_url || null,
+        role: row.role as "admin" | "manager" | "user",
+      }));
+
+      // Get active tenant from user_active_tenant table
+      const activeResult = await sql`
+        SELECT active_tenant_id
+        FROM user_active_tenant
+        WHERE user_id = ${payload.userId}
+        LIMIT 1
+      `;
+
+      if (activeResult.length > 0) {
+        activeTenantId = activeResult[0].active_tenant_id;
+      } else if (tenantRoles.length > 0) {
+        // If no active tenant set, default to first tenant
+        activeTenantId = tenantRoles[0].tenantId;
+
+        // Save this as the active tenant
+        await sql`
+          INSERT INTO user_active_tenant (user_id, active_tenant_id, updated_at)
+          VALUES (${payload.userId}, ${activeTenantId}, NOW())
+          ON CONFLICT (user_id)
+          DO UPDATE SET active_tenant_id = ${activeTenantId}, updated_at = NOW()
+        `;
       }
+    } catch (error) {
+      logger.error({ error, userId: payload.userId }, "Failed to load tenant roles from database");
     }
 
-    // Ensure tenantId exists for tenant_admin by provisioning a default tenant if missing
-    if (!tenantId && payload.role === "tenant_admin") {
-      try {
-        const { getOrCreateDefaultTenant } = await import("../db/queries/tenants");
-        const defaultTenantId = await getOrCreateDefaultTenant();
-        tenantId = defaultTenantId;
-        try {
-          const { sql } = await import("../db/client");
-          await sql`
-                  UPDATE users
-                  SET tenant_id = ${defaultTenantId}, updated_at = NOW()
-                  WHERE id = ${payload.userId}
-                `;
-        } catch {}
-        if (session) {
-          session.tenantId = tenantId;
-          await cache.setSession(payload.sessionId, session as unknown as Record<string, unknown>);
-        }
-      } catch (error) {
-        logger.error(
-          { error, userId: payload.userId },
-          "Failed to provision default tenant for tenant_admin"
-        );
-      }
-    }
-
-    // Build auth context with tenantId and companyId from payload
-    // tenantId is now populated from database if not in token
+    // Build auth context with multi-tenant support
     const authContext: AuthContext = {
       userId: payload.userId,
       role: payload.role,
-      tenantId: tenantId,
-      companyId: payload.companyId,
+      activeTenantId: activeTenantId,
+      tenantRoles: tenantRoles,
+      companyId: payload.companyId, // Deprecated: will be removed
       sessionId: payload.sessionId,
     };
-
-    // Override companyId from header if provided and allowed
-    const headerCompanyId = request.headers.get("x-company-id");
-    if (headerCompanyId) {
-      try {
-        const allowed = await canAccessCompany(authContext, headerCompanyId);
-        if (allowed) {
-          authContext.companyId = headerCompanyId;
-        }
-      } catch {
-        // Ignore errors in access check; fallback to payload companyId
-      }
-    }
 
     return authContext;
   } catch (error) {

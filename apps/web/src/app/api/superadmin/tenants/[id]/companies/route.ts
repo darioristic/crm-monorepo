@@ -23,6 +23,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) {
   const token = request.cookies.get("access_token")?.value;
+  const cookieHeader = request.headers.get("cookie") || "";
   const { id } = await context.params;
 
   if (!token) {
@@ -31,11 +32,17 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   try {
     const body = await request.json();
+    const csrfResp = await fetch(`${API_URL}/api/v1/auth/csrf-token`, {
+      headers: { Cookie: cookieHeader },
+    });
+    const csrfJson = await csrfResp.json();
+    const csrfToken: string | undefined = csrfJson?.data?.csrfToken;
     const response = await fetch(`${API_URL}/api/superadmin/tenants/${id}/companies`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+        ...(csrfToken ? { "X-CSRF-Token": csrfToken } : {}),
       },
       body: JSON.stringify(body),
     });

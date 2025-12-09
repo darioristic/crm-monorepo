@@ -6,6 +6,10 @@ export default defineConfig({
     globals: true,
     environment: "node",
     setupFiles: ["./src/__tests__/integration/setup.ts"],
+    maxConcurrency: 1,
+    sequence: {
+      concurrent: false,
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

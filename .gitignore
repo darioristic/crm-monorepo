@@ -42,8 +42,11 @@ playwright/.cache/
 .cache/
 *.tsbuildinfo
 
+# Local test data and uploads (do not commit)
+apps/api-server/test-data/
+apps/api-server/uploads/
+
 # Lock files (using bun.lock)
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
-

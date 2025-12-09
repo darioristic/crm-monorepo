@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { logger } from "@/lib/logger";
 
 type CopiedValue = string | null;
 type CopyFn = (text: string) => Promise<boolean>;
@@ -11,7 +10,7 @@ export function useCopyToClipboard(): [CopiedValue, CopyFn] {
 
   const copy: CopyFn = useCallback(async (text) => {
     if (!navigator?.clipboard) {
-      logger.warn("Clipboard not supported");
+      console.warn("Clipboard not supported");
       return false;
     }
 
@@ -20,7 +19,7 @@ export function useCopyToClipboard(): [CopiedValue, CopyFn] {
       setCopiedText(text);
       return true;
     } catch (error) {
-      logger.warn("Copy failed", error);
+      console.warn("Copy failed", error as any);
       setCopiedText(null);
       return false;
     }

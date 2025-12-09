@@ -35,9 +35,10 @@ export const invoiceQueries = {
 
       // Koristi query builder za sigurne upite
       const qb = createQueryBuilder("invoices");
-      // Only filter by companyId if provided (admin can see all)
+      // Filter by tenant_id (invoices created by this tenant)
+      // Note: companyId parameter actually represents tenant ID in multi-tenant architecture
       if (companyId) {
-        qb.addEqualCondition("company_id", companyId);
+        qb.addEqualCondition("tenant_id", companyId);
       }
       qb.addSearchCondition(["invoice_number"], filters.search);
       qb.addEqualCondition("status", filters.status);
@@ -182,15 +183,16 @@ export const invoiceQueries = {
     const token =
       invoice.token || `inv_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
 
+    // Note: invoice.sellerCompanyId from service actually contains tenant_id
     const result = await db`
       INSERT INTO invoices (
-        id, invoice_number, token, quote_id, company_id, contact_id, status, issue_date, due_date,
+        id, invoice_number, token, quote_id, company_id, tenant_id, contact_id, status, issue_date, due_date,
         gross_total, subtotal, discount, tax_rate, vat_rate, tax, total, paid_amount, currency,
         notes, terms, from_details, customer_details, logo_url, template_settings,
         created_by, created_at, updated_at
       ) VALUES (
         ${invoice.id}, ${invoice.invoiceNumber}, ${token}, ${invoice.quoteId || null},
-        ${invoice.companyId}, ${invoice.contactId || null}, ${invoice.status},
+        ${invoice.companyId}, ${(invoice as any).sellerCompanyId || null}, ${invoice.contactId || null}, ${invoice.status},
         ${invoice.issueDate}, ${invoice.dueDate},
         ${invoice.grossTotal ?? invoice.subtotal}, ${invoice.subtotal}, ${invoice.discount ?? 0},
         ${invoice.taxRate}, ${invoice.vatRate ?? 20}, ${invoice.tax}, ${invoice.total},
@@ -231,6 +233,7 @@ export const invoiceQueries = {
       UPDATE invoices SET
         quote_id = COALESCE(${data.quoteId ?? null}, quote_id),
         company_id = COALESCE(${data.companyId ?? null}, company_id),
+        seller_company_id = COALESCE(${(data as any).sellerCompanyId ?? null}, seller_company_id),
         contact_id = COALESCE(${data.contactId ?? null}, contact_id),
         status = COALESCE(${data.status ?? null}, status),
         due_date = COALESCE(${data.dueDate ?? null}, due_date),
@@ -529,6 +532,7 @@ function mapInvoice(row: Record<string, unknown>, items: unknown[]): Invoice {
     sentAt: row.sent_at ? toISOString(row.sent_at) : undefined,
     paidAt: row.paid_at ? toISOString(row.paid_at) : undefined,
     createdBy: row.created_by as string,
+    tenantId: row.tenant_id as string | undefined,
   } as Invoice;
 }
 

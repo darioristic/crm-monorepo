@@ -1,15 +1,11 @@
 "use client";
 
-import {
-  type LineItem,
-  type QuoteFormValues,
-  type QuoteTemplate,
-  quoteFormSchema,
-} from "@crm/schemas";
+import { quoteFormSchema } from "@crm/schemas";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
+import type { Resolver } from "react-hook-form";
 import { FormProvider, useForm } from "react-hook-form";
-import type { QuoteDefaultSettings } from "@/types/quote";
+import type { LineItem, QuoteDefaultSettings, QuoteFormValues, QuoteTemplate } from "@/types/quote";
 import { DEFAULT_QUOTE_TEMPLATE, generateQuoteNumber, generateQuoteToken } from "@/types/quote";
 
 export type FormValues = QuoteFormValues;
@@ -28,7 +24,7 @@ const getDefaultValues = (): FormValues => {
     template: DEFAULT_QUOTE_TEMPLATE,
     fromDetails: null,
     customerDetails: null,
-    customerId: undefined,
+    customerId: "",
     customerName: undefined,
     paymentDetails: null,
     noteDetails: null,
@@ -57,7 +53,7 @@ type FormContextProps = {
 
 export function FormContext({ children, data, defaultSettings }: FormContextProps) {
   const form = useForm<FormValues>({
-    resolver: zodResolver(quoteFormSchema),
+    resolver: zodResolver(quoteFormSchema) as Resolver<FormValues>,
     defaultValues: getDefaultValues(),
     mode: "onChange",
   });

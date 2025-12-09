@@ -59,6 +59,7 @@ function mapOrder(row: Record<string, unknown>): Order {
     updatedAt: row.updated_at as string,
     fromDetails,
     customerDetails,
+    tenantId: row.tenant_id as string | undefined,
   };
 }
 
@@ -77,9 +78,10 @@ export const orderQueries = {
 
       // Koristi query builder za sigurne upite
       const qb = createQueryBuilder("orders");
-      // Only filter by companyId if provided (admin can see all)
+      // Filter by tenant_id (orders created by this tenant)
+      // Note: companyId parameter actually represents tenant ID in multi-tenant architecture
       if (companyId) {
-        qb.addEqualCondition("company_id", companyId);
+        qb.addEqualCondition("tenant_id", companyId);
       }
       qb.addSearchCondition(["order_number"], filters.search);
       qb.addEqualCondition("status", filters.status);
@@ -197,8 +199,8 @@ export const orderQueries = {
           },
         };
       }
-      // Generate order number if not provided
-      const orderNumber = `ORD-${Date.now()}-${Math.random().toString(36).substring(2, 9).toUpperCase()}`;
+      // Generate sequential order number
+      const orderNumber = await this.generateNumber();
 
       const userCompanyId =
         order.sellerCompanyId ?? (await userQueries.getUserCompanyId(order.createdBy));
@@ -251,13 +253,14 @@ export const orderQueries = {
             }
           : null;
 
+      // Note: order.sellerCompanyId from service actually contains tenant_id
       const result = await db`
             INSERT INTO orders (
-          id, order_number, company_id, contact_id, quote_id, invoice_id,
+          id, order_number, company_id, tenant_id, contact_id, quote_id, invoice_id,
           status, subtotal, tax, total, currency, notes, from_details, customer_details, created_by,
           created_at, updated_at
         ) VALUES (
-          gen_random_uuid(), ${orderNumber}, ${order.companyId},
+          gen_random_uuid(), ${orderNumber}, ${order.companyId}, ${(order as any).sellerCompanyId || null},
           ${order.contactId || null}, ${order.quoteId || null}, ${order.invoiceId || null},
           ${order.status}, ${order.subtotal}, ${order.tax}, ${order.total},
           ${order.currency}, ${order.notes || null}, ${builtFromDetails ? JSON.stringify(builtFromDetails) : null}, ${builtCustomerDetails ? JSON.stringify(builtCustomerDetails) : null}, ${order.createdBy},
@@ -441,5 +444,51 @@ export const orderQueries = {
         },
       };
     }
+  },
+
+  async generateNumber(): Promise<string> {
+    const year = new Date().getFullYear();
+    const yearPrefix = `ORD-${year}-`;
+
+    // Get all order numbers for this year
+    const result = await db`
+      SELECT order_number
+      FROM orders
+      WHERE order_number LIKE ${`${yearPrefix}%`}
+        AND LENGTH(order_number) = ${yearPrefix.length + 5}
+      ORDER BY order_number DESC
+      LIMIT 100
+    `;
+
+    let nextNumber = 1;
+    if (result.length > 0) {
+      // Extract numeric parts and find the maximum
+      const numbers = result
+        .map((row) => {
+          const orderNumber = row.order_number as string;
+          const numericPart = orderNumber.substring(yearPrefix.length);
+          const num = parseInt(numericPart, 10);
+          return Number.isNaN(num) ? 0 : num;
+        })
+        .filter((n) => n > 0);
+
+      if (numbers.length > 0) {
+        nextNumber = Math.max(...numbers) + 1;
+      }
+    }
+
+    const generatedNumber = `${yearPrefix}${String(nextNumber).padStart(5, "0")}`;
+
+    // Double-check that this number doesn't exist (race condition protection)
+    const exists = await db`
+      SELECT id FROM orders WHERE order_number = ${generatedNumber} LIMIT 1
+    `;
+
+    if (exists.length > 0) {
+      nextNumber += 1;
+      return `${yearPrefix}${String(nextNumber).padStart(5, "0")}`;
+    }
+
+    return generatedNumber;
   },
 };

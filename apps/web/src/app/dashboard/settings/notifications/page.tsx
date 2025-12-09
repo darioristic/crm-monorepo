@@ -1,14 +1,12 @@
+"use client";
+
 import { NotificationsSettingsList } from "@/components/notifications-settings-list";
-import type { Metadata } from "next";
 
-export const metadata: Metadata = {
-	title: "Notifications",
-};
-
-export default async function NotificationsPage() {
-	return (
-		<div className="space-y-12">
-			<NotificationsSettingsList />
-		</div>
-	);
+export default function SettingsNotificationsPage() {
+  return (
+    <main className="space-y-6">
+      <h1 className="text-2xl font-bold tracking-tight">Notification Settings</h1>
+      <NotificationsSettingsList />
+    </main>
+  );
 }

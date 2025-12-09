@@ -6,12 +6,13 @@ import { type FieldErrors, useFormContext, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { useDebounceValue } from "usehooks-ts";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useAuth } from "@/contexts/auth-context";
 import { useMutation } from "@/hooks/use-api";
 import { quotesApi } from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { CustomerDetails } from "./customer-details";
 import { EditBlock } from "./edit-block";
-import { extractTextFromContent } from "./editor";
+import { createContentFromText, extractTextFromContent } from "./editor";
 import type { FormValues } from "./form-context";
 import { FromDetails } from "./from-details";
 import { LineItems } from "./line-items";
@@ -31,17 +32,20 @@ type FormProps = {
 
 export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
   const form = useFormContext<FormValues>();
+  const { user } = useAuth();
   const _customerId = form.watch("customerId");
 
   // Stable mutation function that handles both create and update
   const mutationFn = useCallback(
     (data: CreateQuoteRequest | UpdateQuoteRequest) =>
-      quoteId ? quotesApi.update(quoteId, data) : quotesApi.create(data),
+      quoteId
+        ? quotesApi.update(quoteId, data as UpdateQuoteRequest)
+        : quotesApi.create(data as CreateQuoteRequest),
     [quoteId]
   );
 
-  const draftMutation = useMutation(mutationFn);
-  const createMutation = useMutation(mutationFn);
+  const draftMutation = useMutation<any, any>(mutationFn);
+  const createMutation = useMutation<any, any>(mutationFn);
 
   // Use refs for mutation functions to prevent infinite loops in useEffect
   const draftMutationRef = useRef(draftMutation);
@@ -80,84 +84,100 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
   const [debouncedValue] = useDebounceValue(formValues, 500);
 
   // Transform form values to API format
-  const transformFormValuesToDraft = useCallback((values: FormValues) => {
-    // Calculate gross total from line items (before discount)
-    const grossTotal = values.lineItems
-      .filter((item) => item.name && item.name.trim().length > 0)
-      .reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
-
-    const selectedCompanyId = (
-      (values.customerId || (values as any).companyId || "") as string
-    ).trim();
-    return {
-      companyId: selectedCompanyId ? selectedCompanyId : undefined,
-      quoteNumber: values.quoteNumber,
-      issueDate: values.issueDate,
-      validUntil: values.validUntil,
-      status: values.status as "draft" | "sent" | "accepted" | "rejected" | "expired",
-      grossTotal: grossTotal,
-      subtotal: values.subtotal || 0,
-      discount: values.discount || 0,
-      tax: values.tax || 0,
-      taxRate: values.template.taxRate || 0,
-      vatRate: values.template.vatRate || 20,
-      currency: values.template.currency || "EUR",
-      total: values.amount,
-      notes: values.noteDetails ? extractTextFromContent(values.noteDetails) : undefined,
-      terms: values.paymentDetails ? extractTextFromContent(values.paymentDetails) : undefined,
-      // Store fromDetails, customerDetails and logo for PDF generation
-      fromDetails: values.fromDetails || null,
-      customerDetails: values.customerDetails || null,
-      logoUrl: values.template.logoUrl || null,
-      templateSettings: {
-        title: values.template.title,
-        fromLabel: values.template.fromLabel,
-        customerLabel: values.template.customerLabel,
-        quoteNoLabel: values.template.quoteNoLabel,
-        issueDateLabel: values.template.issueDateLabel,
-        validUntilLabel: values.template.validUntilLabel,
-        descriptionLabel: values.template.descriptionLabel,
-        quantityLabel: values.template.quantityLabel,
-        priceLabel: values.template.priceLabel,
-        totalLabel: values.template.totalLabel,
-        subtotalLabel: values.template.subtotalLabel,
-        vatLabel: values.template.vatLabel,
-        taxLabel: values.template.taxLabel,
-        discountLabel: values.template.discountLabel,
-        totalSummaryLabel: values.template.totalSummaryLabel,
-        paymentLabel: values.template.paymentLabel,
-        noteLabel: values.template.noteLabel,
-        currency: values.template.currency,
-        dateFormat: values.template.dateFormat,
-        size: values.template.size,
-        includeVat: values.template.includeVat,
-        includeTax: values.template.includeTax,
-        includeDiscount: values.template.includeDiscount,
-        includeDecimals: values.template.includeDecimals,
-        includeUnits: values.template.includeUnits,
-        includeQr: values.template.includeQr,
-        locale: values.template.locale,
-        timezone: values.template.timezone,
-      },
-      items: values.lineItems
+  const transformFormValuesToDraft = useCallback(
+    (values: FormValues) => {
+      // Calculate gross total from line items (before discount)
+      const grossTotal = values.lineItems
         .filter((item) => item.name && item.name.trim().length > 0)
-        .map((item) => {
-          const baseAmount = (item.price || 0) * (item.quantity || 1);
-          const discountAmount = baseAmount * ((item.discount || 0) / 100);
-          const total = baseAmount - discountAmount;
-          return {
-            productName: item.name,
-            description: "",
-            quantity: item.quantity || 1,
-            unit: item.unit || "pcs",
-            unitPrice: item.price || 0,
-            discount: item.discount || 0,
-            vatRate: item.vat || values.template.vatRate || 20,
-            total: total,
-          };
-        }),
-    };
-  }, []);
+        .reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
+
+      const selectedCompanyId = (
+        (values.customerId || (values as any).companyId || "") as string
+      ).trim();
+      return {
+        customerCompanyId: selectedCompanyId ? selectedCompanyId : undefined,
+        sellerCompanyId: user?.companyId,
+        quoteNumber: values.quoteNumber,
+        issueDate: values.issueDate,
+        validUntil: values.validUntil,
+        status: values.status as "draft" | "sent" | "accepted" | "rejected" | "expired",
+        grossTotal: grossTotal,
+        subtotal: values.subtotal || 0,
+        discount: values.discount || 0,
+        tax: values.tax || 0,
+        taxRate: values.template.taxRate || 0,
+        vatRate: values.template.vatRate || 20,
+        currency: values.template.currency || "EUR",
+        total: values.amount,
+        notes: values.noteDetails
+          ? extractTextFromContent(
+              typeof values.noteDetails === "string"
+                ? createContentFromText(values.noteDetails)
+                : (values.noteDetails as any)
+            )
+          : undefined,
+        terms: values.paymentDetails
+          ? extractTextFromContent(
+              typeof values.paymentDetails === "string"
+                ? createContentFromText(values.paymentDetails)
+                : (values.paymentDetails as any)
+            )
+          : undefined,
+        // Store fromDetails, customerDetails and logo for PDF generation
+        fromDetails: values.fromDetails || null,
+        customerDetails: values.customerDetails || null,
+        logoUrl: values.template.logoUrl ?? undefined,
+        templateSettings: {
+          title: values.template.title,
+          fromLabel: values.template.fromLabel,
+          customerLabel: values.template.customerLabel,
+          quoteNoLabel: values.template.quoteNoLabel,
+          issueDateLabel: values.template.issueDateLabel,
+          validUntilLabel: values.template.validUntilLabel,
+          descriptionLabel: values.template.descriptionLabel,
+          quantityLabel: values.template.quantityLabel,
+          priceLabel: values.template.priceLabel,
+          totalLabel: values.template.totalLabel,
+          subtotalLabel: values.template.subtotalLabel,
+          vatLabel: values.template.vatLabel,
+          taxLabel: values.template.taxLabel,
+          discountLabel: values.template.discountLabel,
+          totalSummaryLabel: values.template.totalSummaryLabel,
+          paymentLabel: values.template.paymentLabel,
+          noteLabel: values.template.noteLabel,
+          currency: values.template.currency,
+          dateFormat: values.template.dateFormat,
+          size: values.template.size,
+          includeVat: values.template.includeVat,
+          includeTax: values.template.includeTax,
+          includeDiscount: values.template.includeDiscount,
+          includeDecimals: values.template.includeDecimals,
+          includeUnits: values.template.includeUnits,
+          includeQr: values.template.includeQr,
+          locale: values.template.locale,
+          timezone: values.template.timezone,
+        },
+        items: values.lineItems
+          .filter((item) => item.name && item.name.trim().length > 0)
+          .map((item) => {
+            const baseAmount = (item.price || 0) * (item.quantity || 1);
+            const discountAmount = baseAmount * ((item.discount || 0) / 100);
+            const total = baseAmount - discountAmount;
+            return {
+              productName: item.name,
+              description: "",
+              quantity: item.quantity || 1,
+              unit: item.unit || "pcs",
+              unitPrice: item.price || 0,
+              discount: item.discount || 0,
+              vatRate: item.vat || values.template.vatRate || 20,
+              total: total,
+            };
+          }),
+      };
+    },
+    [user?.companyId]
+  );
 
   // Auto-save draft - only when EDITING existing quote (not for new quotes)
   useEffect(() => {
@@ -198,7 +218,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
     // Double-check the transformed data before sending
     const transformedData = transformFormValuesToDraft(currentFormValues);
     if (
-      !transformedData.companyId ||
+      !transformedData.customerCompanyId ||
       !transformedData.validUntil ||
       !transformedData.items ||
       transformedData.items.length === 0
@@ -268,13 +288,13 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
 
     // Final validation before sending
     if (
-      !transformedData.companyId ||
+      !transformedData.customerCompanyId ||
       !transformedData.validUntil ||
       !transformedData.items ||
       transformedData.items.length === 0
     ) {
       logger.error("Submit validation failed:", {
-        companyId: transformedData.companyId,
+        customerCompanyId: transformedData.customerCompanyId,
         validUntil: transformedData.validUntil,
         itemsCount: transformedData.items?.length ?? 0,
       });

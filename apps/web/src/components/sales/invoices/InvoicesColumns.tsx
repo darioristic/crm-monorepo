@@ -1,15 +1,17 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import type { Invoice } from "@crm/types";
+import type { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowUpDown,
+  CreditCard,
+  Eye,
   MoreHorizontal,
+  Package,
   Pencil,
   Trash2,
-  Eye,
-  CreditCard,
 } from "lucide-react";
-import type { Invoice } from "@crm/types";
+import { type InvoiceStatus, InvoiceStatusBadge } from "@/components/sales/status";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -20,10 +22,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatDate } from "@/lib/utils";
-import {
-  InvoiceStatusBadge,
-  type InvoiceStatus,
-} from "@/components/sales/status";
 
 export type InvoiceWithCompany = Invoice & {
   companyName?: string;
@@ -35,6 +33,7 @@ interface InvoicesColumnsOptions {
   onDelete?: (invoice: InvoiceWithCompany) => void;
   onRecordPayment?: (invoice: InvoiceWithCompany) => void;
   onOpenSheet?: (invoiceId: string) => void;
+  onConvertToDeliveryNote?: (invoice: InvoiceWithCompany) => void;
 }
 
 export function getInvoicesColumns({
@@ -43,6 +42,7 @@ export function getInvoicesColumns({
   onDelete,
   onRecordPayment,
   onOpenSheet,
+  onConvertToDeliveryNote,
 }: InvoicesColumnsOptions = {}): ColumnDef<InvoiceWithCompany>[] {
   return [
     {
@@ -83,11 +83,7 @@ export function getInvoicesColumns({
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();
-            window.open(
-              `/i/id/${row.original.id}`,
-              "_blank",
-              "noopener,noreferrer"
-            );
+            window.open(`/i/id/${row.original.id}`, "_blank", "noopener,noreferrer");
           }}
           className="font-medium text-primary hover:underline text-left cursor-pointer"
         >
@@ -103,21 +99,14 @@ export function getInvoicesColumns({
         if (!companyName || companyName === "Unknown Company") {
           return <span className="text-muted-foreground">-</span>;
         }
-        return (
-          <span className="text-muted-foreground">
-            {companyName}
-          </span>
-        );
+        return <span className="text-muted-foreground">{companyName}</span>;
       },
     },
     {
       accessorKey: "status",
       header: "Status",
       cell: ({ row }) => (
-        <InvoiceStatusBadge
-          status={row.original.status as InvoiceStatus}
-          showTooltip={false}
-        />
+        <InvoiceStatusBadge status={row.original.status as InvoiceStatus} showTooltip={false} />
       ),
     },
     {
@@ -131,11 +120,7 @@ export function getInvoicesColumns({
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       ),
-      cell: ({ row }) => (
-        <span className="font-medium">
-          {formatCurrency(row.original.total)}
-        </span>
-      ),
+      cell: ({ row }) => <span className="font-medium">{formatCurrency(row.original.total)}</span>,
     },
     {
       accessorKey: "paidAmount",
@@ -156,11 +141,18 @@ export function getInvoicesColumns({
     },
     {
       accessorKey: "dueDate",
-      header: "Due Date",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Due Date
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => {
         const dueDate = new Date(row.original.dueDate);
-        const isOverdue =
-          dueDate < new Date() && row.original.status !== "paid";
+        const isOverdue = dueDate < new Date() && row.original.status !== "paid";
         return (
           <span className={isOverdue ? "text-destructive font-medium" : ""}>
             {formatDate(row.original.dueDate)}
@@ -170,7 +162,15 @@ export function getInvoicesColumns({
     },
     {
       accessorKey: "createdAt",
-      header: "Created",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Created
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => formatDate(row.original.createdAt),
     },
     {
@@ -186,11 +186,7 @@ export function getInvoicesColumns({
             <DropdownMenuItem
               onClick={(e) => {
                 e.preventDefault();
-                window.open(
-                  `/i/id/${row.original.id}`,
-                  "_blank",
-                  "noopener,noreferrer"
-                );
+                window.open(`/i/id/${row.original.id}`, "_blank", "noopener,noreferrer");
               }}
             >
               <Eye className="mr-2 h-4 w-4" />
@@ -205,6 +201,15 @@ export function getInvoicesColumns({
                 <CreditCard className="mr-2 h-4 w-4" />
                 Record Payment
               </DropdownMenuItem>
+            )}
+            {onConvertToDeliveryNote && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => onConvertToDeliveryNote(row.original)}>
+                  <Package className="mr-2 h-4 w-4" />
+                  Convert to Delivery Note
+                </DropdownMenuItem>
+              </>
             )}
             {onDelete && (
               <>

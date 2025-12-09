@@ -1,14 +1,15 @@
 "use client";
 
-import type { Message } from "ai";
-import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { RefreshCwIcon, UserIcon, BotIcon, AlertCircleIcon } from "lucide-react";
+type Message = { id: string; role: "user" | "assistant"; content: string };
+
+import { AlertCircleIcon, BotIcon, RefreshCwIcon, UserIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface ChatMessagesProps {
-  messages: Message[];
+  messages: any[];
   isLoading?: boolean;
   error?: Error | null;
   onRetry?: () => void;
@@ -28,9 +29,18 @@ export function ChatMessages({ messages, isLoading, error, onRetry }: ChatMessag
           </div>
           <div className="flex items-center gap-2 text-muted-foreground">
             <div className="flex space-x-1">
-              <div className="h-2 w-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "0ms" }} />
-              <div className="h-2 w-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "150ms" }} />
-              <div className="h-2 w-2 rounded-full bg-current animate-bounce" style={{ animationDelay: "300ms" }} />
+              <div
+                className="h-2 w-2 rounded-full bg-current animate-bounce"
+                style={{ animationDelay: "0ms" }}
+              />
+              <div
+                className="h-2 w-2 rounded-full bg-current animate-bounce"
+                style={{ animationDelay: "150ms" }}
+              />
+              <div
+                className="h-2 w-2 rounded-full bg-current animate-bounce"
+                style={{ animationDelay: "300ms" }}
+              />
             </div>
           </div>
         </div>
@@ -40,19 +50,12 @@ export function ChatMessages({ messages, isLoading, error, onRetry }: ChatMessag
         <div className="flex items-start gap-3 p-4 rounded-lg bg-destructive/10 border border-destructive/20">
           <AlertCircleIcon className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1 space-y-2">
-            <p className="text-sm text-destructive font-medium">
-              Something went wrong
-            </p>
+            <p className="text-sm text-destructive font-medium">Something went wrong</p>
             <p className="text-sm text-muted-foreground">
               {error.message || "Failed to get response from AI"}
             </p>
             {onRetry && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onRetry}
-                className="mt-2"
-              >
+              <Button variant="outline" size="sm" onClick={onRetry} className="mt-2">
                 <RefreshCwIcon className="h-3 w-3 mr-2" />
                 Try Again
               </Button>
@@ -64,12 +67,22 @@ export function ChatMessages({ messages, isLoading, error, onRetry }: ChatMessag
   );
 }
 
-interface MessageBubbleProps {
-  message: Message;
+function getMessageText(message: any): string {
+  const m = message as any;
+  if (typeof m.content === "string") return m.content;
+  if (Array.isArray(m.content)) {
+    const parts = m.content
+      .map((p: any) => (typeof p === "string" ? p : p?.text || ""))
+      .filter(Boolean);
+    if (parts.length) return parts.join("\n\n");
+  }
+  if (typeof m.text === "string") return m.text;
+  if (typeof m.display === "string") return m.display;
+  return "";
 }
 
-function MessageBubble({ message }: MessageBubbleProps) {
-  const isUser = message.role === "user";
+function MessageBubble({ message }: { message: any }) {
+  const isUser = (message as any).role === "user";
 
   return (
     <div className={cn("flex items-start gap-3", isUser && "flex-row-reverse")}>
@@ -79,23 +92,17 @@ function MessageBubble({ message }: MessageBubbleProps) {
           isUser ? "bg-primary text-primary-foreground" : "bg-primary/10"
         )}
       >
-        {isUser ? (
-          <UserIcon className="h-4 w-4" />
-        ) : (
-          <BotIcon className="h-4 w-4" />
-        )}
+        {isUser ? <UserIcon className="h-4 w-4" /> : <BotIcon className="h-4 w-4" />}
       </div>
 
       <div
         className={cn(
           "rounded-2xl px-4 py-3 max-w-[85%]",
-          isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted"
+          isUser ? "bg-primary text-primary-foreground" : "bg-muted"
         )}
       >
         {isUser ? (
-          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap">{getMessageText(message)}</p>
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown
@@ -103,23 +110,17 @@ function MessageBubble({ message }: MessageBubbleProps) {
               components={{
                 table: ({ children }) => (
                   <div className="overflow-x-auto my-4">
-                    <table className="min-w-full divide-y divide-border">
-                      {children}
-                    </table>
+                    <table className="min-w-full divide-y divide-border">{children}</table>
                   </div>
                 ),
-                thead: ({ children }) => (
-                  <thead className="bg-muted/50">{children}</thead>
-                ),
+                thead: ({ children }) => <thead className="bg-muted/50">{children}</thead>,
                 th: ({ children }) => (
                   <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider">
                     {children}
                   </th>
                 ),
                 td: ({ children }) => (
-                  <td className="px-3 py-2 text-sm whitespace-nowrap">
-                    {children}
-                  </td>
+                  <td className="px-3 py-2 text-sm whitespace-nowrap">{children}</td>
                 ),
                 a: ({ href, children }) => (
                   <a
@@ -134,16 +135,14 @@ function MessageBubble({ message }: MessageBubbleProps) {
                 code: ({ className, children }) => {
                   const isInline = !className;
                   return isInline ? (
-                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm">
-                      {children}
-                    </code>
+                    <code className="bg-muted px-1.5 py-0.5 rounded text-sm">{children}</code>
                   ) : (
                     <code className={className}>{children}</code>
                   );
                 },
               }}
             >
-              {message.content}
+              {getMessageText(message)}
             </ReactMarkdown>
           </div>
         )}
@@ -151,4 +150,3 @@ function MessageBubble({ message }: MessageBubbleProps) {
     </div>
   );
 }
-

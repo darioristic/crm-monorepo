@@ -69,6 +69,8 @@ interface QuoteApiResponse {
   acceptedAt?: string | null;
   rejectedAt?: string | null;
   token?: string;
+  fromDetails?: any;
+  customerDetails?: any;
 }
 
 type QuoteSheetProps = {
@@ -386,9 +388,9 @@ function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormV
   return {
     id: quote.id,
     status: quote.status,
-    quoteNumber: quote.quoteNumber,
-    issueDate: quote.issueDate,
-    validUntil: quote.validUntil,
+    quoteNumber: quote.quoteNumber ?? "",
+    issueDate: (quote.issueDate ?? "") as string,
+    validUntil: (quote.validUntil ?? "") as string,
     customerId: quote.companyId,
     customerName: quote.companyName,
     amount: quote.total || 0,
@@ -418,6 +420,8 @@ function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormV
           ],
         }
       : null,
+    fromDetails: quote.fromDetails || null,
+    customerDetails: quote.customerDetails || null,
     lineItems: (quote.items || []).map((item) => ({
       name: item.productName || item.description || "",
       quantity: item.quantity || 1,

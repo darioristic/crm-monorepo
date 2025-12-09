@@ -1,8 +1,9 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import React, { useEffect, useState } from "react";
+import type React from "react";
+import { useEffect, useRef, useState } from "react";
 import { codeToHtml } from "shiki";
+import { cn } from "@/lib/utils";
 
 export type CodeBlockProps = {
   children?: React.ReactNode;
@@ -17,7 +18,8 @@ function CodeBlock({ children, className, ...props }: CodeBlockProps) {
         "border-border bg-card text-card-foreground rounded-xl",
         className
       )}
-      {...props}>
+      {...props}
+    >
       {children}
     </div>
   );
@@ -38,6 +40,7 @@ function CodeBlockCode({
   ...props
 }: CodeBlockCodeProps) {
   const [highlightedHtml, setHighlightedHtml] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     async function highlight() {
@@ -57,11 +60,14 @@ function CodeBlockCode({
     className
   );
 
+  useEffect(() => {
+    if (!containerRef.current || !highlightedHtml) return;
+    containerRef.current.innerHTML = highlightedHtml;
+  }, [highlightedHtml]);
+
   // SSR fallback: render plain code if not hydrated yet
-  // Note: dangerouslySetInnerHTML is safe here because the HTML is generated
-  // by the trusted shiki library which properly escapes user input
   return highlightedHtml ? (
-    <div className={classNames} dangerouslySetInnerHTML={{ __html: highlightedHtml }} {...props} />
+    <div ref={containerRef} suppressHydrationWarning className={classNames} {...props} />
   ) : (
     <div className={classNames} {...props}>
       <pre>

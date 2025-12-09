@@ -64,7 +64,7 @@ export function useTeamMutation() {
         logoUrl?: string;
       } = {};
 
-      if (data.name !== undefined) updateData.name = data.name;
+      if (data.name !== undefined) updateData.name = data.name || undefined;
       if (data.email !== undefined) updateData.email = data.email || undefined;
       if (data.logoUrl !== undefined) updateData.logoUrl = data.logoUrl || undefined;
 

@@ -3,6 +3,7 @@ import { PlusIcon } from "@radix-ui/react-icons";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import Link from "next/link";
+import { ProductSheet } from "@/components/products/product-sheet";
 import { ProductsDataTable } from "@/components/products/products-data-table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -96,7 +97,7 @@ export default async function ProductsPage() {
       <div className="flex items-center justify-between space-y-2">
         <h1 className="text-2xl font-bold tracking-tight">Products</h1>
         <Button asChild>
-          <Link href="/dashboard/products/new">
+          <Link href="/dashboard/products?type=create">
             <PlusIcon className="mr-2 h-4 w-4" /> Add Product
           </Link>
         </Button>
@@ -172,6 +173,8 @@ export default async function ProductsPage() {
           <ProductsDataTable data={products} />
         </CardContent>
       </Card>
+
+      <ProductSheet />
     </div>
   );
 }

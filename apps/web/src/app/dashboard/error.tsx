@@ -68,7 +68,7 @@ export default function DashboardError({
             </Link>
           </Button>
           <Button variant="ghost" size="lg" asChild>
-            <Link href="/dashboard/settings">
+            <Link href="/dashboard">
               <HelpCircle className="mr-2 h-4 w-4" />
               Get help
             </Link>

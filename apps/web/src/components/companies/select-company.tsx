@@ -32,7 +32,7 @@ export function SelectCompany({
   placeholder = "Select company",
   value,
 }: SelectCompanyProps) {
-  logger.info("🏢 [SelectCompany] Component rendered with value:", value);
+  logger.info("🏢 [SelectCompany] Component rendered with value", { value });
 
   const { setParams: setCompanyParams, createCompany } = useCompanyParams();
   const [open, setOpen] = useState(false);
@@ -42,14 +42,14 @@ export function SelectCompany({
   const [prefillName, setPrefillName] = useState("");
 
   useEffect(() => {
-    logger.info("🏢 [SelectCompany] Dropdown", open ? "OPENED" : "closed");
+    logger.info("🏢 [SelectCompany] Dropdown", { state: open ? "OPENED" : "closed" });
   }, [open]);
 
   // Debounce search - čeka 300ms nakon što korisnik prestane da kuca
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(searchValue);
-      logger.info("🔍 Debounced search value:", searchValue);
+      logger.info("🔍 Debounced search value", { searchValue });
     }, 300);
 
     return () => clearTimeout(timer);
@@ -62,7 +62,9 @@ export function SelectCompany({
   useEffect(() => {
     const fetchCompanies = async () => {
       setIsLoading(true);
-      logger.info("🔄 Fetching companies with search:", debouncedSearch || "(no search)");
+      logger.info("🔄 Fetching companies with search", {
+        search: debouncedSearch || "(no search)",
+      });
 
       try {
         const response = await companiesApi.getAll({
@@ -73,7 +75,7 @@ export function SelectCompany({
 
         if (response.success) {
           setCompaniesList(response.data || []);
-          logger.info("📊 Companies received:", response.data?.length || 0);
+          logger.info("📊 Companies received", { count: response.data?.length || 0 });
           try {
             const lastId =
               typeof window !== "undefined"
@@ -88,11 +90,10 @@ export function SelectCompany({
             }
           } catch {}
           if (debouncedSearch) {
-            logger.info("🔎 Search term:", debouncedSearch);
-            logger.info(
-              "📋 Companies:",
-              response.data?.map((c: Company) => c.name).join(", ") || "none"
-            );
+            logger.info("🔎 Search term", { debouncedSearch });
+            logger.info("📋 Companies", {
+              names: response.data?.map((c: Company) => c.name).join(", ") || "none",
+            });
           }
         }
       } catch (error) {
