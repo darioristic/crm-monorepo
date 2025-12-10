@@ -75,8 +75,11 @@ export async function PdfTemplate({
           <View style={{ flex: 1, marginRight: 10 }}>
             <Text style={{ fontSize: 10, fontWeight: 600, marginBottom: 5 }}>From</Text>
             {fromDetails?.content ? (
-              fromDetails.content.map((paragraph: any, idx: number) => (
-                <Text key={idx} style={{ fontSize: 9, marginBottom: 2 }}>
+              fromDetails.content.map((paragraph: any) => (
+                <Text
+                  key={paragraph.content?.map((t: any) => t.text).join("") || "paragraph"}
+                  style={{ fontSize: 9, marginBottom: 2 }}
+                >
                   {paragraph.content?.map((text: any) => text.text).join("") || ""}
                 </Text>
               ))
@@ -94,8 +97,11 @@ export async function PdfTemplate({
               </Text>
             )}
             {customerDetails?.content
-              ? customerDetails.content.map((paragraph: any, idx: number) => (
-                  <Text key={idx} style={{ fontSize: 9, marginBottom: 2 }}>
+              ? customerDetails.content.map((paragraph: any) => (
+                  <Text
+                    key={paragraph.content?.map((t: any) => t.text).join("") || "paragraph"}
+                    style={{ fontSize: 9, marginBottom: 2 }}
+                  >
                     {paragraph.content?.map((text: any) => text.text).join("") || ""}
                   </Text>
                 ))

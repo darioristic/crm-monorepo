@@ -6,7 +6,7 @@ import { Controller, useFieldArray, useFormContext, useWatch } from "react-hook-
 import { Button } from "@/components/ui/button";
 import { QuantityInput } from "@/components/ui/quantity-input";
 import { calculateLineItemTotal, formatInvoiceAmount } from "@/utils/invoice-calculate";
-import type { FormValues } from "./form-context";
+import type { FormValues, LineItemFormValues } from "./form-context";
 import { LabelInput } from "./label-input";
 import { ProductAutocomplete } from "./product-autocomplete";
 import { ProductAwareAmountInput } from "./product-aware-amount-input";
@@ -143,7 +143,7 @@ function LineItemRow({
   index: number;
   handleRemove: (index: number) => void;
   isReorderable: boolean;
-  item: any;
+  item: LineItemFormValues;
   currency: string;
   maximumFractionDigits: number;
   includeUnits?: boolean;

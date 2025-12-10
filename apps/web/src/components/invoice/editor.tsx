@@ -1,12 +1,12 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import Link from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
 import type { JSONContent } from "@tiptap/react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
-import Link from "@tiptap/extension-link";
-import Placeholder from "@tiptap/extension-placeholder";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
+import { cn } from "@/lib/utils";
 
 type Props = {
   initialContent?: JSONContent;
@@ -28,9 +28,7 @@ export function Editor({
   tabIndex,
 }: Props) {
   const [isFocused, setIsFocused] = useState(false);
-  const [content, setContent] = useState<JSONContent | null | undefined>(
-    initialContent
-  );
+  const [content, setContent] = useState<JSONContent | null | undefined>(initialContent);
 
   const editor = useEditor({
     extensions: [
@@ -108,9 +106,7 @@ export function Editor({
 }
 
 // Helper to extract text from editor content
-export function extractTextFromContent(
-  content: JSONContent | null | undefined
-): string {
+export function extractTextFromContent(content: JSONContent | null | undefined): string {
   if (!content) return "";
 
   const extractText = (node: JSONContent): string => {

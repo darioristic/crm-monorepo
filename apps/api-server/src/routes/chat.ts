@@ -3,28 +3,26 @@
  */
 
 import { openai } from "@ai-sdk/openai";
-import { streamText, generateText, type CoreMessage } from "ai";
-import { z } from "zod";
 import { errorResponse } from "@crm/utils";
+import { type CoreMessage, generateText, streamText } from "ai";
+import { z } from "zod";
+// Import AI components
+import { AVAILABLE_AGENTS, mainAgent, routeToAgent } from "../ai/agents";
+import { buildAppContext, getChatHistory, saveChatMessage } from "../ai/agents/config/shared";
+import {
+  getCustomerByIdTool,
+  getCustomersTool,
+  getIndustriesSummaryTool,
+} from "../ai/tools/get-customers";
+// Import tools
+import { getInvoicesTool, getOverdueInvoicesTool } from "../ai/tools/get-invoices";
+import { getProductCategoriesSummaryTool, getProductsTool } from "../ai/tools/get-products";
+import { getQuoteConversionRateTool, getQuotesTool } from "../ai/tools/get-quotes";
+import type { ChatUserContext, ToolSet } from "../ai/types";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
-
-// Import AI components
-import { mainAgent, routeToAgent, AVAILABLE_AGENTS } from "../ai/agents";
-import {
-  buildAppContext,
-  getChatHistory,
-  saveChatMessage,
-} from "../ai/agents/config/shared";
-import type { ChatUserContext, AppContext } from "../ai/types";
-
-// Import tools
-import { getInvoicesTool, getOverdueInvoicesTool } from "../ai/tools/get-invoices";
-import { getCustomersTool, getCustomerByIdTool, getIndustriesSummaryTool } from "../ai/tools/get-customers";
-import { getProductsTool, getProductCategoriesSummaryTool } from "../ai/tools/get-products";
-import { getQuotesTool, getQuoteConversionRateTool } from "../ai/tools/get-quotes";
 
 // Chat request schema
 const chatRequestSchema = z.object({
@@ -45,31 +43,6 @@ const tools = {
   getQuotes: getQuotesTool,
   getQuoteConversion: getQuoteConversionRateTool,
 };
-
-// Route user message to appropriate agent
-async function routeMessage(
-  message: string,
-  context: AppContext
-): Promise<string> {
-  try {
-    const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
-      temperature: 0.1,
-      system: mainAgent.getSystemPrompt(context),
-      prompt: message,
-    });
-
-    // Extract agent name from response
-    const agentName = text.toLowerCase().trim();
-    if (agentName in AVAILABLE_AGENTS) {
-      return agentName;
-    }
-    return "general";
-  } catch (error) {
-    logger.error({ error }, "Error routing message");
-    return "general";
-  }
-}
 
 // Get tools for specific agent
 function getAgentTools(agentName: string) {
@@ -106,10 +79,7 @@ export const chatRoutes: Route[] = [
     handler: async (request) => {
       const auth = await verifyAndGetUser(request);
       if (!auth) {
-        return json(
-          errorResponse("UNAUTHORIZED", "Authentication required"),
-          401
-        );
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
       }
 
       try {
@@ -117,10 +87,7 @@ export const chatRoutes: Route[] = [
         const validationResult = chatRequestSchema.safeParse(body);
 
         if (!validationResult.success) {
-          return json(
-            errorResponse("VALIDATION_ERROR", validationResult.error.message),
-            400
-          );
+          return json(errorResponse("VALIDATION_ERROR", validationResult.error.message), 400);
         }
 
         const { message, chatId = crypto.randomUUID(), timezone } = validationResult.data;
@@ -141,8 +108,13 @@ export const chatRoutes: Route[] = [
         // Get chat history
         const history = await getChatHistory(chatId, 10);
 
-        // Route to appropriate agent
-        const agentName = await routeMessage(message, appContext);
+        // Route to appropriate agent using triage agent
+        const routing = await generateText({
+          model: openai("gpt-4o-mini"),
+          system: mainAgent.getSystemPrompt(appContext),
+          messages: [{ role: "user", content: message }],
+        });
+        const agentName = routing.text.trim();
         const selectedAgent = routeToAgent(agentName);
         const agentTools = getAgentTools(agentName);
 
@@ -155,17 +127,14 @@ export const chatRoutes: Route[] = [
         });
 
         // Build messages array
-        const messages: CoreMessage[] = [
-          ...history,
-          { role: "user", content: message },
-        ];
+        const messages: CoreMessage[] = [...history, { role: "user", content: message }];
 
         // Stream response
         const result = streamText({
           model: openai("gpt-4o-mini"),
           system: selectedAgent.getSystemPrompt(appContext),
           messages,
-          tools: agentTools as any,
+          tools: agentTools as unknown as ToolSet,
           onFinish: async ({ text }) => {
             // Save assistant response to history
             await saveChatMessage(chatId, {
@@ -179,10 +148,7 @@ export const chatRoutes: Route[] = [
         return result.toTextStreamResponse();
       } catch (error) {
         logger.error({ error }, "Error in chat endpoint");
-        return json(
-          errorResponse("INTERNAL_ERROR", "Chat processing failed"),
-          500
-        );
+        return json(errorResponse("INTERNAL_ERROR", "Chat processing failed"), 500);
       }
     },
     params: [],
@@ -195,10 +161,7 @@ export const chatRoutes: Route[] = [
     handler: async (request, _url, params) => {
       const auth = await verifyAndGetUser(request);
       if (!auth) {
-        return json(
-          errorResponse("UNAUTHORIZED", "Authentication required"),
-          401
-        );
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
       }
 
       try {
@@ -214,10 +177,7 @@ export const chatRoutes: Route[] = [
         });
       } catch (error) {
         logger.error({ error }, "Error getting chat history");
-        return json(
-          errorResponse("INTERNAL_ERROR", "Failed to get chat history"),
-          500
-        );
+        return json(errorResponse("INTERNAL_ERROR", "Failed to get chat history"), 500);
       }
     },
     params: ["chatId"],
@@ -230,10 +190,7 @@ export const chatRoutes: Route[] = [
     handler: async (request) => {
       const auth = await verifyAndGetUser(request);
       if (!auth) {
-        return json(
-          errorResponse("UNAUTHORIZED", "Authentication required"),
-          401
-        );
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
       }
 
       const agents = Object.keys(AVAILABLE_AGENTS).map((name) => ({

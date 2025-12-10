@@ -290,13 +290,17 @@ export function OrdersDataTable({ refreshTrigger }: OrdersDataTableProps = {}) {
             </TableHeader>
             <TableBody>
               {isLoading ? (
-                Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={`skeleton-row-${i}`}>
-                    {columns.map((_, j) => (
-                      <TableCell key={`skeleton-cell-${i}-${j}`}>
-                        <Skeleton className="h-4 w-full" />
-                      </TableCell>
-                    ))}
+                ["row-1", "row-2", "row-3", "row-4", "row-5"].map((rowKey) => (
+                  <TableRow key={`skeleton-${rowKey}`}>
+                    <TableCell colSpan={columns.length}>
+                      <div className="grid grid-cols-12 gap-2">
+                        <Skeleton className="h-4 col-span-3" />
+                        <Skeleton className="h-4 col-span-3" />
+                        <Skeleton className="h-4 col-span-2" />
+                        <Skeleton className="h-4 col-span-2" />
+                        <Skeleton className="h-4 col-span-2" />
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))
               ) : table.getRowModel().rows?.length ? (

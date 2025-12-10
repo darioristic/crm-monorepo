@@ -1,12 +1,12 @@
 "use client";
 
+import { ArrowLeft, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Send, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { OrderDefaultSettings, OrderFormValues } from "@/types/order";
 import { Form } from "./form";
-import { SettingsMenu } from "./settings-menu";
 import { FormContext } from "./form-context";
-import type { OrderFormValues, OrderDefaultSettings } from "@/types/order";
+import { SettingsMenu } from "./settings-menu";
 
 type OrderContentProps = {
   type: "create" | "edit" | "success";
@@ -16,13 +16,7 @@ type OrderContentProps = {
   onClose?: () => void;
 };
 
-export function OrderContent({
-  type,
-  orderId,
-  data,
-  defaultSettings,
-  onClose,
-}: OrderContentProps) {
+export function OrderContent({ type, orderId, data, defaultSettings, onClose }: OrderContentProps) {
   const router = useRouter();
 
   const handleSuccess = (id: string) => {
@@ -78,10 +72,10 @@ type SuccessContentProps = {
 };
 
 function SuccessContent({
-  orderId,
+  orderId: _orderId,
   onViewOrder,
   onCreateAnother,
-  onClose,
+  onClose: _onClose,
 }: SuccessContentProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 text-center">
@@ -91,8 +85,8 @@ function SuccessContent({
 
       <h2 className="text-2xl font-semibold mb-2">Order Created</h2>
       <p className="text-muted-foreground mb-8 max-w-md">
-        Your order has been created successfully. You can now view it, send it
-        to your customer, or create another one.
+        Your order has been created successfully. You can now view it, send it to your customer, or
+        create another one.
       </p>
 
       <div className="flex gap-3">
@@ -104,4 +98,3 @@ function SuccessContent({
     </div>
   );
 }
-

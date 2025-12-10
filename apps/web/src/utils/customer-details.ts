@@ -1,29 +1,32 @@
+import type { EditorDoc } from "@crm/schemas";
 import type { DeliveryNote } from "@crm/types";
-import type { EditorDoc } from "@/types/invoice";
 
 /**
  * Builds customer details as EditorDoc from delivery note data.
  * Handles both JSON string and object formats for customerDetails,
  * and falls back to building from company fields if needed.
  */
+type MaybeCompany = {
+  name?: string;
+  address?: string;
+  city?: string;
+  zip?: string;
+  postalCode?: string;
+  country?: string;
+  email?: string;
+  billingEmail?: string;
+  phone?: string;
+  vatNumber?: string;
+  companyNumber?: string | number;
+  registrationNumber?: string | number;
+  addressLine1?: string;
+  addressLine2?: string;
+};
+
 export function buildCustomerDetails(
   deliveryNote:
     | DeliveryNote
-    | {
-        company?: {
-          name?: string;
-          address?: string;
-          city?: string;
-          zip?: string;
-          postalCode?: string;
-          country?: string;
-          email?: string;
-          phone?: string;
-          vatNumber?: string;
-        };
-        companyName?: string;
-        customerDetails?: unknown;
-      }
+    | { company?: MaybeCompany; companyName?: string; customerDetails?: unknown }
 ): EditorDoc | null {
   // If customerDetails already exists, return it (handle both string and object formats)
   if (deliveryNote.customerDetails) {
@@ -53,18 +56,20 @@ export function buildCustomerDetails(
 
   // Build from company fields
   const lines: string[] = [];
-  const companyName = (deliveryNote as any).companyName || (deliveryNote as any).company?.name;
+  const dnWithCompanyName = deliveryNote as { companyName?: string };
+  const dnWithCompany = deliveryNote as { company?: MaybeCompany };
+  const companyName = dnWithCompanyName.companyName ?? dnWithCompany.company?.name;
   if (companyName) lines.push(companyName);
 
-  const company = (deliveryNote as any).company;
+  const company = dnWithCompany.company;
   if (company) {
-    const street = (company as any).addressLine1 || company.address || null;
+    const street = company.addressLine1 || company.address || null;
     const zipCity = [company.zip || company.postalCode, company.city].filter(Boolean).join(" ");
     const addressLine = [street, zipCity].filter(Boolean).join(", ");
     const country = company.country || null;
-    const email = (company as any).billingEmail || company.email || null;
+    const email = company.billingEmail || company.email || null;
     const pib = company.vatNumber ? `PIB: ${company.vatNumber}` : null;
-    const mbSource = (company as any).companyNumber || (company as any).registrationNumber;
+    const mbSource = company.companyNumber || company.registrationNumber;
     const mb = mbSource ? `MB: ${String(mbSource)}` : null;
 
     if (addressLine) lines.push(addressLine);

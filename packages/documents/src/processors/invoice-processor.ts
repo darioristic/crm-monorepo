@@ -38,7 +38,7 @@ export class InvoiceProcessor {
 
     const result = await retryCall(() =>
       generateObject({
-        model: this.model as any,
+        model: this.model,
         schema: invoiceSchema,
         temperature: 0.1,
         messages: [
@@ -68,7 +68,7 @@ export class InvoiceProcessor {
 
     const result = await retryCall(() =>
       generateObject({
-        model: this.model as any,
+        model: this.model,
         schema: invoiceSchema,
         temperature: 0.1,
         messages: [

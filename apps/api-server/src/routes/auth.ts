@@ -46,15 +46,15 @@ async function parseBody<T = Record<string, unknown>>(request: Request): Promise
 // Helper to get environment at runtime (prevents bundler inlining)
 // Uses Bun.env which is not statically analyzable
 function getNodeEnv(): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const env = (globalThis as any).Bun?.env || process.env;
+  const env: Record<string, string | undefined> =
+    typeof process !== "undefined" && process.env ? process.env : {};
   return String(env.NODE_ENV || "development");
 }
 
 // Get cookie domain from env or derive from host
 function getCookieDomain(): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const env = (globalThis as any).Bun?.env || process.env;
+  const env: Record<string, string | undefined> =
+    typeof process !== "undefined" && process.env ? process.env : {};
   // Allow explicit domain configuration, or use shared domain for OpenShift
   return env.COOKIE_DOMAIN || "";
 }
@@ -74,8 +74,8 @@ function setAuthCookies(
   // Access token - 15 minutes
   const accessCookie = `access_token=${accessToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=900`;
 
-  // Refresh token - 7 days
-  const refreshCookie = `refresh_token=${refreshToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth/refresh; Max-Age=604800`;
+  // Refresh token - 7 days (Path includes /auth for switch-tenant endpoint)
+  const refreshCookie = `refresh_token=${refreshToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth; Max-Age=604800`;
 
   // Session ID - 7 days
   const sessionCookie = `session_id=${sessionId}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=604800`;
@@ -93,7 +93,7 @@ function clearAuthCookies(): Record<string, string | string[]> {
   const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
 
   const clearAccess = `access_token=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=0`;
-  const clearRefresh = `refresh_token=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth/refresh; Max-Age=0`;
+  const clearRefresh = `refresh_token=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth; Max-Age=0`;
   const clearSession = `session_id=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=0`;
 
   return {
@@ -407,18 +407,22 @@ export async function switchTenantHandler(request: Request, _url: URL): Promise<
       DO UPDATE SET active_tenant_id = ${body.tenantId}, updated_at = NOW()
     `;
 
-    // Generate new tokens with updated tenant context
-    const result = await authService.refreshSession(auth.sessionId);
+    // Generate new tokens with updated tenant context using refresh token
+    const refreshToken = getRefreshTokenFromCookie(request);
+    if (!refreshToken) {
+      return json(errorResponse("UNAUTHORIZED", "Refresh token required"), 401);
+    }
+    const result = await authService.refreshTokens(refreshToken);
 
     if (!result.success) {
       return json(errorResponse("SERVER_ERROR", "Failed to generate new tokens"), 500);
     }
 
-    // Log tenant switch
+    // Log settings update to reflect tenant switch
     auditService.logAction({
       userId: auth.userId,
-      action: "TENANT_SWITCH",
-      entityType: "tenant",
+      action: "UPDATE_SETTINGS",
+      entityType: "settings",
       entityId: body.tenantId,
       ipAddress: getClientIp(request),
       userAgent: getUserAgent(request),

@@ -1,51 +1,50 @@
 "use client";
 
-import * as React from "react";
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
+  type ColumnDef,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable
+  type SortingState,
+  useReactTable,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import { ArrowUpDown, Columns, MoreHorizontal, PlusCircle } from "lucide-react";
-
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import * as React from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList
+  CommandList,
 } from "@/components/ui/command";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import { generateAvatarFallback } from "@/lib/utils";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 
 export type User = {
   id: number;
@@ -77,7 +76,7 @@ export const columns: ColumnDef<User>[] = [
       />
     ),
     enableSorting: false,
-    enableHiding: false
+    enableHiding: false,
   },
   {
     accessorKey: "name",
@@ -90,7 +89,7 @@ export const columns: ColumnDef<User>[] = [
         </Avatar>
         <div className="capitalize">{row.getValue("name")}</div>
       </div>
-    )
+    ),
   },
   {
     accessorKey: "role",
@@ -99,13 +98,14 @@ export const columns: ColumnDef<User>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Role
           <ArrowUpDown />
         </Button>
       );
     },
-    cell: ({ row }) => row.getValue("role")
+    cell: ({ row }) => row.getValue("role"),
   },
   {
     accessorKey: "plan_name",
@@ -114,13 +114,14 @@ export const columns: ColumnDef<User>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Plan
           <ArrowUpDown />
         </Button>
       );
     },
-    cell: ({ row }) => row.getValue("plan_name")
+    cell: ({ row }) => row.getValue("plan_name"),
   },
   {
     accessorKey: "email",
@@ -129,13 +130,14 @@ export const columns: ColumnDef<User>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Email
           <ArrowUpDown />
         </Button>
       );
     },
-    cell: ({ row }) => row.getValue("email")
+    cell: ({ row }) => row.getValue("email"),
   },
   {
     accessorKey: "country",
@@ -144,13 +146,14 @@ export const columns: ColumnDef<User>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Country
           <ArrowUpDown />
         </Button>
       );
     },
-    cell: ({ row }) => row.getValue("country")
+    cell: ({ row }) => row.getValue("country"),
   },
   {
     accessorKey: "status",
@@ -159,7 +162,8 @@ export const columns: ColumnDef<User>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Status
           <ArrowUpDown />
         </Button>
@@ -171,7 +175,7 @@ export const columns: ColumnDef<User>[] = [
       const statusMap = {
         active: "success",
         inactive: "destructive",
-        pending: "warning"
+        pending: "warning",
       } as const;
 
       const statusClass = statusMap[status] ?? "outline";
@@ -181,7 +185,7 @@ export const columns: ColumnDef<User>[] = [
           {status.replace("-", " ")}
         </Badge>
       );
-    }
+    },
   },
   {
     id: "actions",
@@ -201,8 +205,8 @@ export const columns: ColumnDef<User>[] = [
           </DropdownMenuContent>
         </DropdownMenu>
       );
-    }
-  }
+    },
+  },
 ];
 
 export default function UsersDataTable({ data }: { data: User[] }) {
@@ -226,69 +230,69 @@ export default function UsersDataTable({ data }: { data: User[] }) {
       sorting,
       columnFilters,
       columnVisibility,
-      rowSelection
-    }
+      rowSelection,
+    },
   });
 
   const statuses = [
     {
       value: "active",
-      label: "Active"
+      label: "Active",
     },
     {
       value: "inactive",
-      label: "Inactive"
+      label: "Inactive",
     },
     {
       value: "pending",
-      label: "Pending"
-    }
+      label: "Pending",
+    },
   ];
 
   const plans = [
     {
       value: "basic",
-      label: "Basic"
+      label: "Basic",
     },
     {
       value: "team",
-      label: "Team"
+      label: "Team",
     },
     {
       value: "enterprise",
-      label: "Enterprise"
-    }
+      label: "Enterprise",
+    },
   ];
 
   const roles = [
     {
       value: "construction-foreman",
-      label: "Construction Foreman"
+      label: "Construction Foreman",
     },
     {
       value: "project-manager",
-      label: "Project Manager"
+      label: "Project Manager",
     },
     {
       value: "surveyor",
-      label: "Surveyor"
+      label: "Surveyor",
     },
     {
       value: "architect",
-      label: "Architect"
+      label: "Architect",
     },
     {
       value: "subcontractor",
-      label: "Subcontractor"
+      label: "Subcontractor",
     },
     {
       value: "electrician",
-      label: "Electrician"
+      label: "Electrician",
     },
     {
       value: "estimator",
-      label: "Estimator"
-    }
+      label: "Estimator",
+    },
   ];
 
   return (
@@ -320,7 +324,8 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                         <CommandItem key={status.value} value={status.value}>
                           <Label
                             htmlFor={checkboxId}
-                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
                             <Checkbox id={checkboxId} />
                             <span>{status.label}</span>
                           </Label>
@@ -351,7 +356,8 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                         <CommandItem key={plan.value} value={plan.value}>
                           <Label
                             htmlFor={checkboxId}
-                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
                             <Checkbox id={checkboxId} />
                             <span>{plan.label}</span>
                           </Label>
@@ -382,13 +388,15 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                         <CommandItem
                           key={role.value}
                           value={role.value}
-                          onSelect={(currentValue) => {
+                          onSelect={(_currentValue) => {
                             // setValue(currentValue === value ? "" : currentValue);
                             // setOpen(false);
-                          }}>
+                          }}
+                        >
                           <Label
                             htmlFor={checkboxId}
-                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                          >
                             <Checkbox id={checkboxId} />
                             <span>{role.label}</span>
                           </Label>
@@ -417,7 +425,8 @@ export default function UsersDataTable({ data }: { data: User[] }) {
                     key={column.id}
                     className="capitalize"
                     checked={column.getIsVisible()}
-                    onCheckedChange={(value) => column.toggleVisibility(value)}>
+                    onCheckedChange={(value) => column.toggleVisibility(value)}
+                  >
                     {column.id}
                   </DropdownMenuCheckboxItem>
                 );
@@ -473,14 +482,16 @@ export default function UsersDataTable({ data }: { data: User[] }) {
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}>
+            disabled={!table.getCanPreviousPage()}
+          >
             Previous
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}>
+            disabled={!table.getCanNextPage()}
+          >
             Next
           </Button>
         </div>

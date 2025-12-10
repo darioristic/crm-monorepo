@@ -11,10 +11,11 @@ const getProductsSchema = z.object({
 
 type GetProductsParams = z.infer<typeof getProductsSchema>;
 
-export const getProductsTool = tool({
+export const getProductsTool = (tool as unknown as typeof tool)({
+  name: "getProducts",
   description: "Search and retrieve products with filtering options",
   parameters: getProductsSchema,
-  execute: (async (params: GetProductsParams): Promise<ToolResponse> => {
+  execute: async (params: GetProductsParams): Promise<ToolResponse> => {
     const { pageSize = 10, search, category } = params;
     try {
       let query = `
@@ -76,16 +77,17 @@ ${tableRows}
         text: `Failed to retrieve products: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  }) as any,
-} as any);
+  },
+});
 
 const emptySchema = z.object({});
 type EmptyParams = z.infer<typeof emptySchema>;
 
-export const getProductCategoriesSummaryTool = tool({
+export const getProductCategoriesSummaryTool = (tool as unknown as typeof tool)({
+  name: "getProductCategories",
   description: "Get a summary of products grouped by category",
   parameters: emptySchema,
-  execute: (async (_params: EmptyParams): Promise<ToolResponse> => {
+  execute: async (_params: EmptyParams): Promise<ToolResponse> => {
     try {
       const result = await db`
         SELECT 
@@ -117,7 +119,8 @@ export const getProductCategoriesSummaryTool = tool({
         .join("\n");
 
       const totalProducts = result.reduce(
-        (sum: number, row: Record<string, unknown>) => sum + parseInt(row.product_count as string, 10),
+        (sum: number, row: Record<string, unknown>) =>
+          sum + parseInt(row.product_count as string, 10),
         0
       );
 
@@ -141,5 +144,5 @@ ${tableRows}
         text: `Failed to retrieve categories: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  }) as any,
-} as any);
+  },
+});

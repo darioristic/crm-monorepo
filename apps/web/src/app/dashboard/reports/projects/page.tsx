@@ -1,13 +1,13 @@
-import { generateMeta } from "@/lib/utils";
 import { Suspense } from "react";
-import { ProjectReportsContent } from "./project-reports-content";
 import { ChartSkeleton } from "@/components/reports/charts";
+import { generateMeta } from "@/lib/utils";
+import { ProjectReportsContent } from "./project-reports-content";
 
 export async function generateMetadata() {
   return generateMeta({
     title: "Project Reports",
     description: "Project analytics and reporting",
-    canonical: "/dashboard/reports/projects"
+    canonical: "/dashboard/reports/projects",
   });
 }
 

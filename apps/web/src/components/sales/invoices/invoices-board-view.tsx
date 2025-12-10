@@ -1,34 +1,21 @@
 "use client";
 
+import type { Company, Invoice } from "@crm/types";
+import { Filter, LayoutGrid, MoreHorizontal, RefreshCw, Search } from "lucide-react";
 import * as React from "react";
-import {
-  Search,
-  RefreshCw,
-  Filter,
-  LayoutGrid,
-  MoreHorizontal,
-} from "lucide-react";
-import type { Invoice, Company } from "@crm/types";
-import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
-
+import { toast } from "sonner";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { InvoiceSheet } from "@/components/sheets";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { companiesApi, invoicesApi } from "@/lib/api";
+import { getErrorMessage } from "@/lib/utils";
+import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 import { InvoiceCard, type InvoiceWithCompany } from "./invoice-card";
 import { PaymentDialog } from "./PaymentDialog";
-import { InvoiceSheet } from "@/components/sheets";
-import { invoicesApi, companiesApi } from "@/lib/api";
-import { usePaginatedApi, useMutation } from "@/hooks/use-api";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/utils";
 
 type BoardColumn = {
   id: string;
@@ -66,22 +53,17 @@ interface InvoicesBoardViewProps {
   onNewInvoice?: () => void;
 }
 
-export function InvoicesBoardView({ onNewInvoice }: InvoicesBoardViewProps) {
+export function InvoicesBoardView({ onNewInvoice: _onNewInvoice }: InvoicesBoardViewProps) {
   const [searchValue, setSearchValue] = React.useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [selectedInvoice, setSelectedInvoice] =
-    React.useState<InvoiceWithCompany | null>(null);
+  const [selectedInvoice, setSelectedInvoice] = React.useState<InvoiceWithCompany | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false);
-  const [paymentInvoice, setPaymentInvoice] =
-    React.useState<InvoiceWithCompany | null>(null);
+  const [paymentInvoice, setPaymentInvoice] = React.useState<InvoiceWithCompany | null>(null);
   const [editSheetOpen, setEditSheetOpen] = React.useState(false);
-  const [editInvoice, setEditInvoice] =
-    React.useState<InvoiceWithCompany | null>(null);
+  const [editInvoice, setEditInvoice] = React.useState<InvoiceWithCompany | null>(null);
 
   // Fetch companies for name lookup - use paginated API to get all companies
-  const {
-    data: companies,
-  } = usePaginatedApi<Company>(
+  const { data: companies } = usePaginatedApi<Company>(
     (params) => companiesApi.getAll({ ...params, pageSize: 1000 }), // Get all companies
     {}
   );
@@ -105,15 +87,12 @@ export function InvoicesBoardView({ onNewInvoice }: InvoicesBoardViewProps) {
     isLoading,
     error,
     refetch,
-  } = usePaginatedApi<Invoice>(
-    (params) => invoicesApi.getAll({ ...params, pageSize: 200 }),
-    { search: searchValue }
-  );
+  } = usePaginatedApi<Invoice>((params) => invoicesApi.getAll({ ...params, pageSize: 200 }), {
+    search: searchValue,
+  });
 
   // Delete mutation
-  const deleteMutation = useMutation<void, string>((id) =>
-    invoicesApi.delete(id)
-  );
+  const deleteMutation = useMutation<void, string>((id) => invoicesApi.delete(id));
 
   // Enrich invoices with company names
   const enrichedInvoices: InvoiceWithCompany[] = React.useMemo(() => {
@@ -259,14 +238,9 @@ export function InvoicesBoardView({ onNewInvoice }: InvoicesBoardViewProps) {
                 >
                   <div className="flex items-center gap-2">
                     <span
-                      className={`w-2 h-2 rounded-full ${column.color.replace(
-                        "text-",
-                        "bg-"
-                      )}`}
+                      className={`w-2 h-2 rounded-full ${column.color.replace("text-", "bg-")}`}
                     />
-                    <span className={`font-semibold ${column.color}`}>
-                      {column.title}
-                    </span>
+                    <span className={`font-semibold ${column.color}`}>{column.title}</span>
                     <span className={`text-sm ${column.color} opacity-70`}>
                       {columnInvoices.length}
                     </span>
@@ -354,7 +328,18 @@ export function InvoicesBoardView({ onNewInvoice }: InvoicesBoardViewProps) {
                   quantity: item.quantity,
                   price: item.unitPrice,
                   unit: "pcs",
-                })) || [{ name: "", quantity: 1, price: 0, unit: "pcs" }],
+                  discount: item.discount ?? 0,
+                  vat: item.vatRate ?? 20,
+                })) || [
+                  {
+                    name: "",
+                    quantity: 1,
+                    price: 0,
+                    unit: "pcs",
+                    discount: 0,
+                    vat: 20,
+                  },
+                ],
                 template: {
                   ...DEFAULT_INVOICE_TEMPLATE,
                   vatRate: editInvoice.taxRate || 0,

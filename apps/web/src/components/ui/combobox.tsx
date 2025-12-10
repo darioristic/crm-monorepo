@@ -1,8 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -12,11 +11,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 export interface ComboboxOption {
   value: string;
@@ -54,9 +50,7 @@ export function Combobox({
   const filteredOptions = React.useMemo(() => {
     if (!search) return options;
 
-    return options.filter((option) =>
-      option.label.toLowerCase().includes(search.toLowerCase())
-    );
+    return options.filter((option) => option.label.toLowerCase().includes(search.toLowerCase()));
   }, [options, search]);
 
   return (
@@ -86,11 +80,7 @@ export function Combobox({
       </PopoverTrigger>
       <PopoverContent className="w-full p-0" align="start">
         <Command shouldFilter={false}>
-          <CommandInput
-            placeholder={searchPlaceholder}
-            value={search}
-            onValueChange={setSearch}
-          />
+          <CommandInput placeholder={searchPlaceholder} value={search} onValueChange={setSearch} />
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
             <CommandGroup>

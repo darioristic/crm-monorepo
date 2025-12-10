@@ -1,14 +1,14 @@
-import { generateMeta } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { UsersDataTable } from "@/components/users/users-data-table";
+import { generateMeta } from "@/lib/utils";
 
 export async function generateMetadata() {
   return generateMeta({
     title: "Contacts",
     description: "Manage individual contacts who are customers or employees in companies",
-    canonical: "/dashboard/users"
+    canonical: "/dashboard/users",
   });
 }
 
@@ -33,4 +33,3 @@ export default function UsersPage() {
     </div>
   );
 }
-

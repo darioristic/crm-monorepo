@@ -27,11 +27,7 @@ export function formatAmount({
   }).format(amount);
 }
 
-export function formatDate(
-  date: string,
-  dateFormat?: string | null,
-  checkYear = true,
-): string {
+export function formatDate(date: string, dateFormat?: string | null, checkYear = true): string {
   if (checkYear && isSameYear(new Date(), new Date(date))) {
     return format(new Date(date), "MMM d");
   }

@@ -1,7 +1,7 @@
 "use client";
 
-import { Editor } from "@/components/invoice/editor";
 import { Controller, useFormContext } from "react-hook-form";
+import { Editor } from "@/components/invoice/editor";
 import { LabelInput } from "./label-input";
 
 export function NoteDetails() {
@@ -10,10 +10,7 @@ export function NoteDetails() {
 
   return (
     <div>
-      <LabelInput
-        name="template.noteLabel"
-        className="mb-2 block"
-      />
+      <LabelInput name="template.noteLabel" className="mb-2 block" />
 
       <Controller
         name="noteDetails"

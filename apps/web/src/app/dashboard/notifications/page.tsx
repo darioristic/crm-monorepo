@@ -103,7 +103,7 @@ export default function NotificationsPage() {
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { pageSize: 50 };
+      const params: { pageSize: number; isRead?: boolean } = { pageSize: 50 };
       if (filter === "unread") params.isRead = false;
       if (filter === "read") params.isRead = true;
 
@@ -213,7 +213,10 @@ export default function NotificationsPage() {
               {unreadCount > 0 && <Badge variant="secondary">{unreadCount} unread</Badge>}
             </div>
             <div className="flex items-center gap-2">
-              <Select value={filter} onValueChange={(value: any) => setFilter(value)}>
+              <Select
+                value={filter}
+                onValueChange={(value: "all" | "unread" | "read") => setFilter(value)}
+              >
                 <SelectTrigger className="w-[120px]">
                   <FilterIcon className="mr-2 h-4 w-4" />
                   <SelectValue />
@@ -258,8 +261,8 @@ export default function NotificationsPage() {
 
           {isLoading ? (
             <div className="space-y-4">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="flex items-start gap-4 rounded-lg border p-4">
+              {["s1", "s2", "s3", "s4", "s5"].map((k) => (
+                <div key={k} className="flex items-start gap-4 rounded-lg border p-4">
                   <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-5 w-1/3" />
@@ -341,6 +344,7 @@ export default function NotificationsPage() {
                               strokeLinecap="round"
                               strokeLinejoin="round"
                             >
+                              <title>Actions</title>
                               <circle cx="12" cy="12" r="1" />
                               <circle cx="12" cy="5" r="1" />
                               <circle cx="12" cy="19" r="1" />

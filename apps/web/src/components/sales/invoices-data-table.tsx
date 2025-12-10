@@ -57,7 +57,7 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
   );
 
   // Fetch companies for name lookup - use paginated API to get all companies
-  const { data: companies, isLoading: companiesLoading } = usePaginatedApi<Company>(
+  const { data: companies } = usePaginatedApi<Company>(
     (params) => companiesApi.getAll({ ...params, pageSize: 1000 }), // Get all companies
     {}
   );

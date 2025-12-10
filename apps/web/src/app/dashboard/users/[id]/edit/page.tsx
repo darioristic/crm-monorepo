@@ -1,15 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
-import { ChevronLeft, Loader2 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { useEffect, useState } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { UserForm } from "@/components/users/user-form";
 import type { TenantUser } from "@/lib/api";
 import { tenantAdminApi } from "@/lib/api";
-import { UserForm } from "@/components/users/user-form";
-import { Button } from "@/components/ui/button";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EditUserPage() {
   const params = useParams();
@@ -26,14 +26,15 @@ export default function EditUserPage() {
         if (response.success && response.data) {
           setUser(response.data);
         } else {
-          const errorMsg = typeof response.error === 'object' && response.error?.message 
-            ? response.error.message 
-            : typeof response.error === 'string' 
-              ? response.error 
-              : "Failed to load contact";
+          const errorMsg =
+            typeof response.error === "object" && response.error?.message
+              ? response.error.message
+              : typeof response.error === "string"
+                ? response.error
+                : "Failed to load contact";
           setError(errorMsg);
         }
-      } catch (e) {
+      } catch (_e) {
         setError("Failed to load user");
       } finally {
         setIsLoading(false);

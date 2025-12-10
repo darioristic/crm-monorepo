@@ -1,20 +1,19 @@
 "use client";
 
-import * as React from "react";
-
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
+  type ColumnDef,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable
+  type SortingState,
+  useReactTable,
+  type VisibilityState,
 } from "@tanstack/react-table";
-
+import { ChevronDownIcon, ChevronsUpDown, Ellipsis } from "lucide-react";
+import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -25,7 +24,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,41 +33,40 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import { ChevronDownIcon, ChevronsUpDown, Ellipsis } from "lucide-react";
 
 const data: Payment[] = [
   {
     id: "m5gr84i9",
     amount: 316,
     status: "success",
-    email: "ken99@yahoo.com"
+    email: "ken99@yahoo.com",
   },
   {
     id: "3u1reuv4",
     amount: 242,
     status: "success",
-    email: "Abe45@gmail.com"
+    email: "Abe45@gmail.com",
   },
   {
     id: "derv1ws0",
     amount: 837,
     status: "processing",
-    email: "Monserrat44@gmail.com"
+    email: "Monserrat44@gmail.com",
   },
   {
     id: "5kma53ae",
     amount: 874,
     status: "success",
-    email: "Silas22@gmail.com"
+    email: "Silas22@gmail.com",
   },
   {
     id: "bhqecj4p",
     amount: 721,
     status: "failed",
-    email: "carmella@hotmail.com"
-  }
+    email: "carmella@hotmail.com",
+  },
 ];
 
 export type Payment = {
@@ -98,12 +96,12 @@ export const columns: ColumnDef<Payment>[] = [
       />
     ),
     enableSorting: false,
-    enableHiding: false
+    enableHiding: false,
   },
   {
     accessorKey: "status",
     header: "Status",
-    cell: ({ row }) => <div className="capitalize">{row.getValue("status")}</div>
+    cell: ({ row }) => <div className="capitalize">{row.getValue("status")}</div>,
   },
   {
     accessorKey: "email",
@@ -112,13 +110,14 @@ export const columns: ColumnDef<Payment>[] = [
         <Button
           variant="ghost"
           className="p-0!"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Email
           <ChevronsUpDown className="size-3!" />
         </Button>
       );
     },
-    cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>
+    cell: ({ row }) => <div className="lowercase">{row.getValue("email")}</div>,
   },
   {
     accessorKey: "amount",
@@ -129,11 +128,11 @@ export const columns: ColumnDef<Payment>[] = [
       // Format the amount as a dollar amount
       const formatted = new Intl.NumberFormat("en-US", {
         style: "currency",
-        currency: "USD"
+        currency: "USD",
       }).format(amount);
 
       return <div className="text-right font-medium">{formatted}</div>;
-    }
+    },
   },
   {
     id: "actions",
@@ -162,8 +161,8 @@ export const columns: ColumnDef<Payment>[] = [
           </DropdownMenu>
         </div>
       );
-    }
-  }
+    },
+  },
 ];
 
 export function LeadsCard() {
@@ -187,8 +186,8 @@ export function LeadsCard() {
       sorting,
       columnFilters,
       columnVisibility,
-      rowSelection
-    }
+      rowSelection,
+    },
   });
 
   return (
@@ -220,7 +219,8 @@ export function LeadsCard() {
                       key={column.id}
                       className="capitalize"
                       checked={column.getIsVisible()}
-                      onCheckedChange={(value) => column.toggleVisibility(!!value)}>
+                      onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                    >
                       {column.id}
                     </DropdownMenuCheckboxItem>
                   );
@@ -276,14 +276,16 @@ export function LeadsCard() {
               variant="outline"
               size="sm"
               onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}>
+              disabled={!table.getCanPreviousPage()}
+            >
               Previous
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}>
+              disabled={!table.getCanNextPage()}
+            >
               Next
             </Button>
           </div>

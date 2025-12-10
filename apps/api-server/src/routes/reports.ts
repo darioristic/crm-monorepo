@@ -3,7 +3,7 @@
  */
 
 import { reportsService } from "../services/reports.service";
-import { RouteBuilder, withAuth, parsePagination, parseFilters } from "./helpers";
+import { parseFilters, parsePagination, RouteBuilder, withAuth } from "./helpers";
 
 const router = new RouteBuilder();
 
@@ -97,7 +97,8 @@ router.get("/api/v1/reports/project-summary", async (request) => {
 
 router.get("/api/v1/reports/revenue-over-time", async (request, url) => {
   return withAuth(request, async () => {
-    const from = url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const from =
+      url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const to = url.searchParams.get("to") || new Date().toISOString();
     return reportsService.getRevenueOverTime({ from, to });
   });
@@ -105,7 +106,8 @@ router.get("/api/v1/reports/revenue-over-time", async (request, url) => {
 
 router.get("/api/v1/reports/revenue-by-company", async (request, url) => {
   return withAuth(request, async () => {
-    const from = url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const from =
+      url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const to = url.searchParams.get("to") || new Date().toISOString();
     const limit = parseInt(url.searchParams.get("limit") || "10", 10);
     return reportsService.getRevenueByCompany({ from, to }, limit);
@@ -114,7 +116,8 @@ router.get("/api/v1/reports/revenue-by-company", async (request, url) => {
 
 router.get("/api/v1/reports/top-customers", async (request, url) => {
   return withAuth(request, async () => {
-    const from = url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const from =
+      url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const to = url.searchParams.get("to") || new Date().toISOString();
     const limit = parseInt(url.searchParams.get("limit") || "10", 10);
     return reportsService.getTopCustomers({ from, to }, limit);
@@ -123,7 +126,8 @@ router.get("/api/v1/reports/top-customers", async (request, url) => {
 
 router.get("/api/v1/reports/conversion-funnel", async (request, url) => {
   return withAuth(request, async () => {
-    const from = url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const from =
+      url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const to = url.searchParams.get("to") || new Date().toISOString();
     return reportsService.getConversionFunnel({ from, to });
   });
@@ -131,7 +135,8 @@ router.get("/api/v1/reports/conversion-funnel", async (request, url) => {
 
 router.get("/api/v1/reports/invoice-status", async (request, url) => {
   return withAuth(request, async () => {
-    const from = url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const from =
+      url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const to = url.searchParams.get("to") || new Date().toISOString();
     return reportsService.getInvoiceStatusBreakdown({ from, to });
   });
@@ -143,7 +148,8 @@ router.get("/api/v1/reports/invoice-status", async (request, url) => {
 
 router.get("/api/v1/reports/task-stats-over-time", async (request, url) => {
   return withAuth(request, async () => {
-    const from = url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const from =
+      url.searchParams.get("from") || new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const to = url.searchParams.get("to") || new Date().toISOString();
     const projectId = url.searchParams.get("projectId") || undefined;
     return reportsService.getTaskStatsOverTime({ from, to }, projectId);

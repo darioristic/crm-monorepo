@@ -1,9 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import {
-  COMMON_AGENT_RULES,
-  createAgent,
-  formatContextForLLM,
-} from "./config/shared";
+import { COMMON_AGENT_RULES, createAgent, formatContextForLLM } from "./config/shared";
 
 export const customersAgent = createAgent({
   name: "customers",
@@ -42,4 +38,3 @@ ${COMMON_AGENT_RULES}
 - Provide context about recent interactions
 </response_guidelines>`,
 });
-

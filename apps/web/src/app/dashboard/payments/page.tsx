@@ -97,7 +97,13 @@ export default function PaymentsPage() {
   const fetchPayments = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params: Record<string, any> = { pageSize: 50 };
+      const params: {
+        pageSize: number;
+        paymentMethod?: PaymentMethod;
+        status?: PaymentStatus;
+      } = {
+        pageSize: 50,
+      };
       if (filters.method !== "all") params.paymentMethod = filters.method;
       if (filters.status !== "all") params.status = filters.status;
 
@@ -216,7 +222,9 @@ export default function PaymentsPage() {
               />
               <Select
                 value={filters.method}
-                onValueChange={(value: any) => setFilters((prev) => ({ ...prev, method: value }))}
+                onValueChange={(value: PaymentMethod | "all") =>
+                  setFilters((prev) => ({ ...prev, method: value }))
+                }
               >
                 <SelectTrigger className="w-[150px]">
                   <CreditCard className="mr-2 h-4 w-4" />
@@ -232,7 +240,9 @@ export default function PaymentsPage() {
               </Select>
               <Select
                 value={filters.status}
-                onValueChange={(value: any) => setFilters((prev) => ({ ...prev, status: value }))}
+                onValueChange={(value: PaymentStatus | "all") =>
+                  setFilters((prev) => ({ ...prev, status: value }))
+                }
               >
                 <SelectTrigger className="w-[140px]">
                   <FilterIcon className="mr-2 h-4 w-4" />
@@ -252,8 +262,8 @@ export default function PaymentsPage() {
         <CardContent>
           {isLoading ? (
             <div className="space-y-3">
-              {[...Array(5)].map((_, i) => (
-                <Skeleton key={i} className="h-16 w-full" />
+              {["s1", "s2", "s3", "s4", "s5"].map((k) => (
+                <Skeleton key={k} className="h-16 w-full" />
               ))}
             </div>
           ) : filteredPayments.length === 0 ? (

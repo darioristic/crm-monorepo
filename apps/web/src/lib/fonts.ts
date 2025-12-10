@@ -1,14 +1,14 @@
 import {
   Geist,
+  Hedvig_Letters_Serif,
   Inter,
+  Kumbh_Sans,
   Montserrat,
   Overpass_Mono,
-  Poppins,
-  Roboto,
-  PT_Sans,
   Plus_Jakarta_Sans,
-  Hedvig_Letters_Serif,
-  Kumbh_Sans
+  Poppins,
+  PT_Sans,
+  Roboto,
 } from "next/font/google";
 import { cn } from "@/lib/utils";
 
@@ -20,49 +20,49 @@ const geistMono = Geist({ subsets: ["latin"], variable: "--font-geist-mono" });
 const roboto = Roboto({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
-  variable: "--font-roboto"
+  variable: "--font-roboto",
 });
 
 const plus_jakarta_sans = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "800"],
-  variable: "--font-plus-jakarta-sans"
+  variable: "--font-plus-jakarta-sans",
 });
 
 const montserrat = Montserrat({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  variable: "--font-montserrat"
+  variable: "--font-montserrat",
 });
 
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  variable: "--font-poppins"
+  variable: "--font-poppins",
 });
 
 const overpass_mono = Overpass_Mono({
   subsets: ["latin"],
   weight: ["400", "500", "700"],
-  variable: "--font-overpass-mono"
+  variable: "--font-overpass-mono",
 });
 
 const ptSans = PT_Sans({
   variable: "--font-pt-sans",
   subsets: ["latin"],
-  weight: ["400", "700"]
+  weight: ["400", "700"],
 });
 
 const hedvig_letters_serif = Hedvig_Letters_Serif({
   subsets: ["latin"],
   weight: ["400"],
-  variable: "--font-hedvig-letters-serif"
+  variable: "--font-hedvig-letters-serif",
 });
 
 const kumbh_sans = Kumbh_Sans({
   subsets: ["latin"],
   weight: ["400"],
-  variable: "--font-kumbh-sans"
+  variable: "--font-kumbh-sans",
 });
 
 export const fontVariables = cn(

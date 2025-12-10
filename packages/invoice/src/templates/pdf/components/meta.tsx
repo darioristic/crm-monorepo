@@ -21,7 +21,7 @@ export function Meta({
   issueDateLabel,
   dueDateLabel,
   dateFormat = "MM/dd/yyyy",
-  timezone,
+  timezone: _timezone,
   title,
 }: MetaProps) {
   const formatDate = (dateStr: string | null | undefined): string => {
@@ -37,9 +37,7 @@ export function Meta({
 
   return (
     <View>
-      <Text style={{ fontSize: 21, fontWeight: 500, marginBottom: 8 }}>
-        {title}
-      </Text>
+      <Text style={{ fontSize: 21, fontWeight: 500, marginBottom: 8 }}>{title}</Text>
       <View style={{ flexDirection: "column", gap: 4 }}>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
@@ -51,17 +49,13 @@ export function Meta({
           <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
             {issueDateLabel ? `${issueDateLabel}:` : ""}
           </Text>
-          <Text style={{ fontSize: 9 }}>
-            {formatDate(issueDate)}
-          </Text>
+          <Text style={{ fontSize: 9 }}>{formatDate(issueDate)}</Text>
         </View>
         <View style={{ flexDirection: "row", alignItems: "center" }}>
           <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
             {dueDateLabel ? `${dueDateLabel}:` : ""}
           </Text>
-          <Text style={{ fontSize: 9 }}>
-            {formatDate(dueDate)}
-          </Text>
+          <Text style={{ fontSize: 9 }}>{formatDate(dueDate)}</Text>
         </View>
       </View>
     </View>

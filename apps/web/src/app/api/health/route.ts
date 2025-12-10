@@ -11,4 +11,3 @@ export async function GET() {
 
 // Disable caching for health checks
 export const dynamic = "force-dynamic";
-

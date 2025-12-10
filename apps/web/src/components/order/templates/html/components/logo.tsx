@@ -1,3 +1,5 @@
+import Image from "next/image";
+
 type Props = {
   logo: string;
   customerName: string;
@@ -5,16 +7,15 @@ type Props = {
 
 export function Logo({ logo, customerName }: Props) {
   return (
-    <div className="max-w-[300px]">
-      <img
+    <div className="max-w-[120px] max-h-[60px]">
+      <Image
         src={logo}
         alt={customerName}
-        style={{
-          height: 80,
-          objectFit: "contain",
-        }}
+        width={120}
+        height={60}
+        style={{ objectFit: "contain", maxHeight: 60 }}
+        unoptimized
       />
     </div>
   );
 }
-

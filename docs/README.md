@@ -26,6 +26,13 @@ Dobrodošli u dokumentaciju CRM sistema! Ovde ćete pronaći sve potrebne inform
 
 **[🎯 AI INDEX](./AI_INDEX.md)** - **START HERE** za AI dokumentaciju
 
+#### Quick Reference
+
+- **[AI Module Guide](./AI_MODULE.md)** - Complete module documentation (NEW!)
+- **[AI Quick Reference](./AI_QUICK_REFERENCE.md)** - Cheat sheet for common operations (NEW!)
+
+#### Detailed Guides
+
 - **[AI README](./AI_README.md)** - Quick start i overview (11 KB)
 - **[AI Examples](./AI_EXAMPLES.md)** - 40+ code examples (29 KB)
 - **[Agents Guide](./AI_AGENTS_GUIDE.md)** - Agent development (10 KB)
@@ -37,7 +44,7 @@ Dobrodošli u dokumentaciju CRM sistema! Ovde ćete pronaći sve potrebne inform
 - **[Troubleshooting](./AI_TROUBLESHOOTING.md)** - Problem solving (11 KB)
 - **[Architecture](./AI_ARCHITECTURE_DIAGRAM.md)** - Visual diagrams (19 KB)
 
-> **12 dokumenata | 7,000+ linija | 150+ KB dokumentacije**
+> **14 dokumenata | 8,000+ linija | 180+ KB dokumentacije**
 
 ### 🏗️ Za Developere
 

@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { companiesApi } from "@/lib/api";
-import type { QuoteDefaultSettings } from "@/types/quote";
+import type { EditorDoc, QuoteDefaultSettings } from "@/types/quote";
 import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
 
 // Hook for quote settings - simplified version without store
 export function useQuoteSettings() {
   const { user } = useAuth();
-  const [fromDetails, setFromDetails] = useState<any>(null);
-  const [paymentDetails, setPaymentDetails] = useState<any>(null);
+  const [fromDetails, setFromDetails] = useState<EditorDoc | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<EditorDoc | null>(null);
 
   // Fetch fromDetails from current user's company instead of localStorage
   useEffect(() => {
@@ -39,7 +39,7 @@ export function useQuoteSettings() {
           if (company.website) lines.push(company.website);
           if (company.vatNumber) lines.push(`PIB: ${company.vatNumber}`);
 
-          const builtFromDetails =
+          const builtFromDetails: EditorDoc | null =
             lines.length > 0
               ? {
                   type: "doc",
@@ -61,7 +61,7 @@ export function useQuoteSettings() {
     try {
       const savedPaymentDetails = localStorage.getItem("quote_payment_details");
       if (savedPaymentDetails) {
-        setPaymentDetails(JSON.parse(savedPaymentDetails));
+        setPaymentDetails(JSON.parse(savedPaymentDetails) as EditorDoc);
       }
     } catch {
       setPaymentDetails(null);

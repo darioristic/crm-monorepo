@@ -33,6 +33,7 @@ describe("Rate Limit Middleware", () => {
   const mockAuth: AuthContext = {
     userId: mockUserId,
     role: "user",
+    tenantRoles: [],
     companyId: mockCompanyId,
     sessionId: mockSessionId,
   };

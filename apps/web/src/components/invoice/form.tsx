@@ -292,7 +292,13 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       return;
     }
 
-    const result = await createMutation.mutate(transformedData as CreateInvoiceRequest);
+    const transformedWithCompany = {
+      ...transformedData,
+      companyId: (user?.companyId as string) || "",
+    };
+    const result = await createMutation.mutate(
+      transformedWithCompany as unknown as CreateInvoiceRequest
+    );
 
     if (result.success && result.data) {
       const isUpdate = !!invoiceId;

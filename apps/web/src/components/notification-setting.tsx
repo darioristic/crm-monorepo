@@ -15,6 +15,16 @@ type Props = {
   }[];
 };
 
+type NotificationType = {
+  type: string;
+  category: string;
+  order: number;
+  settings: Array<{
+    channel: "in_app" | "email" | "push";
+    enabled: boolean;
+  }>;
+};
+
 export function NotificationSetting({ type, name, description, settings }: Props) {
   const queryClient = useQueryClient();
 
@@ -38,31 +48,37 @@ export function NotificationSetting({ type, name, description, settings }: Props
       });
 
       // Snapshot the previous value
-      const previousData = queryClient.getQueryData(["notificationSettings", "getAll"]);
+      const previousData = queryClient.getQueryData<NotificationType[]>([
+        "notificationSettings",
+        "getAll",
+      ]);
 
       // Optimistically update the cache
-      queryClient.setQueryData(["notificationSettings", "getAll"], (old: any) => {
-        if (!old) return old;
+      queryClient.setQueryData(
+        ["notificationSettings", "getAll"],
+        (old: NotificationType[] | undefined) => {
+          if (!old) return old;
 
-        return old.map((notificationType: any) => {
-          if (notificationType.type !== variables.notificationType) {
-            return notificationType;
-          }
+          return old.map((notificationType) => {
+            if (notificationType.type !== variables.notificationType) {
+              return notificationType;
+            }
 
-          return {
-            ...notificationType,
-            settings: notificationType.settings.map((setting: any) => {
-              if (setting.channel !== variables.channel) {
-                return setting;
-              }
-              return {
-                ...setting,
-                enabled: variables.enabled,
-              };
-            }),
-          };
-        });
-      });
+            return {
+              ...notificationType,
+              settings: notificationType.settings.map((setting) => {
+                if (setting.channel !== variables.channel) {
+                  return setting;
+                }
+                return {
+                  ...setting,
+                  enabled: variables.enabled,
+                };
+              }),
+            };
+          });
+        }
+      );
 
       // Return a context object with the snapshotted value
       return { previousData };

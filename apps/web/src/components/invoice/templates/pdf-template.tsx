@@ -75,8 +75,8 @@ function calculateLineItemTotalWithDiscount({
  */
 function renderEditorContent(content: EditorDoc | string | null) {
   const text = extractTextFromEditorDoc(content);
-  return text.split("\n").map((line, i) => (
-    <Text key={i} style={{ fontSize: 9, lineHeight: 1.6 }}>
+  return text.split("\n").map((line) => (
+    <Text key={line || "line"} style={{ fontSize: 9, lineHeight: 1.6 }}>
       {line || " "}
     </Text>
   ));
@@ -301,7 +301,7 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
             });
             return (
               <View
-                key={index}
+                key={`${item.name}-${item.price}-${item.quantity}`}
                 style={{
                   flexDirection: "row",
                   paddingVertical: 5,

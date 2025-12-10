@@ -1,5 +1,6 @@
 "use client";
 
+import type { DeliveryNoteWithRelations } from "@crm/types";
 import { motion } from "framer-motion";
 import { Check, Download, Link2, Pencil } from "lucide-react";
 import { useState } from "react";
@@ -10,8 +11,16 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
 
+type PublicDeliveryNote = Partial<DeliveryNoteWithRelations> & {
+  id?: string;
+  companyName?: string;
+  terms?: string | null;
+  notes?: string | null;
+  status?: string;
+};
+
 type DeliveryNotePublicViewProps = {
-  deliveryNote: any;
+  deliveryNote: PublicDeliveryNote;
   token: string;
 };
 
@@ -40,71 +49,19 @@ function DeliveryNoteStatus({ status }: { status?: string }) {
   );
 }
 
-function getStoredFromDetails() {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = localStorage.getItem("invoice_from_details");
-    return stored ? JSON.parse(stored) : null;
-  } catch {
-    return null;
-  }
-}
+import { getStoredFromDetails } from "@/hooks/use-stored-from-details";
 
-function buildCustomerDetails(deliveryNote: any): any {
-  if (deliveryNote.customerDetails) {
-    if (typeof deliveryNote.customerDetails === "string") {
-      try {
-        return JSON.parse(deliveryNote.customerDetails);
-      } catch {
-        return null;
-      }
-    }
-    return deliveryNote.customerDetails;
-  }
+import { buildCustomerDetails } from "@/utils/customer-details";
 
-  const lines: string[] = [];
-  const companyName = (deliveryNote as any).companyName || deliveryNote.company?.name;
-  if (companyName) {
-    lines.push(companyName);
-  }
-
-  if (deliveryNote.company) {
-    if (deliveryNote.company.address) {
-      lines.push(deliveryNote.company.address);
-    }
-    const cityLine = [
-      deliveryNote.company.city,
-      deliveryNote.company.zip || deliveryNote.company.postalCode,
-      deliveryNote.company.country,
-    ]
-      .filter(Boolean)
-      .join(", ");
-    if (cityLine) lines.push(cityLine);
-    if (deliveryNote.company.email) lines.push(deliveryNote.company.email);
-    if (deliveryNote.company.phone) lines.push(deliveryNote.company.phone);
-    if (deliveryNote.company.vatNumber) {
-      lines.push(`VAT: ${deliveryNote.company.vatNumber}`);
-    }
-  }
-
-  if (lines.length === 0) return null;
-
-  return {
-    type: "doc",
-    content: lines.map((line) => ({
-      type: "paragraph",
-      content: [{ type: "text", text: line }],
-    })),
-  };
-}
-
-export function DeliveryNotePublicView({ deliveryNote, token }: DeliveryNotePublicViewProps) {
+export function DeliveryNotePublicView({
+  deliveryNote,
+  token: _token,
+}: DeliveryNotePublicViewProps) {
   const { isAuthenticated } = useAuth();
   const [isCopied, setIsCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const customerName =
-    (deliveryNote as any).companyName || deliveryNote.company?.name || "Customer";
+  const customerName = deliveryNote.companyName || deliveryNote.company?.name || "Customer";
 
   const customerDetails = buildCustomerDetails(deliveryNote);
   const fromDetails = getStoredFromDetails();

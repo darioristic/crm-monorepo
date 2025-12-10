@@ -117,8 +117,8 @@ router.get("/api/v1/companies/current", async (request) => {
         companyNumber: account.companyNumber ?? null,
         logoUrl: account.logoUrl ?? null,
         note: account.note ?? null,
-        createdAt: account.createdAt,
-        updatedAt: account.updatedAt,
+        createdAt: new Date(account.createdAt as string | Date).toISOString(),
+        updatedAt: new Date(account.updatedAt as string | Date).toISOString(),
       });
     }
 
@@ -147,8 +147,18 @@ router.get("/api/v1/companies/current", async (request) => {
       address: "",
       logoUrl: null,
       email: null,
-      createdAt: tenant[0].createdAt,
-      updatedAt: tenant[0].createdAt,
+      note: null,
+      phone: null,
+      website: null,
+      contact: null,
+      city: null,
+      zip: null,
+      country: null,
+      countryCode: null,
+      vatNumber: null,
+      companyNumber: null,
+      createdAt: new Date(tenant[0].createdAt as string | Date).toISOString(),
+      updatedAt: new Date(tenant[0].createdAt as string | Date).toISOString(),
     };
 
     return successResponse(tenantAsCompany);
@@ -290,7 +300,7 @@ router.get("/api/v1/companies", async (request, url) => {
           WHERE (c.source IS NULL OR c.source <> 'customer')
           ORDER BY c.name ASC
         `;
-        memberCompanies = allCompanies.map((row: any) => ({
+        memberCompanies = allCompanies.map((row: Record<string, unknown>) => ({
           id: row.id as string,
           name: row.name as string,
           industry: row.industry as string,
@@ -302,7 +312,7 @@ router.get("/api/v1/companies", async (request, url) => {
         }));
       } else if (isTenantAdmin(auth)) {
         // Tenant admin sees all companies from their tenant (not just member companies)
-        let effectiveTenantId = auth.tenantId;
+        let effectiveTenantId = auth.activeTenantId;
 
         if (!effectiveTenantId) {
           // If tenant admin has no tenantId, create/get default tenant and assign it
@@ -340,7 +350,7 @@ router.get("/api/v1/companies", async (request, url) => {
                 AND (c.source IS NULL OR c.source <> 'customer')
               ORDER BY c.name ASC
           `;
-          memberCompanies = allTenantCompanies.map((row: any) => ({
+          memberCompanies = allTenantCompanies.map((row: Record<string, unknown>) => ({
             id: row.id as string,
             name: row.name as string,
             industry: row.industry as string,
@@ -357,7 +367,7 @@ router.get("/api/v1/companies", async (request, url) => {
       } else {
         // Regular users see only companies they are members of
         // If user doesn't have tenantId, get or create default tenant
-        let effectiveTenantId = auth.tenantId;
+        let effectiveTenantId = auth.activeTenantId;
         if (!effectiveTenantId) {
           const { getOrCreateDefaultTenant } = await import("../db/queries/tenants");
           effectiveTenantId = await getOrCreateDefaultTenant();
@@ -380,8 +390,18 @@ router.get("/api/v1/companies", async (request, url) => {
         address: c.address,
         logoUrl: c.logoUrl || null,
         email: c.email || null,
-        createdAt: c.createdAt,
-        updatedAt: c.createdAt,
+        note: null,
+        phone: "",
+        website: null,
+        contact: null,
+        city: null,
+        zip: null,
+        country: null,
+        countryCode: null,
+        vatNumber: null,
+        companyNumber: null,
+        createdAt: c.createdAt as string,
+        updatedAt: c.createdAt as string,
       }));
       return successResponse(companies);
     }
@@ -390,7 +410,7 @@ router.get("/api/v1/companies", async (request, url) => {
     const pagination = parsePagination(url);
     const filters = {
       ...parseFilters(url),
-      tenantId: auth.tenantId,
+      tenantId: auth.activeTenantId,
       source: "customer",
     } as Record<string, unknown>;
     return companiesService.getCompanies(pagination, filters);
@@ -436,17 +456,17 @@ router.post("/api/v1/companies", async (request) => {
           address: body.address,
           userId: auth.userId,
           email: body.email || undefined,
-          phone: (body as any).phone || undefined,
-          website: (body as any).website || undefined,
-          contact: (body as any).contact || undefined,
-          city: (body as any).city || undefined,
-          zip: (body as any).zip || undefined,
-          country: (body as any).country || undefined,
-          countryCode: (body as any).countryCode || undefined,
-          vatNumber: (body as any).vatNumber || undefined,
-          companyNumber: (body as any).companyNumber || undefined,
-          note: (body as any).note || undefined,
-          logoUrl: (body as any).logoUrl || undefined,
+          phone: body.phone ?? undefined,
+          website: body.website ?? undefined,
+          contact: body.contact ?? undefined,
+          city: body.city ?? undefined,
+          zip: body.zip ?? undefined,
+          country: body.country ?? undefined,
+          countryCode: body.countryCode ?? undefined,
+          vatNumber: body.vatNumber ?? undefined,
+          companyNumber: body.companyNumber ?? undefined,
+          note: body.note ?? undefined,
+          logoUrl: body.logoUrl ?? undefined,
           switchCompany: false,
           source: "customer",
         });
@@ -455,11 +475,12 @@ router.post("/api/v1/companies", async (request) => {
           return errorResponse("SERVER_ERROR", "Failed to retrieve created company");
         }
 
-        const inputLogo = (body as any).logoUrl;
+        const inputLogo = body.logoUrl;
         if (inputLogo && typeof inputLogo === "string") {
           const storedUrl = await storeLogoFromInput(companyId, inputLogo);
           if (storedUrl) {
-            company = await updateCompanyById({ id: companyId, logoUrl: storedUrl });
+            await updateCompanyById({ id: companyId, logoUrl: storedUrl });
+            company = await getCompanyById(companyId);
           }
         }
 
@@ -498,34 +519,37 @@ router.put("/api/v1/companies/:id", async (request, _url, params) => {
 
     try {
       logger.info({ companyId: params.id }, "UPDATE_COMPANY_PARSE_BODY");
-      const inputLogo = (body as any).logoUrl;
+      const inputLogo = body.logoUrl;
       let processedLogoUrl: string | undefined;
       if (inputLogo && typeof inputLogo === "string") {
         const storedUrl = await storeLogoFromInput(params.id, inputLogo);
         processedLogoUrl = storedUrl ?? inputLogo;
       }
 
-      const company = await updateCompanyById({
+      await updateCompanyById({
         id: params.id,
         name: body.name,
         industry: body.industry,
         address: body.address,
         email: body.email ?? undefined,
-        phone: (body as any).phone ?? undefined,
-        website: (body as any).website ?? undefined,
-        contact: (body as any).contact ?? undefined,
-        city: (body as any).city ?? undefined,
-        zip: (body as any).zip ?? undefined,
-        country: (body as any).country ?? undefined,
-        countryCode: (body as any).countryCode ?? undefined,
-        vatNumber: (body as any).vatNumber ?? undefined,
-        companyNumber: (body as any).companyNumber ?? undefined,
-        note: (body as any).note ?? undefined,
+        phone: body.phone ?? undefined,
+        website: body.website ?? undefined,
+        contact: body.contact ?? undefined,
+        city: body.city ?? undefined,
+        zip: body.zip ?? undefined,
+        country: body.country ?? undefined,
+        countryCode: body.countryCode ?? undefined,
+        vatNumber: body.vatNumber ?? undefined,
+        companyNumber: body.companyNumber ?? undefined,
+        note: body.note ?? undefined,
         logoUrl: processedLogoUrl,
       });
       logger.info({ companyId: params.id }, "UPDATE_COMPANY_SUCCESS");
-
-      return successResponse(company);
+      const fullCompany = await getCompanyById(params.id);
+      if (!fullCompany) {
+        return errorResponse("NOT_FOUND", "Company not found");
+      }
+      return successResponse(fullCompany);
     } catch (error) {
       logger.error({ error, companyId: params.id }, "UPDATE_COMPANY_ERROR");
       return errorResponse(

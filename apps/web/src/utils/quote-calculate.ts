@@ -52,7 +52,7 @@ export function calculateTotal({
   const safeLineItems = lineItems || [];
 
   const normalizeNumber = (n: unknown, fallback = 0): number => {
-    const num = typeof n === "number" ? n : Number(n as any);
+    const num = typeof n === "number" ? n : Number(n as unknown as string | number);
     return Number.isFinite(num) ? num : fallback;
   };
 
@@ -114,7 +114,7 @@ export function calculateLineItemTotal({
   quantity?: number;
 }): number {
   const normalizeNumber = (n: unknown, fallback = 0): number => {
-    const num = typeof n === "number" ? n : Number(n as any);
+    const num = typeof n === "number" ? n : Number(n as unknown as string | number);
     return Number.isFinite(num) ? num : fallback;
   };
 

@@ -1,13 +1,6 @@
 "use client";
 
-import type {
-  Company,
-  CreateOrderRequest,
-  Invoice,
-  Order,
-  Quote,
-  UpdateOrderRequest,
-} from "@crm/types";
+import type { CreateOrderRequest, Order, UpdateOrderRequest } from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Loader2, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -40,8 +33,8 @@ import {
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
-import { useApi, useMutation } from "@/hooks/use-api";
-import { companiesApi, invoicesApi, ordersApi, quotesApi } from "@/lib/api";
+import { useMutation } from "@/hooks/use-api";
+import { ordersApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
 const lineItemSchema = z.object({
@@ -69,8 +62,17 @@ const orderFormSchema = z.object({
 
 type OrderFormValues = z.infer<typeof orderFormSchema>;
 
+type OrderItemInput = {
+  productName: string;
+  description?: string | null;
+  quantity: number;
+  unitPrice: number;
+  discount?: number;
+  total: number;
+};
+
 interface OrderFormProps {
-  order?: Order & { items?: any[] };
+  order?: Order & { items?: OrderItemInput[] };
   mode: "create" | "edit";
 }
 
@@ -79,10 +81,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
   const { user } = useAuth();
   const [showCreateCustomer, setShowCreateCustomer] = useState(false);
 
-  const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
-    () => companiesApi.getAll(),
-    { autoFetch: true }
-  );
+  // Companies are not currently used in this form; remove unused fetch to satisfy lint
 
   const { data: quotes } = useApi<Quote[]>(() => quotesApi.getAll(), {
     autoFetch: true,
@@ -99,7 +98,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
   );
 
   const form = useForm<OrderFormValues>({
-    resolver: zodResolver(orderFormSchema) as any,
+    resolver: zodResolver(orderFormSchema),
     defaultValues: {
       companyId: order?.companyId || "",
       contactId: order?.contactId || "",
@@ -111,7 +110,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
       total: order?.total || 0,
       currency: order?.currency || "EUR",
       notes: order?.notes || "",
-      items: order?.items?.map((item: any) => ({
+      items: order?.items?.map((item: OrderItemInput) => ({
         productName: item.productName || "",
         description: item.description || "",
         quantity: item.quantity || 1,
@@ -177,7 +176,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
         total: order.total,
         currency: order.currency,
         notes: order.notes || "",
-        items: order.items?.map((item: any) => ({
+        items: order.items?.map((item: OrderItemInput) => ({
           productName: item.productName || "",
           description: item.description || "",
           quantity: item.quantity || 1,
@@ -215,12 +214,10 @@ export function OrderForm({ order, mode }: OrderFormProps) {
       items: values.items,
     };
 
-    let result;
-    if (mode === "create") {
-      result = await createMutation.mutate(data as unknown as CreateOrderRequest);
-    } else {
-      result = await updateMutation.mutate(data as UpdateOrderRequest);
-    }
+    const result: { success: true; data: Order } | { success: false; error: string } =
+      mode === "create"
+        ? await createMutation.mutate(data as CreateOrderRequest)
+        : await updateMutation.mutate(data as UpdateOrderRequest);
 
     if (result.success) {
       toast.success(

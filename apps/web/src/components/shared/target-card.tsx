@@ -2,18 +2,18 @@
 
 import { Label, PolarGrid, PolarRadiusAxis, RadialBar, RadialBarChart } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartConfig, ChartContainer } from "@/components/ui/chart";
+import { type ChartConfig, ChartContainer } from "@/components/ui/chart";
 
 const chartData = [{ browser: "safari", visitors: 200, fill: "var(--color-safari)" }];
 
 const chartConfig = {
   visitors: {
-    label: "Visitors"
+    label: "Visitors",
   },
   safari: {
     label: "Safari",
-    color: "var(--primary)"
-  }
+    color: "var(--primary)",
+  },
 } satisfies ChartConfig;
 
 export function TargetCard() {
@@ -31,7 +31,8 @@ export function TargetCard() {
                 startAngle={0}
                 endAngle={250}
                 innerRadius={25}
-                outerRadius={20}>
+                outerRadius={20}
+              >
                 <PolarGrid
                   gridType="circle"
                   radialLines={false}
@@ -48,11 +49,13 @@ export function TargetCard() {
                             x={viewBox.cx}
                             y={viewBox.cy}
                             textAnchor="middle"
-                            dominantBaseline="middle">
+                            dominantBaseline="middle"
+                          >
                             <tspan
                               x={viewBox.cx}
                               y={viewBox.cy}
-                              className="fill-foreground font-bold">
+                              className="fill-foreground font-bold"
+                            >
                               %48
                             </tspan>
                           </text>

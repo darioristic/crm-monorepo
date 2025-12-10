@@ -6,6 +6,17 @@ import { logger } from "@/lib/logger";
 import type { Invoice } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
+type InvoiceItemApi = {
+  productName?: string;
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+  unit?: string;
+  discount?: number;
+  vat?: number;
+  vatRate?: number;
+};
+
 export const runtime = "nodejs";
 
 // Get logo as base64 data URL for PDF rendering
@@ -203,7 +214,7 @@ export async function GET(request: NextRequest) {
       amount: apiInvoice.total,
       currency: apiInvoice.currency || "EUR",
       lineItems:
-        apiInvoice.items?.map((item: any) => ({
+        apiInvoice.items?.map((item: InvoiceItemApi) => ({
           name: item.productName || item.description || "",
           quantity: item.quantity || 1,
           price: item.unitPrice || 0,
@@ -278,7 +289,9 @@ export async function GET(request: NextRequest) {
     const { renderToBuffer } = await import("@react-pdf/renderer");
     const { PdfTemplate } = await import("@/components/invoice/templates/pdf-template");
     const pdfDocument = await PdfTemplate({ invoice });
-    const buffer = await renderToBuffer(pdfDocument as any);
+    const buffer = await renderToBuffer(
+      pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]
+    );
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",
       "Cache-Control": "no-store, max-age=0",
@@ -435,7 +448,7 @@ export async function POST(request: NextRequest) {
       amount: apiInvoice.total,
       currency: apiInvoice.currency || "EUR",
       lineItems:
-        apiInvoice.items?.map((item: any) => ({
+        apiInvoice.items?.map((item: InvoiceItemApi) => ({
           name: item.productName || item.description || "",
           quantity: item.quantity || 1,
           price: item.unitPrice || 0,
@@ -510,7 +523,9 @@ export async function POST(request: NextRequest) {
     const { renderToBuffer } = await import("@react-pdf/renderer");
     const { PdfTemplate } = await import("@/components/invoice/templates/pdf-template");
     const pdfDocument = await PdfTemplate({ invoice });
-    const buffer = await renderToBuffer(pdfDocument as any);
+    const buffer = await renderToBuffer(
+      pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]
+    );
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",
       "Cache-Control": "no-store, max-age=0",

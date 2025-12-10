@@ -1,19 +1,9 @@
-import {
-  Document,
-  Page,
-  View,
-  Text,
-  Image,
-  Font,
-} from "@react-pdf/renderer";
+import { Document, Font, Image, Page, Text, View } from "@react-pdf/renderer";
 import { format, parseISO } from "date-fns";
 import QRCodeUtil from "qrcode";
-import type { Quote, EditorDoc } from "@/types/quote";
+import type { EditorDoc, Quote } from "@/types/quote";
 import { extractTextFromEditorDoc } from "@/types/quote";
-import {
-  calculateTotal,
-  formatQuoteAmount,
-} from "@/utils/quote-calculate";
+import { calculateTotal, formatQuoteAmount } from "@/utils/quote-calculate";
 
 // Register Inter font - matching Midday's approach with .ttf files
 Font.register({
@@ -85,13 +75,11 @@ function calculateLineItemTotalWithDiscount({
  */
 function renderEditorContent(content: EditorDoc | string | null) {
   const text = extractTextFromEditorDoc(content);
-  return text
-    .split("\n")
-    .map((line, i) => (
-      <Text key={i} style={{ fontSize: 9, lineHeight: 1.6 }}>
-        {line || " "}
-      </Text>
-    ));
+  return text.split("\n").map((line) => (
+    <Text key={line || "line"} style={{ fontSize: 9, lineHeight: 1.6 }}>
+      {line || " "}
+    </Text>
+  ));
 }
 
 // Async function matching Midday's approach
@@ -174,34 +162,25 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
                 <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
                   {template.quoteNoLabel}:
                 </Text>
-                <Text style={{ fontSize: 9 }}>
-                  {quote.quoteNumber || "-"}
-                </Text>
+                <Text style={{ fontSize: 9 }}>{quote.quoteNumber || "-"}</Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
                   {template.issueDateLabel}:
                 </Text>
-                <Text style={{ fontSize: 9 }}>
-                  {formatDate(quote.issueDate)}
-                </Text>
+                <Text style={{ fontSize: 9 }}>{formatDate(quote.issueDate)}</Text>
               </View>
               <View style={{ flexDirection: "row", alignItems: "center" }}>
                 <Text style={{ fontSize: 9, fontWeight: 500, marginRight: 2 }}>
                   {template.validUntilLabel}:
                 </Text>
-                <Text style={{ fontSize: 9 }}>
-                  {formatDate(quote.validUntil)}
-                </Text>
+                <Text style={{ fontSize: 9 }}>{formatDate(quote.validUntil)}</Text>
               </View>
             </View>
           </View>
           {template.logoUrl && (
             <View style={{ maxWidth: 300 }}>
-              <Image
-                src={template.logoUrl}
-                style={{ height: 75, objectFit: "contain" }}
-              />
+              <Image src={template.logoUrl} style={{ height: 75, objectFit: "contain" }} />
             </View>
           )}
         </View>
@@ -212,17 +191,13 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
             <Text style={{ fontSize: 9, fontWeight: 500, marginBottom: 4 }}>
               {template.fromLabel}
             </Text>
-            <View style={{ marginTop: 10 }}>
-              {renderEditorContent(quote.fromDetails)}
-            </View>
+            <View style={{ marginTop: 10 }}>{renderEditorContent(quote.fromDetails)}</View>
           </View>
           <View style={{ flex: 1, marginLeft: 10 }}>
             <Text style={{ fontSize: 9, fontWeight: 500, marginBottom: 4 }}>
               {template.customerLabel}
             </Text>
-            <View style={{ marginTop: 10 }}>
-              {renderEditorContent(quote.customerDetails)}
-            </View>
+            <View style={{ marginTop: 10 }}>{renderEditorContent(quote.customerDetails)}</View>
           </View>
         </View>
 
@@ -237,34 +212,70 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
               marginBottom: 5,
             }}
           >
-            <Text style={{ width: 25, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
+            <Text
+              style={{
+                width: 25,
+                fontSize: 9,
+                fontWeight: 500,
+                textAlign: "center",
+              }}
+            >
               #
             </Text>
             <Text style={{ flex: 3, fontSize: 9, fontWeight: 500 }}>
               {template.descriptionLabel}
             </Text>
-            <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 500,
+                textAlign: "center",
+              }}
+            >
               {template.quantityLabel}
             </Text>
-            <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
+            <Text
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 500,
+                textAlign: "center",
+              }}
+            >
               {template.priceLabel}
             </Text>
             {template.includeDiscount && (
               <Text
-                style={{ flex: 0.7, fontSize: 9, fontWeight: 500, textAlign: "center" }}
+                style={{
+                  flex: 0.7,
+                  fontSize: 9,
+                  fontWeight: 500,
+                  textAlign: "center",
+                }}
               >
                 {template.discountLabel || "Pop."}
               </Text>
             )}
             {template.includeVat && (
               <Text
-                style={{ flex: 0.7, fontSize: 9, fontWeight: 500, textAlign: "center" }}
+                style={{
+                  flex: 0.7,
+                  fontSize: 9,
+                  fontWeight: 500,
+                  textAlign: "center",
+                }}
               >
                 {template.vatLabel || "PDV"}
               </Text>
             )}
             <Text
-              style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "right" }}
+              style={{
+                flex: 1,
+                fontSize: 9,
+                fontWeight: 500,
+                textAlign: "right",
+              }}
             >
               {template.totalLabel}
             </Text>
@@ -278,7 +289,7 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
             });
             return (
               <View
-                key={index}
+                key={`${item.name}-${item.price}-${item.quantity}`}
                 style={{
                   flexDirection: "row",
                   paddingVertical: 5,
@@ -288,11 +299,11 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
                 }}
                 wrap={false}
               >
-                <Text style={{ width: 25, fontSize: 9, textAlign: "center" }}>
-                  {index + 1}
-                </Text>
+                <Text style={{ width: 25, fontSize: 9, textAlign: "center" }}>{index + 1}</Text>
                 <Text style={{ flex: 3, fontSize: 9 }}>{item.name}</Text>
-                <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>{item.quantity ?? 0}</Text>
+                <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
+                  {item.quantity ?? 0}
+                </Text>
                 <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
                   {formatAmount(item.price ?? 0)}
                   {template.includeUnits && item.unit ? ` / ${item.unit}` : ""}
@@ -337,9 +348,7 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
               borderBottomColor: "#e5e5e5",
             }}
           >
-            <Text style={{ fontSize: 9, flex: 1, color: "#878787" }}>
-              Amount before discount:
-            </Text>
+            <Text style={{ fontSize: 9, flex: 1, color: "#878787" }}>Amount before discount:</Text>
             <Text style={{ fontSize: 9, textAlign: "right", color: "#878787" }}>
               {formatAmount(result.grossTotal)}
             </Text>
@@ -444,28 +453,24 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
         {/* Note - Full width above payment */}
         {quote.noteDetails && (
           <View style={{ marginTop: 20 }} wrap={false}>
-            <Text style={{ fontSize: 9, fontWeight: 500 }}>
-              {template.noteLabel}
-            </Text>
-            <View style={{ marginTop: 6 }}>
-              {renderEditorContent(quote.noteDetails)}
-            </View>
+            <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.noteLabel}</Text>
+            <View style={{ marginTop: 6 }}>{renderEditorContent(quote.noteDetails)}</View>
           </View>
         )}
 
         {/* Payment Details - Single row at bottom */}
         {quote.paymentDetails && (
           <View
-            style={{ marginTop: 20, flexDirection: "row", alignItems: "flex-start" }}
+            style={{
+              marginTop: 20,
+              flexDirection: "row",
+              alignItems: "flex-start",
+            }}
             wrap={false}
           >
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 9, fontWeight: 500 }}>
-                {template.paymentLabel}
-              </Text>
-              <View style={{ marginTop: 6 }}>
-                {renderEditorContent(quote.paymentDetails)}
-              </View>
+              <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.paymentLabel}</Text>
+              <View style={{ marginTop: 6 }}>{renderEditorContent(quote.paymentDetails)}</View>
             </View>
             {qrCode && (
               <View style={{ marginLeft: 20 }}>

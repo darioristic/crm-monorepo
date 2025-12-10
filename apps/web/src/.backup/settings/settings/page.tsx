@@ -1,16 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { cn } from "@/lib/utils";
-import { useFieldArray, useForm } from "react-hook-form";
-import { z } from "zod";
-import { toast } from "sonner";
 import { CircleUserRoundIcon, Trash2Icon } from "lucide-react";
-
-import { useFileUpload } from "@/hooks/use-file-upload";
-
+import Link from "next/link";
+import { useFieldArray, useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -18,7 +16,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
+  FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
@@ -26,34 +24,34 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useFileUpload } from "@/hooks/use-file-upload";
+import { cn } from "@/lib/utils";
 
 const profileFormSchema = z.object({
   username: z
     .string()
     .min(2, {
-      message: "Username must be at least 2 characters."
+      message: "Username must be at least 2 characters.",
     })
     .max(30, {
-      message: "Username must not be longer than 30 characters."
+      message: "Username must not be longer than 30 characters.",
     }),
   email: z
     .string({
-      required_error: "Please select an email to display."
+      required_error: "Please select an email to display.",
     })
     .email(),
   bio: z.string().max(160).min(4),
   urls: z
     .array(
       z.object({
-        value: z.string().url({ message: "Please enter a valid URL." })
+        value: z.string().url({ message: "Please enter a valid URL." }),
       })
     )
-    .optional()
+    .optional(),
 });
 
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
@@ -61,26 +59,26 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>;
 // This can come from your database or API.
 const defaultValues: Partial<ProfileFormValues> = {
   bio: "I own a computer.",
-  urls: [{ value: "https://shadcn.com" }, { value: "http://twitter.com/shadcn" }]
+  urls: [{ value: "https://shadcn.com" }, { value: "http://twitter.com/shadcn" }],
 };
 
 export default function Page() {
   const [{ files }, { removeFile, openFileDialog, getInputProps }] = useFileUpload({
-    accept: "image/*"
+    accept: "image/*",
   });
 
   const previewUrl = files[0]?.preview || null;
   const fileName = files[0]?.file.name || null;
 
   const form = useForm<ProfileFormValues>({
-    resolver: zodResolver(profileFormSchema) as any,
+    resolver: zodResolver(profileFormSchema),
     defaultValues,
-    mode: "onChange"
+    mode: "onChange",
   });
 
   const { fields, append } = useFieldArray({
     name: "urls",
-    control: form.control
+    control: form.control,
   });
 
   function onSubmit(data: ProfileFormValues) {
@@ -89,7 +87,7 @@ export default function Page() {
         <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
           <code className="text-white">{JSON.stringify(data, null, 2)}</code>
         </pre>
-      )
+      ),
     });
   }
 
@@ -121,7 +119,8 @@ export default function Page() {
                       type="button"
                       size="icon"
                       variant="destructive"
-                      onClick={() => removeFile(files[0]?.id)}>
+                      onClick={() => removeFile(files[0]?.id)}
+                    >
                       <Trash2Icon />
                     </Button>
                   )}
@@ -216,7 +215,8 @@ export default function Page() {
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => append({ value: "" })}>
+                onClick={() => append({ value: "" })}
+              >
                 Add URL
               </Button>
             </div>

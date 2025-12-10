@@ -1,4 +1,4 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { generateMeta } from "@/lib/utils";
 
 import { SidebarNav } from "./components/sidebar-nav";
@@ -8,7 +8,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: "Settings Page",
     description:
       "Example of settings page and form created using react-hook-form and Zod validator. Built with Tailwind CSS and React.",
-    canonical: "/pages/settings"
+    canonical: "/pages/settings",
   });
 }
 

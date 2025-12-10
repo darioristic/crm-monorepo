@@ -1,7 +1,9 @@
 "use client";
 
+import { Check, ChevronsUpDown } from "lucide-react";
+import * as React from "react";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import {
   Command,
   CommandEmpty,
@@ -10,14 +12,8 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
-import { ChevronsUpDown, Check } from "lucide-react";
-import * as React from "react";
-import { useEffect } from "react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 
 // Country data
 const countries = [
@@ -98,9 +94,7 @@ export function CountrySelector({ defaultValue, onSelect, id }: Props) {
     }
   }, [defaultValue, value]);
 
-  const selected = countries.find(
-    (country) => country.code === value || country.name === value
-  );
+  const selected = countries.find((country) => country.code === value || country.name === value);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -117,11 +111,7 @@ export function CountrySelector({ defaultValue, onSelect, id }: Props) {
       </PopoverTrigger>
       <PopoverContent className="w-[225px] p-0 z-[60]" align="start">
         <Command loop>
-          <CommandInput
-            placeholder="Search country..."
-            className="h-9 px-2"
-            autoComplete="off"
-          />
+          <CommandInput placeholder="Search country..." className="h-9 px-2" autoComplete="off" />
           <CommandEmpty>No country found.</CommandEmpty>
           <CommandGroup>
             <CommandList className="overflow-y-auto max-h-[230px] pt-2">

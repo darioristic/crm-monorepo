@@ -1,5 +1,15 @@
 export type DocumentType = "invoice" | "receipt" | "contract" | "other";
 
+// Attachment types for email/file processing
+export interface Attachment {
+  ContentType: string;
+  Filename?: string;
+  Content?: string | Buffer;
+  Size?: number;
+}
+
+export type Attachments = Attachment[];
+
 export interface DocumentClassifierRequest {
   content: string;
 }
@@ -67,4 +77,3 @@ export interface ExtractedReceipt {
 }
 
 export type ExtractedDocument = ExtractedInvoice | ExtractedReceipt;
-

@@ -2,10 +2,15 @@
  * Payment Routes
  */
 
+import type {
+  CreatePaymentRequest,
+  PaymentMethod,
+  PaymentStatus,
+  UpdatePaymentRequest,
+} from "@crm/types";
 import { errorResponse } from "@crm/utils";
 import { paymentsService } from "../services/payments.service";
-import { RouteBuilder, withAuth, parseBody, parsePagination } from "./helpers";
-import type { PaymentStatus, PaymentMethod, CreatePaymentRequest, UpdatePaymentRequest } from "@crm/types";
+import { parseBody, parsePagination, RouteBuilder, withAuth } from "./helpers";
 
 const router = new RouteBuilder();
 

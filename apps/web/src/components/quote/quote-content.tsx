@@ -1,9 +1,10 @@
 "use client";
 
+import type { QuoteFormValues } from "@crm/schemas";
 import { ArrowLeft, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import type { QuoteDefaultSettings, QuoteFormValues } from "@/types/quote";
+import type { QuoteDefaultSettings } from "@/types/quote";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
 import { SettingsMenu } from "./settings-menu";

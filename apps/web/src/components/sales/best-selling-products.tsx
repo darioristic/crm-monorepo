@@ -1,3 +1,7 @@
+import { ChevronRight } from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -6,16 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import Image from "next/image";
-import Link from "next/link";
-import { ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export function BestSellingProducts() {
   const products = [
@@ -107,9 +102,7 @@ export function BestSellingProducts() {
                 <div className="font-medium">{product.name}</div>
               </div>
             </div>
-            <div className="text-sm text-green-600">
-              {product.sold} items sold
-            </div>
+            <div className="text-sm text-green-600">{product.sold} items sold</div>
           </Link>
         ))}
       </CardContent>

@@ -43,8 +43,9 @@ export const invoiceQueries = {
       qb.addSearchCondition(["invoice_number"], filters.search);
       qb.addEqualCondition("status", filters.status);
       // Allow filtering by creator when company filter is not used
-      if ((filters as any).createdBy) {
-        qb.addEqualCondition("created_by", (filters as any).createdBy as string);
+      const createdBy = (filters as { createdBy?: string }).createdBy;
+      if (createdBy) {
+        qb.addEqualCondition("created_by", createdBy);
       }
 
       const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
@@ -92,13 +93,17 @@ export const invoiceQueries = {
 			`;
 
       // Group items by invoice_id
-      const itemsByInvoiceId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-        if (!acc[item.invoice_id]) {
-          acc[item.invoice_id] = [];
-        }
-        acc[item.invoice_id].push(item);
-        return acc;
-      }, {});
+      const itemsByInvoiceId = (allItems as Record<string, unknown>[]).reduce(
+        (acc: Record<string, Record<string, unknown>[]>, item) => {
+          const key = item.invoice_id as string;
+          if (!acc[key]) {
+            acc[key] = [];
+          }
+          acc[key].push(item);
+          return acc;
+        },
+        {}
+      );
 
       // Map invoices with their items
       const invoicesWithItems = data.map((row: Record<string, unknown>) => {
@@ -192,7 +197,7 @@ export const invoiceQueries = {
         created_by, created_at, updated_at
       ) VALUES (
         ${invoice.id}, ${invoice.invoiceNumber}, ${token}, ${invoice.quoteId || null},
-        ${invoice.companyId}, ${(invoice as any).sellerCompanyId || null}, ${invoice.contactId || null}, ${invoice.status},
+        ${invoice.companyId}, ${(invoice as { sellerCompanyId?: string }).sellerCompanyId ?? null}, ${invoice.contactId || null}, ${invoice.status},
         ${invoice.issueDate}, ${invoice.dueDate},
         ${invoice.grossTotal ?? invoice.subtotal}, ${invoice.subtotal}, ${invoice.discount ?? 0},
         ${invoice.taxRate}, ${invoice.vatRate ?? 20}, ${invoice.tax}, ${invoice.total},
@@ -233,7 +238,7 @@ export const invoiceQueries = {
       UPDATE invoices SET
         quote_id = COALESCE(${data.quoteId ?? null}, quote_id),
         company_id = COALESCE(${data.companyId ?? null}, company_id),
-        seller_company_id = COALESCE(${(data as any).sellerCompanyId ?? null}, seller_company_id),
+        seller_company_id = COALESCE(${(data as { sellerCompanyId?: string }).sellerCompanyId ?? null}, seller_company_id),
         contact_id = COALESCE(${data.contactId ?? null}, contact_id),
         status = COALESCE(${data.status ?? null}, status),
         due_date = COALESCE(${data.dueDate ?? null}, due_date),
@@ -281,7 +286,7 @@ export const invoiceQueries = {
     const deliveryNotesForInvoice = await db`
       SELECT id FROM delivery_notes WHERE invoice_id = ${id}
     `;
-    const dnIds = deliveryNotesForInvoice.map((r: any) => r.id);
+    const dnIds = (deliveryNotesForInvoice as unknown as Array<{ id: string }>).map((r) => r.id);
     if (dnIds.length > 0) {
       await db`DELETE FROM delivery_note_items WHERE delivery_note_id = ANY(${dnIds})`;
       await db`DELETE FROM delivery_notes WHERE id = ANY(${dnIds})`;
@@ -290,7 +295,7 @@ export const invoiceQueries = {
     const ordersForInvoice = await db`
       SELECT id FROM orders WHERE invoice_id = ${id}
     `;
-    const orderIds = ordersForInvoice.map((r: any) => r.id);
+    const orderIds = (ordersForInvoice as unknown as Array<{ id: string }>).map((r) => r.id);
     if (orderIds.length > 0) {
       await db`DELETE FROM order_items WHERE order_id = ANY(${orderIds})`;
       await db`DELETE FROM orders WHERE id = ANY(${orderIds})`;

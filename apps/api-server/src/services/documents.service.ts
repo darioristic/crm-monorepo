@@ -21,6 +21,7 @@ import {
   documentTagQueries,
 } from "../db/queries/documents";
 import { serviceLogger } from "../lib/logger";
+import { aiService } from "./ai.service";
 import { auditService } from "./audit.service";
 import * as fileStorage from "./file-storage.service";
 
@@ -119,6 +120,7 @@ export const documentsService = {
           });
           uploadedDocuments.push(document);
         } catch (err: unknown) {
+          serviceLogger.error({ error: err, originalName }, "Error uploading document");
           failures.push({ name: originalName, reason: "UPLOAD_FAILED" });
           auditService.logAction({
             userId: ownerId,
@@ -126,7 +128,7 @@ export const documentsService = {
             entityType: "document",
             metadata: {
               name: originalName,
-              reason: String(err?.message || err),
+              reason: err instanceof Error ? err.message : String(err),
             },
           });
         }
@@ -213,7 +215,7 @@ export const documentsService = {
             entityType: "document",
             metadata: {
               name: originalName,
-              reason: String(err?.message || err),
+              reason: err instanceof Error ? err.message : String(err),
             },
           });
         }
@@ -234,7 +236,7 @@ export const documentsService = {
   },
 
   /**
-   * Process documents (update metadata after upload)
+   * Process documents (update metadata after upload using AI classification)
    */
   async processDocuments(
     companyId: string,
@@ -243,14 +245,89 @@ export const documentsService = {
     try {
       const names = documents.map((doc) => doc.filePath.join("/"));
       await documentQueries.updateProcessingStatus(names, companyId, "processing");
-      await documentQueries.updateProcessingStatus(names, companyId, "completed");
-      for (const n of names) {
-        auditService.logAction({
-          action: "PROCESS_DOCUMENT",
-          entityType: "document",
-          metadata: { name: n },
-        });
+
+      // Process each document with AI classification
+      for (const doc of documents) {
+        const name = doc.filePath.join("/");
+        try {
+          // Get the document from DB to get its ID
+          const existingDoc = await documentQueries.findByPath(doc.filePath, companyId);
+          if (!existingDoc) {
+            serviceLogger.warn({ name, companyId }, "Document not found for AI processing");
+            continue;
+          }
+
+          // Check if AI is configured
+          if (aiService.isConfigured()) {
+            // Classify document using AI
+            const classification = await aiService.classifyDocument({
+              documentId: existingDoc.id,
+              companyId,
+              filePath: doc.filePath,
+              mimetype: doc.mimetype,
+            });
+
+            // Update document with AI-extracted metadata
+            await documentQueries.update(existingDoc.id, companyId, {
+              title: classification.title || existingDoc.title || undefined,
+              summary: classification.summary || existingDoc.summary || undefined,
+              language: classification.language || undefined,
+              date: classification.date || undefined,
+            });
+
+            // Create tags if any were suggested
+            if (classification.tags && classification.tags.length > 0) {
+              for (const tagName of classification.tags) {
+                try {
+                  const tagSlug = tagName.toLowerCase().replace(/\s+/g, "-");
+                  // Find or create the tag
+                  let tag = await documentTagQueries.findBySlug(tagSlug, companyId);
+                  if (!tag) {
+                    tag = await documentTagQueries.create({
+                      name: tagName,
+                      slug: tagSlug,
+                      companyId,
+                    });
+                  }
+                  // Assign tag to document
+                  await documentTagAssignmentQueries.create({
+                    documentId: existingDoc.id,
+                    tagId: tag.id,
+                    companyId,
+                  });
+                } catch (tagError) {
+                  serviceLogger.warn({ tagError, tagName }, "Failed to create/assign tag");
+                }
+              }
+            }
+
+            serviceLogger.info(
+              { documentId: existingDoc.id, classification },
+              "Document classified with AI"
+            );
+          } else {
+            // AI not configured - use basic filename-based title
+            const filename = doc.filePath[doc.filePath.length - 1] || "document";
+            const basicTitle = filename.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+            await documentQueries.update(existingDoc.id, companyId, {
+              title: basicTitle,
+            });
+          }
+
+          auditService.logAction({
+            action: "PROCESS_DOCUMENT",
+            entityType: "document",
+            entityId: existingDoc.id,
+            metadata: { name },
+          });
+        } catch (docError) {
+          serviceLogger.error({ docError, name }, "Error processing individual document");
+        }
       }
+
+      // Mark all as completed
+      await documentQueries.updateProcessingStatus(names, companyId, "completed");
+
       return successResponse(undefined);
     } catch (error: unknown) {
       try {
@@ -260,7 +337,7 @@ export const documentsService = {
           auditService.logAction({
             action: "DOCUMENT_FAILED",
             entityType: "document",
-            metadata: { name: n, reason: String(error?.message || error) },
+            metadata: { name: n, reason: error instanceof Error ? error.message : String(error) },
           });
         }
       } catch {}
@@ -295,13 +372,14 @@ export const documentsService = {
         p++;
       }
       const whereClause = whereParts.length ? `WHERE ${whereParts.join(" AND ")}` : "";
+      const pgParams = params as Array<string | number | boolean | null | Date>;
       const counts = await db.unsafe(
         `SELECT
 				  COUNT(*)::int AS total_created,
 				  SUM(CASE WHEN processing_status = 'completed' THEN 1 ELSE 0 END)::int AS total_completed,
 				  SUM(CASE WHEN processing_status = 'failed' THEN 1 ELSE 0 END)::int AS total_failed
 				 FROM documents ${whereClause}`,
-        params
+        pgParams
       );
       const audit = await auditService.getLogs({
         entityType: "document",
@@ -459,6 +537,136 @@ export const documentsService = {
     } catch (error) {
       serviceLogger.error(error, "Error fetching related documents");
       return errorResponse("INTERNAL_ERROR", "Failed to fetch related documents");
+    }
+  },
+
+  /**
+   * Store a generated document (invoice, quote, etc.) in the vault
+   * This is used to automatically add system-generated PDFs to the vault
+   */
+  async storeGeneratedDocument(
+    companyId: string,
+    ownerId: string,
+    params: {
+      pdfBuffer: Buffer;
+      documentType: "invoice" | "quote" | "delivery-note" | "order";
+      entityId: string;
+      title: string;
+      documentNumber?: string;
+      metadata?: Record<string, unknown>;
+    }
+  ): Promise<ApiResponse<Document>> {
+    try {
+      const { pdfBuffer, documentType, entityId, title, documentNumber, metadata } = params;
+
+      // Generate filename based on document type and number
+      const filename = documentNumber
+        ? `${documentType}-${documentNumber}.pdf`
+        : `${documentType}-${entityId}.pdf`;
+
+      // Store file in vault under a special folder for generated documents
+      const uploadResult = await fileStorage.uploadFileFromBuffer(
+        companyId,
+        pdfBuffer,
+        filename,
+        "application/pdf"
+      );
+
+      // Create document record with pre-filled metadata
+      const document = await documentQueries.create({
+        name: uploadResult.path.join("/"),
+        pathTokens: uploadResult.path,
+        title,
+        summary: `${documentType.charAt(0).toUpperCase() + documentType.slice(1)} ${documentNumber || entityId}`,
+        metadata: {
+          size: uploadResult.size,
+          mimetype: "application/pdf",
+          originalName: filename,
+          documentType,
+          entityId,
+          ...metadata,
+        },
+        companyId,
+        ownerId,
+        processingStatus: "completed" as DocumentProcessingStatus,
+      });
+
+      // Assign appropriate tag based on document type
+      const tagName =
+        documentType === "invoice"
+          ? "Invoice"
+          : documentType === "quote"
+            ? "Quote"
+            : documentType === "delivery-note"
+              ? "Delivery Note"
+              : "Order";
+
+      try {
+        const tagSlug = tagName.toLowerCase().replace(/\s+/g, "-");
+        let tag = await documentTagQueries.findBySlug(tagSlug, companyId);
+        if (!tag) {
+          tag = await documentTagQueries.create({
+            name: tagName,
+            slug: tagSlug,
+            companyId,
+          });
+        }
+        await documentTagAssignmentQueries.create({
+          documentId: document.id,
+          tagId: tag.id,
+          companyId,
+        });
+      } catch (tagError) {
+        serviceLogger.warn({ tagError, tagName }, "Failed to assign tag to generated document");
+      }
+
+      auditService.logAction({
+        userId: ownerId,
+        action: "CREATE_DOCUMENT",
+        entityType: "document",
+        entityId: document.id,
+        metadata: { name: filename, documentType, entityId },
+      });
+
+      serviceLogger.info(
+        { documentId: document.id, documentType, entityId },
+        "Generated document stored in vault"
+      );
+
+      return successResponse(document);
+    } catch (error) {
+      serviceLogger.error(error, "Error storing generated document");
+      return errorResponse("INTERNAL_ERROR", "Failed to store generated document");
+    }
+  },
+
+  /**
+   * Find document by entity reference (e.g., invoice ID)
+   */
+  async findByEntityId(
+    companyId: string,
+    documentType: string,
+    entityId: string
+  ): Promise<ApiResponse<Document | null>> {
+    try {
+      // Search in metadata for matching entity
+      const result = await db`
+        SELECT * FROM documents
+        WHERE company_id = ${companyId}
+        AND metadata->>'documentType' = ${documentType}
+        AND metadata->>'entityId' = ${entityId}
+        ORDER BY created_at DESC
+        LIMIT 1
+      `;
+
+      if (result.length === 0) {
+        return successResponse(null);
+      }
+
+      return successResponse(result[0] as unknown as Document);
+    } catch (error) {
+      serviceLogger.error(error, "Error finding document by entity ID");
+      return errorResponse("INTERNAL_ERROR", "Failed to find document");
     }
   },
 };

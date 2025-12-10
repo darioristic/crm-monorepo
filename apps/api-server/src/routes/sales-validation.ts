@@ -16,8 +16,16 @@ const itemSchema = z.object({
   quantity: z.number().positive("Quantity must be positive"),
   unitPrice: z.number().nonnegative("Unit price must be non-negative"),
   taxRate: z.number().min(0).max(100).optional(),
-  discount: z.number().min(0).max(100).optional(),
+  discount: z.number().min(0).max(100).default(0),
 });
+const updateItemSchema = itemSchema.extend({ id: z.string().uuid(), total: z.number() });
+
+// Delivery Note items require `unit`
+const deliveryNoteItemSchema = itemSchema.extend({
+  unit: z.string().min(1, "Unit is required"),
+  discount: z.number().min(0).max(100).default(0),
+});
+const deliveryNoteUpdateItemSchema = deliveryNoteItemSchema.extend({ id: z.string().uuid() });
 
 // ============================================
 // Quote Validation Schemas
@@ -25,8 +33,8 @@ const itemSchema = z.object({
 
 export const createQuoteSchema = z.object({
   customerCompanyId: z.string().uuid("Invalid customer company ID"),
-  issueDate: z.string().datetime().or(z.date()),
-  validUntil: z.string().datetime().or(z.date()),
+  issueDate: z.string().datetime(),
+  validUntil: z.string().datetime(),
   items: z.array(itemSchema).min(1, "At least one item is required"),
   notes: z.string().optional(),
   terms: z.string().optional(),
@@ -38,9 +46,17 @@ export const createQuoteSchema = z.object({
 
 export const updateQuoteSchema = z.object({
   companyId: z.string().uuid("Invalid company ID").optional(),
-  issueDate: z.string().datetime().or(z.date()).optional(),
-  validUntil: z.string().datetime().or(z.date()).optional(),
-  items: z.array(itemSchema).optional(),
+  issueDate: z.string().datetime().optional(),
+  validUntil: z.string().datetime().optional(),
+  items: z
+    .array(
+      itemSchema.extend({
+        id: z.string().uuid(),
+        discount: z.number().min(0).max(100),
+        total: z.number(),
+      })
+    )
+    .optional(),
   notes: z.string().optional(),
   terms: z.string().optional(),
   taxRate: z.number().min(0).max(100).optional(),
@@ -54,8 +70,8 @@ export const updateQuoteSchema = z.object({
 
 export const createInvoiceSchema = z.object({
   customerCompanyId: z.string().uuid("Invalid customer company ID"),
-  issueDate: z.string().datetime().or(z.date()),
-  dueDate: z.string().datetime().or(z.date()).optional(),
+  issueDate: z.string().datetime(),
+  dueDate: z.string().datetime().optional(),
   items: z.array(itemSchema).min(1, "At least one item is required"),
   notes: z.string().optional(),
   terms: z.string().optional(),
@@ -68,9 +84,9 @@ export const createInvoiceSchema = z.object({
 
 export const updateInvoiceSchema = z.object({
   companyId: z.string().uuid("Invalid company ID").optional(),
-  issueDate: z.string().datetime().or(z.date()).optional(),
-  dueDate: z.string().datetime().or(z.date()).optional(),
-  items: z.array(itemSchema).optional(),
+  issueDate: z.string().datetime().optional(),
+  dueDate: z.string().datetime().optional(),
+  items: z.array(updateItemSchema).optional(),
   notes: z.string().optional(),
   terms: z.string().optional(),
   taxRate: z.number().min(0).max(100).optional(),
@@ -89,20 +105,20 @@ export const recordPaymentSchema = z.object({
 
 export const createDeliveryNoteSchema = z.object({
   customerCompanyId: z.string().uuid("Invalid customer company ID"),
-  deliveryDate: z.string().datetime().or(z.date()),
-  items: z.array(itemSchema).min(1, "At least one item is required"),
+  deliveryDate: z.string().datetime(),
+  items: z.array(deliveryNoteItemSchema).min(1, "At least one item is required"),
   notes: z.string().optional(),
-  status: z.enum(["draft", "pending", "delivered", "cancelled"]).optional(),
-  shippingAddress: z.string().optional(),
+  status: z.enum(["pending", "in_transit", "delivered", "returned"]).optional(),
+  shippingAddress: z.string().min(1, "Shipping address is required"),
   createdBy: z.string().uuid().optional(),
 });
 
 export const updateDeliveryNoteSchema = z.object({
   companyId: z.string().uuid("Invalid company ID").optional(),
-  deliveryDate: z.string().datetime().or(z.date()).optional(),
-  items: z.array(itemSchema).optional(),
+  deliveryDate: z.string().datetime().optional(),
+  items: z.array(deliveryNoteUpdateItemSchema).optional(),
   notes: z.string().optional(),
-  status: z.enum(["draft", "pending", "delivered", "cancelled"]).optional(),
+  status: z.enum(["pending", "in_transit", "delivered", "returned"]).optional(),
   shippingAddress: z.string().optional(),
 });
 

@@ -70,7 +70,15 @@ export function Summary({
         width: 250,
       }}
     >
-      <View style={{ flexDirection: "row", paddingVertical: 4, width: "100%", borderBottomWidth: 0.5, borderBottomColor: "#e5e5e5" }}>
+      <View
+        style={{
+          flexDirection: "row",
+          paddingVertical: 4,
+          width: "100%",
+          borderBottomWidth: 0.5,
+          borderBottomColor: "#e5e5e5",
+        }}
+      >
         <Text style={{ fontSize: 9, flex: 1 }}>{subtotalLabel}</Text>
         <Text style={{ fontSize: 9, textAlign: "right" }}>
           {currency &&
@@ -84,7 +92,15 @@ export function Summary({
       </View>
 
       {includeDiscount && discount && (
-        <View style={{ flexDirection: "row", paddingVertical: 4, width: "100%", borderBottomWidth: 0.5, borderBottomColor: "#e5e5e5" }}>
+        <View
+          style={{
+            flexDirection: "row",
+            paddingVertical: 4,
+            width: "100%",
+            borderBottomWidth: 0.5,
+            borderBottomColor: "#e5e5e5",
+          }}
+        >
           <Text style={{ fontSize: 9, flex: 1 }}>{discountLabel}</Text>
           <Text style={{ fontSize: 9, textAlign: "right" }}>
             {currency &&
@@ -99,7 +115,15 @@ export function Summary({
       )}
 
       {includeVat && (
-        <View style={{ flexDirection: "row", paddingVertical: 4, width: "100%", borderBottomWidth: 0.5, borderBottomColor: "#e5e5e5" }}>
+        <View
+          style={{
+            flexDirection: "row",
+            paddingVertical: 4,
+            width: "100%",
+            borderBottomWidth: 0.5,
+            borderBottomColor: "#e5e5e5",
+          }}
+        >
           <Text style={{ fontSize: 9, flex: 1 }}>
             {vatLabel} ({vatRate}%)
           </Text>
@@ -116,7 +140,15 @@ export function Summary({
       )}
 
       {includeTax && (
-        <View style={{ flexDirection: "row", paddingVertical: 4, width: "100%", borderBottomWidth: 0.5, borderBottomColor: "#e5e5e5" }}>
+        <View
+          style={{
+            flexDirection: "row",
+            paddingVertical: 4,
+            width: "100%",
+            borderBottomWidth: 0.5,
+            borderBottomColor: "#e5e5e5",
+          }}
+        >
           <Text style={{ fontSize: 9, flex: 1 }}>
             {taxLabel} ({taxRate}%)
           </Text>
@@ -151,8 +183,7 @@ export function Summary({
               amount: displayTotal,
               currency,
               locale,
-              maximumFractionDigits:
-                includeTax || includeVat ? 2 : maximumFractionDigits,
+              maximumFractionDigits: includeTax || includeVat ? 2 : maximumFractionDigits,
             })}
         </Text>
       </View>

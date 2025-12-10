@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("Multi-tenant Isolation Flow", () => {
-  test("should isolate data between different tenants", async ({ page, context }) => {
+  test("should isolate data between different tenants", async ({ page, context: _context }) => {
     // Login as first tenant/company user
     await page.goto("/login");
     await page.fill('input[type="email"]', "admin@crm.com");

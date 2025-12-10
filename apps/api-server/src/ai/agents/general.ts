@@ -1,9 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import {
-  COMMON_AGENT_RULES,
-  createAgent,
-  formatContextForLLM,
-} from "./config/shared";
+import { COMMON_AGENT_RULES, createAgent, formatContextForLLM } from "./config/shared";
 
 export const generalAgent = createAgent({
   name: "general",
@@ -33,4 +29,3 @@ ${COMMON_AGENT_RULES}
 - If asked about something outside your capabilities, explain what you can help with
 </response_guidelines>`,
 });
-

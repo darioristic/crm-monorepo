@@ -1,10 +1,18 @@
 "use client";
 
+import { endOfMonth, startOfMonth, startOfYear, subDays, subMonths } from "date-fns";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useMemo } from "react";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { subDays, startOfMonth, endOfMonth, subMonths, startOfYear } from "date-fns";
 
-export type DatePreset = "today" | "last7Days" | "last30Days" | "thisMonth" | "lastMonth" | "last90Days" | "thisYear" | "custom";
+export type DatePreset =
+  | "today"
+  | "last7Days"
+  | "last30Days"
+  | "thisMonth"
+  | "lastMonth"
+  | "last90Days"
+  | "thisYear"
+  | "custom";
 
 export interface ReportFilterState {
   from: string;
@@ -24,10 +32,10 @@ export function useReportFilters() {
     const from = searchParams.get("from");
     const to = searchParams.get("to");
     const preset = (searchParams.get("preset") as DatePreset) || "last30Days";
-    
+
     // If no dates, use preset defaults
     const dateRange = getDateRangeFromPreset(preset);
-    
+
     return {
       from: from || dateRange.from,
       to: to || dateRange.to,
@@ -106,13 +114,14 @@ function getDateRangeFromPreset(preset: DatePreset): { from: string; to: string 
   const endOfToday = new Date(today.setHours(23, 59, 59, 999));
 
   switch (preset) {
-    case "today":
+    case "today": {
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
       return {
         from: startOfToday.toISOString(),
         to: endOfToday.toISOString(),
       };
+    }
     case "last7Days":
       return {
         from: subDays(today, 6).toISOString(),
@@ -128,12 +137,13 @@ function getDateRangeFromPreset(preset: DatePreset): { from: string; to: string 
         from: startOfMonth(today).toISOString(),
         to: endOfToday.toISOString(),
       };
-    case "lastMonth":
+    case "lastMonth": {
       const lastMonth = subMonths(today, 1);
       return {
         from: startOfMonth(lastMonth).toISOString(),
         to: endOfMonth(lastMonth).toISOString(),
       };
+    }
     case "last90Days":
       return {
         from: subDays(today, 89).toISOString(),
@@ -151,4 +161,3 @@ function getDateRangeFromPreset(preset: DatePreset): { from: string; to: string 
       };
   }
 }
-

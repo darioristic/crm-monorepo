@@ -467,6 +467,7 @@ describe("Auth Middleware", () => {
     const adminAuth: AuthContext = {
       userId: mockUserId,
       role: "superadmin",
+      tenantRoles: [],
       companyId: mockCompanyId,
       sessionId: mockSessionId,
     };
@@ -474,6 +475,7 @@ describe("Auth Middleware", () => {
     const userAuth: AuthContext = {
       userId: mockUserId,
       role: "user",
+      tenantRoles: [],
       companyId: mockCompanyId,
       sessionId: mockSessionId,
     };
@@ -518,6 +520,7 @@ describe("Auth Middleware", () => {
         const noCompanyAuth: AuthContext = {
           userId: mockUserId,
           role: "user",
+          tenantRoles: [],
           sessionId: mockSessionId,
         };
         hoisted.mockCacheGet.mockResolvedValue(false);

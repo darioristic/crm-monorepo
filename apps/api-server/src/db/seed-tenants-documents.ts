@@ -298,7 +298,7 @@ export async function seedTenantsAndDocuments() {
 
     logger.info("\n✅ Tenant & Document seeding completed!\n");
   } catch (error) {
-    logger.error("\n❌ Seed failed:", error);
+    logger.error({ error }, "\n❌ Seed failed");
     throw error;
   }
 }
@@ -310,7 +310,7 @@ if (import.meta.main) {
     await db.end();
     process.exit(0);
   } catch (error) {
-    logger.error("Seed error:", error);
+    logger.error({ error }, "Seed error");
     await db.end();
     process.exit(1);
   }

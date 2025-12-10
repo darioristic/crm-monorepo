@@ -122,8 +122,8 @@ export async function withAuth<T>(
       logger.error({ error: handlerError, path: request.url }, "Error in withAuth handler");
       if (process.env.NODE_ENV === "test" && request.url.includes("/api/v1/documents/upload")) {
         const cid =
-          (auth as any)?.activeTenantId ||
-          (auth as any)?.companyId ||
+          (auth as { activeTenantId?: string; companyId?: string }).activeTenantId ||
+          (auth as { activeTenantId?: string; companyId?: string }).companyId ||
           "00000000-0000-0000-0000-000000000000";
         const fake1 = [cid, "test-document.pdf"];
         const fake2 = [cid, "image.png"];
@@ -218,7 +218,7 @@ export async function getCompanyIdForFilter(
     // No query parameter - use user's current active tenant
     // Note: This function's name uses "company" but it actually refers to tenant (seller org)
     // In the new architecture, activeTenantId is the seller organization
-    const userTenantId = auth.activeTenantId ?? auth.companyId;
+    const userTenantId = auth.activeTenantId ?? auth.companyId ?? null;
 
     if (auth.role === "tenant_admin" || auth.role === "superadmin") {
       companyId = allowAllForAdmin ? null : userTenantId;

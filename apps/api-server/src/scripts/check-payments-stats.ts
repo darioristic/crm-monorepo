@@ -7,7 +7,7 @@ async function main() {
     const stats = await paymentQueries.getPaymentStats({});
     logger.info(JSON.stringify(stats));
   } catch (e) {
-    logger.error("error:", e);
+    logger.error({ error: e }, "error");
   } finally {
     await db.end();
   }

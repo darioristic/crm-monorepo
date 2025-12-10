@@ -37,8 +37,6 @@ interface InvoicesColumnsOptions {
 }
 
 export function getInvoicesColumns({
-  onView,
-  onEdit,
   onDelete,
   onRecordPayment,
   onOpenSheet,
@@ -80,6 +78,7 @@ export function getInvoicesColumns({
       ),
       cell: ({ row }) => (
         <button
+          type="button"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();

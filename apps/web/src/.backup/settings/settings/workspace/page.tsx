@@ -1,15 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-import { toast } from "sonner";
 import { Building2Icon, ImageIcon, Trash2Icon } from "lucide-react";
-
-import { useFileUpload } from "@/hooks/use-file-upload";
-import { cn } from "@/lib/utils";
-
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
+import { z } from "zod";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -20,7 +18,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -28,9 +25,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
+import { Textarea } from "@/components/ui/textarea";
+import { useFileUpload } from "@/hooks/use-file-upload";
 
 const currencies = [
   { label: "RSD - Srpski dinar", value: "RSD" },
@@ -117,12 +114,12 @@ export default function WorkspacePage() {
   const faviconPreview = faviconUpload.files[0]?.preview || null;
 
   const form = useForm<WorkspaceFormValues>({
-    resolver: zodResolver(workspaceFormSchema) as any,
+    resolver: zodResolver(workspaceFormSchema),
     defaultValues,
     mode: "onChange",
   });
 
-  function onSubmit(data: WorkspaceFormValues) {
+  function onSubmit(_data: WorkspaceFormValues) {
     toast.success("Podešavanja su sačuvana!", {
       description: "Workspace podešavanja su uspešno ažurirana.",
     });
@@ -148,11 +145,7 @@ export default function WorkspacePage() {
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={logoActions.openFileDialog}
-                    >
+                    <Button type="button" variant="outline" onClick={logoActions.openFileDialog}>
                       {logoPreview ? "Promeni logo" : "Otpremi logo"}
                     </Button>
                     <input
@@ -206,9 +199,7 @@ export default function WorkspacePage() {
                         {...field}
                       />
                     </FormControl>
-                    <FormDescription>
-                      Maksimalno 500 karaktera.
-                    </FormDescription>
+                    <FormDescription>Maksimalno 500 karaktera.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -342,9 +333,7 @@ export default function WorkspacePage() {
                       <FormControl>
                         <Input placeholder="123456789" {...field} />
                       </FormControl>
-                      <FormDescription>
-                        Poreski identifikacioni broj
-                      </FormDescription>
+                      <FormDescription>Poreski identifikacioni broj</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -421,9 +410,7 @@ export default function WorkspacePage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      Podrazumevana valuta za fakture i cene.
-                    </FormDescription>
+                    <FormDescription>Podrazumevana valuta za fakture i cene.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -474,9 +461,7 @@ export default function WorkspacePage() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <FormDescription>
-                      Podrazumevani jezik za dashboard i dokumente.
-                    </FormDescription>
+                    <FormDescription>Podrazumevani jezik za dashboard i dokumente.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -498,11 +483,7 @@ export default function WorkspacePage() {
                     <FormLabel>Primarna boja brenda</FormLabel>
                     <div className="flex items-center gap-3">
                       <FormControl>
-                        <Input
-                          type="color"
-                          className="h-10 w-16 cursor-pointer p-1"
-                          {...field}
-                        />
+                        <Input type="color" className="h-10 w-16 cursor-pointer p-1" {...field} />
                       </FormControl>
                       <Input
                         placeholder="#3B82F6"
@@ -511,9 +492,7 @@ export default function WorkspacePage() {
                         className="w-32"
                       />
                     </div>
-                    <FormDescription>
-                      Koristi se za akcente i elemente brenda.
-                    </FormDescription>
+                    <FormDescription>Koristi se za akcente i elemente brenda.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -567,14 +546,9 @@ export default function WorkspacePage() {
                   <FormItem>
                     <FormLabel>Footer tekst</FormLabel>
                     <FormControl>
-                      <Input
-                        placeholder="© 2024 Vaša kompanija. Sva prava zadržana."
-                        {...field}
-                      />
+                      <Input placeholder="© 2024 Vaša kompanija. Sva prava zadržana." {...field} />
                     </FormControl>
-                    <FormDescription>
-                      Tekst koji se prikazuje u footeru dokumenata.
-                    </FormDescription>
+                    <FormDescription>Tekst koji se prikazuje u footeru dokumenata.</FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -590,4 +564,3 @@ export default function WorkspacePage() {
     </div>
   );
 }
-

@@ -51,14 +51,30 @@ export function useQuoteMutations() {
 
 // Hook for quote workflows (convert to order/invoice)
 export function useQuoteWorkflows() {
+  type OrderCustomizations = {
+    orderNumber?: string;
+    orderDate?: string;
+    expectedDeliveryDate?: string;
+    notes?: string;
+    purchaseOrderNumber?: string;
+  };
+
+  type InvoiceCustomizations = {
+    invoiceNumber?: string;
+    issueDate?: string;
+    dueDate?: string;
+    paymentTerms?: number;
+    notes?: string;
+  };
+
   const convertToOrder = useMutation(
-    ({ id, customizations }: { id: string; customizations?: Record<string, unknown> }) =>
-      quotesApi.convertToOrder(id, customizations as any)
+    ({ id, customizations }: { id: string; customizations?: OrderCustomizations }) =>
+      quotesApi.convertToOrder(id, customizations)
   );
 
   const convertToInvoice = useMutation(
-    ({ id, customizations }: { id: string; customizations?: Record<string, unknown> }) =>
-      quotesApi.convertToInvoice(id, customizations as any)
+    ({ id, customizations }: { id: string; customizations?: InvoiceCustomizations }) =>
+      quotesApi.convertToInvoice(id, customizations)
   );
 
   return {

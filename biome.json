@@ -7,7 +7,14 @@
   },
   "files": {
     "ignoreUnknown": true,
-    "includes": ["**/*.ts", "**/*.tsx", "**/*.js", "**/*.jsx", "**/*.json"]
+    "includes": [
+      "**/*.ts",
+      "**/*.tsx",
+      "**/*.js",
+      "**/*.jsx",
+      "**/*.json",
+      "!!**/apps/api-server/drizzle"
+    ]
   },
   "formatter": {
     "enabled": true,
@@ -63,6 +70,11 @@
     }
   },
   "overrides": [
+    {
+      "includes": ["apps/api-server/drizzle/**"],
+      "linter": { "enabled": false },
+      "formatter": { "enabled": false }
+    },
     {
       "includes": ["apps/web/**"],
       "linter": {

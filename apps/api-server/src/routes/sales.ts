@@ -149,23 +149,67 @@ router.post("/api/v1/quotes", async (request) => {
     request,
     async (auth) => {
       const raw = await request.json().catch(() => null);
-      const data: any = raw || {};
-      if (process.env.NODE_ENV === "test" && data.companyId && !data.customerCompanyId) {
-        data.customerCompanyId = data.companyId;
+      const data: Record<string, unknown> = (raw ?? {}) as Record<string, unknown>;
+      if (
+        process.env.NODE_ENV === "test" &&
+        (data as { companyId?: string }).companyId &&
+        !(data as { customerCompanyId?: string }).customerCompanyId
+      ) {
+        (data as { customerCompanyId?: string }).customerCompanyId = (
+          data as { companyId?: string }
+        ).companyId;
       }
-      if (process.env.NODE_ENV === "test" && !data.issueDate) {
-        data.issueDate = new Date().toISOString();
+      if (process.env.NODE_ENV === "test" && !(data as { issueDate?: string }).issueDate) {
+        (data as { issueDate?: string }).issueDate = new Date().toISOString();
       }
       const parsed = createQuoteSchema.safeParse(data);
       if (!parsed.success) {
         return errorResponse("VALIDATION_ERROR", "Validation failed");
       }
-      const { customerCompanyId, sellerCompanyId: _ignoredSellerId, ...rest } = parsed.data;
+      // Ensure validUntil default if missing (30 days from issueDate)
+      const defaultIssue = parsed.data.issueDate;
+      const defaultValidUntil =
+        parsed.data.validUntil ??
+        new Date(new Date(defaultIssue).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      const { customerCompanyId, ...rest } = parsed.data;
+      const {
+        taxRate: taxRateOpt,
+        issueDate,
+        validUntil,
+        ...restWithoutTax
+      } = rest as {
+        taxRate?: number;
+        issueDate: string;
+        validUntil: string;
+      } & Record<string, unknown>;
       return salesService.createQuote({
-        ...rest,
+        taxRate: taxRateOpt ?? 0,
+        ...restWithoutTax,
+        issueDate,
+        validUntil: validUntil ?? defaultValidUntil,
+        status:
+          (restWithoutTax as { status?: "draft" | "sent" | "accepted" | "rejected" }).status ??
+          "draft",
         companyId: customerCompanyId,
         createdBy: auth.userId,
         sellerCompanyId: auth.activeTenantId,
+        items: (
+          rest as {
+            items: Array<{
+              productName: string;
+              description?: string;
+              quantity: number;
+              unitPrice: number;
+              discount?: number;
+            }>;
+          }
+        ).items.map((it) => ({
+          productName: it.productName,
+          description: it.description,
+          quantity: it.quantity,
+          unitPrice: it.unitPrice,
+          discount: it.discount ?? 0,
+        })),
       });
     },
     201
@@ -275,9 +319,9 @@ router.get("/api/v1/invoices/:id", async (request, _url, params) => {
     const invoice = { ...response.data };
 
     // Remove internal/sensitive fields for public view
-    if ("internalNote" in invoice) delete (invoice as any).internalNote;
-    if ("costPrice" in invoice) delete (invoice as any).costPrice;
-    if ("margin" in invoice) delete (invoice as any).margin;
+    if ("internalNote" in invoice) delete (invoice as Record<string, unknown>).internalNote;
+    if ("costPrice" in invoice) delete (invoice as Record<string, unknown>).costPrice;
+    if ("margin" in invoice) delete (invoice as Record<string, unknown>).margin;
 
     response.data = invoice;
   }
@@ -290,24 +334,37 @@ router.post("/api/v1/invoices", async (request) => {
     request,
     async (auth) => {
       const raw = await request.json().catch(() => null);
-      const data: any = raw || {};
-      if (process.env.NODE_ENV === "test" && data.companyId && !data.customerCompanyId) {
-        data.customerCompanyId = data.companyId;
+      const data: Record<string, unknown> = (raw ?? {}) as Record<string, unknown>;
+      if (
+        process.env.NODE_ENV === "test" &&
+        (data as { companyId?: string }).companyId &&
+        !(data as { customerCompanyId?: string }).customerCompanyId
+      ) {
+        (data as { customerCompanyId?: string }).customerCompanyId = (
+          data as { companyId?: string }
+        ).companyId;
       }
-      if (process.env.NODE_ENV === "test" && !data.issueDate) {
-        data.issueDate = new Date().toISOString();
+      if (process.env.NODE_ENV === "test" && !(data as { issueDate?: string }).issueDate) {
+        (data as { issueDate?: string }).issueDate = new Date().toISOString();
       }
       const parsed = createInvoiceSchema.safeParse(data);
       if (!parsed.success) {
         return errorResponse("VALIDATION_ERROR", "Validation failed");
       }
-      const { customerCompanyId, sellerCompanyId: _ignoredSellerId, ...rest } = parsed.data;
-      return salesService.createInvoice({
+      const { customerCompanyId, ...rest } = parsed.data;
+      const payload: import("@crm/types").CreateInvoiceRequest = {
         ...rest,
+        status: rest.status ?? "draft",
+        dueDate: rest.dueDate ?? rest.issueDate ?? new Date().toISOString(),
         companyId: customerCompanyId,
         createdBy: auth.userId,
         sellerCompanyId: auth.activeTenantId,
-      });
+        items: rest.items.map(({ id: _omitId, ...it }) => ({
+          ...it,
+          discount: it.discount ?? 0,
+        })),
+      };
+      return salesService.createInvoice(payload);
     },
     201
   );
@@ -319,7 +376,14 @@ router.put("/api/v1/invoices/:id", async (request, _url, params) => {
     if (!validation.success) {
       return validation.error;
     }
-    return salesService.updateInvoice(params.id, validation.data);
+    const payload: import("@crm/types").UpdateInvoiceRequest = {
+      ...validation.data,
+      items: validation.data.items?.map(({ total: _omitTotal, ...it }) => ({
+        ...it,
+        discount: it.discount ?? 0,
+      })),
+    };
+    return salesService.updateInvoice(params.id, payload);
   });
 });
 
@@ -329,7 +393,14 @@ router.patch("/api/v1/invoices/:id", async (request, _url, params) => {
     if (!validation.success) {
       return validation.error;
     }
-    return salesService.updateInvoice(params.id, validation.data);
+    const payload: import("@crm/types").UpdateInvoiceRequest = {
+      ...validation.data,
+      items: validation.data.items?.map(({ total: _omitTotal, ...it }) => ({
+        ...it,
+        discount: it.discount ?? 0,
+      })),
+    };
+    return salesService.updateInvoice(params.id, payload);
   });
 });
 
@@ -387,13 +458,19 @@ router.post("/api/v1/delivery-notes", async (request) => {
         return validation.error;
       }
       // ALWAYS ignore sellerCompanyId from frontend and use auth.activeTenantId (tenant company)
-      const { customerCompanyId, sellerCompanyId: _ignoredSellerId, ...rest } = validation.data;
-      return salesService.createDeliveryNote({
+      const { customerCompanyId, ...rest } = validation.data;
+      const payload: import("@crm/types").CreateDeliveryNoteRequest = {
         ...rest,
+        status: rest.status ?? "pending",
         companyId: customerCompanyId,
         createdBy: auth.userId,
-        sellerCompanyId: auth.activeTenantId, // ALWAYS use authenticated user's tenant
-      });
+        sellerCompanyId: auth.activeTenantId,
+        items: rest.items.map((it) => ({
+          ...it,
+          discount: it.discount ?? 0,
+        })),
+      };
+      return salesService.createDeliveryNote(payload);
     },
     201
   );
@@ -405,7 +482,14 @@ router.put("/api/v1/delivery-notes/:id", async (request, _url, params) => {
     if (!validation.success) {
       return validation.error;
     }
-    return salesService.updateDeliveryNote(params.id, validation.data);
+    const payload: import("@crm/types").UpdateDeliveryNoteRequest = {
+      ...validation.data,
+      items: validation.data.items?.map((it) => ({
+        ...it,
+        discount: it.discount ?? 0,
+      })),
+    };
+    return salesService.updateDeliveryNote(params.id, payload);
   });
 });
 
@@ -415,7 +499,14 @@ router.patch("/api/v1/delivery-notes/:id", async (request, _url, params) => {
     if (!validation.success) {
       return validation.error;
     }
-    return salesService.updateDeliveryNote(params.id, validation.data);
+    const payload: import("@crm/types").UpdateDeliveryNoteRequest = {
+      ...validation.data,
+      items: validation.data.items?.map((it) => ({
+        ...it,
+        discount: it.discount ?? 0,
+      })),
+    };
+    return salesService.updateDeliveryNote(params.id, payload);
   });
 });
 
@@ -445,14 +536,14 @@ router.post("/api/v1/quotes/:id/convert-to-order", async (request, _url, params)
         return validation.error;
       }
 
-      if (!auth.tenantId) {
+      if (!auth.activeTenantId) {
         return errorResponse("VALIDATION_ERROR", "Tenant context required");
       }
 
       const order = await convertQuoteToOrder({
         quoteId: params.id,
         userId: auth.userId,
-        tenantId: auth.tenantId,
+        tenantId: auth.activeTenantId,
         customizations: validation.data.customizations
           ? {
               orderNumber: validation.data.customizations.orderNumber,
@@ -484,14 +575,14 @@ router.post("/api/v1/quotes/:id/convert-to-invoice", async (request, _url, param
         return validation.error;
       }
 
-      if (!auth.tenantId) {
+      if (!auth.activeTenantId) {
         return errorResponse("VALIDATION_ERROR", "Tenant context required");
       }
 
       const invoiceId = await convertQuoteToInvoice({
         quoteId: params.id,
         userId: auth.userId,
-        tenantId: auth.tenantId,
+        tenantId: auth.activeTenantId,
         customizations: validation.data.customizations
           ? {
               invoiceNumber: validation.data.customizations.invoiceNumber,
@@ -523,14 +614,14 @@ router.post("/api/v1/orders/:id/convert-to-invoice", async (request, _url, param
         return validation.error;
       }
 
-      if (!auth.tenantId) {
+      if (!auth.activeTenantId) {
         return errorResponse("VALIDATION_ERROR", "Tenant context required");
       }
 
       const invoiceId = await convertOrderToInvoice({
         orderId: params.id,
         userId: auth.userId,
-        tenantId: auth.tenantId,
+        tenantId: auth.activeTenantId,
         customizations: validation.data.customizations
           ? {
               invoiceNumber: validation.data.customizations.invoiceNumber,
@@ -556,11 +647,11 @@ router.post("/api/v1/orders/:id/convert-to-invoice", async (request, _url, param
 // Get full document chain for a quote (Quote → Orders → Invoices)
 router.get("/api/v1/workflows/document-chain/:quoteId", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    if (!auth.tenantId) {
+    if (!auth.activeTenantId) {
       return errorResponse("VALIDATION_ERROR", "Tenant context required");
     }
 
-    const chain = await getDocumentChain(params.quoteId, auth.tenantId);
+    const chain = await getDocumentChain(params.quoteId, auth.activeTenantId);
     return successResponse(chain);
   });
 });
@@ -575,14 +666,14 @@ router.post("/api/v1/orders/:id/convert-to-delivery-note", async (request, _url,
         return validation.error;
       }
 
-      if (!auth.tenantId) {
+      if (!auth.activeTenantId) {
         return errorResponse("VALIDATION_ERROR", "Tenant context required");
       }
 
       const deliveryNoteId = await convertOrderToDeliveryNote({
         orderId: params.id,
         userId: auth.userId,
-        tenantId: auth.tenantId,
+        tenantId: auth.activeTenantId,
         customizations: validation.data.customizations
           ? {
               deliveryNumber: validation.data.customizations.deliveryNumber,
@@ -616,14 +707,14 @@ router.post("/api/v1/invoices/:id/convert-to-delivery-note", async (request, _ur
         return validation.error;
       }
 
-      if (!auth.tenantId) {
+      if (!auth.activeTenantId) {
         return errorResponse("VALIDATION_ERROR", "Tenant context required");
       }
 
       const deliveryNoteId = await convertInvoiceToDeliveryNote({
         invoiceId: params.id,
         userId: auth.userId,
-        tenantId: auth.tenantId,
+        tenantId: auth.activeTenantId,
         customizations: validation.data.customizations
           ? {
               deliveryNumber: validation.data.customizations.deliveryNumber,

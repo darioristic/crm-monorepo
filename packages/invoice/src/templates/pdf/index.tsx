@@ -74,10 +74,13 @@ export async function PdfTemplate({
   let qrCode = null;
 
   if (template.includeQr) {
-    qrCode = await QRCodeUtil.toDataURL(`${process.env.NEXT_PUBLIC_APP_URL || 'https://app.example.com'}/i/${token}`, {
-      margin: 0,
-      width: 40 * 3,
-    });
+    qrCode = await QRCodeUtil.toDataURL(
+      `${process.env.NEXT_PUBLIC_APP_URL || "https://app.example.com"}/i/${token}`,
+      {
+        margin: 0,
+        width: 40 * 3,
+      }
+    );
   }
 
   return (
@@ -128,18 +131,14 @@ export async function PdfTemplate({
         <View style={{ flexDirection: "row", marginTop: 20 }}>
           <View style={{ flex: 1, marginRight: 10 }}>
             <View style={{ marginBottom: 20 }}>
-              <Text style={{ fontSize: 9, fontWeight: 500 }}>
-                {template.fromLabel}
-              </Text>
+              <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.fromLabel}</Text>
               <EditorContent content={fromDetails} />
             </View>
           </View>
 
           <View style={{ flex: 1, marginLeft: 10 }}>
             <View style={{ marginBottom: 20 }}>
-              <Text style={{ fontSize: 9, fontWeight: 500 }}>
-                {template.customerLabel}
-              </Text>
+              <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.customerLabel}</Text>
               <EditorContent content={customerDetails} />
             </View>
           </View>
@@ -193,10 +192,7 @@ export async function PdfTemplate({
           {/* Payment Details - Single row at bottom */}
           <View style={{ flexDirection: "row", marginTop: 20, alignItems: "flex-start" }}>
             <View style={{ flex: 1 }}>
-              <PaymentDetails
-                content={paymentDetails}
-                paymentLabel={template.paymentLabel}
-              />
+              <PaymentDetails content={paymentDetails} paymentLabel={template.paymentLabel} />
             </View>
             {qrCode && (
               <View style={{ marginLeft: 20 }}>
@@ -212,4 +208,4 @@ export async function PdfTemplate({
   );
 }
 
-export { renderToStream, renderToBuffer } from "@react-pdf/renderer";
+export { renderToBuffer, renderToStream } from "@react-pdf/renderer";

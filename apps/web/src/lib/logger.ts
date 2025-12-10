@@ -18,7 +18,6 @@ class Logger {
   private isEnabled: boolean;
 
   constructor() {
-    this.isDevelopment = process.env.NODE_ENV === "development";
     // Enable logging only when explicitly enabled via env flag
     this.isEnabled = process.env.NEXT_PUBLIC_ENABLE_LOGGING === "true";
   }

@@ -1,6 +1,6 @@
 /**
  * Centralizovani Zod validatori za sve CRUD operacije
- * 
+ *
  * Svaki validator uključuje:
  * - Tipsku validaciju
  * - Sanitizaciju (trim, lowercase gde je potrebno)
@@ -99,19 +99,9 @@ export const invoiceStatusSchema = z.enum([
   "cancelled",
 ]);
 
-export const deliveryNoteStatusSchema = z.enum([
-  "pending",
-  "in_transit",
-  "delivered",
-  "cancelled",
-]);
+export const deliveryNoteStatusSchema = z.enum(["pending", "in_transit", "delivered", "cancelled"]);
 
-export const milestoneStatusSchema = z.enum([
-  "not_started",
-  "in_progress",
-  "completed",
-  "delayed",
-]);
+export const milestoneStatusSchema = z.enum(["not_started", "in_progress", "completed", "delayed"]);
 
 export const paymentMethodSchema = z.enum([
   "cash",
@@ -589,4 +579,3 @@ export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type RegisterUserInput = z.infer<typeof registerUserSchema>;
 export type PaginationInput = z.infer<typeof paginationSchema>;
 export type FilterInput = z.infer<typeof filterSchema>;
-

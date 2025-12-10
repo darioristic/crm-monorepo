@@ -1,19 +1,13 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { DocumentActions } from "@/components/document-actions";
 import { DocumentDetailsSkeleton } from "@/components/document-details-skeleton";
 import { DocumentTags } from "@/components/document-tags";
 import { FileViewer } from "@/components/file-viewer";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Textarea } from "@/components/ui/textarea";
+import { SheetHeader } from "@/components/ui/sheet";
 import { VaultRelatedFiles } from "@/components/vault/vault-related-files";
 import { useDocumentParams } from "@/hooks/use-document-params";
-import { useToast } from "@/hooks/use-toast";
 import { type DocumentWithTags, documentsApi } from "@/lib/api";
 
 function formatSize(bytes: number): string {
@@ -27,7 +21,6 @@ function formatSize(bytes: number): string {
 export function DocumentDetails() {
   const queryClient = useQueryClient();
   const { params } = useDocumentParams();
-  const { toast } = useToast();
 
   const isOpen = Boolean(params.filePath || params.documentId);
   const fullView = Boolean(params.documentId);
@@ -57,147 +50,41 @@ export function DocumentDetails() {
     },
   });
 
-  const [isEditing, setIsEditing] = useState(false);
-  const [title, setTitle] = useState<string>("");
-  const [summary, setSummary] = useState<string>("");
-
-  useEffect(() => {
-    if (data) {
-      setTitle(data.title ?? data.name?.split("/").at(-1) ?? "");
-      setSummary(data.summary ?? "");
-    }
-  }, [data]);
-
-  const updateMutation = useMutation({
-    mutationFn: async () => {
-      const id = params.documentId!;
-      const payload: { title?: string; summary?: string } = {};
-      const t = title?.trim();
-      const s = summary?.trim();
-      if (t) payload.title = t;
-      if (s) payload.summary = s;
-      const response = await documentsApi.update(id, payload);
-      if (!response.success) {
-        throw new Error(response.error?.message || "Update failed");
-      }
-      return response;
-    },
-    onSuccess: (response) => {
-      const updated = response.data;
-      if (updated) {
-        queryClient.setQueryData(["document", params.documentId], updated);
-        const docsCache = queryClient.getQueryData<{
-          pages: Array<{ data: DocumentWithTags[] }>;
-        }>(["documents"]);
-        if (docsCache?.pages) {
-          const newPages = docsCache.pages.map((page) => ({
-            data: (page.data ?? []).map((d) =>
-              d.id === updated.id ? { ...d, title: updated.title, summary: updated.summary } : d
-            ),
-          }));
-          queryClient.setQueryData(["documents"], { pages: newPages });
-        }
-      }
-      toast({
-        title: "Dokument sačuvan",
-        description: "Izmene su uspešno sačuvane",
-      });
-      setIsEditing(false);
-    },
-    onError: (_error: unknown) => {
-      toast({
-        title: "Greška pri čuvanju",
-        description: "Nije moguće sačuvati izmene. Pokušajte ponovo.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  if (isLoading || !data) {
+  if (isLoading) {
     return <DocumentDetailsSkeleton />;
   }
 
-  const fileUrl = data.pathTokens ? documentsApi.getDownloadUrl(data.pathTokens) : "";
-
-  const mimetype = data.metadata?.mimetype as string | undefined;
-  const size = data.metadata?.size as number | undefined;
-
   return (
-    <div className="flex flex-col flex-grow min-h-0 relative h-full w-full p-6">
-      <SheetHeader className="mb-4 flex justify-between items-center flex-row space-y-0">
-        <div className="min-w-0 flex-1 max-w-[70%] flex flex-row gap-2 items-baseline">
-          {isEditing ? (
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Naziv dokumenta"
-            />
-          ) : (
-            <SheetTitle className="text-lg truncate flex-0">
-              {data.title ?? data.name?.split("/").at(-1) ?? "Untitled"}
-            </SheetTitle>
-          )}
-          {size && (
-            <span className="text-sm text-muted-foreground whitespace-nowrap">
-              {formatSize(size)}
-            </span>
-          )}
+    <div className="flex flex-col flex-grow min-h-0 relative h-full w-full">
+      <SheetHeader className="mb-4 flex justify-between items-center flex-row">
+        <div className="min-w-0 flex-1 max-w-[70%] flex flex-row gap-2 items-end">
+          <h2 className="text-lg truncate flex-0">
+            {data?.title ?? data?.pathTokens?.at(-1) ?? data?.name}
+          </h2>
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            {data?.metadata?.size && formatSize(data.metadata.size as number)}
+          </span>
         </div>
 
-        <div className="flex flex-row gap-2 items-center">
-          {!isEditing ? (
-            <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-              Izmeni
-            </Button>
-          ) : (
-            <div className="flex flex-row gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => updateMutation.mutate()}
-                disabled={updateMutation.isPending}
-              >
-                {updateMutation.isPending ? <Loader2 className="size-4 animate-spin" /> : "Sačuvaj"}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setIsEditing(false);
-                  setTitle(data.title ?? data.name?.split("/").at(-1) ?? "");
-                  setSummary(data.summary ?? "");
-                }}
-              >
-                Otkaži
-              </Button>
-            </div>
-          )}
-          <DocumentActions showDelete={fullView} filePath={data.pathTokens} />
-        </div>
+        <DocumentActions showDelete={fullView} filePath={data?.pathTokens} />
       </SheetHeader>
 
-      {/* File preview */}
-      <div className="h-full max-h-[500px] p-0 pb-4 overflow-x-auto">
-        <div className="flex flex-col flex-grow min-h-0 relative h-full w-full items-center justify-center">
-          <FileViewer url={fileUrl} mimeType={mimetype} maxWidth={565} />
+      <div className="h-full max-h-[763px] p-0 pb-4 overflow-auto scrollbar-hide">
+        <div className="flex flex-col flex-grow min-h-0 relative w-full items-center justify-center">
+          <FileViewer
+            url={`/api/v1/documents/view/${data?.pathTokens?.join("/")}`}
+            mimeType={data?.metadata?.mimetype as string | undefined}
+            maxWidth={565}
+          />
         </div>
       </div>
 
-      <div className="mt-4">
-        {isEditing ? (
-          <Textarea
-            value={summary}
-            onChange={(e) => setSummary(e.target.value)}
-            placeholder="Kratak opis"
-            className="mb-4"
-          />
-        ) : (
-          data.summary && (
-            <p className="text-sm text-muted-foreground mb-4 line-clamp-3">{data.summary}</p>
-          )
+      <div>
+        {data?.summary && (
+          <p className="text-sm text-[#878787] mb-4 line-clamp-2">{data?.summary}</p>
         )}
 
-        <DocumentTags tags={data.documentTagAssignments} id={data.id} />
+        {data?.id && <DocumentTags tags={data?.documentTagAssignments} id={data.id} />}
 
         {fullView && <VaultRelatedFiles />}
       </div>

@@ -1,9 +1,8 @@
 "use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { ArrowRightIcon, TrendingUpIcon } from "lucide-react";
 import type { ConversionFunnel } from "@crm/types";
+import { ArrowRightIcon, TrendingUpIcon } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ConversionFunnelChartProps {
   data: ConversionFunnel;
@@ -32,9 +31,10 @@ export function ConversionFunnelChart({ data, className }: ConversionFunnelChart
         <div className="space-y-3">
           {stages.map((stage, index) => {
             const percentage = (stage.value / maxValue) * 100;
-            const conversionFromPrevious = index > 0 && stages[index - 1].value > 0
-              ? ((stage.value / stages[index - 1].value) * 100).toFixed(1)
-              : null;
+            const conversionFromPrevious =
+              index > 0 && stages[index - 1].value > 0
+                ? ((stage.value / stages[index - 1].value) * 100).toFixed(1)
+                : null;
 
             return (
               <div key={stage.label} className="space-y-1">
@@ -70,9 +70,7 @@ export function ConversionFunnelChart({ data, className }: ConversionFunnelChart
             <p className="text-sm text-muted-foreground">Overall Conversion Rate</p>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold">
-              {data.avgDaysToConvert} days
-            </div>
+            <div className="text-2xl font-bold">{data.avgDaysToConvert} days</div>
             <p className="text-sm text-muted-foreground">Avg. Time to Convert</p>
           </div>
         </div>
@@ -81,7 +79,9 @@ export function ConversionFunnelChart({ data, className }: ConversionFunnelChart
         <div className="flex items-center justify-center gap-2 pt-4 border-t">
           {stages.map((stage, index) => (
             <div key={stage.label} className="flex items-center">
-              <div className={`px-3 py-1.5 rounded-md ${stage.color} text-white text-xs font-medium`}>
+              <div
+                className={`px-3 py-1.5 rounded-md ${stage.color} text-white text-xs font-medium`}
+              >
                 {stage.value}
               </div>
               {index < stages.length - 1 && (
@@ -94,4 +94,3 @@ export function ConversionFunnelChart({ data, className }: ConversionFunnelChart
     </Card>
   );
 }
-

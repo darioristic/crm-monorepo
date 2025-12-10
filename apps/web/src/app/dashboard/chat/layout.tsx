@@ -8,4 +8,3 @@ export const metadata = {
 export default function ChatLayout({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
-

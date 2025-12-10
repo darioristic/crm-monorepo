@@ -1,16 +1,16 @@
 "use client";
 
+import type { MilestoneBreakdown } from "@crm/types";
+import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Pie, PieChart, Cell, ResponsiveContainer } from "recharts";
-import type { MilestoneBreakdown } from "@crm/types";
 
 interface MilestoneStatusChartProps {
   data: MilestoneBreakdown[];
@@ -68,8 +68,8 @@ export function MilestoneStatusChart({ data, className }: MilestoneStatusChartPr
                 dataKey="count"
                 nameKey="name"
               >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                {chartData.map((entry) => (
+                  <Cell key={`cell-${entry.name}`} fill={entry.fill} />
                 ))}
               </Pie>
               <ChartTooltip
@@ -78,7 +78,9 @@ export function MilestoneStatusChart({ data, className }: MilestoneStatusChartPr
                     formatter={(value, name) => (
                       <div className="space-y-1">
                         <p className="font-medium">{name}</p>
-                        <p>{Number(value)} milestones ({((Number(value) / total) * 100).toFixed(1)}%)</p>
+                        <p>
+                          {Number(value)} milestones ({((Number(value) / total) * 100).toFixed(1)}%)
+                        </p>
                       </div>
                     )}
                   />
@@ -106,4 +108,3 @@ export function MilestoneStatusChart({ data, className }: MilestoneStatusChartPr
     </Card>
   );
 }
-

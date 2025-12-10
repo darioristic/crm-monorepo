@@ -1,26 +1,14 @@
-import { generateMeta } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from "@/components/ui/card";
-import {
-  FileTextIcon,
-  ReceiptIcon,
-  TruckIcon,
-  TrendingUpIcon,
-  EuroIcon
-} from "lucide-react";
+import { EuroIcon, FileTextIcon, ReceiptIcon, TrendingUpIcon, TruckIcon } from "lucide-react";
 import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { generateMeta } from "@/lib/utils";
 
 export async function generateMetadata() {
   return generateMeta({
     title: "Sales",
     description: "Sales overview - quotes, invoices, and delivery notes",
-    canonical: "/dashboard/sales"
+    canonical: "/dashboard/sales",
   });
 }
 
@@ -30,9 +18,7 @@ export default function SalesPage() {
       <div className="flex flex-row items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Sales Overview</h1>
-          <p className="text-muted-foreground">
-            Manage quotes, invoices, and deliveries
-          </p>
+          <p className="text-muted-foreground">Manage quotes, invoices, and deliveries</p>
         </div>
         <div className="flex items-center space-x-2">
           <Button variant="outline" asChild>
@@ -72,9 +58,7 @@ export default function SalesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">12</div>
-            <p className="text-xs text-muted-foreground">
-              €34,500 potential value
-            </p>
+            <p className="text-xs text-muted-foreground">€34,500 potential value</p>
           </CardContent>
         </Card>
 
@@ -98,9 +82,7 @@ export default function SalesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">5</div>
-            <p className="text-xs text-muted-foreground">
-              2 scheduled for today
-            </p>
+            <p className="text-xs text-muted-foreground">2 scheduled for today</p>
           </CardContent>
         </Card>
       </div>
@@ -192,7 +174,7 @@ export default function SalesPage() {
               </div>
               <span className="text-xs text-muted-foreground">1h ago</span>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
                 <FileTextIcon className="h-5 w-5 text-blue-600" />
@@ -203,7 +185,7 @@ export default function SalesPage() {
               </div>
               <span className="text-xs text-muted-foreground">3h ago</span>
             </div>
-            
+
             <div className="flex items-center gap-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100">
                 <TruckIcon className="h-5 w-5 text-purple-600" />
@@ -220,4 +202,3 @@ export default function SalesPage() {
     </div>
   );
 }
-

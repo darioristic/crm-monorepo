@@ -1,9 +1,10 @@
 "use client";
 
+import type React from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 
 type PromptInputContextType = {
   isLoading: boolean;
@@ -20,7 +21,7 @@ const PromptInputContext = createContext<PromptInputContextType>({
   setValue: () => {},
   maxHeight: 240,
   onSubmit: undefined,
-  disabled: false
+  disabled: false,
 });
 
 function usePromptInput() {
@@ -48,7 +49,7 @@ function Input({
   value,
   onValueChange,
   onSubmit,
-  children
+  children,
 }: PromptInputProps) {
   const [internalValue, setInternalValue] = useState(value || "");
 
@@ -65,10 +66,12 @@ function Input({
           value: value ?? internalValue,
           setValue: onValueChange ?? handleChange,
           maxHeight,
-          onSubmit
-        }}>
+          onSubmit,
+        }}
+      >
         <div
-          className={cn("border-input bg-background rounded-2xl border p-2 shadow-xs", className)}>
+          className={cn("border-input bg-background rounded-2xl border p-2 shadow-xs", className)}
+        >
           {children}
         </div>
       </PromptInputContext.Provider>

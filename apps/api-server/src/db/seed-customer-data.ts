@@ -301,8 +301,8 @@ export async function seedCustomerData() {
     }
 
     logger.info(
-      `✅ Created ${accountCompanies.length} account companies:`,
-      accountCompanies.map((c) => c.name)
+      { companies: accountCompanies.map((c) => c.name) },
+      `✅ Created ${accountCompanies.length} account companies`
     );
 
     // 4. Get first admin user and add them to all 3 account companies
@@ -342,7 +342,7 @@ export async function seedCustomerData() {
       customerCompanies: customerCompanies.length,
     };
   } catch (error) {
-    logger.error("❌ Error seeding customer data:", error);
+    logger.error({ error }, "❌ Error seeding customer data");
     throw error;
   }
 }
@@ -351,11 +351,11 @@ export async function seedCustomerData() {
 if (import.meta.main) {
   seedCustomerData()
     .then((result) => {
-      logger.info("\n📊 Seed Summary:", result);
+      logger.info({ result }, "\n📊 Seed Summary");
       process.exit(0);
     })
     .catch((error) => {
-      logger.error("Seed failed:", error);
+      logger.error({ error }, "Seed failed");
       process.exit(1);
     });
 }

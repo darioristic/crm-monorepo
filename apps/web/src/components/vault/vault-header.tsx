@@ -1,7 +1,7 @@
 "use client";
 
-import { VaultSearchFilter } from "./vault-search-filter";
 import { VaultActions } from "./vault-actions";
+import { VaultSearchFilter } from "./vault-search-filter";
 
 export function VaultHeader() {
   return (

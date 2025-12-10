@@ -21,7 +21,7 @@ export function useTeamQuery() {
         name: result.data.name,
         email: result.data.email || null,
         logoUrl: result.data.logoUrl || null,
-        countryCode: (result.data as any).countryCode || null,
+        countryCode: result.data.countryCode || null,
         baseCurrency: null, // Not in current Company model
         fiscalYearStartMonth: null, // Not in current Company model
       } as Team;
@@ -44,7 +44,7 @@ export function useTeamMutation() {
       }
 
       // Allow admin roles to proceed without membership check
-      const role = (user as any)?.role as string | undefined;
+      const role = user?.role;
       const isAdminRole = role === "superadmin" || role === "tenant_admin" || role === "admin";
       if (!isAdminRole) {
         const membersResult = await getCompanyMembers(currentResult.data.id);

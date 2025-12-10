@@ -1,6 +1,9 @@
 "use client";
 
+import type { TopCustomer } from "@crm/types";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
 import {
   Table,
   TableBody,
@@ -9,9 +12,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import type { TopCustomer } from "@crm/types";
 
 interface TopCustomersTableProps {
   data: TopCustomer[];
@@ -49,9 +49,7 @@ export function TopCustomersTable({ data, className }: TopCustomersTableProps) {
                   </div>
                 </TableCell>
                 <TableCell>
-                  {customer.industry && (
-                    <Badge variant="outline">{customer.industry}</Badge>
-                  )}
+                  {customer.industry && <Badge variant="outline">{customer.industry}</Badge>}
                 </TableCell>
                 <TableCell className="text-right font-medium">
                   €{customer.totalRevenue.toLocaleString()}
@@ -74,4 +72,3 @@ export function TopCustomersTable({ data, className }: TopCustomersTableProps) {
     </Card>
   );
 }
-

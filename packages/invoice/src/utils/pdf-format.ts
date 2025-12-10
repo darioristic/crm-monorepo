@@ -39,4 +39,3 @@ export function formatCurrencyForPDF({
   // Manually prepend minus sign for negative values
   return isNegative ? `-${formatted}` : formatted || "";
 }
-

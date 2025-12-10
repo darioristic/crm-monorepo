@@ -1,51 +1,50 @@
-import * as React from "react";
 import { Check, UserPlusIcon } from "lucide-react";
-
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from "@/components/ui/dialog";
+import * as React from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList
+  CommandList,
 } from "@/components/ui/command";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 const users = [
   {
     name: "Olivia Martin",
     email: "m@example.com",
-    avatar: `/images/avatars/01.png`
+    avatar: `/images/avatars/01.png`,
   },
   {
     name: "Isabella Nguyen",
     email: "isabella.nguyen@email.com",
-    avatar: `/images/avatars/07.png`
+    avatar: `/images/avatars/07.png`,
   },
   {
     name: "Emma Wilson",
     email: "emma@example.com",
-    avatar: `/images/avatars/02.png`
+    avatar: `/images/avatars/02.png`,
   },
   {
     name: "Jackson Lee",
     email: "lee@example.com",
-    avatar: `/images/avatars/09.png`
+    avatar: `/images/avatars/09.png`,
   },
   {
     name: "William Kim",
     email: "will@email.com",
-    avatar: `/images/avatars/06.png`
-  }
+    avatar: `/images/avatars/06.png`,
+  },
 ] as const;
 
 type User = (typeof users)[number];
@@ -85,7 +84,8 @@ export default function AddAssigne() {
                     return setSelectedUsers(
                       [...users].filter((u) => [...selectedUsers, user].includes(u))
                     );
-                  }}>
+                  }}
+                >
                   <Avatar>
                     <AvatarImage src={user.avatar} alt="Image" />
                     <AvatarFallback>{user.name[0]}</AvatarFallback>
@@ -119,7 +119,8 @@ export default function AddAssigne() {
             disabled={selectedUsers.length < 1}
             onClick={() => {
               setOpen(false);
-            }}>
+            }}
+          >
             Assign
           </Button>
         </DialogFooter>

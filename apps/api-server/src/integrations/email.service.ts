@@ -337,7 +337,7 @@ class EmailService {
 
       return response;
     } catch (error) {
-      logger.error("Email send error:", error);
+      logger.error({ error }, "Email send error");
       return { success: false, error: String(error) };
     }
   }
@@ -500,11 +500,7 @@ class EmailService {
   }): Promise<EmailResult> {
     // This is a placeholder - in production, use nodemailer
     // For development, we just log
-    logger.info("📧 SMTP Send:", {
-      from: options.from,
-      to: options.to,
-      subject: options.subject,
-    });
+    logger.info({ from: options.from, to: options.to, subject: options.subject }, "📧 SMTP Send");
 
     // Simulate network delay
     await new Promise((resolve) => setTimeout(resolve, 100));

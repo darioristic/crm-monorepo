@@ -1,7 +1,6 @@
 "use client";
 
 import type { Company, CreateInvoiceRequest, Invoice, UpdateInvoiceRequest } from "@crm/types";
-import { zodResolver } from "@hookform/resolvers/zod";
 import {
   AlertCircle,
   Building2,
@@ -17,8 +16,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Resolver } from "react-hook-form";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { SelectCompany } from "@/components/companies/select-company";
@@ -47,6 +45,7 @@ import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
 import { useMutation } from "@/hooks/use-api";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { companiesApi, invoicesApi } from "@/lib/api";
 import { logger } from "@/lib/logger";
 import { formatCurrency, getErrorMessage } from "@/lib/utils";
@@ -135,8 +134,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
     }
   }, []);
 
-  const form = useForm<InvoiceFormValues>({
-    resolver: zodResolver(invoiceFormSchema) as Resolver<InvoiceFormValues>,
+  const form = useZodForm(invoiceFormSchema, {
     defaultValues: {
       companyId: invoice?.companyId || "",
       issueDate: invoice?.issueDate?.split("T")[0] || today,
@@ -224,14 +222,14 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   }, [watchedItems, watchedTaxRate]);
 
   const onSubmit = async (values: InvoiceFormValues) => {
-    const items = values.items.map((item) => {
-      const lineTotal = item.quantity * item.unitPrice;
-      const discountAmount = lineTotal * (item.discount / 100);
-      return {
-        ...item,
-        total: lineTotal - discountAmount,
-      };
-    });
+    const items = values.items.map((item) => ({
+      productName: item.productName,
+      description: item.description || undefined,
+      quantity: item.quantity,
+      unit: "pcs",
+      unitPrice: item.unitPrice,
+      discount: item.discount || 0,
+    }));
 
     // Build customerDetails from selected company
     const customerDetails: CustomerDetails | undefined = selectedCompany
@@ -250,29 +248,36 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
         }
       : undefined;
 
-    const data = {
-      customerCompanyId: values.companyId,
+    const createData: CreateInvoiceRequest = {
+      companyId: values.companyId,
       sellerCompanyId: user?.companyId,
       issueDate: new Date(values.issueDate).toISOString(),
       dueDate: new Date(values.dueDate).toISOString(),
       status: values.status,
       taxRate: values.taxRate,
-      subtotal: calculations.subtotal,
-      tax: calculations.tax,
-      total: calculations.total,
       notes: values.notes || undefined,
       terms: values.terms || undefined,
       items,
       customerDetails,
-      createdBy: (user?.id as string) || "current-user-id",
     };
 
-    let result;
-    if (mode === "create") {
-      result = await createMutation.mutate(data as CreateInvoiceRequest);
-    } else {
-      result = await updateMutation.mutate(data as UpdateInvoiceRequest);
-    }
+    const updateData: UpdateInvoiceRequest = {
+      companyId: values.companyId,
+      sellerCompanyId: user?.companyId,
+      issueDate: new Date(values.issueDate).toISOString(),
+      dueDate: new Date(values.dueDate).toISOString(),
+      status: values.status,
+      taxRate: values.taxRate,
+      notes: values.notes || undefined,
+      terms: values.terms || undefined,
+      items,
+      customerDetails,
+    };
+
+    const result: { success: true; data: Invoice } | { success: false; error: string } =
+      mode === "create"
+        ? await createMutation.mutate(createData)
+        : await updateMutation.mutate(updateData);
 
     if (result.success) {
       toast.success(

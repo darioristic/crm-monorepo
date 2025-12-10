@@ -259,7 +259,6 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
                 <form
                   onSubmit={individualForm.handleSubmit(async (data) => {
                     const res = await contactsApi.create({
-                      id: crypto.randomUUID(),
                       firstName: data.firstName,
                       lastName: data.lastName,
                       email: data.email || "",
@@ -270,9 +269,7 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
                       notes: undefined,
                       leadId: undefined,
                       jmbg: data.jmbg,
-                      createdAt: new Date().toISOString(),
-                      updatedAt: new Date().toISOString(),
-                    } as any);
+                    });
                     if (res.success && res.data) {
                       setShowCreateSheet(false);
                       onSelect("individual", res.data.id);

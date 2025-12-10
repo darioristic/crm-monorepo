@@ -10,6 +10,7 @@ describe("Documents Routes - pristup samo članovima kompanije", () => {
   const mockAuth = {
     userId: "user-123",
     role: "crm_user" as const,
+    tenantRoles: [],
     sessionId: "session-123",
   };
 

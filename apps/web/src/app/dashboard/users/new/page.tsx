@@ -1,8 +1,8 @@
-import { generateMeta } from "@/lib/utils";
-import { UserForm } from "@/components/users/user-form";
-import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { UserForm } from "@/components/users/user-form";
+import { generateMeta } from "@/lib/utils";
 
 export async function generateMetadata() {
   return generateMeta({

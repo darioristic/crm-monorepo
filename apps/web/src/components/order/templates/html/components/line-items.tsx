@@ -92,9 +92,9 @@ export function LineItems({
         <div className="text-[11px] text-[#878787] text-right">{totalLabel}</div>
       </div>
 
-      {lineItems.map((item, index) => (
+      {lineItems.map((item) => (
         <div
-          key={`line-item-${index.toString()}`}
+          key={`${item.name}-${item.price}-${item.quantity}`}
           className="grid gap-2 items-start relative group mb-1 w-full py-1"
           style={getGridStyle()}
         >

@@ -1,6 +1,7 @@
-import type { CoreMessage } from "ai";
+import type { CoreMessage, Tool } from "ai";
 
 export type UITools = Record<string, unknown>;
+export type ToolSet = Record<string, Tool<unknown, unknown>>;
 
 export type ChatMessageMetadata = {
   webSearch?: boolean;
@@ -50,4 +51,3 @@ export interface ToolResponse {
     url: string;
   };
 }
-

@@ -39,8 +39,10 @@ const quoteToOrderSchema = z.object({
 
 app.post("/quote-to-order", zValidator("json", quoteToOrderSchema), async (c) => {
   try {
-    const user = c.get("user"); // From auth middleware
-    const tenantId = c.get("tenantId"); // From auth middleware
+    const userUnknown = (c as { get: (key: string) => unknown }).get("user");
+    const tenantIdUnknown = (c as { get: (key: string) => unknown }).get("tenantId");
+    const user = userUnknown as { id: string };
+    const tenantId = tenantIdUnknown as string;
     const body = c.req.valid("json");
 
     const order = await convertQuoteToOrder({
@@ -60,22 +62,28 @@ app.post("/quote-to-order", zValidator("json", quoteToOrderSchema), async (c) =>
         : undefined,
     });
 
-    logger.info("Quote converted to order", {
-      quoteId: body.quoteId,
-      orderId: order.id,
-      userId: user.id,
-    });
+    logger.info(
+      {
+        quoteId: body.quoteId,
+        orderId: order.id,
+        userId: user.id,
+      },
+      "Quote converted to order"
+    );
 
     return c.json({
       success: true,
       data: order,
     });
-  } catch (error: any) {
-    logger.error("Failed to convert quote to order", { error });
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to convert quote to order");
     return c.json(
       {
         success: false,
-        error: error.message,
+        error:
+          typeof error === "object" && error && "message" in error
+            ? (error as { message?: string }).message
+            : "Unknown error",
       },
       400
     );
@@ -102,8 +110,10 @@ const quoteToInvoiceSchema = z.object({
 
 app.post("/quote-to-invoice", zValidator("json", quoteToInvoiceSchema), async (c) => {
   try {
-    const user = c.get("user");
-    const tenantId = c.get("tenantId");
+    const userUnknown = (c as { get: (key: string) => unknown }).get("user");
+    const tenantIdUnknown = (c as { get: (key: string) => unknown }).get("tenantId");
+    const user = userUnknown as { id: string };
+    const tenantId = tenantIdUnknown as string;
     const body = c.req.valid("json");
 
     const invoiceId = await convertQuoteToInvoice({
@@ -123,22 +133,28 @@ app.post("/quote-to-invoice", zValidator("json", quoteToInvoiceSchema), async (c
         : undefined,
     });
 
-    logger.info("Quote converted to invoice", {
-      quoteId: body.quoteId,
-      invoiceId,
-      userId: user.id,
-    });
+    logger.info(
+      {
+        quoteId: body.quoteId,
+        invoiceId,
+        userId: user.id,
+      },
+      "Quote converted to invoice"
+    );
 
     return c.json({
       success: true,
       data: { invoiceId },
     });
-  } catch (error: any) {
-    logger.error("Failed to convert quote to invoice", { error });
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to convert quote to invoice");
     return c.json(
       {
         success: false,
-        error: error.message,
+        error:
+          typeof error === "object" && error && "message" in error
+            ? (error as { message?: string }).message
+            : "Unknown error",
       },
       400
     );
@@ -172,8 +188,10 @@ const orderToInvoiceSchema = z.object({
 
 app.post("/order-to-invoice", zValidator("json", orderToInvoiceSchema), async (c) => {
   try {
-    const user = c.get("user");
-    const tenantId = c.get("tenantId");
+    const userUnknown = (c as { get: (key: string) => unknown }).get("user");
+    const tenantIdUnknown = (c as { get: (key: string) => unknown }).get("tenantId");
+    const user = userUnknown as { id: string };
+    const tenantId = tenantIdUnknown as string;
     const body = c.req.valid("json");
 
     const invoiceId = await convertOrderToInvoice({
@@ -193,23 +211,29 @@ app.post("/order-to-invoice", zValidator("json", orderToInvoiceSchema), async (c
         : undefined,
     });
 
-    logger.info("Order converted to invoice", {
-      orderId: body.orderId,
-      invoiceId,
-      userId: user.id,
-      isPartial: !!body.customizations?.partial,
-    });
+    logger.info(
+      {
+        orderId: body.orderId,
+        invoiceId,
+        userId: user.id,
+        isPartial: !!body.customizations?.partial,
+      },
+      "Order converted to invoice"
+    );
 
     return c.json({
       success: true,
       data: { invoiceId },
     });
-  } catch (error: any) {
-    logger.error("Failed to convert order to invoice", { error });
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to convert order to invoice");
     return c.json(
       {
         success: false,
-        error: error.message,
+        error:
+          typeof error === "object" && error && "message" in error
+            ? (error as { message?: string }).message
+            : "Unknown error",
       },
       400
     );
@@ -243,8 +267,10 @@ const consolidatedInvoiceSchema = z.object({
 
 app.post("/consolidated-invoice", zValidator("json", consolidatedInvoiceSchema), async (c) => {
   try {
-    const user = c.get("user");
-    const tenantId = c.get("tenantId");
+    const userUnknown = (c as { get: (key: string) => unknown }).get("user");
+    const tenantIdUnknown = (c as { get: (key: string) => unknown }).get("tenantId");
+    const user = userUnknown as { id: string };
+    const tenantId = tenantIdUnknown as string;
     const body = c.req.valid("json");
 
     const invoiceId = await createConsolidatedInvoice({
@@ -264,22 +290,28 @@ app.post("/consolidated-invoice", zValidator("json", consolidatedInvoiceSchema),
         : undefined,
     });
 
-    logger.info("Consolidated invoice created", {
-      invoiceId,
-      orderCount: body.orders.length,
-      userId: user.id,
-    });
+    logger.info(
+      {
+        invoiceId,
+        orderCount: body.orders.length,
+        userId: user.id,
+      },
+      "Consolidated invoice created"
+    );
 
     return c.json({
       success: true,
       data: { invoiceId },
     });
-  } catch (error: any) {
-    logger.error("Failed to create consolidated invoice", { error });
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to create consolidated invoice");
     return c.json(
       {
         success: false,
-        error: error.message,
+        error:
+          typeof error === "object" && error && "message" in error
+            ? (error as { message?: string }).message
+            : "Unknown error",
       },
       400
     );
@@ -294,7 +326,8 @@ app.post("/consolidated-invoice", zValidator("json", consolidatedInvoiceSchema),
 
 app.get("/document-chain/:quoteId", async (c) => {
   try {
-    const tenantId = c.get("tenantId");
+    const tenantIdUnknown = (c as { get: (key: string) => unknown }).get("tenantId");
+    const tenantId = tenantIdUnknown as string;
     const quoteId = c.req.param("quoteId");
 
     const chain = await getDocumentChain(quoteId, tenantId);
@@ -303,12 +336,15 @@ app.get("/document-chain/:quoteId", async (c) => {
       success: true,
       data: chain,
     });
-  } catch (error: any) {
-    logger.error("Failed to get document chain", { error });
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to get document chain");
     return c.json(
       {
         success: false,
-        error: error.message,
+        error:
+          typeof error === "object" && error && "message" in error
+            ? (error as { message?: string }).message
+            : "Unknown error",
       },
       400
     );

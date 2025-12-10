@@ -51,8 +51,9 @@ export const quoteQueries = {
       }
       qb.addSearchCondition(["quote_number"], filters.search);
       qb.addEqualCondition("status", filters.status);
-      if ((filters as any).createdBy) {
-        qb.addEqualCondition("created_by", (filters as any).createdBy as string);
+      const createdBy = (filters as { createdBy?: string }).createdBy;
+      if (createdBy) {
+        qb.addEqualCondition("created_by", createdBy);
       }
 
       const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
@@ -79,12 +80,12 @@ export const quoteQueries = {
           safeOffset,
         ] as QueryParam[]);
       } catch (selectError) {
-        logger.error("Error selecting quotes:", selectError);
-        logger.error("CompanyId:", companyId);
-        logger.error("Pagination:", pagination);
-        logger.error("Filters:", filters);
-        logger.error("WhereValues:", whereValues);
-        logger.error("SafePageSize:", safePageSize, "SafeOffset:", safeOffset);
+        logger.error({ error: selectError }, "Error selecting quotes");
+        logger.error({ companyId }, "CompanyId");
+        logger.error({ pagination }, "Pagination");
+        logger.error({ filters }, "Filters");
+        logger.error({ whereValues }, "WhereValues");
+        logger.error({ safePageSize, safeOffset }, "Pagination limits");
         data = [];
       }
 
@@ -110,13 +111,17 @@ export const quoteQueries = {
       `;
 
       // Group items by quote_id
-      const itemsByQuoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-        if (!acc[item.quote_id]) {
-          acc[item.quote_id] = [];
-        }
-        acc[item.quote_id].push(item);
-        return acc;
-      }, {});
+      const itemsByQuoteId = (allItems as Record<string, unknown>[]).reduce(
+        (acc: Record<string, Record<string, unknown>[]>, item) => {
+          const key = item.quote_id as string;
+          if (!acc[key]) {
+            acc[key] = [];
+          }
+          acc[key].push(item);
+          return acc;
+        },
+        {}
+      );
 
       // Map quotes with their items
       const quotesWithItems = data.map((row: Record<string, unknown>) => {
@@ -126,7 +131,7 @@ export const quoteQueries = {
 
       return { data: quotesWithItems, total };
     } catch (error) {
-      logger.error("Error in quoteQueries.findAll:", error);
+      logger.error({ error }, "Error in quoteQueries.findAll");
       throw error;
     }
   },
@@ -227,7 +232,7 @@ export const quoteQueries = {
         ${quote.status}, ${quote.issueDate}, ${quote.validUntil},
         ${quote.subtotal}, ${quote.taxRate}, ${quote.tax}, ${quote.total},
         ${quote.notes || null}, ${quote.terms || null}, ${quote.fromDetails ? JSON.stringify(quote.fromDetails) : null}, ${quote.createdBy},
-        ${(quote as any).sellerCompanyId || null}, ${quote.createdAt}, ${quote.updatedAt}
+        ${(quote as { sellerCompanyId?: string }).sellerCompanyId || null}, ${quote.createdAt}, ${quote.updatedAt}
       )
       RETURNING *
     `;
@@ -411,7 +416,6 @@ function mapQuote(row: Record<string, unknown>, items: unknown[]): Quote {
     terms: row.terms as string | undefined,
     fromDetails,
     createdBy: row.created_by as string,
-    tenantId: row.tenant_id as string | undefined,
   };
 }
 

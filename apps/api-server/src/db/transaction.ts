@@ -43,7 +43,7 @@ export async function withTransactionResponse<T>(
       data: result,
     };
   } catch (error) {
-    logger.error("Transaction error:", error);
+    logger.error({ error }, "Transaction error");
     return errorResponse("DATABASE_ERROR", errorMessage);
   }
 }

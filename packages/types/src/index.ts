@@ -718,8 +718,11 @@ export type CreateMilestoneRequest = Omit<Milestone, keyof BaseEntity | "order">
 export type UpdateMilestoneRequest = Partial<CreateMilestoneRequest>;
 
 // Sales Module Request Types
-export type CreateQuoteRequest = Omit<Quote, keyof BaseEntity | "quoteNumber" | "items"> & {
-  items: Omit<QuoteItem, "id" | "quoteId">[];
+export type CreateQuoteRequest = Omit<
+  Quote,
+  keyof BaseEntity | "quoteNumber" | "items" | "subtotal" | "tax" | "total"
+> & {
+  items: Omit<QuoteItem, "id" | "quoteId" | "total">[];
   sellerCompanyId?: UUID;
 };
 export type UpdateQuoteRequest = Partial<Omit<CreateQuoteRequest, "items">> & {
@@ -728,24 +731,45 @@ export type UpdateQuoteRequest = Partial<Omit<CreateQuoteRequest, "items">> & {
 
 export type CreateInvoiceRequest = Omit<
   Invoice,
-  keyof BaseEntity | "invoiceNumber" | "items" | "paidAmount"
+  | keyof BaseEntity
+  | "invoiceNumber"
+  | "items"
+  | "paidAmount"
+  | "subtotal"
+  | "taxRate"
+  | "tax"
+  | "total"
 > & {
-  items: Omit<InvoiceItem, "id" | "invoiceId">[];
+  items: Omit<InvoiceItem, "id" | "invoiceId" | "total">[];
   sellerCompanyId?: UUID;
+  taxRate?: number;
+  vatRate?: number;
+  currency?: string;
+  logoUrl?: string;
+  templateSettings?: unknown;
+  fromDetails?: unknown;
+  customerDetails?: unknown;
 };
 export type UpdateInvoiceRequest = Partial<Omit<CreateInvoiceRequest, "items">> & {
-  items?: Omit<InvoiceItem, "invoiceId">[];
+  items?: Omit<InvoiceItem, "invoiceId" | "total">[];
 };
 
 export type CreateDeliveryNoteRequest = Omit<
   DeliveryNote,
-  keyof BaseEntity | "deliveryNumber" | "items"
+  keyof BaseEntity | "deliveryNumber" | "items" | "subtotal" | "taxRate" | "tax" | "total"
 > & {
   items: Omit<DeliveryNoteItem, "id" | "deliveryNoteId">[];
   sellerCompanyId?: UUID;
+  taxRate?: number;
+  fromDetails?: unknown;
+  customerDetails?: unknown;
+  terms?: string;
 };
 export type UpdateDeliveryNoteRequest = Partial<Omit<CreateDeliveryNoteRequest, "items">> & {
   items?: Omit<DeliveryNoteItem, "deliveryNoteId">[];
+  subtotal?: number;
+  tax?: number;
+  total?: number;
 };
 
 export type CreateOrderRequest = Omit<Order, keyof BaseEntity | "orderNumber"> & {

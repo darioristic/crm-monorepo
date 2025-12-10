@@ -1,5 +1,6 @@
 "use client";
 
+import { Download, FileSpreadsheet, FileText, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -7,12 +8,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Download,
-  MoreHorizontal,
-  FileSpreadsheet,
-  FileText,
-} from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface ExportButtonProps {
@@ -23,11 +18,7 @@ export function ExportButton({ className }: ExportButtonProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn("h-8 w-8", className)}
-        >
+        <Button variant="ghost" size="icon" className={cn("h-8 w-8", className)}>
           <MoreHorizontal className="h-4 w-4" />
           <span className="sr-only">Export options</span>
         </Button>

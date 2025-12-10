@@ -1,5 +1,6 @@
 "use client";
 
+import type { EditorDoc, InvoiceFormValues } from "@crm/schemas";
 import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Copy, Download, Loader2 } from "lucide-react";
@@ -10,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useApi } from "@/hooks/use-api";
-import { invoicesApi } from "@/lib/api";
-import type { InvoiceDefaultSettings, InvoiceFormValues } from "@/types/invoice";
+import { documentsApi, invoicesApi } from "@/lib/api";
+import type { InvoiceDefaultSettings } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE, extractTextFromEditorDoc } from "@/types/invoice";
 import { buildCustomerDetails } from "@/utils/customer-details";
 import { Form } from "./form";
@@ -107,13 +108,51 @@ export function InvoiceSheet({ defaultSettings, onInvoiceCreated }: InvoiceSheet
   );
 
   const handleSuccess = useCallback(
-    (id: string) => {
+    async (id: string) => {
       // Show success state
       const params = new URLSearchParams(searchParams);
       params.set("type", "success");
       params.set("invoiceId", id);
       router.push(`${pathname}?${params.toString()}`);
       onInvoiceCreated?.();
+
+      // Store the invoice PDF in vault (fire and forget)
+      try {
+        // Fetch the invoice data to get invoice number
+        const invoiceResponse = await invoicesApi.getById(id);
+        if (!invoiceResponse.success || !invoiceResponse.data) return;
+
+        const invoice = invoiceResponse.data;
+        const invoiceNumber = invoice.invoiceNumber || id;
+
+        // Fetch the PDF
+        const pdfResponse = await fetch(`/api/download/invoice?id=${id}`);
+        if (!pdfResponse.ok) return;
+
+        const pdfBlob = await pdfResponse.blob();
+        const pdfBuffer = await pdfBlob.arrayBuffer();
+        const pdfBase64 = btoa(
+          new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+        );
+
+        // Store in vault
+        await documentsApi.storeGenerated({
+          pdfBase64,
+          documentType: "invoice",
+          entityId: id,
+          title: `Invoice ${invoiceNumber}`,
+          documentNumber: invoiceNumber,
+          metadata: {
+            customerName: invoice.companyName || invoice.company?.name,
+            total: invoice.total,
+            currency: invoice.currency,
+            dueDate: invoice.dueDate,
+          },
+        });
+      } catch {
+        // Silent fail - vault storage is optional
+        console.warn("Failed to store invoice PDF in vault");
+      }
     },
     [router, pathname, searchParams, onInvoiceCreated]
   );
@@ -153,7 +192,7 @@ function InvoiceSheetContent({
   invoiceId,
   invoiceData,
   onSuccess,
-  onClose,
+  onClose: _onClose,
   isLoading,
 }: InvoiceSheetContentProps) {
   const [size] = useState(700);
@@ -247,17 +286,18 @@ function SuccessContent({
   const company = invoice?.company;
   const companyName = company?.name || invoice?.companyName;
 
-  let toDoc: any = null;
+  let toDoc: EditorDoc | null = null;
   if (invoice?.customerDetails) {
-    toDoc = invoice.customerDetails as any;
+    const raw = invoice.customerDetails as unknown;
+    toDoc = raw as EditorDoc;
     if (typeof toDoc === "string") {
       try {
-        toDoc = JSON.parse(toDoc);
+        toDoc = JSON.parse(toDoc) as EditorDoc;
       } catch {
         toDoc = null;
       }
     }
-    if (!toDoc || typeof toDoc !== "object" || (toDoc as any).type !== "doc") {
+    if (!toDoc || typeof toDoc !== "object" || (toDoc as EditorDoc).type !== "doc") {
       toDoc = null;
     }
   }
@@ -268,7 +308,16 @@ function SuccessContent({
       .map((l) => l.trim())
       .filter(Boolean);
   } else if (invoice?.customerDetails && typeof invoice.customerDetails === "object") {
-    const cd: any = invoice.customerDetails as any;
+    const cd = invoice.customerDetails as {
+      name?: string;
+      address?: string;
+      zip?: string;
+      city?: string;
+      country?: string;
+      email?: string;
+      phone?: string;
+      vatNumber?: string;
+    };
     const lines: string[] = [];
     if (cd.name) lines.push(String(cd.name));
     if (cd.address) lines.push(String(cd.address));
@@ -311,8 +360,8 @@ function SuccessContent({
             <p className="text-xs font-medium text-foreground mb-2">To</p>
             <div className="space-y-0.5">
               {toLines && toLines.length > 0 ? (
-                toLines.map((line, idx) => (
-                  <p key={idx} className="text-sm text-muted-foreground">
+                toLines.map((line) => (
+                  <p key={line} className="text-sm text-muted-foreground">
                     {line}
                   </p>
                 ))
@@ -427,13 +476,13 @@ function SuccessContent({
 
 // Transform API invoice to form values
 function transformInvoiceToFormValues(invoice: InvoiceApiResponse): Partial<InvoiceFormValues> {
-  // Prefer explicit customerDetails from API; fallback to built from company fields
-  let customerDetails: any;
+  let customerDetails: EditorDoc | undefined;
   if (invoice.customerDetails) {
-    customerDetails = invoice.customerDetails as any;
+    const raw = invoice.customerDetails as unknown;
+    customerDetails = raw as EditorDoc;
     if (typeof customerDetails === "string") {
       try {
-        customerDetails = JSON.parse(customerDetails);
+        customerDetails = JSON.parse(customerDetails) as EditorDoc;
       } catch {
         customerDetails = undefined;
       }
@@ -442,53 +491,80 @@ function transformInvoiceToFormValues(invoice: InvoiceApiResponse): Partial<Invo
 
   const builtCustomer = customerDetails ?? buildCustomerDetails(invoice);
 
-  return {
+  const allowedStatuses = new Set<InvoiceFormValues["status"]>([
+    "draft",
+    "sent",
+    "paid",
+    "partial",
+    "overdue",
+    "cancelled",
+  ]);
+  const statusCandidate = allowedStatuses.has(invoice.status as InvoiceFormValues["status"])
+    ? (invoice.status as InvoiceFormValues["status"])
+    : "draft";
+  const status: InvoiceFormValues["status"] = statusCandidate;
+
+  const base: Partial<InvoiceFormValues> = {
     id: invoice.id,
-    status: invoice.status,
-    invoiceNumber: invoice.invoiceNumber ?? undefined,
-    issueDate: invoice.issueDate ?? undefined,
-    dueDate: invoice.dueDate ?? undefined,
-    customerId: invoice.companyId,
-    customerName: invoice.companyName,
+    status,
+    customerId: invoice.companyId ?? null,
+    customerName: invoice.companyName ?? null,
     customerDetails: builtCustomer || null,
-    amount: invoice.total || 0,
-    subtotal: invoice.subtotal || 0,
-    vat: invoice.vat || 0,
-    tax: invoice.tax || 0,
-    discount: invoice.discount || 0,
-    noteDetails: invoice.notes
-      ? {
-          type: "doc",
-          content: [
-            {
-              type: "paragraph",
-              content: [{ type: "text", text: invoice.notes }],
-            },
-          ],
-        }
-      : null,
-    paymentDetails: invoice.terms
-      ? {
-          type: "doc",
-          content: [
-            {
-              type: "paragraph",
-              content: [{ type: "text", text: invoice.terms }],
-            },
-          ],
-        }
-      : null,
-    lineItems: (invoice.items || []).map((item) => ({
-      name: item.productName || item.description || "",
-      quantity: item.quantity || 1,
-      price: item.unitPrice || 0,
-      unit: item.unit || "pcs",
-    })),
     template: {
       ...DEFAULT_INVOICE_TEMPLATE,
       currency: invoice.currency || "EUR",
       taxRate: invoice.taxRate || 0,
     },
-    token: invoice.token,
+  };
+
+  return {
+    ...base,
+    ...(invoice.invoiceNumber ? { invoiceNumber: invoice.invoiceNumber } : {}),
+    ...(invoice.issueDate ? { issueDate: invoice.issueDate } : {}),
+    ...(invoice.dueDate ? { dueDate: invoice.dueDate } : {}),
+    ...(typeof invoice.total === "number" ? { amount: invoice.total } : {}),
+    ...(typeof invoice.subtotal === "number" ? { subtotal: invoice.subtotal } : {}),
+    ...(typeof invoice.vat === "number" ? { vat: invoice.vat } : {}),
+    ...(typeof invoice.tax === "number" ? { tax: invoice.tax } : {}),
+    ...(typeof invoice.discount === "number" ? { discount: invoice.discount } : {}),
+    ...(invoice.notes
+      ? {
+          noteDetails: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: invoice.notes }],
+              },
+            ],
+          },
+        }
+      : {}),
+    ...(invoice.terms
+      ? {
+          paymentDetails: {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: invoice.terms }],
+              },
+            ],
+          },
+        }
+      : {}),
+    ...(invoice.items && invoice.items.length > 0
+      ? {
+          lineItems: invoice.items.map((item) => ({
+            name: item.productName || item.description || "",
+            quantity: item.quantity || 1,
+            price: item.unitPrice || 0,
+            unit: item.unit || "pcs",
+            discount: item.discount ?? 0,
+            vat: item.vat ?? item.vatRate ?? invoice.vatRate ?? 20,
+          })),
+        }
+      : {}),
+    ...(invoice.token ? { token: invoice.token } : {}),
   };
 }

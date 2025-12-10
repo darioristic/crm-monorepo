@@ -266,7 +266,7 @@ export async function logApiRequest(log: ApiRequestLog): Promise<void> {
       logger.info(`📊 API ${log.method} ${log.path} - ${log.statusCode} (${log.responseTimeMs}ms)`);
     }
   } catch (error) {
-    logger.error("Failed to log API request:", error);
+    logger.error({ error }, "Failed to log API request");
   }
 }
 

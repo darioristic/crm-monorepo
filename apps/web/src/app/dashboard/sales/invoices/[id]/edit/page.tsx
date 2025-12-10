@@ -1,7 +1,7 @@
 "use client";
 
-import { use, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { use, useEffect } from "react";
 
 interface PageProps {
   params: Promise<{ id: string }>;

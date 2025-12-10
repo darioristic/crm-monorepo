@@ -1,10 +1,10 @@
 "use client";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { type VariantProps } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { ChevronDown } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Button, type buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export type ScrollButtonProps = {
   scrollRef: React.RefObject<HTMLElement | null>;
@@ -52,7 +52,7 @@ function PromptScrollButton({
     if (containerRef.current) {
       containerRef.current.scrollTo({
         top: containerRef.current.scrollHeight,
-        behavior: "smooth"
+        behavior: "smooth",
       });
     }
   };
@@ -69,7 +69,8 @@ function PromptScrollButton({
         className
       )}
       onClick={handleScroll}
-      {...props}>
+      {...props}
+    >
       <ChevronDown className="h-4 w-4" />
     </Button>
   );

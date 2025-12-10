@@ -1,5 +1,5 @@
-import { pgTable, index, foreignKey, uuid, varchar, text, jsonb, timestamp, date, unique, numeric, uniqueIndex, boolean, integer, serial, primaryKey, pgEnum } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
+import { boolean, date, foreignKey, index, integer, jsonb, numeric, pgEnum, pgTable, primaryKey, serial, text, timestamp, unique, uniqueIndex, uuid, varchar, unknown as pgUnknown } from "drizzle-orm/pg-core"
 
 export const companyRole = pgEnum("company_role", ['owner', 'member', 'admin'])
 export const documentProcessingStatus = pgEnum("document_processing_status", ['pending', 'processing', 'completed', 'failed'])
@@ -57,7 +57,7 @@ export const documents = pgTable("documents", {
 }, (table) => [
 	index("idx_documents_company_date").using("btree", table.companyId.asc().nullsLast().op("uuid_ops"), table.date.desc().nullsLast().op("date_ops")),
 	index("idx_documents_company_id").using("btree", table.companyId.asc().nullsLast().op("uuid_ops")),
-	index("idx_documents_company_status").using("btree", table.companyId.asc().nullsLast().op("uuid_ops"), table.processingStatus.asc().nullsLast().op("uuid_ops")),
+    index("idx_documents_company_status").using("btree", table.companyId.asc().nullsLast().op("uuid_ops"), table.processingStatus.asc().nullsLast().op("enum_ops")),
 	index("idx_documents_created_at").using("btree", table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_documents_created_by").using("btree", table.createdBy.asc().nullsLast().op("uuid_ops")),
 	index("idx_documents_date").using("btree", table.date.desc().nullsLast().op("date_ops")),
@@ -219,9 +219,9 @@ export const companies = pgTable("companies", {
 	countryCode: varchar("country_code", { length: 10 }),
 	vatNumber: varchar("vat_number", { length: 50 }),
 	note: text(),
-	token: varchar({ length: 255 }).default('),
+	token: varchar({ length: 255 }),
 	// TODO: failed to parse database type 'tsvector'
-	fts: unknown("fts").generatedAlwaysAs(sql`to_tsvector('english'::regconfig, (((((((((((((((((((COALESCE(name, ''::character varying))::text || ' '::text) || (COALESCE(contact, ''::character varying))::text) || ' '::text) || (COALESCE(phone, ''::character varying))::text) || ' '::text) || (COALESCE(email, ''::character varying))::text) || ' '::text) || (COALESCE(address_line_1, ''::character varying))::text) || ' '::text) || (COALESCE(address_line_2, ''::character varying))::text) || ' '::text) || (COALESCE(city, ''::character varying))::text) || ' '::text) || (COALESCE(state, ''::character varying))::text) || ' '::text) || (COALESCE(zip, ''::character varying))::text) || ' '::text) || (COALESCE(country, ''::character varying))::text))`),
+	fts: pgUnknown("fts").generatedAlwaysAs(sql`to_tsvector('english'::regconfig, (((((((((((((((((((COALESCE(name, ''::character varying))::text || ' '::text) || (COALESCE(contact, ''::character varying))::text) || ' '::text) || (COALESCE(phone, ''::character varying))::text) || ' '::text) || (COALESCE(email, ''::character varying))::text) || ' '::text) || (COALESCE(address_line_1, ''::character varying))::text) || ' '::text) || (COALESCE(address_line_2, ''::character varying))::text) || ' '::text) || (COALESCE(city, ''::character varying))::text) || ' '::text) || (COALESCE(state, ''::character varying))::text) || ' '::text) || (COALESCE(zip, ''::character varying))::text) || ' '::text) || (COALESCE(country, ''::character varying))::text))`),
 	companyNumber: varchar("company_number", { length: 50 }),
 	logoUrl: text("logo_url"),
 	source: varchar({ length: 50 }).default('account').notNull(),
@@ -264,7 +264,7 @@ export const activities = pgTable("activities", {
 	tenantId: uuid("tenant_id"),
 	companyId: uuid("company_id"),
 }, (table) => [
-	index("idx_activities_entity").using("btree", table.entityType.asc().nullsLast().op("uuid_ops"), table.entityId.asc().nullsLast().op("uuid_ops")),
+    index("idx_activities_entity").using("btree", table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("uuid_ops")),
 	index("idx_activities_tenant_company").using("btree", table.tenantId.asc().nullsLast().op("uuid_ops"), table.companyId.asc().nullsLast().op("uuid_ops")),
 	index("idx_activities_user_id").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
 	foreignKey({
@@ -328,9 +328,9 @@ export const deals = pgTable("deals", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_deals_assigned_stage").using("btree", table.assignedTo.asc().nullsLast().op("text_ops"), table.stage.asc().nullsLast().op("text_ops")),
+    index("idx_deals_assigned_stage").using("btree", table.assignedTo.asc().nullsLast().op("uuid_ops"), table.stage.asc().nullsLast().op("text_ops")),
 	index("idx_deals_assigned_to").using("btree", table.assignedTo.asc().nullsLast().op("uuid_ops")),
-	index("idx_deals_contact_stage").using("btree", table.contactId.asc().nullsLast().op("uuid_ops"), table.stage.asc().nullsLast().op("uuid_ops")),
+    index("idx_deals_contact_stage").using("btree", table.contactId.asc().nullsLast().op("uuid_ops"), table.stage.asc().nullsLast().op("text_ops")),
 	index("idx_deals_stage").using("btree", table.stage.asc().nullsLast().op("text_ops")),
 	index("idx_deals_stage_value").using("btree", table.stage.asc().nullsLast().op("text_ops"), table.value.desc().nullsLast().op("text_ops")),
 	foreignKey({
@@ -500,10 +500,10 @@ export const quotes = pgTable("quotes", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_quotes_company_id").using("btree", table.companyId.asc().nullsLast().op("uuid_ops")),
-	index("idx_quotes_company_status").using("btree", table.companyId.asc().nullsLast().op("text_ops"), table.status.asc().nullsLast().op("uuid_ops")),
+    index("idx_quotes_company_status").using("btree", table.companyId.asc().nullsLast().op("uuid_ops"), table.status.asc().nullsLast().op("text_ops")),
 	index("idx_quotes_created_by").using("btree", table.createdBy.asc().nullsLast().op("uuid_ops")),
 	index("idx_quotes_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
-	index("idx_quotes_status_created_at").using("btree", table.status.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("text_ops")),
+    index("idx_quotes_status_created_at").using("btree", table.status.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	foreignKey({
 			columns: [table.companyId],
 			foreignColumns: [companies.id],
@@ -624,14 +624,14 @@ export const invoices = pgTable("invoices", {
 	sentAt: timestamp("sent_at", { withTimezone: true, mode: 'string' }),
 	paidAt: timestamp("paid_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
-	index("idx_invoices_company_created_at").using("btree", table.companyId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("uuid_ops")),
+    index("idx_invoices_company_created_at").using("btree", table.companyId.asc().nullsLast().op("uuid_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_invoices_company_id").using("btree", table.companyId.asc().nullsLast().op("uuid_ops")),
-	index("idx_invoices_company_status").using("btree", table.companyId.asc().nullsLast().op("text_ops"), table.status.asc().nullsLast().op("uuid_ops")),
+    index("idx_invoices_company_status").using("btree", table.companyId.asc().nullsLast().op("uuid_ops"), table.status.asc().nullsLast().op("text_ops")),
 	index("idx_invoices_created_by").using("btree", table.createdBy.asc().nullsLast().op("uuid_ops")),
 	index("idx_invoices_invoice_number_lower").using("btree", sql`lower((invoice_number)::text)`),
 	index("idx_invoices_quote_id").using("btree", table.quoteId.asc().nullsLast().op("uuid_ops")),
 	index("idx_invoices_status").using("btree", table.status.asc().nullsLast().op("text_ops")),
-	index("idx_invoices_status_created_at").using("btree", table.status.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
+    index("idx_invoices_status_created_at").using("btree", table.status.asc().nullsLast().op("text_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	index("idx_invoices_token").using("btree", table.token.asc().nullsLast().op("text_ops")),
 	foreignKey({
 			columns: [table.quoteId],
@@ -789,12 +789,12 @@ export const notifications = pgTable("notifications", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
 	index("idx_notifications_created_at").using("btree", table.createdAt.asc().nullsLast().op("timestamptz_ops")),
-	index("idx_notifications_entity").using("btree", table.entityType.asc().nullsLast().op("uuid_ops"), table.entityId.asc().nullsLast().op("text_ops")),
+    index("idx_notifications_entity").using("btree", table.entityType.asc().nullsLast().op("text_ops"), table.entityId.asc().nullsLast().op("uuid_ops")),
 	index("idx_notifications_is_read").using("btree", table.isRead.asc().nullsLast().op("bool_ops")),
 	index("idx_notifications_type").using("btree", table.type.asc().nullsLast().op("enum_ops")),
-	index("idx_notifications_type_created").using("btree", table.type.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
-	index("idx_notifications_user_id").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
-	index("idx_notifications_user_read_created").using("btree", table.userId.asc().nullsLast().op("timestamptz_ops"), table.isRead.asc().nullsLast().op("timestamptz_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
+    index("idx_notifications_type_created").using("btree", table.type.asc().nullsLast().op("enum_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
+    index("idx_notifications_user_id").using("btree", table.userId.asc().nullsLast().op("uuid_ops")),
+    index("idx_notifications_user_read_created").using("btree", table.userId.asc().nullsLast().op("uuid_ops"), table.isRead.asc().nullsLast().op("bool_ops"), table.createdAt.desc().nullsFirst().op("timestamptz_ops")),
 	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],
@@ -955,9 +955,9 @@ export const payments = pgTable("payments", {
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 }, (table) => [
-	index("idx_payments_date_status").using("btree", table.paymentDate.desc().nullsFirst().op("enum_ops"), table.status.asc().nullsLast().op("enum_ops")),
+    index("idx_payments_date_status").using("btree", table.paymentDate.desc().nullsFirst().op("timestamptz_ops"), table.status.asc().nullsLast().op("enum_ops")),
 	index("idx_payments_invoice_id").using("btree", table.invoiceId.asc().nullsLast().op("uuid_ops")),
-	index("idx_payments_invoice_status").using("btree", table.invoiceId.asc().nullsLast().op("enum_ops"), table.status.asc().nullsLast().op("uuid_ops")),
+    index("idx_payments_invoice_status").using("btree", table.invoiceId.asc().nullsLast().op("uuid_ops"), table.status.asc().nullsLast().op("enum_ops")),
 	index("idx_payments_payment_date").using("btree", table.paymentDate.asc().nullsLast().op("timestamptz_ops")),
 	index("idx_payments_recorded_by").using("btree", table.recordedBy.asc().nullsLast().op("uuid_ops")),
 	index("idx_payments_reference").using("btree", table.reference.asc().nullsLast().op("text_ops")),

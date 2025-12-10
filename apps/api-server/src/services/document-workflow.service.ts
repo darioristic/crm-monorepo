@@ -10,17 +10,21 @@
  * - Partial order invoicing
  */
 
+import type { DeliveryNote, DeliveryNoteItem } from "@crm/types";
 import { and, eq, inArray } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { db } from "../db/client";
 import {
+  type InvoiceImproved,
   invoiceItemsImproved,
   invoiceOrders,
   invoicesImproved,
   type OrderImproved,
+  type OrderItemImproved,
   orderItemsImproved,
   ordersImproved,
   type QuoteImproved,
+  type QuoteItemImproved,
   quoteItemsImproved,
   quotesImproved,
 } from "../db/schema/improved-sales";
@@ -560,9 +564,9 @@ export async function createConsolidatedInvoice(
 // ============================================
 
 interface DocumentChain {
-  quote?: QuoteImproved & { items: any[] };
-  orders: Array<OrderImproved & { items: any[] }>;
-  invoices: Array<any>;
+  quote?: QuoteImproved & { items: QuoteItemImproved[] };
+  orders: Array<OrderImproved & { items: OrderItemImproved[] }>;
+  invoices: Array<InvoiceImproved>;
 }
 
 export async function getDocumentChain(quoteId: string, tenantId: string): Promise<DocumentChain> {
@@ -674,47 +678,47 @@ export async function convertOrderToDeliveryNote(
 
     const { deliveryNoteQueries } = await import("../db/queries/delivery-notes");
 
-    const deliveryNoteData = {
+    const deliveryNoteData: Omit<DeliveryNote, "items"> & { sellerCompanyId?: string } = {
       id: nanoid(),
       deliveryNumber,
       companyId: order.companyId,
-      contactId: order.contactId ?? null,
-      status: "pending" as const,
-      shipDate: customizations?.shipDate ?? new Date(),
-      deliveryDate: customizations?.deliveryDate ?? null,
-      shippingAddress: customizations?.shippingAddress ?? order.shippingAddress ?? "",
-      trackingNumber: customizations?.trackingNumber ?? null,
-      carrier: customizations?.carrier ?? null,
-      taxRate: order.taxRate ?? 0,
-      subtotal: order.subtotal,
-      tax: order.tax ?? 0,
-      total: order.total,
-      notes: customizations?.notes ?? order.notes ?? null,
-      terms: order.terms ?? null,
+      contactId: order.contactId ?? undefined,
+      status: "pending",
+      shipDate: (customizations?.shipDate ?? new Date()).toISOString(),
+      deliveryDate: customizations?.deliveryDate
+        ? customizations.deliveryDate.toISOString()
+        : undefined,
+      shippingAddress: customizations?.shippingAddress ?? "",
+      trackingNumber: customizations?.trackingNumber ?? undefined,
+      carrier: customizations?.carrier ?? undefined,
+      taxRate: Number(order.taxRate ?? 0),
+      subtotal: Number(order.subtotal),
+      tax: Number(order.tax ?? 0),
+      total: Number(order.total),
+      notes: customizations?.notes ?? order.notes ?? undefined,
+      terms: order.terms ?? undefined,
       customerDetails: order.customerDetails ?? null,
       fromDetails: order.fromDetails ?? null,
       createdBy: userId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       sellerCompanyId: tenantId,
-      invoiceId: null,
+      invoiceId: undefined,
     };
 
-    const deliveryNoteItems = orderItems.map((item) => ({
-      productName: item.productName ?? "",
-      description: item.description ?? "",
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      unit: item.unit ?? "pcs",
-      discount: item.discount ?? 0,
-      vat: item.vat ?? 0,
-      total: item.total,
-    }));
-
-    const deliveryNote = await deliveryNoteQueries.create(
-      deliveryNoteData as any,
-      deliveryNoteItems
+    const deliveryNoteItems: Omit<DeliveryNoteItem, "id" | "deliveryNoteId">[] = orderItems.map(
+      (item) => ({
+        productName: item.productName ?? "",
+        description: item.description ?? "",
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        unit: item.unit ?? "pcs",
+        discount: Number(item.discount ?? 0),
+        total: Number(item.total),
+      })
     );
+
+    const deliveryNote = await deliveryNoteQueries.create(deliveryNoteData, deliveryNoteItems);
 
     logger.info(
       { orderId, deliveryNoteId: deliveryNote.id, deliveryNumber },
@@ -770,47 +774,47 @@ export async function convertInvoiceToDeliveryNote(
 
     const { deliveryNoteQueries } = await import("../db/queries/delivery-notes");
 
-    const deliveryNoteData = {
+    const deliveryNoteData: Omit<DeliveryNote, "items"> & { sellerCompanyId?: string } = {
       id: nanoid(),
       deliveryNumber,
       companyId: invoice.companyId,
-      contactId: invoice.contactId ?? null,
-      invoiceId: invoice.id,
-      status: "pending" as const,
-      shipDate: customizations?.shipDate ?? new Date(),
-      deliveryDate: customizations?.deliveryDate ?? null,
-      shippingAddress: customizations?.shippingAddress ?? invoice.shippingAddress ?? "",
-      trackingNumber: customizations?.trackingNumber ?? null,
-      carrier: customizations?.carrier ?? null,
-      taxRate: invoice.taxRate ?? 0,
-      subtotal: invoice.subtotal,
-      tax: invoice.tax ?? 0,
-      total: invoice.total,
-      notes: customizations?.notes ?? invoice.notes ?? null,
-      terms: invoice.terms ?? null,
+      contactId: invoice.contactId ?? undefined,
+      invoiceId: invoice.id ?? undefined,
+      status: "pending",
+      shipDate: (customizations?.shipDate ?? new Date()).toISOString(),
+      deliveryDate: customizations?.deliveryDate
+        ? customizations.deliveryDate.toISOString()
+        : undefined,
+      shippingAddress: customizations?.shippingAddress ?? "",
+      trackingNumber: customizations?.trackingNumber ?? undefined,
+      carrier: customizations?.carrier ?? undefined,
+      taxRate: Number(invoice.taxRate ?? 0),
+      subtotal: Number(invoice.subtotal),
+      tax: Number(invoice.tax ?? 0),
+      total: Number(invoice.total),
+      notes: customizations?.notes ?? invoice.notes ?? undefined,
+      terms: invoice.terms ?? undefined,
       customerDetails: invoice.customerDetails ?? null,
       fromDetails: invoice.fromDetails ?? null,
       createdBy: userId,
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       sellerCompanyId: tenantId,
     };
 
-    const deliveryNoteItems = invoiceItems.map((item) => ({
-      productName: item.productName ?? "",
-      description: item.description ?? "",
-      quantity: item.quantity,
-      unitPrice: item.unitPrice,
-      unit: item.unit ?? "pcs",
-      discount: item.discount ?? 0,
-      vat: item.vat ?? 0,
-      total: item.total,
-    }));
-
-    const deliveryNote = await deliveryNoteQueries.create(
-      deliveryNoteData as any,
-      deliveryNoteItems
+    const deliveryNoteItems: Omit<DeliveryNoteItem, "id" | "deliveryNoteId">[] = invoiceItems.map(
+      (item) => ({
+        productName: item.productName ?? "",
+        description: item.description ?? "",
+        quantity: Number(item.quantity),
+        unitPrice: Number(item.unitPrice),
+        unit: item.unit ?? "pcs",
+        discount: Number(item.discount ?? 0),
+        total: Number(item.total),
+      })
     );
+
+    const deliveryNote = await deliveryNoteQueries.create(deliveryNoteData, deliveryNoteItems);
 
     logger.info(
       { invoiceId, deliveryNoteId: deliveryNote.id, deliveryNumber },

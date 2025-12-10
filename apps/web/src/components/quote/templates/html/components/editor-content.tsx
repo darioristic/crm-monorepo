@@ -12,4 +12,3 @@ export function EditorContent({ content }: Props) {
 
   return <div className="leading-4">{formatEditorContent(content)}</div>;
 }
-

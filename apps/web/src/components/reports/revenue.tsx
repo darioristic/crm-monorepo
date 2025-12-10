@@ -1,15 +1,14 @@
 "use client";
 
 import { ArrowUpIcon, CreditCardIcon, TrendingUpIcon } from "lucide-react";
-
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 const incomeData = [
   { category: "Rental", amount: 35000, color: "var(--chart-1)" },
   { category: "Investments", amount: 28000, color: "var(--chart-2)" },
   { category: "Business", amount: 18000, color: "var(--chart-3)" },
-  { category: "Freelance", amount: 11000, color: "var(--chart-4)" }
+  { category: "Freelance", amount: 11000, color: "var(--chart-4)" },
 ];
 
 export default function Revenue() {
@@ -35,21 +34,21 @@ export default function Revenue() {
         </div>
 
         <div className="flex h-3 overflow-hidden rounded-full">
-          {incomeData.map((item, index) => (
+          {incomeData.map((item) => (
             <div
-              key={index}
+              key={item.category}
               className="h-full"
               style={{
                 backgroundColor: item.color,
-                width: `${(item.amount / 92000) * 100}%`
+                width: `${(item.amount / 92000) * 100}%`,
               }}
             />
           ))}
         </div>
 
         <div className="space-y-4">
-          {incomeData.map((item, index) => (
-            <div key={index} className="flex items-center justify-between text-sm">
+          {incomeData.map((item) => (
+            <div key={item.category} className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-3">
                 <div className="size-3 rounded-full" style={{ backgroundColor: item.color }} />
                 <span className="text-muted-foreground">{item.category}</span>

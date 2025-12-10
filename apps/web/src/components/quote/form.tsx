@@ -1,6 +1,7 @@
 "use client";
 
-import type { CreateQuoteRequest, UpdateQuoteRequest } from "@crm/types";
+import type { CreateQuoteRequest, Quote, UpdateQuoteRequest } from "@crm/types";
+import type { JSONContent } from "@tiptap/react";
 import { useCallback, useEffect, useRef } from "react";
 import { type FieldErrors, useFormContext, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -44,8 +45,8 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
     [quoteId]
   );
 
-  const draftMutation = useMutation<any, any>(mutationFn);
-  const createMutation = useMutation<any, any>(mutationFn);
+  const draftMutation = useMutation<Quote, CreateQuoteRequest | UpdateQuoteRequest>(mutationFn);
+  const createMutation = useMutation<Quote, CreateQuoteRequest | UpdateQuoteRequest>(mutationFn);
 
   // Use refs for mutation functions to prevent infinite loops in useEffect
   const draftMutationRef = useRef(draftMutation);
@@ -91,9 +92,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
         .filter((item) => item.name && item.name.trim().length > 0)
         .reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
 
-      const selectedCompanyId = (
-        (values.customerId || (values as any).companyId || "") as string
-      ).trim();
+      const selectedCompanyId = (values.customerId || "").trim();
       return {
         customerCompanyId: selectedCompanyId ? selectedCompanyId : undefined,
         sellerCompanyId: user?.companyId,
@@ -113,14 +112,14 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
           ? extractTextFromContent(
               typeof values.noteDetails === "string"
                 ? createContentFromText(values.noteDetails)
-                : (values.noteDetails as any)
+                : (values.noteDetails as JSONContent | null | undefined)
             )
           : undefined,
         terms: values.paymentDetails
           ? extractTextFromContent(
               typeof values.paymentDetails === "string"
                 ? createContentFromText(values.paymentDetails)
-                : (values.paymentDetails as any)
+                : (values.paymentDetails as JSONContent | null | undefined)
             )
           : undefined,
         // Store fromDetails, customerDetails and logo for PDF generation
@@ -252,9 +251,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
   // Submit the form
   const handleSubmit = async (values: FormValues) => {
     // Validate required fields
-    const selectedCompanyId = (
-      (values.customerId || (values as any).companyId || "") as string
-    ).trim();
+    const selectedCompanyId = (values.customerId || "").trim();
     const companyIdFinal = selectedCompanyId;
     if (!companyIdFinal) {
       toast.error("Please select a customer");
@@ -281,10 +278,9 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
       ...transformFormValuesToDraft({
         ...values,
         customerId: companyIdFinal,
-        companyId: companyIdFinal as any,
-      } as any),
+      }),
       status: values.template.deliveryType === "create" ? "draft" : "sent",
-    };
+    } as CreateQuoteRequest;
 
     // Final validation before sending
     if (

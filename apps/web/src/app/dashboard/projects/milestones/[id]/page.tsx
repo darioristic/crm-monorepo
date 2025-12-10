@@ -1,17 +1,17 @@
 "use client";
 
-import { use } from "react";
-import Link from "next/link";
-import { milestonesApi, projectsApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Calendar, Folder, ArrowLeft, Pencil, CheckCircle } from "lucide-react";
-import { formatDate } from "@/lib/utils";
 import type { Milestone, Project } from "@crm/types";
+import { AlertCircle, ArrowLeft, Calendar, CheckCircle, Folder, Pencil } from "lucide-react";
+import Link from "next/link";
+import { use } from "react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/hooks/use-api";
+import { milestonesApi, projectsApi } from "@/lib/api";
+import { formatDate } from "@/lib/utils";
 
 interface MilestoneDetailPageProps {
   params: Promise<{ id: string }>;
@@ -21,21 +21,19 @@ const statusColors = {
   pending: "secondary",
   in_progress: "default",
   completed: "success",
-  delayed: "destructive"
+  delayed: "destructive",
 } as const;
 
 export default function MilestoneDetailPage({ params }: MilestoneDetailPageProps) {
   const { id } = use(params);
 
-  const { data: milestone, isLoading, error } = useApi<Milestone>(
-    () => milestonesApi.getById(id),
-    { autoFetch: true }
-  );
+  const {
+    data: milestone,
+    isLoading,
+    error,
+  } = useApi<Milestone>(() => milestonesApi.getById(id), { autoFetch: true });
 
-  const { data: projects } = useApi<Project[]>(
-    () => projectsApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: projects } = useApi<Project[]>(() => projectsApi.getAll(), { autoFetch: true });
 
   const project = projects?.find((p) => p.id === milestone?.projectId);
 
@@ -154,4 +152,3 @@ export default function MilestoneDetailPage({ params }: MilestoneDetailPageProps
     </div>
   );
 }
-

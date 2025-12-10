@@ -83,7 +83,7 @@ export async function getChatHistory(chatId: string, limit = 20): Promise<CoreMe
     const history = await redis.lrange(key, -limit, -1);
     return history.map((msg) => JSON.parse(msg) as CoreMessage);
   } catch (error) {
-    logger.error("Error getting chat history:", error);
+    logger.error({ error }, "Error getting chat history");
     return [];
   }
 }
@@ -94,7 +94,7 @@ export async function saveChatMessage(chatId: string, message: CoreMessage): Pro
     await redis.rpush(key, JSON.stringify(message));
     await redis.expire(key, MEMORY_TTL);
   } catch (error) {
-    logger.error("Error saving chat message:", error);
+    logger.error({ error }, "Error saving chat message");
   }
 }
 
@@ -103,7 +103,7 @@ export async function clearChatHistory(chatId: string): Promise<void> {
     const key = `${CHAT_HISTORY_PREFIX}${chatId}`;
     await redis.del(key);
   } catch (error) {
-    logger.error("Error clearing chat history:", error);
+    logger.error({ error }, "Error clearing chat history");
   }
 }
 
@@ -113,7 +113,7 @@ export async function getWorkingMemory(userId: string): Promise<string | null> {
     const key = `${CHAT_MEMORY_PREFIX}${userId}`;
     return await redis.get(key);
   } catch (error) {
-    logger.error("Error getting working memory:", error);
+    logger.error({ error }, "Error getting working memory");
     return null;
   }
 }
@@ -124,7 +124,7 @@ export async function saveWorkingMemory(userId: string, memory: string): Promise
     await redis.set(key, memory);
     await redis.expire(key, MEMORY_TTL);
   } catch (error) {
-    logger.error("Error saving working memory:", error);
+    logger.error({ error }, "Error saving working memory");
   }
 }
 

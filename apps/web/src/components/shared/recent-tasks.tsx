@@ -1,9 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { PlusCircleIcon } from "lucide-react";
-
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -11,9 +9,10 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { cn } from "@/lib/utils";
 
 type Task = {
   id: string;
@@ -31,7 +30,7 @@ const initialTasks: Task[] = [
     description: "Send proposal and schedule meeting",
     completed: false,
     dueDate: "Today",
-    priority: "high"
+    priority: "high",
   },
   {
     id: "2",
@@ -39,7 +38,7 @@ const initialTasks: Task[] = [
     description: "Compile sales data and forecasts",
     completed: false,
     dueDate: "Tomorrow",
-    priority: "medium"
+    priority: "medium",
   },
   {
     id: "3",
@@ -47,8 +46,8 @@ const initialTasks: Task[] = [
     description: "Verify contact information and preferences",
     completed: true,
     dueDate: "Oct 15",
-    priority: "low"
-  }
+    priority: "low",
+  },
 ];
 
 export function RecentTasks() {
@@ -78,7 +77,8 @@ export function RecentTasks() {
             className={cn(
               "flex items-start space-x-3 rounded-md border p-3 transition-colors",
               task.completed && "bg-muted/50"
-            )}>
+            )}
+          >
             <Checkbox
               checked={task.completed}
               onCheckedChange={() => toggleTaskStatus(task.id)}
@@ -89,7 +89,8 @@ export function RecentTasks() {
                 className={cn(
                   "text-sm leading-none font-medium",
                   task.completed && "text-muted-foreground line-through"
-                )}>
+                )}
+              >
                 {task.title}
               </p>
               <p className={cn("text-muted-foreground text-xs", task.completed && "line-through")}>
@@ -102,7 +103,8 @@ export function RecentTasks() {
                     task.priority === "high" && "bg-red-100 text-red-700",
                     task.priority === "medium" && "bg-amber-100 text-amber-700",
                     task.priority === "low" && "bg-green-100 text-green-700"
-                  )}>
+                  )}
+                >
                   {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
                 </div>
                 <span className="text-muted-foreground text-xs">Due {task.dueDate}</span>

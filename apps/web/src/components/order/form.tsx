@@ -1,5 +1,6 @@
 "use client";
 
+import type { EditorDoc } from "@crm/schemas";
 import type { CreateOrderRequest, OrderStatus, UpdateOrderRequest } from "@crm/types";
 import { useCallback, useEffect, useRef } from "react";
 import { type FieldErrors, useFormContext, useWatch } from "react-hook-form";
@@ -102,14 +103,14 @@ export function Form({ orderId, onSuccess, onDraftSaved }: FormProps) {
           ? extractTextFromContent(
               typeof values.noteDetails === "string"
                 ? createContentFromText(values.noteDetails)
-                : (values.noteDetails as any)
+                : (values.noteDetails as EditorDoc)
             )
           : undefined,
         terms: values.paymentDetails
           ? extractTextFromContent(
               typeof values.paymentDetails === "string"
                 ? createContentFromText(values.paymentDetails)
-                : (values.paymentDetails as any)
+                : (values.paymentDetails as EditorDoc)
             )
           : undefined,
         // Store fromDetails, customerDetails and logo for PDF generation
@@ -240,15 +241,19 @@ export function Form({ orderId, onSuccess, onDraftSaved }: FormProps) {
   // Submit the form
   const handleSubmit = async (values: FormValues) => {
     // Validate required fields
-    const initialCompanyId = (values.customerId || (values as any).companyId || "").trim();
+    const initialCompanyId = (values.customerId || "").trim();
     let companyIdFinal = initialCompanyId;
     if (!companyIdFinal) {
       const candidateName = (() => {
         const n = (values.customerName || "").trim();
         if (n) return n;
         try {
-          const first = (values.customerDetails as any)?.content?.[0]?.content?.[0]?.text;
-          return typeof first === "string" ? first.trim() : "";
+          const details = values.customerDetails as EditorDoc | null;
+          const first = (details as EditorDoc | null)?.content?.[0]?.content?.[0] as
+            | { text?: string }
+            | undefined;
+          const firstText = typeof first?.text === "string" ? first.text : "";
+          return firstText.trim();
         } catch {
           return "";
         }
@@ -260,12 +265,8 @@ export function Form({ orderId, onSuccess, onDraftSaved }: FormProps) {
             type: "organization",
             limit: 1,
           });
-          if (
-            (res as any)?.success &&
-            Array.isArray((res as any).data) &&
-            (res as any).data.length > 0
-          ) {
-            companyIdFinal = (res as any).data[0].id;
+          if (res.success && Array.isArray(res.data) && res.data.length > 0) {
+            companyIdFinal = res.data[0].id;
           }
         } catch {}
       }
@@ -294,9 +295,8 @@ export function Form({ orderId, onSuccess, onDraftSaved }: FormProps) {
     const transformedData = {
       ...transformFormValuesToDraft({
         ...values,
-        customerId: companyIdFinal as any,
-        companyId: companyIdFinal as any,
-      } as any),
+        customerId: companyIdFinal,
+      }),
       status: (values.template.deliveryType === "create" ? "pending" : "processing") as OrderStatus,
     };
 

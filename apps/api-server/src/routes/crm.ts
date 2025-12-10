@@ -123,8 +123,8 @@ router.get("/api/v1/accounts/search", async (request, url) => {
         ? organizationQueries.findAll(pagination, {
             ...filters,
             search: q,
-            tenantId: auth.tenantId,
-          } as any)
+            tenantId: auth.activeTenantId,
+          } as { search: string; tenantId: string | undefined } & typeof filters)
         : Promise.resolve({ data: [], total: 0 }),
       includeIndividuals
         ? contactQueries.findAll(pagination, { ...filters, search: q })
@@ -145,7 +145,14 @@ router.get("/api/v1/accounts/search", async (request, url) => {
       usageCounts[key] = countStr ? Number(countStr) : 0;
     }
 
-    function scoreCompany(c: any): number {
+    type CompanyScoreInput = {
+      id: string;
+      name?: string;
+      pib?: string;
+      companyNumber?: string;
+      isFavorite?: boolean;
+    };
+    function scoreCompany(c: CompanyScoreInput): number {
       let s = 0;
       const name = (c.name || "").toLowerCase();
       const ql = q.toLowerCase();
@@ -161,7 +168,16 @@ router.get("/api/v1/accounts/search", async (request, url) => {
       return s;
     }
 
-    function scoreContact(c: any): number {
+    type ContactScoreInput = {
+      id: string;
+      firstName?: string;
+      lastName?: string;
+      email?: string;
+      phone?: string;
+      jmbg?: string;
+      isFavorite?: boolean;
+    };
+    function scoreContact(c: ContactScoreInput): number {
       let s = 0;
       const fullName = `${c.firstName || ""} ${c.lastName || ""}`.trim().toLowerCase();
       const email = (c.email || "").toLowerCase();
@@ -187,7 +203,13 @@ router.get("/api/v1/accounts/search", async (request, url) => {
           [c.pib, c.companyNumber, c.contactPerson].filter(Boolean).join(" · ") || undefined,
         favorite: !!c.isFavorite,
         raw: c,
-        score: scoreCompany(c),
+        score: scoreCompany({
+          id: c.id,
+          name: c.name,
+          pib: c.pib || undefined,
+          companyNumber: c.companyNumber || undefined,
+          isFavorite: c.isFavorite,
+        }),
       })),
       ...contactsResult.data.map((c) => ({
         type: "individual" as const,
@@ -281,7 +303,16 @@ router.get("/api/v1/organizations/:id", async (request, _url, params) => {
 
 router.post("/api/v1/organizations", async (request) => {
   return withAuth(request, async (_user) => {
-    const body = await parseBody<any>(request);
+    const body = await parseBody<{
+      id?: string;
+      name: string;
+      email?: string | null;
+      phone?: string | null;
+      pib?: string | null;
+      companyNumber?: string | null;
+      contactPerson?: string | null;
+      isFavorite?: boolean;
+    }>(request);
     if (!body?.name) return errorResponse("VALIDATION_ERROR", "Name is required");
     const now = new Date().toISOString();
     const org = await organizationQueries.create({
@@ -302,7 +333,18 @@ router.post("/api/v1/organizations", async (request) => {
 
 router.put("/api/v1/organizations/:id", async (request, _url, params) => {
   return withAuth(request, async () => {
-    const body = await parseBody<any>(request);
+    const body = await parseBody<{
+      name?: string;
+      email?: string | null;
+      phone?: string | null;
+      pib?: string | null;
+      companyNumber?: string | null;
+      contactPerson?: string | null;
+      isFavorite?: boolean;
+    }>(request);
+    if (!body) {
+      return errorResponse("VALIDATION_ERROR", "Invalid request body");
+    }
     const org = await organizationQueries.update(params.id, {
       name: body.name,
       email: body.email,

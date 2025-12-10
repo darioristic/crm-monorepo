@@ -101,14 +101,18 @@ const Notifications = () => {
         setNotifications(notifResult.data.notifications || []);
       } else if (!notifResult.success) {
         // Log error but don't show toast for background polling
-        logger.warn("Failed to fetch notifications", { error: notifResult.error?.message });
+        logger.warn("Failed to fetch notifications", {
+          error: notifResult.error?.message,
+        });
       }
 
       if (countResult.success && countResult.data) {
         setUnreadCount(countResult.data.count);
       } else if (!countResult.success) {
         // Log error but don't show toast for background polling
-        logger.warn("Failed to fetch notification count", { error: countResult.error?.message });
+        logger.warn("Failed to fetch notification count", {
+          error: countResult.error?.message,
+        });
       }
     } catch (error) {
       // Only log, don't show toast for background polling errors
@@ -192,9 +196,8 @@ const Notifications = () => {
         <ScrollArea className="h-[350px]">
           {isLoading ? (
             <div className="space-y-3 p-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                // eslint-disable-next-line react/no-array-index-key
-                <div key={`skeleton-${i}`} className="flex items-start gap-3">
+              {["one", "two", "three", "four"].map((id) => (
+                <div key={`skeleton-${id}`} className="flex items-start gap-3">
                   <Skeleton className="h-8 w-8 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-3/4" />

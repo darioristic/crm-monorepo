@@ -1,5 +1,6 @@
 "use client";
 
+import type { Company, CreateCompanyRequest } from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Globe, Loader2, Search } from "lucide-react";
@@ -92,7 +93,9 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
   const [logoError, setLogoError] = useState(false);
   const queryClient = useQueryClient();
 
-  const createMutation = useMutation<any, any>((values) => companiesApi.create(values));
+  const createMutation = useMutation<Company, CreateCompanyRequest>((values) =>
+    companiesApi.create(values)
+  );
 
   const form = useForm<z.input<typeof formSchema>>({
     resolver: zodResolver(formSchema),

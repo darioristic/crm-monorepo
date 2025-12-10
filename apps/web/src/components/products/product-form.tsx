@@ -96,7 +96,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
   );
 
   const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productFormSchema) as any,
+    resolver: zodResolver(productFormSchema),
     defaultValues: {
       name: product?.name || "",
       sku: product?.sku || "",
@@ -147,7 +147,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
       categoryId: values.categoryId || undefined,
     };
 
-    let result;
+    let result: { success: boolean; data?: Product; error?: string };
     if (mode === "create") {
       result = await createMutation.mutate(payload as CreateProductRequest);
     } else {

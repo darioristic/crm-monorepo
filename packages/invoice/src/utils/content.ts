@@ -7,4 +7,3 @@ export function isValidJSON(str: string | null | undefined): boolean {
     return false;
   }
 }
-

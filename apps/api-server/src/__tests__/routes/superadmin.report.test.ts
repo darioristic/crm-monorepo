@@ -7,6 +7,7 @@ describe("Superadmin Detailed Report Route", () => {
   const mockAuth = {
     userId: "admin-1",
     role: "superadmin" as const,
+    tenantRoles: [],
     sessionId: "sess-1",
   };
 

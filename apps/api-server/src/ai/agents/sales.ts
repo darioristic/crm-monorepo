@@ -1,9 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import {
-  COMMON_AGENT_RULES,
-  createAgent,
-  formatContextForLLM,
-} from "./config/shared";
+import { COMMON_AGENT_RULES, createAgent, formatContextForLLM } from "./config/shared";
 
 export const salesAgent = createAgent({
   name: "sales",
@@ -44,4 +40,3 @@ ${COMMON_AGENT_RULES}
 - Use tables for multi-deal summaries
 </response_guidelines>`,
 });
-

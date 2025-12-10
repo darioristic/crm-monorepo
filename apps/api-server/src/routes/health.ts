@@ -3,9 +3,9 @@
  */
 
 import { successResponse } from "@crm/utils";
-import { RouteBuilder, json } from "./helpers";
 import { cache } from "../cache/redis";
 import { getQueuesStatus, getWorkerStatuses } from "../jobs";
+import { json, RouteBuilder } from "./helpers";
 
 const router = new RouteBuilder();
 
@@ -82,4 +82,3 @@ router.get("/api/v1/system/stats", async () => {
 });
 
 export const healthRoutes = router.getRoutes();
-

@@ -40,7 +40,8 @@ export function VaultItem({ data, small }: Props) {
       <div
         className={cn(
           "w-[60px] h-[84px] flex items-center justify-center overflow-hidden",
-          small && "w-[45px] h-[63px]"
+          small && "w-[45px] h-[63px]",
+          data.metadata?.mimetype?.startsWith("image/") && "bg-border"
         )}
       >
         {isLoading ? (

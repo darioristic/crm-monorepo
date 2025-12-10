@@ -1,7 +1,8 @@
 "use client";
 
+import type { InvoiceFormValues } from "@crm/schemas";
 import { useState } from "react";
-import { FormContext, type InvoiceFormValues } from "@/components/invoice/form-context";
+import { FormContext } from "@/components/invoice/form-context";
 import { InvoiceContent } from "@/components/invoice/invoice-content";
 import { Sheet } from "@/components/ui/sheet";
 import type { InvoiceDefaultSettings } from "@/types/invoice";

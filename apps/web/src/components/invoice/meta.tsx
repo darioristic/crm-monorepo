@@ -1,17 +1,17 @@
 "use client";
 
 import { useFormContext, useWatch } from "react-hook-form";
-import { InvoiceTitle } from "./invoice-title";
-import { InvoiceNo } from "./invoice-no";
-import { IssueDate } from "./issue-date";
 import { DueDate } from "./due-date";
-import { LabelInput } from "./label-input";
 import type { FormValues } from "./form-context";
+import { InvoiceNo } from "./invoice-no";
+import { InvoiceTitle } from "./invoice-title";
+import { IssueDate } from "./issue-date";
+import { LabelInput } from "./label-input";
 
 export function Meta() {
   const { control } = useFormContext<FormValues>();
-  const issueDateLabel = useWatch({ control, name: "template.issueDateLabel" });
-  const dueDateLabel = useWatch({ control, name: "template.dueDateLabel" });
+  const _issueDateLabel = useWatch({ control, name: "template.issueDateLabel" });
+  const _dueDateLabel = useWatch({ control, name: "template.dueDateLabel" });
 
   return (
     <div className="flex flex-col">

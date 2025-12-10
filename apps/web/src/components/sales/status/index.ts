@@ -1,5 +1,4 @@
-export { QuoteStatusBadge, type QuoteStatus } from "./QuoteStatusBadge";
-export { InvoiceStatusBadge, type InvoiceStatus } from "./InvoiceStatusBadge";
-export { DeliveryStatusBadge, type DeliveryStatus } from "./DeliveryStatusBadge";
-export { OrderStatusBadge, type OrderStatus } from "./OrderStatusBadge";
-
+export { type DeliveryStatus, DeliveryStatusBadge } from "./DeliveryStatusBadge";
+export { type InvoiceStatus, InvoiceStatusBadge } from "./InvoiceStatusBadge";
+export { type OrderStatus, OrderStatusBadge } from "./OrderStatusBadge";
+export { type QuoteStatus, QuoteStatusBadge } from "./QuoteStatusBadge";

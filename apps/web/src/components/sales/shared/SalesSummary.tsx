@@ -1,8 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { formatCurrency } from "@/lib/utils";
-import { cn } from "@/lib/utils";
+import { cn, formatCurrency } from "@/lib/utils";
 
 interface SalesSummaryProps {
   subtotal: number;
@@ -45,16 +44,12 @@ export function SalesSummary({
           <>
             <div className="flex justify-end gap-8 text-sm">
               <span className="text-muted-foreground">Paid:</span>
-              <span className="font-medium w-32 text-green-600">
-                {formatCurrency(paidAmount)}
-              </span>
+              <span className="font-medium w-32 text-green-600">{formatCurrency(paidAmount)}</span>
             </div>
             {hasBalance && (
               <div className="flex justify-end gap-8 text-sm">
                 <span className="text-muted-foreground">Balance Due:</span>
-                <span className="font-medium w-32 text-destructive">
-                  {formatCurrency(balance)}
-                </span>
+                <span className="font-medium w-32 text-destructive">{formatCurrency(balance)}</span>
               </div>
             )}
           </>
@@ -63,4 +58,3 @@ export function SalesSummary({
     </Card>
   );
 }
-

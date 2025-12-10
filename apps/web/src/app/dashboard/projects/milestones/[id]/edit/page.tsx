@@ -1,13 +1,13 @@
 "use client";
 
+import type { Milestone } from "@crm/types";
+import { AlertCircle } from "lucide-react";
 import { use } from "react";
 import { MilestoneForm } from "@/components/projects/milestone-form";
-import { milestonesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
-import type { Milestone } from "@crm/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/hooks/use-api";
+import { milestonesApi } from "@/lib/api";
 
 interface EditMilestonePageProps {
   params: Promise<{ id: string }>;
@@ -16,10 +16,11 @@ interface EditMilestonePageProps {
 export default function EditMilestonePage({ params }: EditMilestonePageProps) {
   const { id } = use(params);
 
-  const { data: milestone, isLoading, error } = useApi<Milestone>(
-    () => milestonesApi.getById(id),
-    { autoFetch: true }
-  );
+  const {
+    data: milestone,
+    isLoading,
+    error,
+  } = useApi<Milestone>(() => milestonesApi.getById(id), { autoFetch: true });
 
   if (isLoading) {
     return (
@@ -54,4 +55,3 @@ export default function EditMilestonePage({ params }: EditMilestonePageProps) {
     </div>
   );
 }
-

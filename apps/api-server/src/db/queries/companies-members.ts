@@ -448,7 +448,7 @@ export async function deleteCompany(params: DeleteCompanyParams): Promise<{ id: 
       `;
       invoiceCount = Number(invoiceResult[0]?.count || 0);
     } catch (error) {
-      logger.error("Error checking invoices:", error);
+      logger.error({ error }, "Error checking invoices");
     }
 
     try {
@@ -458,7 +458,7 @@ export async function deleteCompany(params: DeleteCompanyParams): Promise<{ id: 
       `;
       quoteCount = Number(quoteResult[0]?.count || 0);
     } catch (error) {
-      logger.error("Error checking quotes:", error);
+      logger.error({ error }, "Error checking quotes");
     }
 
     try {
@@ -468,7 +468,7 @@ export async function deleteCompany(params: DeleteCompanyParams): Promise<{ id: 
       `;
       deliveryNoteCount = Number(deliveryNoteResult[0]?.count || 0);
     } catch (error) {
-      logger.error("Error checking delivery notes:", error);
+      logger.error({ error }, "Error checking delivery notes");
     }
 
     try {
@@ -482,7 +482,7 @@ export async function deleteCompany(params: DeleteCompanyParams): Promise<{ id: 
       `;
       projectCount = Number(projectResult[0]?.count || 0);
     } catch (error) {
-      logger.error("Error checking projects:", error);
+      logger.error({ error }, "Error checking projects");
       // If there's an error checking projects, we'll skip it to avoid blocking deletion
     }
 
@@ -493,7 +493,7 @@ export async function deleteCompany(params: DeleteCompanyParams): Promise<{ id: 
       `;
       memberCount = Number(memberResult[0]?.count || 0);
     } catch (error) {
-      logger.error("Error checking members:", error);
+      logger.error({ error }, "Error checking members");
     }
 
     if (process.env.NODE_ENV !== "test") {

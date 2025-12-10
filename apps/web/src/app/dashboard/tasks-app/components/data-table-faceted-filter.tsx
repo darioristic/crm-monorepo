@@ -1,8 +1,6 @@
-import * as React from "react";
-import { Column } from "@tanstack/react-table";
+import type { Column } from "@tanstack/react-table";
 import { Check, PlusCircle } from "lucide-react";
-
-import { cn } from "@/lib/utils";
+import type * as React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,10 +10,11 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator
+  CommandSeparator,
 } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 
 interface DataTableFacetedFilterProps<TData, TValue> {
   column?: Column<TData, TValue>;
@@ -30,7 +29,7 @@ interface DataTableFacetedFilterProps<TData, TValue> {
 export function DataTableFacetedFilter<TData, TValue>({
   column,
   title,
-  options
+  options,
 }: DataTableFacetedFilterProps<TData, TValue>) {
   const facets = column?.getFacetedUniqueValues();
   const selectedValues = new Set(column?.getFilterValue() as string[]);
@@ -59,7 +58,8 @@ export function DataTableFacetedFilter<TData, TValue>({
                       <Badge
                         variant="secondary"
                         key={option.value}
-                        className="rounded-sm px-1 font-normal">
+                        className="rounded-sm px-1 font-normal"
+                      >
                         {option.label}
                       </Badge>
                     ))
@@ -88,14 +88,16 @@ export function DataTableFacetedFilter<TData, TValue>({
                       }
                       const filterValues = Array.from(selectedValues);
                       column?.setFilterValue(filterValues.length ? filterValues : undefined);
-                    }}>
+                    }}
+                  >
                     <div
                       className={cn(
                         "flex size-4 items-center justify-center rounded-[4px] border",
                         isSelected
                           ? "bg-primary border-primary text-primary-foreground"
                           : "border-input [&_svg]:invisible"
-                      )}>
+                      )}
+                    >
                       <Check className="text-primary-foreground size-3.5" />
                     </div>
                     {option.icon && <option.icon className="text-muted-foreground size-4" />}
@@ -115,7 +117,8 @@ export function DataTableFacetedFilter<TData, TValue>({
                 <CommandGroup>
                   <CommandItem
                     onSelect={() => column?.setFilterValue(undefined)}
-                    className="justify-center text-center">
+                    className="justify-center text-center"
+                  >
                     Clear filters
                   </CommandItem>
                 </CommandGroup>

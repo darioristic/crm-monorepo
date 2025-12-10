@@ -1,5 +1,6 @@
 "use client";
 
+import type { Contact } from "@crm/types";
 import { RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
 import { ContactFormSheet } from "@/components/accounts/contact-form-sheet";
@@ -22,7 +23,7 @@ export default function IndividualsPage() {
     setPage,
     setFilters,
     refetch,
-  } = usePaginatedApi<any>((params) => contactsApi.getAll(params), {
+  } = usePaginatedApi<Contact>((params) => contactsApi.getAll(params), {
     search: "",
   });
 

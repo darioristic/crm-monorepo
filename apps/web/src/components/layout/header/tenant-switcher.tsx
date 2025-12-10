@@ -1,6 +1,7 @@
 "use client";
 
 import { Building2, Check, ChevronsUpDown, Loader2 } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -27,10 +28,13 @@ export function TenantSwitcher() {
       <div className="flex items-center gap-3 px-3 py-2 rounded-md bg-muted/50">
         <div className="h-8 w-8 rounded-md overflow-hidden bg-primary/10 flex items-center justify-center">
           {currentTenant.logoUrl ? (
-            <img
+            <Image
               src={currentTenant.logoUrl}
               alt={currentTenant.name}
+              width={32}
+              height={32}
               className="h-full w-full object-cover"
+              unoptimized
             />
           ) : (
             <Building2 className="h-4 w-4 text-primary" />
@@ -68,7 +72,7 @@ export function TenantSwitcher() {
           <ChevronsUpDown className="h-4 w-4 opacity-50" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-[240px]">
+      <DropdownMenuContent align="end" side="right" className="w-[240px]">
         <DropdownMenuLabel>Switch Tenant</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {availableTenants.map((tenant) => (

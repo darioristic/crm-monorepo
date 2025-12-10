@@ -1,15 +1,20 @@
 "use client";
 
-import { useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
+import type {
+  Company,
+  CreateDeliveryNoteRequest,
+  DeliveryNote,
+  UpdateDeliveryNoteRequest,
+} from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
+import { useEffect } from "react";
+import { useFieldArray, useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { DeliveryNote, Company, CreateDeliveryNoteRequest, UpdateDeliveryNoteRequest } from "@crm/types";
-import { deliveryNotesApi, companiesApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +30,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,11 +38,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { useApi, useMutation } from "@/hooks/use-api";
+import { companiesApi, deliveryNotesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
 
 const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -90,7 +95,7 @@ export function DeliveryModal({
   );
 
   const form = useForm<DeliveryNoteFormValues>({
-    resolver: zodResolver(deliveryNoteFormSchema) as any,
+    resolver: zodResolver(deliveryNoteFormSchema),
     defaultValues: {
       companyId: "",
       shippingAddress: "",
@@ -156,16 +161,16 @@ export function DeliveryModal({
       createdBy: "current-user-id",
     };
 
-    let result;
-    if (mode === "create") {
-      result = await createMutation.mutate(data as CreateDeliveryNoteRequest);
-    } else {
-      result = await updateMutation.mutate(data as UpdateDeliveryNoteRequest);
-    }
+    const result =
+      mode === "create"
+        ? await createMutation.mutate(data as CreateDeliveryNoteRequest)
+        : await updateMutation.mutate(data as UpdateDeliveryNoteRequest);
 
     if (result.success) {
       toast.success(
-        mode === "create" ? "Delivery note created successfully" : "Delivery note updated successfully"
+        mode === "create"
+          ? "Delivery note created successfully"
+          : "Delivery note updated successfully"
       );
       onOpenChange(false);
       onSuccess?.();
@@ -339,7 +344,9 @@ export function DeliveryModal({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => append({ productName: "", description: "", quantity: 1, unit: "pcs" })}
+                  onClick={() =>
+                    append({ productName: "", description: "", quantity: 1, unit: "pcs" })
+                  }
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Item
@@ -426,11 +433,7 @@ export function DeliveryModal({
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Special instructions or notes..."
-                      rows={3}
-                      {...field}
-                    />
+                    <Textarea placeholder="Special instructions or notes..." rows={3} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -451,4 +454,3 @@ export function DeliveryModal({
     </Dialog>
   );
 }
-

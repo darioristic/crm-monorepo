@@ -1,27 +1,27 @@
 import type {
+  ApiResponse,
+  CreateMilestoneRequest,
+  CreateProjectRequest,
+  CreateTaskRequest,
+  FilterParams,
+  Milestone,
+  PaginationParams,
   Project,
   Task,
-  Milestone,
-  CreateProjectRequest,
-  UpdateProjectRequest,
-  CreateTaskRequest,
-  UpdateTaskRequest,
-  CreateMilestoneRequest,
   UpdateMilestoneRequest,
-  ApiResponse,
-  PaginationParams,
-  FilterParams,
+  UpdateProjectRequest,
+  UpdateTaskRequest,
 } from "@crm/types";
 import {
-  successResponse,
+  Errors,
   errorResponse,
-  paginatedResponse,
   generateUUID,
   now,
-  Errors,
+  paginatedResponse,
+  successResponse,
 } from "@crm/utils";
-import { projectQueries, taskQueries, milestoneQueries } from "../db/queries";
 import { cache } from "../cache/redis";
+import { milestoneQueries, projectQueries, taskQueries } from "../db/queries";
 import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300;

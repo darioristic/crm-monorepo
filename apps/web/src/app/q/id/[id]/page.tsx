@@ -1,12 +1,12 @@
 "use client";
 
-import { use } from "react";
-import { quotesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { QuotePublicView } from "../../[token]/quote-public-view";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { use } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/hooks/use-api";
+import { quotesApi } from "@/lib/api";
+import { QuotePublicView } from "../../[token]/quote-public-view";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -56,4 +56,3 @@ export default function QuoteByIdPage({ params }: Props) {
 
   return <QuotePublicView quote={quote} token={id} />;
 }
-

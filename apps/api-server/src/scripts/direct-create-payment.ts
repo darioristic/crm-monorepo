@@ -23,7 +23,7 @@ async function main() {
     );
     logger.info(JSON.stringify(payment));
   } catch (e) {
-    logger.error("error:", e);
+    logger.error({ error: e }, "error");
   } finally {
     await db.end();
   }

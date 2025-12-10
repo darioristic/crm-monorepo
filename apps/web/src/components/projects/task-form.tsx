@@ -1,16 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import type { CreateTaskRequest, Project, Task, UpdateTaskRequest, User } from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, Loader2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { Task, Project, User, CreateTaskRequest, UpdateTaskRequest } from "@crm/types";
-import { tasksApi, projectsApi, usersApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -20,6 +21,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,11 +29,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, X } from "lucide-react";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { useApi, useMutation } from "@/hooks/use-api";
+import { projectsApi, tasksApi, usersApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
 const taskFormSchema = z.object({
@@ -62,21 +62,18 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
     { autoFetch: true }
   );
 
-  const { data: users, isLoading: usersLoading } = useApi<User[]>(
-    () => usersApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: users, isLoading: usersLoading } = useApi<User[]>(() => usersApi.getAll(), {
+    autoFetch: true,
+  });
 
-  const createMutation = useMutation<Task, CreateTaskRequest>((data) =>
-    tasksApi.create(data)
-  );
+  const createMutation = useMutation<Task, CreateTaskRequest>((data) => tasksApi.create(data));
 
   const updateMutation = useMutation<Task, UpdateTaskRequest>((data) =>
     tasksApi.update(task?.id || "", data)
   );
 
   const form = useForm<TaskFormValues>({
-    resolver: zodResolver(taskFormSchema) as any,
+    resolver: zodResolver(taskFormSchema),
     defaultValues: {
       title: task?.title || "",
       description: task?.description || "",
@@ -116,7 +113,10 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
   };
 
   const removeTag = (tagToRemove: string) => {
-    form.setValue("tags", watchedTags.filter((tag) => tag !== tagToRemove));
+    form.setValue(
+      "tags",
+      watchedTags.filter((tag) => tag !== tagToRemove)
+    );
   };
 
   const onSubmit = async (values: TaskFormValues) => {
@@ -124,7 +124,8 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
       title: values.title,
       description: values.description || undefined,
       projectId: values.projectId,
-      assignedTo: values.assignedTo && values.assignedTo !== "unassigned" ? values.assignedTo : undefined,
+      assignedTo:
+        values.assignedTo && values.assignedTo !== "unassigned" ? values.assignedTo : undefined,
       status: values.status,
       priority: values.priority,
       dueDate: values.dueDate ? new Date(values.dueDate).toISOString() : undefined,
@@ -132,7 +133,7 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
       tags: values.tags,
     };
 
-    let result;
+    let result: { success: boolean; data?: Task; error?: string };
     if (mode === "create") {
       result = await createMutation.mutate(data as CreateTaskRequest);
     } else {
@@ -338,13 +339,7 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
                   <FormItem className="max-w-[200px]">
                     <FormLabel>Estimated Hours</FormLabel>
                     <FormControl>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="0.5"
-                        placeholder="0"
-                        {...field}
-                      />
+                      <Input type="number" min="0" step="0.5" placeholder="0" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -395,11 +390,7 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {mode === "create" ? "Create Task" : "Update Task"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
+                <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
               </div>
@@ -410,4 +401,3 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
     </div>
   );
 }
-

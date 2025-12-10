@@ -1,5 +1,6 @@
 "use client";
 
+import type { Order } from "@crm/types";
 import { useQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,11 +17,11 @@ function OrdersSkeleton() {
 }
 
 function OrdersDataTable() {
-  const { data: orders = [], isLoading } = useQuery<any[], unknown>({
+  const { data: orders = [], isLoading } = useQuery<Order[], unknown>({
     queryKey: ["orders"],
     queryFn: async () => {
       const response = await request("/api/v1/orders");
-      return (response.success && response.data ? response.data : []) as any[];
+      return response.success && Array.isArray(response.data) ? (response.data as Order[]) : [];
     },
   });
 
@@ -35,7 +36,7 @@ function OrdersDataTable() {
   return (
     <div className="space-y-2">
       {Array.isArray(orders) &&
-        orders.map((order: any) => (
+        orders.map((order: Order) => (
           <div key={order.id} className="border p-4 rounded">
             <div className="font-medium">{order.orderNumber}</div>
             <div className="text-sm text-muted-foreground">

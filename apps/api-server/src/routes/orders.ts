@@ -15,7 +15,8 @@ router.get("/api/v1/orders", async (request, url) => {
     const page = parseInt(url.searchParams.get("page") || "1", 10);
     const pageSize = parseInt(url.searchParams.get("pageSize") || "20", 10);
     const sortBy = url.searchParams.get("sortBy") || "created_at";
-    const sortOrder = url.searchParams.get("sortOrder") || "desc";
+    const sortOrderRaw = url.searchParams.get("sortOrder") || "desc";
+    const sortOrder = sortOrderRaw === "asc" || sortOrderRaw === "desc" ? sortOrderRaw : "desc";
 
     // Get filter params
     const search = url.searchParams.get("search") || undefined;
@@ -51,7 +52,18 @@ router.post("/api/v1/orders", async (request) => {
   return withAuth(
     request,
     async (auth) => {
-      const body = await parseBody<any>(request);
+      const body = await parseBody<
+        CreateOrderRequest & {
+          items?: Array<{
+            productName: string;
+            description?: string | null;
+            quantity: number;
+            unitPrice: number;
+            discount?: number;
+            total: number;
+          }>;
+        }
+      >(request);
       if (!body) {
         return errorResponse("VALIDATION_ERROR", "Invalid request body");
       }

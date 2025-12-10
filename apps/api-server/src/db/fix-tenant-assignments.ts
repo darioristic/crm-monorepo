@@ -97,7 +97,7 @@ export async function fixTenantAssignments(): Promise<void> {
 			`;
       logger.info(`   ✅ Updated ${c.name} with tenantId`);
     }
-    logger.info();
+    logger.info("");
   } else {
     logger.info("   ✅ All account companies already have tenantId\n");
   }
@@ -176,7 +176,7 @@ if (import.meta.main) {
       process.exit(0);
     })
     .catch(async (error) => {
-      logger.error("\n❌ Script failed:", error);
+      logger.error({ error }, "\n❌ Script failed");
       await db.end();
       process.exit(1);
     });

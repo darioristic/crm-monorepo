@@ -36,7 +36,7 @@ export class ReceiptProcessor {
 
     const result = await retryCall(() =>
       generateObject({
-        model: this.model as any,
+        model: this.model,
         schema: receiptSchema,
         temperature: 0.1,
         messages: [
@@ -64,7 +64,7 @@ export class ReceiptProcessor {
   async #processImage(imageUrl: string) {
     const result = await retryCall(() =>
       generateObject({
-        model: this.model as any,
+        model: this.model,
         schema: receiptSchema,
         temperature: 0.1,
         messages: [
@@ -91,7 +91,7 @@ export class ReceiptProcessor {
   async #processText(text: string) {
     const result = await retryCall(() =>
       generateObject({
-        model: this.model as any,
+        model: this.model,
         schema: receiptSchema,
         temperature: 0.1,
         messages: [

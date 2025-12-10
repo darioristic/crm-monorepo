@@ -1,17 +1,15 @@
 // Types
-export * from "./types";
 
 // Categories
 export * from "./categories";
-
 // Embeddings
 export {
-  generateEmbedding,
-  generateEmbeddings,
+  CategoryEmbeddings,
+  categoryEmbeddings,
   cosineSimilarity,
   findBestCategory,
   findTopCategories,
-  CategoryEmbeddings,
-  categoryEmbeddings,
+  generateEmbedding,
+  generateEmbeddings,
 } from "./embeddings";
-
+export * from "./types";

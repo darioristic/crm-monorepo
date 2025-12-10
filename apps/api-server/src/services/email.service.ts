@@ -2,10 +2,10 @@
  * Email Service - Handles sending emails for invoices, quotes, notifications
  */
 
-import type { ApiResponse, Invoice, Quote, DeliveryNote } from "@crm/types";
-import { successResponse, errorResponse } from "@crm/utils";
-import { addEmailJob } from "../jobs";
+import type { ApiResponse, Invoice, Quote } from "@crm/types";
+import { errorResponse, successResponse } from "@crm/utils";
 import { sql } from "../db/client";
+import { addEmailJob } from "../jobs";
 import { logger } from "../lib/logger";
 
 // ============================================
@@ -44,7 +44,9 @@ export interface EmailTemplate {
 // Email Templates
 // ============================================
 
-function getInvoiceEmailTemplate(invoice: Invoice & { companyName?: string; contactEmail?: string }): EmailTemplate {
+function getInvoiceEmailTemplate(
+  invoice: Invoice & { companyName?: string; contactEmail?: string }
+): EmailTemplate {
   const formattedTotal = new Intl.NumberFormat("sr-RS", {
     style: "currency",
     currency: "EUR",
@@ -264,7 +266,9 @@ Vaš tim
   };
 }
 
-function getPaymentReminderTemplate(invoice: Invoice & { companyName?: string; daysOverdue: number }): EmailTemplate {
+function getPaymentReminderTemplate(
+  invoice: Invoice & { companyName?: string; daysOverdue: number }
+): EmailTemplate {
   const formattedTotal = new Intl.NumberFormat("sr-RS", {
     style: "currency",
     currency: "EUR",
@@ -585,7 +589,10 @@ class EmailService {
         `;
       }
 
-      logger.info({ invoiceId, to: toEmail, daysOverdue: fullInvoice.daysOverdue }, "Payment reminder queued");
+      logger.info(
+        { invoiceId, to: toEmail, daysOverdue: fullInvoice.daysOverdue },
+        "Payment reminder queued"
+      );
 
       return successResponse({ sent: true, to: toEmail });
     } catch (error) {
@@ -632,12 +639,10 @@ class EmailService {
   /**
    * Send custom email
    */
-  async sendCustomEmail(
-    options: SendEmailOptions
-  ): Promise<ApiResponse<{ sent: boolean }>> {
+  async sendCustomEmail(options: SendEmailOptions): Promise<ApiResponse<{ sent: boolean }>> {
     try {
       const recipients = Array.isArray(options.to) ? options.to : [options.to];
-      
+
       for (const recipient of recipients) {
         await addEmailJob({
           to: recipient.email,
@@ -647,7 +652,10 @@ class EmailService {
         });
       }
 
-      logger.info({ to: recipients.map((r) => r.email), subject: options.subject }, "Custom email queued");
+      logger.info(
+        { to: recipients.map((r) => r.email), subject: options.subject },
+        "Custom email queued"
+      );
 
       return successResponse({ sent: true });
     } catch (error) {
@@ -665,7 +673,7 @@ class EmailService {
     inviteToken: string;
     role: "owner" | "member" | "admin";
   }): Promise<void> {
-    const inviteUrl = process.env.FRONTEND_URL 
+    const inviteUrl = process.env.FRONTEND_URL
       ? `${process.env.FRONTEND_URL}/invite/${params.inviteToken}`
       : `http://localhost:3000/invite/${params.inviteToken}`;
 
@@ -756,4 +764,3 @@ Napomena: Ova pozivnica važi 7 dana. Ako imate pitanja, kontaktirajte osobu koj
 
 export const emailService = new EmailService();
 export default emailService;
-

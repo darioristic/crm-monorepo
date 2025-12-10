@@ -1,14 +1,9 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import type { InvoiceTemplate, InvoiceDefaultSettings, EditorDoc } from "@/types/invoice";
+import type { EditorDoc, InvoiceDefaultSettings, InvoiceTemplate } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
-// Only these fields should be persisted across invoices
-interface PersistedInvoiceSettings {
-  template: InvoiceTemplate;
-  fromDetails?: EditorDoc | string | null;
-  paymentDetails?: EditorDoc | string | null;
-}
+// Removed unused PersistedInvoiceSettings interface
 
 interface InvoiceSettingsState {
   defaultSettings: InvoiceDefaultSettings;
@@ -23,7 +18,12 @@ interface InvoiceSettingsState {
 
 const initialState: Omit<
   InvoiceSettingsState,
-  "setDefaultSettings" | "setTemplate" | "setFromDetails" | "setPaymentDetails" | "addRecentCustomer" | "reset"
+  | "setDefaultSettings"
+  | "setTemplate"
+  | "setFromDetails"
+  | "setPaymentDetails"
+  | "addRecentCustomer"
+  | "reset"
 > = {
   defaultSettings: {
     template: DEFAULT_INVOICE_TEMPLATE,
@@ -33,15 +33,15 @@ const initialState: Omit<
 
 export const useInvoiceSettingsStore = create<InvoiceSettingsState>()(
   persist(
-    (set, get) => ({
+    (set, _get) => ({
       ...initialState,
 
       setDefaultSettings: (settings) =>
         set((state) => {
           // Only allow persisting specific fields: template, fromDetails, paymentDetails
-          const allowedKeys = ['template', 'fromDetails', 'paymentDetails'];
+          const allowedKeys = ["template", "fromDetails", "paymentDetails"];
           const filteredSettings: Partial<InvoiceDefaultSettings> = {};
-          
+
           for (const key of allowedKeys) {
             if (key in settings) {
               const value = settings[key as keyof InvoiceDefaultSettings];
@@ -50,7 +50,7 @@ export const useInvoiceSettingsStore = create<InvoiceSettingsState>()(
               }
             }
           }
-          
+
           return {
             defaultSettings: {
               ...state.defaultSettings,
@@ -92,9 +92,7 @@ export const useInvoiceSettingsStore = create<InvoiceSettingsState>()(
 
       addRecentCustomer: (customerId) =>
         set((state) => {
-          const filtered = state.recentCustomers.filter(
-            (id) => id !== customerId
-          );
+          const filtered = state.recentCustomers.filter((id) => id !== customerId);
           return {
             recentCustomers: [customerId, ...filtered].slice(0, 10),
           };
@@ -151,4 +149,3 @@ export const useInvoiceSheetStore = create<InvoiceSheetState>((set) => ({
       invoiceId,
     }),
 }));
-

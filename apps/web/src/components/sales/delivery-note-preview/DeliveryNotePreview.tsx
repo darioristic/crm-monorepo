@@ -76,9 +76,7 @@ export function DeliveryNotePreview({
 
   return (
     <div
-      className={`bg-white text-black font-['Inter',sans-serif] ${
-        className || ""
-      }`}
+      className={`bg-white text-black font-['Inter',sans-serif] ${className || ""}`}
       style={{
         width: "210mm",
         minHeight: "297mm",
@@ -116,11 +114,7 @@ export function DeliveryNotePreview({
         {/* Logo */}
         {config.logoUrl && (
           <div className="max-w-[200px]">
-            <img
-              src={config.logoUrl}
-              alt="Company Logo"
-              className="h-16 object-contain"
-            />
+            <img src={config.logoUrl} alt="Company Logo" className="h-16 object-contain" />
           </div>
         )}
       </div>
@@ -129,9 +123,7 @@ export function DeliveryNotePreview({
       <div className="grid grid-cols-2 gap-8 mb-8">
         {/* From */}
         <div>
-          <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">
-            {config.fromLabel}
-          </p>
+          <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">{config.fromLabel}</p>
           <div className="text-sm leading-relaxed">
             <p className="font-medium">Your Company</p>
           </div>
@@ -143,22 +135,31 @@ export function DeliveryNotePreview({
             {config.customerLabel}
           </p>
           <div className="text-sm leading-relaxed">
-            {deliveryNote.customerDetails && typeof deliveryNote.customerDetails === 'object' && 'name' in deliveryNote.customerDetails ? (
-              <>
-                <p className="font-medium">{(deliveryNote.customerDetails as any).name}</p>
-                {(deliveryNote.customerDetails as any).address && (
-                  <p>{(deliveryNote.customerDetails as any).address}</p>
-                )}
-                {((deliveryNote.customerDetails as any).city || (deliveryNote.customerDetails as any).zip) && (
-                  <p>
-                    {(deliveryNote.customerDetails as any).zip && `${(deliveryNote.customerDetails as any).zip} `}
-                    {(deliveryNote.customerDetails as any).city}
-                  </p>
-                )}
-                {(deliveryNote.customerDetails as any).country && (
-                  <p>{(deliveryNote.customerDetails as any).country}</p>
-                )}
-              </>
+            {deliveryNote.customerDetails &&
+            typeof deliveryNote.customerDetails === "object" &&
+            "name" in deliveryNote.customerDetails ? (
+              (() => {
+                const details = deliveryNote.customerDetails as {
+                  name?: string;
+                  address?: string;
+                  city?: string;
+                  zip?: string | number;
+                  country?: string;
+                };
+                return (
+                  <>
+                    {details.name && <p className="font-medium">{details.name}</p>}
+                    {details.address && <p>{details.address}</p>}
+                    {(details.city || details.zip) && (
+                      <p>
+                        {details.zip ? `${details.zip} ` : ""}
+                        {details.city}
+                      </p>
+                    )}
+                    {details.country && <p>{details.country}</p>}
+                  </>
+                );
+              })()
             ) : (
               <p className="font-medium">Customer</p>
             )}
@@ -229,9 +230,7 @@ export function DeliveryNotePreview({
                 {item.description && (
                   <p className="text-xs text-gray-500 mt-1">{item.description}</p>
                 )}
-                {item.unit && (
-                  <p className="text-xs text-gray-400 mt-1">Unit: {item.unit}</p>
-                )}
+                {item.unit && <p className="text-xs text-gray-400 mt-1">Unit: {item.unit}</p>}
               </div>
               <div className="text-right">{Number(item.quantity)}</div>
               <div className="text-right">
@@ -257,9 +256,7 @@ export function DeliveryNotePreview({
             {/* Subtotal */}
             <div className="flex justify-between text-sm">
               <span className="text-gray-500">{config.subtotalLabel}:</span>
-              <span>
-                {formatCurrency(Number(deliveryNote.subtotal), config.currency)}
-              </span>
+              <span>{formatCurrency(Number(deliveryNote.subtotal), config.currency)}</span>
             </div>
 
             {/* Tax */}
@@ -268,9 +265,7 @@ export function DeliveryNotePreview({
                 <span className="text-gray-500">
                   {config.taxLabel} ({Number(deliveryNote.taxRate)}%):
                 </span>
-                <span>
-                  {formatCurrency(Number(deliveryNote.tax), config.currency)}
-                </span>
+                <span>{formatCurrency(Number(deliveryNote.tax), config.currency)}</span>
               </div>
             )}
 
@@ -325,4 +320,3 @@ export function DeliveryNotePreview({
 }
 
 export default DeliveryNotePreview;
-

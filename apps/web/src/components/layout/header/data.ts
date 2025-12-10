@@ -8,7 +8,7 @@ export const notifications = [
     status: "online",
     unread_message: false,
     type: "text",
-    date: "2 days ago"
+    date: "2 days ago",
   },
   {
     id: 2,
@@ -19,7 +19,7 @@ export const notifications = [
     status: "online",
     unread_message: true,
     type: "text",
-    date: "11 am"
+    date: "11 am",
   },
   {
     id: 3,
@@ -30,7 +30,7 @@ export const notifications = [
     status: "busy",
     unread_message: true,
     type: "confirm",
-    date: "12 pm"
+    date: "12 pm",
   },
   {
     id: 4,
@@ -41,7 +41,7 @@ export const notifications = [
     status: "online",
     unread_message: true,
     type: "text",
-    date: "1 pm"
+    date: "1 pm",
   },
   {
     id: 5,
@@ -52,7 +52,7 @@ export const notifications = [
     status: "busy",
     unread_message: false,
     type: "text",
-    date: "3 pm"
+    date: "3 pm",
   },
   {
     id: 6,
@@ -63,7 +63,7 @@ export const notifications = [
     status: "online",
     unread_message: false,
     type: "text",
-    date: "4 pm"
+    date: "4 pm",
   },
   {
     id: 7,
@@ -74,7 +74,7 @@ export const notifications = [
     status: "online",
     unread_message: true,
     type: "text",
-    date: "7 pm"
+    date: "7 pm",
   },
   {
     id: 8,
@@ -85,7 +85,7 @@ export const notifications = [
     status: "away",
     unread_message: true,
     type: "text",
-    date: "10 pm"
+    date: "10 pm",
   },
   {
     id: 9,
@@ -96,7 +96,7 @@ export const notifications = [
     status: "offline",
     unread_message: false,
     type: "text",
-    date: "10 pm"
+    date: "10 pm",
   },
   {
     id: 10,
@@ -107,8 +107,8 @@ export const notifications = [
     status: "away",
     has_notification: false,
     type: "text",
-    date: "10 am"
-  }
+    date: "10 am",
+  },
 ];
 
 export type Notification = (typeof notifications)[number];

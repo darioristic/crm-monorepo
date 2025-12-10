@@ -24,7 +24,7 @@ export function useUpload() {
   const uploadFile = async ({
     file,
     path,
-    bucket,
+    bucket: _bucket,
     companyId,
   }: UploadParams): Promise<UploadResult> => {
     setLoading(true);

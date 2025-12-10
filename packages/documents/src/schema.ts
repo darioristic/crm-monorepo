@@ -60,4 +60,3 @@ export const receiptSchema = z.object({
     .default([]),
   language: z.string().nullable(),
 });
-

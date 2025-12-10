@@ -1,5 +1,6 @@
 "use client";
 
+import type { QuoteFormValues } from "@crm/schemas";
 import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Copy, Download, Loader2 } from "lucide-react";
@@ -10,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useApi } from "@/hooks/use-api";
-import { quotesApi } from "@/lib/api";
-import type { QuoteDefaultSettings, QuoteFormValues } from "@/types/quote";
+import { documentsApi, quotesApi } from "@/lib/api";
+import type { QuoteDefaultSettings } from "@/types/quote";
 import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
@@ -107,7 +108,7 @@ export function QuoteSheet({ defaultSettings, onQuoteCreated }: QuoteSheetProps)
   );
 
   const handleSuccess = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (type === "create") {
         onQuoteCreated?.(id);
       }
@@ -115,8 +116,46 @@ export function QuoteSheet({ defaultSettings, onQuoteCreated }: QuoteSheetProps)
       params.set("type", "success");
       params.set("quoteId", id);
       router.push(`${pathname}?${params.toString()}`);
+
+      // Store the quote PDF in vault (fire and forget)
+      try {
+        // Fetch the quote data to get quote number
+        const quoteResponse = await quotesApi.getById(id);
+        if (!quoteResponse.success || !quoteResponse.data) return;
+
+        const quote = quoteResponse.data;
+        const quoteNumber = quote.quoteNumber || id;
+
+        // Fetch the PDF
+        const pdfResponse = await fetch(`/api/download/quote?id=${id}`);
+        if (!pdfResponse.ok) return;
+
+        const pdfBlob = await pdfResponse.blob();
+        const pdfBuffer = await pdfBlob.arrayBuffer();
+        const pdfBase64 = btoa(
+          new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
+        );
+
+        // Store in vault
+        await documentsApi.storeGenerated({
+          pdfBase64,
+          documentType: "quote",
+          entityId: id,
+          title: `Quote ${quoteNumber}`,
+          documentNumber: quoteNumber,
+          metadata: {
+            customerName: quote.companyName || quote.company?.name,
+            total: quote.total,
+            currency: quote.currency,
+            validUntil: quote.validUntil,
+          },
+        });
+      } catch {
+        // Silent fail - vault storage is optional
+        console.warn("Failed to store quote PDF in vault");
+      }
     },
-    [router, pathname, searchParams]
+    [router, pathname, searchParams, type, onQuoteCreated]
   );
 
   return (
@@ -361,6 +400,7 @@ function SuccessContent({ quoteId, quote, onViewQuote, onCreateAnother }: Succes
               className="w-full h-full text-background"
               preserveAspectRatio="none"
             >
+              <title>Decorative wave separator</title>
               <path
                 d="M0,20 Q10,0 20,20 T40,20 T60,20 T80,20 T100,20 T120,20 T140,20 T160,20 T180,20 T200,20 T220,20 T240,20 T260,20 T280,20 T300,20 T320,20 T340,20 T360,20 T380,20 T400,20 L400,20 L0,20 Z"
                 fill="currentColor"
@@ -385,9 +425,13 @@ function SuccessContent({ quoteId, quote, onViewQuote, onCreateAnother }: Succes
 
 // Transform API quote to form values
 function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormValues> {
+  const allowed: QuoteFormValues["status"][] = ["draft", "sent", "accepted", "rejected", "expired"];
+  const status = allowed.includes(quote.status as any)
+    ? (quote.status as QuoteFormValues["status"])
+    : ("draft" as QuoteFormValues["status"]);
   return {
     id: quote.id,
-    status: quote.status,
+    status,
     quoteNumber: quote.quoteNumber ?? "",
     issueDate: (quote.issueDate ?? "") as string,
     validUntil: (quote.validUntil ?? "") as string,
@@ -424,9 +468,12 @@ function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormV
     customerDetails: quote.customerDetails || null,
     lineItems: (quote.items || []).map((item) => ({
       name: item.productName || item.description || "",
-      quantity: item.quantity || 1,
-      price: item.unitPrice || 0,
-      unit: item.unit || "pcs",
+      quantity: item.quantity ?? 1,
+      price: item.unitPrice ?? 0,
+      unit: item.unit ?? "pcs",
+      discount: item.discount ?? 0,
+      vat: item.vat ?? item.vatRate ?? 0,
+      productId: undefined,
     })),
     template: {
       ...DEFAULT_QUOTE_TEMPLATE,

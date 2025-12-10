@@ -1,8 +1,7 @@
 import { Link2Icon, Mail, MapPin, PhoneCall } from "lucide-react";
-
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function ProfileCard() {
   return (
@@ -51,7 +50,9 @@ export function ProfileCard() {
               <a
                 href="https://shadcnuikit.com"
                 className="hover:text-primary hover:underline"
-                target="_blank">
+                target="_blank"
+                rel="noopener"
+              >
                 https://shadcnuikit.com
               </a>
             </div>
@@ -60,7 +61,9 @@ export function ProfileCard() {
               <a
                 href="https://bundui.io/"
                 className="hover:text-primary hover:underline"
-                target="_blank">
+                target="_blank"
+                rel="noopener"
+              >
                 https://bundui.io/
               </a>
             </div>

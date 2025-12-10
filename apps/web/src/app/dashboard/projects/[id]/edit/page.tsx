@@ -1,13 +1,13 @@
 "use client";
 
+import type { Project } from "@crm/types";
+import { AlertCircle } from "lucide-react";
 import { use } from "react";
 import { ProjectForm } from "@/components/projects/project-form";
-import { projectsApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
-import type { Project } from "@crm/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/hooks/use-api";
+import { projectsApi } from "@/lib/api";
 
 interface EditProjectPageProps {
   params: Promise<{ id: string }>;
@@ -15,11 +15,12 @@ interface EditProjectPageProps {
 
 export default function EditProjectPage({ params }: EditProjectPageProps) {
   const { id } = use(params);
-  
-  const { data: project, isLoading, error } = useApi<Project>(
-    () => projectsApi.getById(id),
-    { autoFetch: true }
-  );
+
+  const {
+    data: project,
+    isLoading,
+    error,
+  } = useApi<Project>(() => projectsApi.getById(id), { autoFetch: true });
 
   if (isLoading) {
     return (
@@ -54,4 +55,3 @@ export default function EditProjectPage({ params }: EditProjectPageProps) {
     </div>
   );
 }
-

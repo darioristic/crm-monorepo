@@ -287,7 +287,7 @@ export function CreateCompanyInlineForm({
               pib: values.vatNumber || undefined,
               companyNumber: values.companyNumber || undefined,
               contactPerson: values.contact || undefined,
-            } as any);
+            });
           } catch {}
         }
       } catch {}
@@ -305,7 +305,8 @@ export function CreateCompanyInlineForm({
           }
         }
       } catch {}
-      onSuccess((mode === "create" ? result.data.id : companyId!) as string);
+      const idToStore = (mode === "create" && result.data?.id) || companyId;
+      onSuccess(String(idToStore));
     } else {
       toast.error(String((result as any)?.error || "Failed to create company"));
     }

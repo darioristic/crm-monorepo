@@ -1,5 +1,6 @@
 import type {
   ApiResponse,
+  Company,
   CreateOrderRequest,
   FilterParams,
   Order,
@@ -59,9 +60,17 @@ function mapOrder(row: Record<string, unknown>): Order {
     updatedAt: row.updated_at as string,
     fromDetails,
     customerDetails,
-    tenantId: row.tenant_id as string | undefined,
   };
 }
+
+type OrderItemSummary = {
+  productName: string;
+  description: string | null;
+  quantity: number;
+  unitPrice: number;
+  discount: number;
+  total: number;
+};
 
 export const orderQueries = {
   async findAll(
@@ -85,15 +94,16 @@ export const orderQueries = {
       }
       qb.addSearchCondition(["order_number"], filters.search);
       qb.addEqualCondition("status", filters.status);
-      if ((filters as any).createdBy) {
-        qb.addEqualCondition("created_by", (filters as any).createdBy as string);
+      const createdBy = (filters as { createdBy?: string }).createdBy;
+      if (createdBy) {
+        qb.addEqualCondition("created_by", createdBy);
       }
 
       const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
       // Count query
       const countQuery = `SELECT COUNT(*) FROM orders ${whereClause}`;
-      const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
+      const countResult = await db.unsafe(countQuery, whereValues as unknown[]);
       const total = parseInt(countResult[0].count, 10);
 
       // Sort
@@ -112,7 +122,7 @@ export const orderQueries = {
         ...whereValues,
         safePageSize,
         safeOffset,
-      ] as QueryParam[]);
+      ] as unknown[]);
 
       const orders = data.map(mapOrder);
 
@@ -123,7 +133,7 @@ export const orderQueries = {
         totalPages: Math.ceil(total / safePageSize),
       });
     } catch (error) {
-      logger.error("Error in orderQueries.findAll:", error);
+      logger.error({ error }, "Error in orderQueries.findAll");
       return {
         success: false,
         error: {
@@ -145,7 +155,14 @@ export const orderQueries = {
 
   async findById(
     id: string
-  ): Promise<(Order & { items?: any[]; company?: any; companyName?: string }) | null> {
+  ): Promise<
+    | (Order & {
+        items?: OrderItemSummary[];
+        company?: Company | null;
+        companyName?: string | null;
+      })
+    | null
+  > {
     const result = await db`SELECT * FROM orders WHERE id = ${id}`;
     if (result.length === 0) {
       return null;
@@ -155,7 +172,7 @@ export const orderQueries = {
             SELECT product_name, description, quantity, unit_price, discount, total
             FROM order_items WHERE order_id = ${id}
         `;
-    const items = itemsRows.map((row: any) => ({
+    const items = itemsRows.map((row: Record<string, unknown>) => ({
       productName: row.product_name as string,
       description: (row.description as string) || null,
       quantity:
@@ -190,7 +207,7 @@ export const orderQueries = {
     error?: { code: string; message: string };
   }> {
     try {
-      if (!ALLOWED_ORDER_STATUSES.has(order.status as any)) {
+      if (!ALLOWED_ORDER_STATUSES.has(order.status as string)) {
         return {
           success: false,
           error: {
@@ -260,7 +277,7 @@ export const orderQueries = {
           status, subtotal, tax, total, currency, notes, from_details, customer_details, created_by,
           created_at, updated_at
         ) VALUES (
-          gen_random_uuid(), ${orderNumber}, ${order.companyId}, ${(order as any).sellerCompanyId || null},
+          gen_random_uuid(), ${orderNumber}, ${order.companyId}, ${(order as { sellerCompanyId?: string }).sellerCompanyId || null},
           ${order.contactId || null}, ${order.quoteId || null}, ${order.invoiceId || null},
           ${order.status}, ${order.subtotal}, ${order.tax}, ${order.total},
           ${order.currency}, ${order.notes || null}, ${builtFromDetails ? JSON.stringify(builtFromDetails) : null}, ${builtCustomerDetails ? JSON.stringify(builtCustomerDetails) : null}, ${order.createdBy},
@@ -283,7 +300,7 @@ export const orderQueries = {
 
       return successResponse(mapOrder(result[0]));
     } catch (error) {
-      logger.error("Error in orderQueries.create:", error);
+      logger.error({ error }, "Error in orderQueries.create");
       return {
         success: false,
         error: {
@@ -308,7 +325,7 @@ export const orderQueries = {
       let paramIndex = 1;
 
       if (order.status !== undefined) {
-        if (!ALLOWED_ORDER_STATUSES.has(order.status as any)) {
+        if (!ALLOWED_ORDER_STATUSES.has(order.status as string)) {
           return {
             success: false,
             error: {
@@ -346,16 +363,16 @@ export const orderQueries = {
         values.push(order.notes);
         paramIndex++;
       }
-      if ((order as any).fromDetails !== undefined) {
+      const fromDetails = (order as { fromDetails?: unknown }).fromDetails;
+      if (fromDetails !== undefined) {
         updates.push(`from_details = $${paramIndex}`);
-        values.push((order as any).fromDetails ? JSON.stringify((order as any).fromDetails) : null);
+        values.push(fromDetails ? JSON.stringify(fromDetails as unknown) : null);
         paramIndex++;
       }
-      if ((order as any).customerDetails !== undefined) {
+      const customerDetails = (order as { customerDetails?: unknown }).customerDetails;
+      if (customerDetails !== undefined) {
         updates.push(`customer_details = $${paramIndex}`);
-        values.push(
-          (order as any).customerDetails ? JSON.stringify((order as any).customerDetails) : null
-        );
+        values.push(customerDetails ? JSON.stringify(customerDetails as unknown) : null);
         paramIndex++;
       }
       if (order.contactId !== undefined) {
@@ -396,7 +413,7 @@ export const orderQueries = {
         RETURNING *
       `;
 
-      const result = await db.unsafe(updateQuery, values as QueryParam[]);
+      const result = await db.unsafe(updateQuery, values as unknown[]);
 
       if (result.length === 0) {
         return {
@@ -407,7 +424,7 @@ export const orderQueries = {
 
       return successResponse(mapOrder(result[0]));
     } catch (error) {
-      logger.error("Error in orderQueries.update:", error);
+      logger.error({ error }, "Error in orderQueries.update");
       return {
         success: false,
         error: {
@@ -435,7 +452,7 @@ export const orderQueries = {
 
       return { success: true };
     } catch (error) {
-      logger.error("Error in orderQueries.delete:", error);
+      logger.error({ error }, "Error in orderQueries.delete");
       return {
         success: false,
         error: {

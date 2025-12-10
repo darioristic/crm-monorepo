@@ -64,8 +64,10 @@ export async function captureMessage(
 ) {
   if (process.env.NODE_ENV === "production" && process.env.NEXT_PUBLIC_SENTRY_DSN) {
     const Sentry = await import("@sentry/nextjs");
+    const severity: "fatal" | "error" | "warning" | "log" | "info" | "debug" =
+      level === "error" ? "error" : level === "warning" ? "warning" : "info";
     Sentry.captureMessage(message, {
-      level: level as any,
+      level: severity,
       extra: context,
     });
   }

@@ -1,26 +1,20 @@
 "use client";
 
-import * as React from "react";
 import {
-  GripVertical,
-  Paperclip,
-  MessageSquare,
-  PlusCircleIcon,
-  Search,
   CheckIcon,
+  GripVertical,
+  MessageSquare,
+  Paperclip,
+  PlusCircleIcon,
+  SearchIcon,
   SlidersHorizontalIcon,
-  SearchIcon
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import * as React from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import * as Kanban from "@/components/ui/kanban";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
 import {
   Command,
   CommandEmpty,
@@ -28,18 +22,22 @@ import {
   CommandInput,
   CommandItem,
   CommandList,
-  CommandSeparator
+  CommandSeparator,
 } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger
+  DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import * as Kanban from "@/components/ui/kanban";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 
 import AddAssigne from "./add-assigne";
 
@@ -78,18 +76,18 @@ export default function KanbanBoard() {
             name: "Emma",
             src: "/images/avatars/01.png",
             alt: "Emma Avatar",
-            fallback: "EJ"
+            fallback: "EJ",
           },
           {
             name: "Daniel",
             src: "/images/avatars/02.png",
             alt: "Daniel Avatar",
-            fallback: "DS"
-          }
+            fallback: "DS",
+          },
         ],
         progress: 10,
         attachments: 2,
-        comments: 4
+        comments: 4,
       },
       {
         id: "2",
@@ -103,18 +101,18 @@ export default function KanbanBoard() {
             name: "Lucas",
             src: "/images/avatars/03.png",
             alt: "Lucas Avatar",
-            fallback: "LB"
+            fallback: "LB",
           },
           {
             name: "Sophia",
             src: "/images/avatars/04.png",
             alt: "Sophia Avatar",
-            fallback: "SR"
-          }
+            fallback: "SR",
+          },
         ],
         progress: 0,
         attachments: 1,
-        comments: 1
+        comments: 1,
       },
       {
         id: "3",
@@ -128,18 +126,18 @@ export default function KanbanBoard() {
             name: "Mia",
             src: "/images/avatars/05.png",
             alt: "Mia Avatar",
-            fallback: "MW"
+            fallback: "MW",
           },
           {
             name: "Jack",
             src: "/images/avatars/06.png",
             alt: "Jack Avatar",
-            fallback: "JL"
-          }
+            fallback: "JL",
+          },
         ],
         progress: 5,
         attachments: 0,
-        comments: 3
+        comments: 3,
       },
       {
         id: "4",
@@ -153,19 +151,19 @@ export default function KanbanBoard() {
             name: "Olivia",
             src: "/images/avatars/07.png",
             alt: "Olivia Avatar",
-            fallback: "OD"
+            fallback: "OD",
           },
           {
             name: "Henry",
             src: "/images/avatars/08.png",
             alt: "Henry Avatar",
-            fallback: "HT"
-          }
+            fallback: "HT",
+          },
         ],
         progress: 0,
         attachments: 1,
-        comments: 0
-      }
+        comments: 0,
+      },
     ],
     inProgress: [
       {
@@ -180,18 +178,18 @@ export default function KanbanBoard() {
             name: "Charlie",
             src: "/images/avatars/09.png",
             alt: "Charlie Avatar",
-            fallback: "CW"
+            fallback: "CW",
           },
           {
             name: "Ava",
             src: "/images/avatars/10.png",
             alt: "Ava Avatar",
-            fallback: "AR"
-          }
+            fallback: "AR",
+          },
         ],
         progress: 40,
         attachments: 2,
-        comments: 6
+        comments: 6,
       },
       {
         id: "6",
@@ -205,18 +203,18 @@ export default function KanbanBoard() {
             name: "Liam",
             src: "/images/avatars/11.png",
             alt: "Liam Avatar",
-            fallback: "LM"
+            fallback: "LM",
           },
           {
             name: "Isabella",
             src: "/images/avatars/12.png",
             alt: "Isabella Avatar",
-            fallback: "IN"
-          }
+            fallback: "IN",
+          },
         ],
         progress: 55,
         attachments: 3,
-        comments: 2
+        comments: 2,
       },
       {
         id: "7",
@@ -230,19 +228,19 @@ export default function KanbanBoard() {
             name: "Noah",
             src: "/images/avatars/13.png",
             alt: "Noah Avatar",
-            fallback: "NT"
+            fallback: "NT",
           },
           {
             name: "Ella",
             src: "/images/avatars/14.png",
             alt: "Ella Avatar",
-            fallback: "EL"
-          }
+            fallback: "EL",
+          },
         ],
         progress: 35,
         attachments: 1,
-        comments: 1
-      }
+        comments: 1,
+      },
     ],
     done: [
       {
@@ -257,18 +255,18 @@ export default function KanbanBoard() {
             name: "Ethan",
             src: "/images/avatars/15.png",
             alt: "Ethan Avatar",
-            fallback: "EC"
+            fallback: "EC",
           },
           {
             name: "Grace",
             src: "/images/avatars/16.png",
             alt: "Grace Avatar",
-            fallback: "GR"
-          }
+            fallback: "GR",
+          },
         ],
         progress: 100,
         attachments: 2,
-        comments: 4
+        comments: 4,
       },
       {
         id: "9",
@@ -283,26 +281,26 @@ export default function KanbanBoard() {
             name: "Harper",
             src: "/images/avatars/17.png",
             alt: "Harper Avatar",
-            fallback: "HL"
+            fallback: "HL",
           },
           {
             name: "Benjamin",
             src: "/images/avatars/18.png",
             alt: "Benjamin Avatar",
-            fallback: "BM"
-          }
+            fallback: "BM",
+          },
         ],
         progress: 100,
         attachments: 1,
-        comments: 2
-      }
-    ]
+        comments: 2,
+      },
+    ],
   });
 
   const [columnTitles, setColumnTitles] = React.useState<Record<string, string>>({
     backlog: "Backlog",
     inProgress: "In Progress",
-    done: "Done"
+    done: "Done",
   });
 
   const [filteredColumns, setFilteredColumns] = React.useState(columns);
@@ -326,7 +324,7 @@ export default function KanbanBoard() {
   const [searchQuery, setSearchQuery] = React.useState("");
 
   const filterTasks = React.useCallback(() => {
-    let filtered: Record<string, Task[]> = { ...columns };
+    const filtered: Record<string, Task[]> = { ...columns };
 
     Object.keys(filtered).forEach((columnKey) => {
       filtered[columnKey] = columns[columnKey].filter((task) => {
@@ -388,21 +386,24 @@ export default function KanbanBoard() {
                   onSelect={() => {
                     setFilterStatus("completed");
                     setOpen(false);
-                  }}>
+                  }}
+                >
                   <span>Completed</span>
                 </CommandItem>
                 <CommandItem
                   onSelect={() => {
                     setFilterStatus("inProgress");
                     setOpen(false);
-                  }}>
+                  }}
+                >
                   <span>In Progress</span>
                 </CommandItem>
                 <CommandItem
                   onSelect={() => {
                     setFilterStatus("notStarted");
                     setOpen(false);
-                  }}>
+                  }}
+                >
                   <span>Not Started</span>
                 </CommandItem>
               </CommandGroup>
@@ -415,21 +416,24 @@ export default function KanbanBoard() {
                   onSelect={() => {
                     setFilterPriority("high");
                     setOpen(false);
-                  }}>
+                  }}
+                >
                   <span>High </span>
                 </CommandItem>
                 <CommandItem
                   onSelect={() => {
                     setFilterPriority("medium");
                     setOpen(false);
-                  }}>
+                  }}
+                >
                   <span>Medium </span>
                 </CommandItem>
                 <CommandItem
                   onSelect={() => {
                     setFilterPriority("low");
                     setOpen(false);
-                  }}>
+                  }}
+                >
                   <span>Low </span>
                 </CommandItem>
               </CommandGroup>
@@ -450,7 +454,8 @@ export default function KanbanBoard() {
                     onSelect={() => {
                       setFilterUser(userName);
                       setOpen(false);
-                    }}>
+                    }}
+                  >
                     <Avatar className="mr-2 h-5 w-5">
                       <AvatarImage
                         src={
@@ -478,7 +483,8 @@ export default function KanbanBoard() {
                     setFilterUser(null);
                     setOpen(false);
                   }}
-                  className="justify-center text-center">
+                  className="justify-center text-center"
+                >
                   Clear Filters
                 </CommandItem>
               </CommandGroup>
@@ -493,11 +499,11 @@ export default function KanbanBoard() {
     const id = `col-${Date.now()}`;
     setColumns((prev) => ({
       ...prev,
-      [id]: []
+      [id]: [],
     }));
     setColumnTitles((prev) => ({
       ...prev,
-      [id]: title
+      [id]: title,
     }));
     setNewColumnTitle("");
     setIsNewColumnModalOpen(false);
@@ -594,7 +600,8 @@ export default function KanbanBoard() {
                     type="submit"
                     size="icon"
                     disabled={!newColumnTitle.trim()}
-                    onClick={() => addColumn(newColumnTitle.trim())}>
+                    onClick={() => addColumn(newColumnTitle.trim())}
+                  >
                     <CheckIcon />
                   </Button>
                 </div>
@@ -606,13 +613,15 @@ export default function KanbanBoard() {
           <Kanban.Root
             value={filteredColumns}
             onValueChange={setColumns}
-            getItemValue={(item) => item.id}>
+            getItemValue={(item) => item.id}
+          >
             <Kanban.Board className="flex w-full gap-4 overflow-x-auto pb-4">
               {Object.entries(filteredColumns).map(([columnValue, tasks]) => (
                 <Kanban.Column
                   key={columnValue}
                   value={columnValue}
-                  className="w-[340px] min-w-[340px]">
+                  className="w-[340px] min-w-[340px]"
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold">{columnTitles[columnValue]}</span>
@@ -652,8 +661,11 @@ export default function KanbanBoard() {
                             <CardContent className="space-y-4">
                               <div className="text-muted-foreground flex items-center justify-between text-sm">
                                 <div className="flex -space-x-2 overflow-hidden">
-                                  {task.users.map((user, index) => (
-                                    <Avatar key={index} className="border-background border-2">
+                                  {task.users.map((user) => (
+                                    <Avatar
+                                      key={user.src || user.alt || user.fallback}
+                                      className="border-background border-2"
+                                    >
                                       <AvatarImage
                                         src={user.src || "/placeholder.svg"}
                                         alt={user.alt}
@@ -667,14 +679,17 @@ export default function KanbanBoard() {
                                     <svg
                                       className="size-full -rotate-90"
                                       viewBox="0 0 36 36"
-                                      xmlns="http://www.w3.org/2000/svg">
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <title>Task progress</title>
                                       <circle
                                         cx="18"
                                         cy="18"
                                         r="16"
                                         fill="none"
                                         className="stroke-current text-gray-200 dark:text-neutral-700"
-                                        stroke-width="2"></circle>
+                                        strokeWidth="2"
+                                      ></circle>
                                       <circle
                                         cx="18"
                                         cy="18"
@@ -683,15 +698,16 @@ export default function KanbanBoard() {
                                         className={cn("stroke-current", {
                                           "text-green-600!": task.progress === 100,
                                           "text-orange-500!":
-                                            task.progress > 50 && task.progress < 100
+                                            task.progress > 50 && task.progress < 100,
                                         })}
-                                        stroke-width="2"
+                                        strokeWidth="2"
                                         strokeDasharray={2 * Math.PI * 16}
                                         strokeDashoffset={
                                           2 * Math.PI * 16 -
                                           (2 * Math.PI * 16 * task.progress) / 100
                                         }
-                                        stroke-linecap="round"></circle>
+                                        strokeLinecap="round"
+                                      ></circle>
                                     </svg>
                                   </div>
                                   {`${task.progress}%`}

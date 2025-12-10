@@ -1,4 +1,4 @@
-import type { EditorDoc } from "@/types/order";
+import type { EditorDoc } from "@crm/schemas";
 import { formatEditorContent } from "../format";
 
 type Props = {
@@ -12,4 +12,3 @@ export function EditorContent({ content }: Props) {
 
   return <div className="leading-4">{formatEditorContent(content)}</div>;
 }
-

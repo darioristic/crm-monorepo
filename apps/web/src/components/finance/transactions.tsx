@@ -1,20 +1,19 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { BookOpenIcon, Car, CoffeeIcon, StoreIcon } from "lucide-react";
-
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { cn } from "@/lib/utils";
 
 const transactions = [
   {
@@ -24,7 +23,7 @@ const transactions = [
     type: "Income",
     amount: 1640.26,
     icon: "S",
-    color: "bg-pink-500"
+    color: "bg-pink-500",
   },
   {
     id: 2,
@@ -33,7 +32,7 @@ const transactions = [
     type: "Expenses",
     amount: -72.64,
     icon: <StoreIcon className="h-4 w-4" />,
-    color: "bg-emerald-500"
+    color: "bg-emerald-500",
   },
   {
     id: 3,
@@ -42,7 +41,7 @@ const transactions = [
     type: "Expenses",
     amount: -8.65,
     icon: <CoffeeIcon className="h-4 w-4" />,
-    color: "bg-amber-500"
+    color: "bg-amber-500",
   },
   {
     id: 4,
@@ -51,7 +50,7 @@ const transactions = [
     type: "Income",
     amount: 842.5,
     icon: "K",
-    color: "bg-purple-500"
+    color: "bg-purple-500",
   },
   {
     id: 5,
@@ -60,7 +59,7 @@ const transactions = [
     type: "Expenses",
     amount: -18.52,
     icon: <Car className="h-4 w-4" />,
-    color: "bg-red-500"
+    color: "bg-red-500",
   },
   {
     id: 6,
@@ -69,7 +68,7 @@ const transactions = [
     type: "Expenses",
     amount: -120.0,
     icon: <BookOpenIcon className="h-4 w-4" />,
-    color: "bg-blue-500"
+    color: "bg-blue-500",
   },
   {
     id: 7,
@@ -78,8 +77,8 @@ const transactions = [
     type: "Income",
     amount: 980.75,
     icon: "F",
-    color: "bg-green-600"
-  }
+    color: "bg-green-600",
+  },
 ];
 
 export default function Transactions() {
@@ -121,7 +120,8 @@ export default function Transactions() {
                   <Badge variant="outline">{transaction.type}</Badge>
                 </TableCell>
                 <TableCell
-                  className={`text-end ${transaction.amount > 0 ? "text-emerald-600" : "text-red-600"}`}>
+                  className={`text-end ${transaction.amount > 0 ? "text-emerald-600" : "text-red-600"}`}
+                >
                   {transaction.amount > 0 ? "" : "-"}${Math.abs(transaction.amount).toFixed(2)}
                 </TableCell>
               </TableRow>

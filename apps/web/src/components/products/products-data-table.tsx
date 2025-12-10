@@ -173,6 +173,7 @@ export function ProductsDataTable({ data }: ProductsDataTableProps) {
             </div>
             <div>
               <button
+                type="button"
                 className="font-medium text-primary hover:underline text-left"
                 onClick={(e) => {
                   e.preventDefault();

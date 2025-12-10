@@ -1,5 +1,5 @@
-import { generateMeta } from "@/lib/utils";
 import { ProjectForm } from "@/components/projects/project-form";
+import { generateMeta } from "@/lib/utils";
 
 export async function generateMetadata() {
   return generateMeta({
@@ -16,4 +16,3 @@ export default function NewProjectPage() {
     </div>
   );
 }
-

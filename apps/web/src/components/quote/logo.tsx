@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
-import { useFormContext, useWatch } from "react-hook-form";
 import { X } from "lucide-react";
-import { Skeleton } from "@/components/ui/skeleton";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
+import { useFormContext, useWatch } from "react-hook-form";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 import type { FormValues } from "./form-context";
 
 const LOCAL_STORAGE_KEY_LOGO = "quote_logo_url";
@@ -103,11 +104,7 @@ export function Logo() {
           <Skeleton className="w-[80px] h-full" />
         ) : logoUrl ? (
           <div className="max-w-[300px] h-full relative">
-            <img
-              src={logoUrl}
-              alt="Quote logo"
-              className="h-full w-auto object-contain"
-            />
+            <Image src={logoUrl} alt="Quote logo" fill className="object-contain" />
             <button
               type="button"
               className="absolute inset-0 bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity flex-col gap-1"
@@ -134,4 +131,3 @@ export function Logo() {
     </div>
   );
 }
-

@@ -1,50 +1,56 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
+import type { Project, Task, User } from "@crm/types";
 import {
-  ColumnDef,
+  type ColumnDef,
   flexRender,
   getCoreRowModel,
+  type RowSelectionState,
   useReactTable,
-  RowSelectionState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, RefreshCwIcon, Pencil, Trash2, Eye, CheckCircle } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import type { Task, Project, User } from "@crm/types";
-
+import {
+  ArrowUpDown,
+  CheckCircle,
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  RefreshCwIcon,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import * as React from "react";
+import { toast } from "sonner";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
-import { tasksApi, projectsApi, usersApi } from "@/lib/api";
-import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/utils";
+import { useApi, useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { projectsApi, tasksApi, usersApi } from "@/lib/api";
+import { formatDate, getErrorMessage } from "@/lib/utils";
 
 type TaskWithRelations = Task & {
   projectName?: string;
@@ -55,14 +61,14 @@ const statusColors = {
   todo: "secondary",
   in_progress: "default",
   review: "warning",
-  done: "success"
+  done: "success",
 } as const;
 
 const priorityColors = {
   low: "outline",
   medium: "secondary",
   high: "warning",
-  urgent: "destructive"
+  urgent: "destructive",
 } as const;
 
 const statusOptions = [
@@ -70,7 +76,7 @@ const statusOptions = [
   { value: "todo", label: "To Do" },
   { value: "in_progress", label: "In Progress" },
   { value: "review", label: "Review" },
-  { value: "done", label: "Done" }
+  { value: "done", label: "Done" },
 ];
 
 const priorityOptions = [
@@ -78,7 +84,7 @@ const priorityOptions = [
   { value: "low", label: "Low" },
   { value: "medium", label: "Medium" },
   { value: "high", label: "High" },
-  { value: "urgent", label: "Urgent" }
+  { value: "urgent", label: "Urgent" },
 ];
 
 interface TasksDataTableProps {
@@ -96,16 +102,10 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Fetch projects for lookup
-  const { data: projects } = useApi<Project[]>(
-    () => projectsApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: projects } = useApi<Project[]>(() => projectsApi.getAll(), { autoFetch: true });
 
   // Fetch users for assignee lookup
-  const { data: users } = useApi<User[]>(
-    () => usersApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: users } = useApi<User[]>(() => usersApi.getAll(), { autoFetch: true });
 
   // Create lookup maps
   const projectMap = React.useMemo(() => {
@@ -135,16 +135,13 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
     totalCount,
     totalPages,
     setPage,
-    setFilters
-  } = usePaginatedApi<Task>(
-    (params) => tasksApi.getAll(params),
-    {
-      search: searchValue,
-      status: statusFilter === "all" ? undefined : statusFilter,
-      priority: priorityFilter === "all" ? undefined : priorityFilter,
-      projectId: projectId
-    }
-  );
+    setFilters,
+  } = usePaginatedApi<Task>((params) => tasksApi.getAll(params), {
+    search: searchValue,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    priority: priorityFilter === "all" ? undefined : priorityFilter,
+    projectId: projectId,
+  });
 
   // Delete mutation
   const deleteMutation = useMutation<void, string>((id) => tasksApi.delete(id));
@@ -159,7 +156,7 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
     return (tasks || []).map((task) => ({
       ...task,
       projectName: projectMap.get(task.projectId) || "Unknown Project",
-      assigneeName: task.assignedTo ? userMap.get(task.assignedTo) : undefined
+      assigneeName: task.assignedTo ? userMap.get(task.assignedTo) : undefined,
     }));
   }, [tasks, projectMap, userMap]);
 
@@ -170,7 +167,7 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
         search: searchValue,
         status: statusFilter === "all" ? undefined : statusFilter,
         priority: priorityFilter === "all" ? undefined : priorityFilter,
-        projectId: projectId
+        projectId: projectId,
       });
     }, 300);
     return () => clearTimeout(timer);
@@ -212,7 +209,7 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
     let failCount = 0;
 
     for (const rowIndex of selectedRows) {
-      const task = enrichedTasks[parseInt(rowIndex)];
+      const task = enrichedTasks[parseInt(rowIndex, 10)];
       if (task) {
         const result = await deleteMutation.mutate(task.id);
         if (result.success) {
@@ -261,16 +258,17 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
       enableSorting: false,
       enableHiding: false,
     },
-  {
-    accessorKey: "title",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-        Task
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    {
+      accessorKey: "title",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Task
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <Link
           href={`/dashboard/projects/tasks/${row.original.id}`}
@@ -278,7 +276,7 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
         >
           {row.original.title}
         </Link>
-      )
+      ),
     },
     {
       accessorKey: "projectName",
@@ -290,38 +288,36 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
         >
           {row.original.projectName}
         </Link>
-      )
+      ),
     },
     {
       accessorKey: "assigneeName",
       header: "Assignee",
       cell: ({ row }) => (
-        <span className="text-muted-foreground">
-          {row.original.assigneeName || "Unassigned"}
-        </span>
-      )
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={statusColors[row.original.status]} className="capitalize">
-        {row.original.status.replace("_", " ")}
-      </Badge>
-    )
-  },
-  {
-    accessorKey: "priority",
-    header: "Priority",
-    cell: ({ row }) => (
-      <Badge variant={priorityColors[row.original.priority]} className="capitalize">
-        {row.original.priority}
-      </Badge>
-    )
-  },
-  {
-    accessorKey: "dueDate",
-    header: "Due Date",
+        <span className="text-muted-foreground">{row.original.assigneeName || "Unassigned"}</span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant={statusColors[row.original.status]} className="capitalize">
+          {row.original.status.replace("_", " ")}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "priority",
+      header: "Priority",
+      cell: ({ row }) => (
+        <Badge variant={priorityColors[row.original.priority]} className="capitalize">
+          {row.original.priority}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "dueDate",
+      header: "Due Date",
       cell: ({ row }) => {
         if (!row.original.dueDate) return "-";
         const dueDate = new Date(row.original.dueDate);
@@ -331,18 +327,18 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
             {formatDate(row.original.dueDate)}
           </span>
         );
-      }
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+      },
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
               <Link href={`/dashboard/projects/tasks/${row.original.id}`}>
                 <Eye className="mr-2 h-4 w-4" />
@@ -372,11 +368,11 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-  }
-];
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ];
 
   const table = useReactTable({
     data: enrichedTasks,
@@ -445,11 +441,7 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
           <RefreshCwIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
         {selectedCount > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setBulkDeleteDialogOpen(true)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete ({selectedCount})
           </Button>
@@ -496,32 +488,37 @@ export function TasksDataTable({ projectId }: TasksDataTableProps) {
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
           {selectedCount > 0 ? (
-            <span>{selectedCount} of {totalCount} row(s) selected</span>
+            <span>
+              {selectedCount} of {totalCount} row(s) selected
+            </span>
           ) : (
-            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} tasks</span>
+            <span>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of{" "}
+              {totalCount} tasks
+            </span>
           )}
         </div>
         <div className="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage(page - 1)}
             disabled={page <= 1}
           >
-          Previous
-        </Button>
+            Previous
+          </Button>
           <span className="text-sm text-muted-foreground">
             Page {page} of {totalPages || 1}
           </span>
-        <Button
-          variant="outline"
-          size="sm"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage(page + 1)}
             disabled={page >= totalPages}
           >
-          Next
-        </Button>
-      </div>
+            Next
+          </Button>
+        </div>
       </div>
 
       <DeleteDialog

@@ -1,7 +1,7 @@
 "use client";
 
-import { VaultViewSwitch } from "./vault-view-switch";
 import { VaultUploadButton } from "./vault-upload-button";
+import { VaultViewSwitch } from "./vault-view-switch";
 
 export function VaultActions() {
   return (

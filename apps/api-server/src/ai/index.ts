@@ -1,6 +1,6 @@
 // AI Module Exports
-export * from "./types";
-export * from "./agents";
-export * from "./tools";
-export * from "./agents/config/shared";
 
+export * from "./agents";
+export * from "./agents/config/shared";
+export * from "./tools";
+export * from "./types";

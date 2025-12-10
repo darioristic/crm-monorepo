@@ -7,12 +7,7 @@ import type {
   UserWithCompany,
 } from "@crm/types";
 import { sql as db, sql } from "../client";
-import {
-  createQueryBuilder,
-  type QueryParam,
-  sanitizeSortColumn,
-  sanitizeSortOrder,
-} from "../query-builder";
+import { createQueryBuilder, sanitizeSortColumn, sanitizeSortOrder } from "../query-builder";
 
 // ============================================
 // User Queries
@@ -39,7 +34,7 @@ export const userQueries = {
 
     // Izvršavaj count
     const countQuery = `SELECT COUNT(*) FROM users u ${whereClause}`;
-    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
+    const countResult = await db.unsafe(countQuery, whereValues as unknown[]);
     const total = parseInt(countResult[0].count, 10);
 
     // Sanitizuj sortiranje - dodaj prefiks za JOIN
@@ -77,7 +72,7 @@ export const userQueries = {
       ...whereValues,
       safePageSize,
       safeOffset,
-    ] as QueryParam[]);
+    ] as unknown[]);
 
     return { data: data.map(mapUserWithCompany), total };
   },

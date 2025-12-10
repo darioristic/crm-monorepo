@@ -7,4 +7,3 @@ export const PAGE_SIZES = {
 } as const;
 
 export type PageSize = keyof typeof PAGE_SIZES;
-

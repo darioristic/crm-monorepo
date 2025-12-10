@@ -638,7 +638,7 @@ export const productQueries = {
         shouldClearProductId: false,
       };
     } catch (error) {
-      logger.error(`Failed to upsert product "${trimmedName}":`, error);
+      logger.error({ error, name: trimmedName }, "Failed to upsert product");
       return { product: null, shouldClearProductId: false };
     }
   },

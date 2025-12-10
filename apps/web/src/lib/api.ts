@@ -482,7 +482,7 @@ export const accountsApi = {
         subtitle?: string;
         favorite: boolean;
       }>
-    >(`/api/v1/accounts/search${buildQueryString(params as any)}`),
+    >(`/api/v1/accounts/search${buildQueryString(params)}`),
   select: (payload: { type: "individual" | "organization"; id: string; companyId?: string }) =>
     request<{ count: number }>(`/api/v1/accounts/select`, {
       method: "POST",
@@ -812,9 +812,9 @@ export const ordersApi = {
 export const workflowsApi = {
   getDocumentChain: (quoteId: string) =>
     request<{
-      quote: any;
-      orders: any[];
-      invoices: any[];
+      quote: Quote;
+      orders: Order[];
+      invoices: Invoice[];
     }>(`/api/v1/workflows/document-chain/${quoteId}`),
 };
 
@@ -1324,7 +1324,16 @@ export const documentsApi = {
       body: formData,
     });
 
-    return response.json() as Promise<ApiResponse<Document[]>>;
+    return response.json() as Promise<
+      ApiResponse<{
+        documents: Document[];
+        report: {
+          createdCount: number;
+          failedCount: number;
+          failures: Array<{ name: string; reason: string }>;
+        };
+      }>
+    >;
   },
 
   process: (documents: Array<{ filePath: string[]; mimetype: string; size: number }>) =>
@@ -1346,11 +1355,45 @@ export const documentsApi = {
 
   getDownloadUrl: (pathTokens: string[]) => `/api/v1/documents/download/${pathTokens.join("/")}`,
 
+  getViewUrl: (pathTokens: string[]) => `/api/v1/documents/view/${pathTokens.join("/")}`,
+
   getSignedUrl: (filePath: string, expireIn?: number) =>
     request<{ signedUrl: string }>("/api/v1/documents/signed-url", {
       method: "POST",
       body: JSON.stringify({ filePath, expireIn }),
     }),
+
+  getRelated: (id: string, options?: { threshold?: number; limit?: number }) => {
+    const params = new URLSearchParams();
+    if (options?.threshold) params.append("threshold", options.threshold.toString());
+    if (options?.limit) params.append("limit", options.limit.toString());
+    const query = params.toString();
+    return request<Array<Document & { similarityScore: number }>>(
+      `/api/v1/documents/${id}/related${query ? `?${query}` : ""}`
+    );
+  },
+
+  /**
+   * Store a generated document (invoice, quote PDF) in the vault
+   */
+  storeGenerated: (params: {
+    pdfBase64: string;
+    documentType: "invoice" | "quote" | "delivery-note" | "order";
+    entityId: string;
+    title: string;
+    documentNumber?: string;
+    metadata?: Record<string, unknown>;
+  }) =>
+    request<Document>("/api/v1/documents/store-generated", {
+      method: "POST",
+      body: JSON.stringify(params),
+    }),
+
+  /**
+   * Find document by entity reference (e.g., invoice ID)
+   */
+  findByEntity: (documentType: string, entityId: string) =>
+    request<Document | null>(`/api/v1/documents/by-entity/${documentType}/${entityId}`),
 };
 
 // Document Tags API

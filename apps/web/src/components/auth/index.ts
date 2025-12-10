@@ -1,2 +1,1 @@
-export { RequireAdmin, AdminOnly, UserOnly, withPermission } from "./require-admin";
-
+export { AdminOnly, RequireAdmin, UserOnly, withPermission } from "./require-admin";

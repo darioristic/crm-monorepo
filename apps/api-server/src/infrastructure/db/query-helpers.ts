@@ -1,10 +1,5 @@
-import { eq, and, type SQL } from "drizzle-orm";
-import {
-	companies,
-	documents,
-	contacts,
-	activities,
-} from "../../db/schema/index";
+import { and, eq, type SQL } from "drizzle-orm";
+import { activities, companies, contacts, documents } from "../../db/schema/index";
 
 /**
  * Enforce tenant scope on a query
@@ -12,7 +7,7 @@ import {
  */
 export function enforceTenantScope(
   tableName: "companies" | "documents" | "contacts" | "activities",
-  tenantId: string,
+  tenantId: string
 ): SQL {
   switch (tableName) {
     case "companies":
@@ -35,7 +30,7 @@ export function enforceTenantScope(
 export function enforceCompanyScope(
   tableName: "documents" | "contacts" | "activities",
   tenantId: string,
-  companyId: string,
+  companyId: string
 ): SQL {
   switch (tableName) {
     case "documents":
@@ -56,7 +51,7 @@ export function enforceCompanyScope(
 export function withTenantIsolation<T>(
   queryBuilder: (where: SQL) => Promise<T>,
   tenantId: string,
-  tableName: "companies" | "documents" | "contacts" | "activities",
+  tableName: "companies" | "documents" | "contacts" | "activities"
 ): Promise<T> {
   const whereClause = enforceTenantScope(tableName, tenantId);
   return queryBuilder(whereClause);
@@ -70,7 +65,7 @@ export function withCompanyIsolation<T>(
   queryBuilder: (where: SQL) => Promise<T>,
   tenantId: string,
   companyId: string,
-  tableName: "documents" | "contacts" | "activities",
+  tableName: "documents" | "contacts" | "activities"
 ): Promise<T> {
   const whereClause = enforceCompanyScope(tableName, tenantId, companyId);
   return queryBuilder(whereClause);
@@ -80,44 +75,26 @@ export function withCompanyIsolation<T>(
  * Helper to build tenant-scoped queries for companies
  */
 export function buildTenantScopedCompanyQuery(tenantId: string) {
-	return eq(companies.tenantId, tenantId);
+  return eq(companies.tenantId, tenantId);
 }
 
 /**
  * Helper to build company-scoped queries for documents
  */
-export function buildCompanyScopedDocumentQuery(
-	tenantId: string,
-	companyId: string,
-) {
-	return and(
-		eq(documents.tenantId, tenantId),
-		eq(documents.companyId, companyId),
-	);
+export function buildCompanyScopedDocumentQuery(tenantId: string, companyId: string) {
+  return and(eq(documents.tenantId, tenantId), eq(documents.companyId, companyId));
 }
 
 /**
  * Helper to build company-scoped queries for contacts
  */
-export function buildCompanyScopedContactQuery(
-	tenantId: string,
-	companyId: string,
-) {
-	return and(
-		eq(contacts.tenantId, tenantId),
-		eq(contacts.companyId, companyId),
-	);
+export function buildCompanyScopedContactQuery(tenantId: string, companyId: string) {
+  return and(eq(contacts.tenantId, tenantId), eq(contacts.companyId, companyId));
 }
 
 /**
  * Helper to build company-scoped queries for activities
  */
-export function buildCompanyScopedActivityQuery(
-	tenantId: string,
-	companyId: string,
-) {
-	return and(
-		eq(activities.tenantId, tenantId),
-		eq(activities.companyId, companyId),
-	);
+export function buildCompanyScopedActivityQuery(tenantId: string, companyId: string) {
+  return and(eq(activities.tenantId, tenantId), eq(activities.companyId, companyId));
 }

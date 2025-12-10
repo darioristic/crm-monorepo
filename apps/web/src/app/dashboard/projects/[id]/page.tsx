@@ -1,21 +1,29 @@
 "use client";
 
-import { use } from "react";
+import type { Company, Milestone, Project, Task, User as UserType } from "@crm/types";
+import {
+  AlertCircle,
+  ArrowLeft,
+  Building2,
+  Calendar,
+  LayoutGrid,
+  Pencil,
+  User,
+} from "lucide-react";
 import Link from "next/link";
-import { projectsApi, tasksApi, milestonesApi, usersApi, companiesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Calendar, User, Building2, LayoutGrid, Pencil, ArrowLeft } from "lucide-react";
-import { formatDate, formatCurrency } from "@/lib/utils";
-import { TasksDataTable } from "@/components/projects/tasks-data-table";
+import { use } from "react";
 import { MilestonesDataTable } from "@/components/projects/milestones-data-table";
-import type { Project, Task, Milestone, User as UserType, Company } from "@crm/types";
+import { TasksDataTable } from "@/components/projects/tasks-data-table";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useApi } from "@/hooks/use-api";
+import { companiesApi, milestonesApi, projectsApi, tasksApi, usersApi } from "@/lib/api";
+import { formatCurrency, formatDate } from "@/lib/utils";
 
 interface ProjectDetailPageProps {
   params: Promise<{ id: string }>;
@@ -26,36 +34,29 @@ const statusColors = {
   in_progress: "default",
   on_hold: "warning",
   completed: "success",
-  cancelled: "destructive"
+  cancelled: "destructive",
 } as const;
 
 export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { id } = use(params);
 
-  const { data: project, isLoading: projectLoading, error: projectError } = useApi<Project>(
-    () => projectsApi.getById(id),
-    { autoFetch: true }
-  );
+  const {
+    data: project,
+    isLoading: projectLoading,
+    error: projectError,
+  } = useApi<Project>(() => projectsApi.getById(id), { autoFetch: true });
 
-  const { data: tasks } = useApi<Task[]>(
-    () => tasksApi.getAll({ projectId: id }),
-    { autoFetch: true }
-  );
+  const { data: tasks } = useApi<Task[]>(() => tasksApi.getAll({ projectId: id }), {
+    autoFetch: true,
+  });
 
-  const { data: milestones } = useApi<Milestone[]>(
-    () => milestonesApi.getAll({ projectId: id }),
-    { autoFetch: true }
-  );
+  const { data: milestones } = useApi<Milestone[]>(() => milestonesApi.getAll({ projectId: id }), {
+    autoFetch: true,
+  });
 
-  const { data: users } = useApi<UserType[]>(
-    () => usersApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: users } = useApi<UserType[]>(() => usersApi.getAll(), { autoFetch: true });
 
-  const { data: companies } = useApi<Company[]>(
-    () => companiesApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: companies } = useApi<Company[]>(() => companiesApi.getAll(), { autoFetch: true });
 
   // Calculate progress based on tasks
   const completedTasks = tasks?.filter((t) => t.status === "done").length || 0;
@@ -214,12 +215,8 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
       {/* Tabs for Tasks and Milestones */}
       <Tabs defaultValue="tasks" className="space-y-4">
         <TabsList>
-          <TabsTrigger value="tasks">
-            Tasks ({tasks?.length || 0})
-          </TabsTrigger>
-          <TabsTrigger value="milestones">
-            Milestones ({milestones?.length || 0})
-          </TabsTrigger>
+          <TabsTrigger value="tasks">Tasks ({tasks?.length || 0})</TabsTrigger>
+          <TabsTrigger value="milestones">Milestones ({milestones?.length || 0})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="tasks" className="space-y-4">
@@ -231,9 +228,7 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
               </p>
             </div>
             <Button asChild>
-              <Link href={`/dashboard/projects/tasks/new?projectId=${id}`}>
-                Add Task
-              </Link>
+              <Link href={`/dashboard/projects/tasks/new?projectId=${id}`}>Add Task</Link>
             </Button>
           </div>
           <TasksDataTable projectId={id} />
@@ -243,14 +238,10 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold">Project Milestones</h2>
-              <p className="text-sm text-muted-foreground">
-                Key milestones for this project
-              </p>
+              <p className="text-sm text-muted-foreground">Key milestones for this project</p>
             </div>
             <Button asChild>
-              <Link href={`/dashboard/projects/milestones/new?projectId=${id}`}>
-                Add Milestone
-              </Link>
+              <Link href={`/dashboard/projects/milestones/new?projectId=${id}`}>Add Milestone</Link>
             </Button>
           </div>
           <MilestonesDataTable projectId={id} />
@@ -259,4 +250,3 @@ export default function ProjectDetailPage({ params }: ProjectDetailPageProps) {
     </div>
   );
 }
-

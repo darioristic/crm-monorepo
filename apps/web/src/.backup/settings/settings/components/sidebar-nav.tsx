@@ -1,8 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
 import {
   BellIcon,
   Building2Icon,
@@ -10,53 +7,55 @@ import {
   CreditCardIcon,
   PaletteIcon,
   ShieldIcon,
-  UserIcon
+  UserIcon,
 } from "lucide-react";
-
-import { Button, buttonVariants } from "@/components/ui/button";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const sidebarNavItems = [
   {
     title: "Workspace",
     href: "/dashboard/settings/workspace",
-    icon: Building2Icon
+    icon: Building2Icon,
   },
   {
     title: "Company",
     href: "/dashboard/settings/company",
-    icon: Building2Icon
+    icon: Building2Icon,
   },
   {
     title: "Profile",
     href: "/dashboard/settings",
-    icon: UserIcon
+    icon: UserIcon,
   },
   {
     title: "Account",
     href: "/dashboard/settings/account",
-    icon: ShieldIcon
+    icon: ShieldIcon,
   },
   {
     title: "Billing",
     href: "/dashboard/settings/billing",
-    icon: CreditCardIcon
+    icon: CreditCardIcon,
   },
   {
     title: "Appearance",
     href: "/dashboard/settings/appearance",
-    icon: PaletteIcon
+    icon: PaletteIcon,
   },
   {
     title: "Notifications",
     href: "/dashboard/settings/notifications",
-    icon: BellIcon
+    icon: BellIcon,
   },
   {
     title: "Display",
     href: "/dashboard/settings/display",
-    icon: ContrastIcon
-  }
+    icon: ContrastIcon,
+  },
 ];
 
 export function SidebarNav() {
@@ -74,8 +73,9 @@ export function SidebarNav() {
                 "hover:bg-muted justify-start",
                 pathname === item.href ? "bg-muted hover:bg-muted" : ""
               )}
-              asChild>
-              <Link href={item.href as any}>
+              asChild
+            >
+              <Link href={String(item.href)}>
                 {item.icon && <item.icon />}
                 {item.title}
               </Link>

@@ -1,8 +1,8 @@
-import { generateMeta } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 import { PlusCircledIcon } from "@radix-ui/react-icons";
 import Link from "next/link";
 import { ProjectsDataTable } from "@/components/projects/projects-data-table";
+import { Button } from "@/components/ui/button";
+import { generateMeta } from "@/lib/utils";
 
 export async function generateMetadata() {
   return generateMeta({
@@ -18,9 +18,7 @@ export default function ProjectsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Projects</h1>
-          <p className="text-muted-foreground">
-            Manage and track your projects
-          </p>
+          <p className="text-muted-foreground">Manage and track your projects</p>
         </div>
         <Button asChild>
           <Link href="/dashboard/projects/new">

@@ -10,11 +10,11 @@ interface EmptyChartStateProps {
   className?: string;
 }
 
-export function EmptyChartState({ 
+export function EmptyChartState({
   title = "No Data Available",
   message = "There is no data to display for the selected filters.",
   icon,
-  className 
+  className,
 }: EmptyChartStateProps) {
   return (
     <Card className={className}>
@@ -30,4 +30,3 @@ export function EmptyChartState({
     </Card>
   );
 }
-

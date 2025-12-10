@@ -1,5 +1,6 @@
 "use client";
 
+import type { InvoiceWithRelations } from "@crm/types";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Copy, Download, Pencil } from "lucide-react";
 import Link from "next/link";
@@ -57,7 +58,7 @@ export default function InvoiceDetailPage({ params }: PageProps) {
     data: invoice,
     isLoading,
     error,
-  } = useApi<any>(() => invoicesApi.getById(id), { autoFetch: true });
+  } = useApi<InvoiceWithRelations>(() => invoicesApi.getById(id), { autoFetch: true });
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -227,7 +228,7 @@ export default function InvoiceDetailPage({ params }: PageProps) {
 }
 
 // Transform API invoice to Midday Invoice type
-function transformInvoiceToTemplateData(invoice: any): InvoiceType {
+function transformInvoiceToTemplateData(invoice: InvoiceWithRelations): InvoiceType {
   // Default template - identical to Midday
   const defaultTemplate: InvoiceTemplate = {
     title: "Invoice",
@@ -307,7 +308,7 @@ function transformInvoiceToTemplateData(invoice: any): InvoiceType {
       : null,
     team: null,
     scheduledAt: null,
-    lineItems: (invoice.items || []).map((item: any) => ({
+    lineItems: (invoice.items || []).map((item: InvoiceWithRelations["items"][number]) => ({
       name: item.productName || item.description || "",
       quantity: Number(item.quantity) || 1,
       price: Number(item.unitPrice) || 0,

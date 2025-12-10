@@ -20,6 +20,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
   varchar,
 } from "drizzle-orm/pg-core";
@@ -115,9 +116,11 @@ export const organizationRoles = pgTable(
     index("idx_org_roles_tenant_role").on(table.tenantId, table.role),
     index("idx_org_roles_is_active").on(table.isActive),
     // Unique constraint: one company can only have each role once per tenant
-    index("idx_org_roles_unique")
-      .on(table.companyId, table.tenantId, table.role)
-      .unique(),
+    uniqueIndex("uix_org_roles_company_tenant_role").on(
+      table.companyId,
+      table.tenantId,
+      table.role
+    ),
   ]
 );
 
@@ -571,9 +574,7 @@ export const invoiceOrders = pgTable(
     index("idx_invoice_orders_invoice_id").on(table.invoiceId),
     index("idx_invoice_orders_order_id").on(table.orderId),
     // Unique constraint: one order can be linked to same invoice only once
-    index("idx_invoice_orders_unique")
-      .on(table.invoiceId, table.orderId)
-      .unique(),
+    uniqueIndex("uix_invoice_orders_invoice_order").on(table.invoiceId, table.orderId),
   ]
 );
 

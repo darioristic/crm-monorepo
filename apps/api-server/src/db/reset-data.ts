@@ -1337,7 +1337,7 @@ export async function resetAndSeedData(): Promise<void> {
     logger.info("═".repeat(50));
     logger.info("\n");
   } catch (error) {
-    logger.error("\n❌ Reset baze podataka neuspešan:", error);
+    logger.error({ error }, "\n❌ Reset baze podataka neuspešan");
     throw error;
   }
 }
@@ -1349,7 +1349,7 @@ if (import.meta.main) {
     await db.end();
     process.exit(0);
   } catch (error) {
-    logger.error("Greška pri reset-u:", error);
+    logger.error({ error }, "Greška pri reset-u");
     await db.end();
     process.exit(1);
   }

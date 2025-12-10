@@ -40,9 +40,7 @@ export function LineItems({
           marginBottom: 5,
         }}
       >
-        <Text style={{ flex: 3, fontSize: 9, fontWeight: 500 }}>
-          {descriptionLabel}
-        </Text>
+        <Text style={{ flex: 3, fontSize: 9, fontWeight: 500 }}>{descriptionLabel}</Text>
         <Text style={{ flex: 1, fontSize: 9, fontWeight: 500, textAlign: "center" }}>
           {quantityLabel}
         </Text>

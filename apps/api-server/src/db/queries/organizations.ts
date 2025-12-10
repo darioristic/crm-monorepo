@@ -1,5 +1,6 @@
 import type { CustomerOrganization, FilterParams, PaginationParams } from "@crm/types";
 import { sql as db } from "../client";
+import type { QueryParam } from "../query-builder";
 import { sanitizeSortColumn, sanitizeSortOrder } from "../query-builder";
 
 export const organizationQueries = {
@@ -10,7 +11,7 @@ export const organizationQueries = {
     const offset = (safePage - 1) * safePageSize;
 
     const conditions: string[] = [];
-    const values: any[] = [];
+    const values: QueryParam[] = [];
     let paramIndex = 1;
 
     // Search by organization name
@@ -21,8 +22,9 @@ export const organizationQueries = {
 
     // Tenant scoping: join companies table and filter by tenant_id when provided
     const joinClause = `INNER JOIN companies c ON c.id = co.id`;
-    if ((filters as any).tenantId) {
-      values.push(String((filters as any).tenantId));
+    const tenantId = (filters as { tenantId?: string }).tenantId;
+    if (tenantId) {
+      values.push(String(tenantId));
       conditions.push(`c.tenant_id = $${paramIndex++}`);
     }
 

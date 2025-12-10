@@ -3,16 +3,11 @@
  */
 
 import { errorResponse } from "@crm/utils";
-import { workflowService } from "../services/workflow.service";
-import { emailService } from "../services/email.service";
-import { 
-  RouteBuilder, 
-  withAuth, 
-  parseBody,
-  json,
-} from "./helpers";
-import type { AuthContext } from "../middleware/auth";
 import { z } from "zod";
+import type { AuthContext } from "../middleware/auth";
+import { emailService } from "../services/email.service";
+import { workflowService } from "../services/workflow.service";
+import { json, parseBody, RouteBuilder, withAuth } from "./helpers";
 
 const router = new RouteBuilder();
 
@@ -22,11 +17,13 @@ const router = new RouteBuilder();
 
 const convertQuoteToInvoiceSchema = z.object({
   sendEmail: z.boolean().optional().default(false),
-  invoiceOverrides: z.object({
-    dueDate: z.string().datetime().optional(),
-    notes: z.string().max(2000).optional(),
-    paymentTerms: z.string().max(500).optional(),
-  }).optional(),
+  invoiceOverrides: z
+    .object({
+      dueDate: z.string().datetime().optional(),
+      notes: z.string().max(2000).optional(),
+      paymentTerms: z.string().max(500).optional(),
+    })
+    .optional(),
 });
 
 const convertInvoiceToDeliverySchema = z.object({
@@ -63,19 +60,23 @@ async function withValidatedAuth<T, S extends z.ZodTypeAny>(
   request: Request,
   schema: S,
   handler: (data: z.infer<S>, auth: AuthContext) => Promise<import("@crm/types").ApiResponse<T>>,
-  statusOnSuccess: number = 200,
+  statusOnSuccess: number = 200
 ): Promise<Response> {
-  return withAuth(request, async (auth) => {
-    const body = await parseBody<unknown>(request);
-    if (!body) {
-      return errorResponse("VALIDATION_ERROR", "Invalid request body");
-    }
-    const parsed = schema.safeParse(body);
-    if (!parsed.success) {
-      return errorResponse("VALIDATION_ERROR", "Invalid request body");
-    }
-    return handler(parsed.data, auth);
-  }, statusOnSuccess);
+  return withAuth(
+    request,
+    async (auth) => {
+      const body = await parseBody<unknown>(request);
+      if (!body) {
+        return errorResponse("VALIDATION_ERROR", "Invalid request body");
+      }
+      const parsed = schema.safeParse(body);
+      if (!parsed.success) {
+        return errorResponse("VALIDATION_ERROR", "Invalid request body");
+      }
+      return handler(parsed.data, auth);
+    },
+    statusOnSuccess
+  );
 }
 
 async function withAuthAndUuidValidation<T>(
@@ -83,7 +84,7 @@ async function withAuthAndUuidValidation<T>(
   id: string,
   label: string,
   handler: () => Promise<import("@crm/types").ApiResponse<T>>,
-  statusOnSuccess: number = 200,
+  statusOnSuccess: number = 200
 ): Promise<Response> {
   if (!validateUuidParam(id)) {
     return json(errorResponse("VALIDATION_ERROR", `Invalid ${label} format`), 400);
@@ -96,7 +97,7 @@ router.post("/api/v1/workflow/quote/:quoteId/convert-to-invoice", async (request
   if (!validateUuidParam(params.quoteId)) {
     return json(errorResponse("VALIDATION_ERROR", "Invalid quote ID format"), 400);
   }
-  
+
   return withValidatedAuth(
     request,
     convertQuoteToInvoiceSchema,
@@ -113,32 +114,35 @@ router.post("/api/v1/workflow/quote/:quoteId/convert-to-invoice", async (request
 });
 
 // Convert Invoice to Delivery Note
-router.post("/api/v1/workflow/invoice/:invoiceId/convert-to-delivery", async (request, _url, params) => {
-  if (!validateUuidParam(params.invoiceId)) {
-    return json(errorResponse("VALIDATION_ERROR", "Invalid invoice ID format"), 400);
+router.post(
+  "/api/v1/workflow/invoice/:invoiceId/convert-to-delivery",
+  async (request, _url, params) => {
+    if (!validateUuidParam(params.invoiceId)) {
+      return json(errorResponse("VALIDATION_ERROR", "Invalid invoice ID format"), 400);
+    }
+
+    return withValidatedAuth(
+      request,
+      convertInvoiceToDeliverySchema,
+      async (data: z.infer<typeof convertInvoiceToDeliverySchema>, auth: AuthContext) => {
+        return workflowService.convertInvoiceToDeliveryNote({
+          invoiceId: params.invoiceId,
+          userId: auth.userId,
+          shippingAddress: data.shippingAddress,
+          deliveryNotes: data.deliveryNotes,
+        });
+      },
+      201
+    );
   }
-  
-  return withValidatedAuth(
-    request,
-    convertInvoiceToDeliverySchema,
-    async (data: z.infer<typeof convertInvoiceToDeliverySchema>, auth: AuthContext) => {
-      return workflowService.convertInvoiceToDeliveryNote({
-        invoiceId: params.invoiceId,
-        userId: auth.userId,
-        shippingAddress: data.shippingAddress,
-        deliveryNotes: data.deliveryNotes,
-      });
-    },
-    201
-  );
-});
+);
 
 // Full Sales Cycle
 router.post("/api/v1/workflow/quote/:quoteId/full-cycle", async (request, _url, params) => {
   if (!validateUuidParam(params.quoteId)) {
     return json(errorResponse("VALIDATION_ERROR", "Invalid quote ID format"), 400);
   }
-  
+
   return withValidatedAuth(
     request,
     fullSalesCycleSchema,
@@ -158,7 +162,7 @@ router.post("/api/v1/workflow/quote/:quoteId/status", async (request, _url, para
   if (!validateUuidParam(params.quoteId)) {
     return json(errorResponse("VALIDATION_ERROR", "Invalid quote ID format"), 400);
   }
-  
+
   return withValidatedAuth(
     request,
     updateQuoteStatusSchema,
@@ -198,7 +202,7 @@ router.post("/api/v1/invoices/:invoiceId/send-email", async (request, _url, para
   if (!validateUuidParam(params.invoiceId)) {
     return json(errorResponse("VALIDATION_ERROR", "Invalid invoice ID format"), 400);
   }
-  
+
   return withValidatedAuth(
     request,
     sendEmailSchema,
@@ -213,7 +217,7 @@ router.post("/api/v1/quotes/:quoteId/send-email", async (request, _url, params) 
   if (!validateUuidParam(params.quoteId)) {
     return json(errorResponse("VALIDATION_ERROR", "Invalid quote ID format"), 400);
   }
-  
+
   return withValidatedAuth(
     request,
     sendEmailSchema,

@@ -48,11 +48,7 @@ export function HtmlTemplate({ invoice, customTemplate, className }: HtmlTemplat
         {/* Logo */}
         {template.logoUrl && (
           <div className="max-w-[200px]">
-            <img
-              src={template.logoUrl}
-              alt="Company Logo"
-              className="h-16 object-contain"
-            />
+            <img src={template.logoUrl} alt="Company Logo" className="h-16 object-contain" />
           </div>
         )}
       </div>
@@ -95,7 +91,9 @@ export function HtmlTemplate({ invoice, customTemplate, className }: HtmlTemplat
         {/* Header */}
         <div
           className={`grid gap-4 pb-2 mb-2 border-b border-gray-300 text-xs font-medium text-gray-500 ${
-            template.includeDiscount ? "grid-cols-[3fr_1fr_1fr_1fr_1fr]" : "grid-cols-[3fr_1fr_1fr_1fr]"
+            template.includeDiscount
+              ? "grid-cols-[3fr_1fr_1fr_1fr_1fr]"
+              : "grid-cols-[3fr_1fr_1fr_1fr]"
           }`}
         >
           <div>{template.descriptionLabel}</div>
@@ -110,14 +108,14 @@ export function HtmlTemplate({ invoice, customTemplate, className }: HtmlTemplat
           <div
             key={item.id || index}
             className={`grid gap-4 py-2 text-sm ${
-              template.includeDiscount ? "grid-cols-[3fr_1fr_1fr_1fr_1fr]" : "grid-cols-[3fr_1fr_1fr_1fr]"
+              template.includeDiscount
+                ? "grid-cols-[3fr_1fr_1fr_1fr_1fr]"
+                : "grid-cols-[3fr_1fr_1fr_1fr]"
             }`}
           >
             <div>
               <p>{item.productName}</p>
-                  {item.description && (
-                <p className="text-xs text-gray-500 mt-1">{item.description}</p>
-                  )}
+              {item.description && <p className="text-xs text-gray-500 mt-1">{item.description}</p>}
             </div>
             <div>{item.quantity}</div>
             <div>
@@ -128,19 +126,17 @@ export function HtmlTemplate({ invoice, customTemplate, className }: HtmlTemplat
                 maximumFractionDigits,
               })}
             </div>
-            {template.includeDiscount && (
-              <div>{item.discount > 0 ? `${item.discount}%` : "-"}</div>
-            )}
+            {template.includeDiscount && <div>{item.discount > 0 ? `${item.discount}%` : "-"}</div>}
             <div className="text-right font-medium">
-                  {formatAmount({
+              {formatAmount({
                 amount: item.total,
                 currency: template.currency,
-                    locale: template.locale,
+                locale: template.locale,
                 maximumFractionDigits,
-                  })}
+              })}
             </div>
           </div>
-            ))}
+        ))}
       </div>
 
       {/* Summary */}
@@ -217,9 +213,9 @@ export function HtmlTemplate({ invoice, customTemplate, className }: HtmlTemplat
                   locale: template.locale,
                   maximumFractionDigits: 2,
                 })}
-                  </span>
-                </div>
-              )}
+              </span>
+            </div>
+          )}
 
           {/* Balance */}
           {invoice.paidAmount > 0 && balance > 0 && (
@@ -254,9 +250,7 @@ export function HtmlTemplate({ invoice, customTemplate, className }: HtmlTemplat
         {(template.noteDetails || invoice.notes) && (
           <div>
             <p className="text-xs text-gray-500 mb-2">{template.noteLabel}</p>
-            <p className="text-sm whitespace-pre-wrap">
-              {template.noteDetails || invoice.notes}
-            </p>
+            <p className="text-sm whitespace-pre-wrap">{template.noteDetails || invoice.notes}</p>
           </div>
         )}
       </div>

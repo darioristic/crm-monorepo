@@ -1,5 +1,6 @@
 "use client";
 
+import type { EditorDoc } from "@crm/schemas";
 import { motion } from "framer-motion";
 import { Check, Download, Link2, Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -9,7 +10,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
-import type { EditorDoc, Order } from "@/types/order";
+import type { Order } from "@/types/order";
 import { DEFAULT_ORDER_TEMPLATE, formatOrderNumber } from "@/types/order";
 
 // API Order Response Type

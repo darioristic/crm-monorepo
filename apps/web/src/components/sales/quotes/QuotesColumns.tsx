@@ -68,6 +68,7 @@ export function getQuotesColumns({
       ),
       cell: ({ row }) => (
         <button
+          type="button"
           onClick={(e) => {
             e.preventDefault();
             e.stopPropagation();

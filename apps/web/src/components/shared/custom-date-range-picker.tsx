@@ -1,34 +1,33 @@
 "use client";
 
-import * as React from "react";
 import {
-  format,
-  subDays,
-  startOfMonth,
-  endOfMonth,
-  subMonths,
-  startOfDay,
   endOfDay,
+  endOfMonth,
+  format,
+  startOfDay,
+  startOfMonth,
+  startOfWeek,
   startOfYear,
-  startOfWeek
+  subDays,
+  subMonths,
 } from "date-fns";
 import { CalendarIcon } from "lucide-react";
+import * as React from "react";
 import type { DateRange } from "react-day-picker";
-
-import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
+  SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { cn } from "@/lib/utils";
 
 const dateFilterPresets = [
   { name: "Today", value: "today" },
@@ -38,11 +37,11 @@ const dateFilterPresets = [
   { name: "Last 28 Days", value: "last28Days" },
   { name: "This Month", value: "thisMonth" },
   { name: "Last Month", value: "lastMonth" },
-  { name: "This Year", value: "thisYear" }
+  { name: "This Year", value: "thisYear" },
 ];
 
 export default function CalendarDateRangePicker({
-  className
+  className,
 }: React.HTMLAttributes<HTMLDivElement>) {
   const isMobile = useIsMobile();
   const today = new Date();
@@ -51,7 +50,7 @@ export default function CalendarDateRangePicker({
   // Initialize with "Last 28 days" as default
   const [date, setDate] = React.useState<DateRange | undefined>({
     from: twentyEightDaysAgo,
-    to: endOfDay(today)
+    to: endOfDay(today),
   });
   const [open, setOpen] = React.useState(false);
   const [currentMonth, setCurrentMonth] = React.useState<Date>(new Date());
@@ -68,33 +67,39 @@ export default function CalendarDateRangePicker({
       case "today":
         handleQuickSelect(startOfDay(today), endOfDay(today));
         break;
-      case "yesterday":
+      case "yesterday": {
         const yesterday = subDays(today, 1);
         handleQuickSelect(startOfDay(yesterday), endOfDay(yesterday));
         break;
-      case "thisWeek":
+      }
+      case "thisWeek": {
         const startOfCurrentWeek = startOfWeek(today);
         handleQuickSelect(startOfDay(startOfCurrentWeek), endOfDay(today));
         break;
-      case "last7Days":
+      }
+      case "last7Days": {
         const sevenDaysAgo = subDays(today, 6);
         handleQuickSelect(startOfDay(sevenDaysAgo), endOfDay(today));
         break;
-      case "last28Days":
+      }
+      case "last28Days": {
         const twentyEightDaysAgo = subDays(today, 27); // 27 days ago + today = 28 days
         handleQuickSelect(startOfDay(twentyEightDaysAgo), endOfDay(today));
         break;
+      }
       case "thisMonth":
         handleQuickSelect(startOfMonth(today), endOfDay(today));
         break;
-      case "lastMonth":
+      case "lastMonth": {
         const lastMonth = subMonths(today, 1);
         handleQuickSelect(startOfMonth(lastMonth), endOfMonth(lastMonth));
         break;
-      case "thisYear":
+      }
+      case "thisYear": {
         const startOfCurrentYear = startOfYear(today);
         handleQuickSelect(startOfDay(startOfCurrentYear), endOfDay(today));
         break;
+      }
     }
   };
 
@@ -113,7 +118,8 @@ export default function CalendarDateRangePicker({
                       className={cn(
                         "justify-start text-left font-normal",
                         !date && "text-muted-foreground"
-                      )}>
+                      )}
+                    >
                       <CalendarIcon />
                     </Button>
                   </TooltipTrigger>
@@ -141,7 +147,8 @@ export default function CalendarDateRangePicker({
                 "justify-start text-left font-normal",
                 !date && "text-muted-foreground"
               )}
-              suppressHydrationWarning>
+              suppressHydrationWarning
+            >
               <CalendarIcon />
               {date?.from ? (
                 date.to ? (
@@ -163,14 +170,16 @@ export default function CalendarDateRangePicker({
               <ToggleGroup
                 type="single"
                 defaultValue="last28Days"
-                className="hidden w-28 flex-col lg:block">
-                {dateFilterPresets.map((item, key) => (
+                className="hidden w-28 flex-col lg:block"
+              >
+                {dateFilterPresets.map((item) => (
                   <ToggleGroupItem
-                    key={key}
+                    key={item.value}
                     className="text-muted-foreground w-full"
                     value={item.value}
                     onClick={() => changeHandle(item.value)}
-                    asChild>
+                    asChild
+                  >
                     <Button className="justify-start rounded-md">{item.name}</Button>
                   </ToggleGroupItem>
                 ))}
@@ -179,12 +188,13 @@ export default function CalendarDateRangePicker({
                 <SelectTrigger
                   className="mb-4 flex w-full lg:hidden"
                   size="sm"
-                  aria-label="Select a value">
+                  aria-label="Select a value"
+                >
                   <SelectValue placeholder="Last 28 Days" />
                 </SelectTrigger>
                 <SelectContent>
-                  {dateFilterPresets.map((item, key) => (
-                    <SelectItem key={key} value={item.value}>
+                  {dateFilterPresets.map((item) => (
+                    <SelectItem key={item.value} value={item.value}>
                       {item.name}
                     </SelectItem>
                   ))}

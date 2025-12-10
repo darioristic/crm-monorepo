@@ -1,16 +1,16 @@
 "use client";
 
+import type { TaskStatPoint } from "@crm/types";
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
   ChartLegend,
   ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
 } from "@/components/ui/chart";
-import { Area, AreaChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer } from "recharts";
-import type { TaskStatPoint } from "@crm/types";
 
 interface TaskCompletionChartProps {
   data: TaskStatPoint[];
@@ -66,12 +66,7 @@ export function TaskCompletionChart({ data, className }: TaskCompletionChartProp
                 className="text-xs"
                 tickMargin={8}
               />
-              <YAxis
-                tickLine={false}
-                axisLine={false}
-                className="text-xs"
-                tickMargin={8}
-              />
+              <YAxis tickLine={false} axisLine={false} className="text-xs" tickMargin={8} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
               <Area
@@ -97,4 +92,3 @@ export function TaskCompletionChart({ data, className }: TaskCompletionChartProp
     </Card>
   );
 }
-

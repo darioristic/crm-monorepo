@@ -216,12 +216,12 @@ export const documentQueries = {
 				LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
 			`;
 
-      data = await db.unsafe(selectQuery, [...values, safePageSize, offset] as QueryParam[]);
+      data = await db.unsafe(selectQuery, [...values, safePageSize, offset] as any[]);
     } catch (error) {
-      logger.error("Error selecting documents:", error);
-      logger.error("CompanyId:", companyId);
-      logger.error("WhereClause:", whereClause);
-      logger.error("Values:", [...values, safePageSize, offset]);
+      logger.error({ error }, "Error selecting documents");
+      logger.error({ companyId }, "CompanyId");
+      logger.error({ whereClause }, "WhereClause");
+      logger.error({ values: [...values, safePageSize, offset] }, "Values");
       data = [];
     }
 
@@ -323,17 +323,22 @@ export const documentQueries = {
     metadata: DocumentMetadata;
     companyId: string;
     ownerId?: string;
+    processingStatus?: DocumentProcessingStatus;
   }): Promise<Document> {
+    // Serialize metadata to JSON string for proper JSONB insertion
+    const metadataJson = JSON.stringify(data.metadata);
+    // Default to 'completed' since most uploads don't need processing
+    const status = data.processingStatus || "completed";
     const result = await db`
 			INSERT INTO documents (
 				name, path_tokens, metadata, company_id, owner_id, processing_status, created_at, updated_at
 			) VALUES (
 				${data.name},
 				${data.pathTokens},
-				${data.metadata},
+				${metadataJson}::jsonb,
 				${data.companyId},
 				${data.ownerId || null},
-				'pending',
+				${status},
 				NOW(),
 				NOW()
 			)
@@ -361,6 +366,8 @@ export const documentQueries = {
       metadata: DocumentMetadata;
     }>
   ): Promise<Document | null> {
+    // Serialize metadata to JSON string for proper JSONB handling
+    const metadataJson = data.metadata ? JSON.stringify(data.metadata) : null;
     const result = await db`
 			UPDATE documents SET
 				title = COALESCE(${data.title ?? null}, title),
@@ -371,7 +378,7 @@ export const documentQueries = {
 				date = COALESCE(${data.date ?? null}, date),
 				language = COALESCE(${data.language ?? null}, language),
 				processing_status = COALESCE(${data.processingStatus ?? null}, processing_status),
-				metadata = COALESCE(${data.metadata ?? null}::jsonb, metadata),
+				metadata = COALESCE(${metadataJson}::jsonb, metadata),
 				updated_at = NOW()
 			WHERE id = ${id} AND company_id = ${companyId}
 			RETURNING *
@@ -472,7 +479,7 @@ export const documentQueries = {
       }));
     } catch (error) {
       // If the function doesn't exist yet, fall back to simple query
-      logger.warn("match_similar_documents_by_title function not found, using fallback:", error);
+      logger.warn({ error }, "match_similar_documents_by_title function not found, using fallback");
 
       // Fallback: get recent documents excluding current one
       const fallbackResult = await db`

@@ -436,7 +436,7 @@ router.post(
       }
 
       // Hash password
-      const hashedPassword = await Bun.password.hash(body.password);
+      const _hashedPassword = await Bun.password.hash(body.password);
 
       const [created] = await db
         .insert(users)
@@ -445,7 +445,6 @@ router.post(
           firstName: body.firstName,
           lastName: body.lastName,
           email: body.email,
-          passwordHash: hashedPassword,
           role: body.role || "crm_user",
           status: "active",
           phone: body.phone,

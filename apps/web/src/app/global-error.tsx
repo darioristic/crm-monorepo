@@ -33,6 +33,8 @@ export default function GlobalError({
                   viewBox="0 0 24 24"
                   stroke="currentColor"
                   strokeWidth={1.5}
+                  aria-hidden="true"
+                  focusable="false"
                 >
                   <path
                     strokeLinecap="round"
@@ -57,7 +59,9 @@ export default function GlobalError({
                 Try again
               </button>
               <button
-                onClick={() => (window.location.href = "/")}
+                onClick={() => {
+                  window.location.href = "/";
+                }}
                 className="inline-flex h-10 items-center justify-center rounded-md border bg-background px-6 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 Go to homepage

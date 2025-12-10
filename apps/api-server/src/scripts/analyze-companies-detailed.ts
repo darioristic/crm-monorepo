@@ -206,7 +206,7 @@ async function analyzeCompanies() {
 
     process.exit(0);
   } catch (error) {
-    logger.error("❌ Error analyzing companies:", error);
+    logger.error({ error }, "❌ Error analyzing companies");
     process.exit(1);
   }
 }

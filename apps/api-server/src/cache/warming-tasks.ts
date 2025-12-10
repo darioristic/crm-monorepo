@@ -25,11 +25,11 @@ export async function registerWarmingTasks(): Promise<void> {
   // Warm: First page of companies (most accessed)
   cacheWarmer.register({
     key: `companies:list:${JSON.stringify({
-      pagination: { page: 1, limit: 20 },
+      pagination: { page: 1, pageSize: 20 },
       effectiveFilters: {},
     })}`,
     fetcher: async () => {
-      const pagination: PaginationParams = { page: 1, limit: 20 };
+      const pagination: PaginationParams = { page: 1, pageSize: 20 };
       const filters: FilterParams = {};
       return await companyQueries.findAll(pagination, filters);
     },

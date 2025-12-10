@@ -16,36 +16,36 @@ const pipelineData: PipelineStage[] = [
     name: "Lead",
     count: 235,
     value: 420500,
-    color: "bg-[var(--chart-1)]"
+    color: "bg-[var(--chart-1)]",
   },
   {
     id: "qualified",
     name: "Qualified",
     count: 146,
     value: 267800,
-    color: "bg-[var(--chart-2)]"
+    color: "bg-[var(--chart-2)]",
   },
   {
     id: "proposal",
     name: "Proposal",
     count: 84,
     value: 192400,
-    color: "bg-[var(--chart-3)]"
+    color: "bg-[var(--chart-3)]",
   },
   {
     id: "negotiation",
     name: "Negotiation",
     count: 52,
     value: 129600,
-    color: "bg-[var(--chart-4)]"
+    color: "bg-[var(--chart-4)]",
   },
   {
     id: "closed",
     name: "Closed Won",
     count: 36,
     value: 87200,
-    color: "bg-[var(--chart-5)]"
-  }
+    color: "bg-[var(--chart-5)]",
+  },
 ];
 
 const totalValue = pipelineData.reduce((sum, stage) => sum + stage.value, 0);
@@ -66,7 +66,8 @@ export function SalesPipeline() {
                 <TooltipTrigger asChild>
                   <div
                     className={`${stage.color} h-full`}
-                    style={{ width: `${(stage.value / totalValue) * 100}%` }}></div>
+                    style={{ width: `${(stage.value / totalValue) * 100}%` }}
+                  ></div>
                 </TooltipTrigger>
                 <TooltipContent>
                   <div className="text-sm">

@@ -114,7 +114,7 @@ class CompaniesService {
         countryCode: data.countryCode ?? null,
         vatNumber: data.vatNumber?.trim() ?? null,
         companyNumber: data.companyNumber?.trim() ?? null,
-        logoUrl: (data as any).logoUrl ?? null,
+        logoUrl: (data as { logoUrl?: string | null }).logoUrl ?? null,
         note: data.note ?? null,
       };
 
@@ -169,7 +169,7 @@ class CompaniesService {
         countryCode: data.countryCode ?? undefined,
         vatNumber: data.vatNumber?.trim() ?? undefined,
         companyNumber: data.companyNumber?.trim() ?? undefined,
-        logoUrl: (data as any).logoUrl ?? undefined,
+        logoUrl: (data as { logoUrl?: string | null }).logoUrl ?? undefined,
         note: data.note ?? undefined,
       });
 

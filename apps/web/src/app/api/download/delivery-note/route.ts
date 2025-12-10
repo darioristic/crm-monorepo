@@ -97,7 +97,9 @@ export async function GET(request: NextRequest) {
       fromDetails: fromDetails,
       customerDetails: customerDetails,
     });
-    const buffer = await renderToBuffer(pdfDocument as any);
+    const buffer = await renderToBuffer(
+      pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]
+    );
 
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",

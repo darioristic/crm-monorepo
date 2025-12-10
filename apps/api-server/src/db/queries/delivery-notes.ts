@@ -39,8 +39,9 @@ export const deliveryNoteQueries = {
     }
     qb.addSearchCondition(["delivery_number"], filters.search);
     qb.addEqualCondition("status", filters.status);
-    if ((filters as any).createdBy) {
-      qb.addEqualCondition("created_by", (filters as any).createdBy as string);
+    const createdBy = (filters as { createdBy?: string }).createdBy;
+    if (createdBy) {
+      qb.addEqualCondition("created_by", createdBy);
     }
 
     const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
@@ -77,14 +78,17 @@ export const deliveryNoteQueries = {
       ORDER BY delivery_note_id
     `;
 
-    // Group items by delivery_note_id
-    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-      if (!acc[item.delivery_note_id]) {
-        acc[item.delivery_note_id] = [];
-      }
-      acc[item.delivery_note_id].push(item);
-      return acc;
-    }, {});
+    const itemsByNoteId = (allItems as Record<string, unknown>[]).reduce(
+      (acc: Record<string, Record<string, unknown>[]>, item) => {
+        const key = item.delivery_note_id as string;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+      },
+      {}
+    );
 
     // Map delivery notes with their items
     const notesWithItems = data.map((row: Record<string, unknown>) => {
@@ -143,7 +147,7 @@ export const deliveryNoteQueries = {
         created_by, created_at, updated_at
       ) VALUES (
         ${note.id}, ${note.deliveryNumber}, ${note.invoiceId || null},
-        ${note.companyId}, ${(note as any).sellerCompanyId || null}, ${note.contactId || null}, ${note.status},
+        ${note.companyId}, ${(note as { sellerCompanyId?: string }).sellerCompanyId || null}, ${note.contactId || null}, ${note.status},
         ${note.shipDate || null}, ${note.deliveryDate || null}, ${note.shippingAddress},
         ${note.trackingNumber || null}, ${note.carrier || null},
         ${note.taxRate || 0}, ${note.subtotal || 0}, ${note.tax || 0}, ${note.total || 0},
@@ -181,7 +185,7 @@ export const deliveryNoteQueries = {
       UPDATE delivery_notes SET
         invoice_id = COALESCE(${data.invoiceId ?? null}, invoice_id),
         company_id = COALESCE(${data.companyId ?? null}, company_id),
-        seller_company_id = COALESCE(${(data as any).sellerCompanyId ?? null}, seller_company_id),
+        seller_company_id = COALESCE(${(data as { sellerCompanyId?: string }).sellerCompanyId ?? null}, seller_company_id),
         contact_id = COALESCE(${data.contactId ?? null}, contact_id),
         status = COALESCE(${data.status ?? null}, status),
         ship_date = COALESCE(${data.shipDate ?? null}, ship_date),
@@ -249,13 +253,17 @@ export const deliveryNoteQueries = {
       ORDER BY delivery_note_id
     `;
 
-    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-      if (!acc[item.delivery_note_id]) {
-        acc[item.delivery_note_id] = [];
-      }
-      acc[item.delivery_note_id].push(item);
-      return acc;
-    }, {});
+    const itemsByNoteId = (allItems as Record<string, unknown>[]).reduce(
+      (acc: Record<string, Record<string, unknown>[]>, item) => {
+        const key = item.delivery_note_id as string;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+      },
+      {}
+    );
 
     return result.map((row) => {
       const items = itemsByNoteId[row.id as string] || [];
@@ -277,13 +285,17 @@ export const deliveryNoteQueries = {
       ORDER BY delivery_note_id
     `;
 
-    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-      if (!acc[item.delivery_note_id]) {
-        acc[item.delivery_note_id] = [];
-      }
-      acc[item.delivery_note_id].push(item);
-      return acc;
-    }, {});
+    const itemsByNoteId = (allItems as Record<string, unknown>[]).reduce(
+      (acc: Record<string, Record<string, unknown>[]>, item) => {
+        const key = item.delivery_note_id as string;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+      },
+      {}
+    );
 
     return result.map((row) => {
       const items = itemsByNoteId[row.id as string] || [];
@@ -305,13 +317,17 @@ export const deliveryNoteQueries = {
       ORDER BY delivery_note_id
     `;
 
-    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-      if (!acc[item.delivery_note_id]) {
-        acc[item.delivery_note_id] = [];
-      }
-      acc[item.delivery_note_id].push(item);
-      return acc;
-    }, {});
+    const itemsByNoteId = (allItems as Record<string, unknown>[]).reduce(
+      (acc: Record<string, Record<string, unknown>[]>, item) => {
+        const key = item.delivery_note_id as string;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+      },
+      {}
+    );
 
     return result.map((row) => {
       const items = itemsByNoteId[row.id as string] || [];
@@ -349,13 +365,17 @@ export const deliveryNoteQueries = {
       ORDER BY delivery_note_id
     `;
 
-    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-      if (!acc[item.delivery_note_id]) {
-        acc[item.delivery_note_id] = [];
-      }
-      acc[item.delivery_note_id].push(item);
-      return acc;
-    }, {});
+    const itemsByNoteId = (allItems as Record<string, unknown>[]).reduce(
+      (acc: Record<string, Record<string, unknown>[]>, item) => {
+        const key = item.delivery_note_id as string;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+      },
+      {}
+    );
 
     return result.map((row) => {
       const items = itemsByNoteId[row.id as string] || [];
@@ -386,13 +406,17 @@ export const deliveryNoteQueries = {
       ORDER BY delivery_note_id
     `;
 
-    const itemsByNoteId = allItems.reduce((acc: Record<string, any[]>, item: any) => {
-      if (!acc[item.delivery_note_id]) {
-        acc[item.delivery_note_id] = [];
-      }
-      acc[item.delivery_note_id].push(item);
-      return acc;
-    }, {});
+    const itemsByNoteId = (allItems as Record<string, unknown>[]).reduce(
+      (acc: Record<string, Record<string, unknown>[]>, item) => {
+        const key = item.delivery_note_id as string;
+        if (!acc[key]) {
+          acc[key] = [];
+        }
+        acc[key].push(item);
+        return acc;
+      },
+      {}
+    );
 
     return result.map((row) => {
       const items = itemsByNoteId[row.id as string] || [];
@@ -469,7 +493,6 @@ function mapDeliveryNote(row: Record<string, unknown>, items: unknown[]): Delive
     customerDetails,
     fromDetails,
     createdBy: row.created_by as string,
-    tenantId: row.tenant_id as string | undefined,
   };
 }
 

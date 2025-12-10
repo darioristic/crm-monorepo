@@ -114,7 +114,7 @@ export function applyCorsHeaders(
   } catch (error) {
     // If there's an error applying CORS headers, return the original response
     // This prevents breaking the entire request
-    logger.error("Error applying CORS headers:", error);
+    logger.error({ error }, "Error applying CORS headers");
     return response;
   }
 }

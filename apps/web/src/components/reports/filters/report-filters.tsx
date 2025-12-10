@@ -2,11 +2,11 @@
 
 import { RotateCcwIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { DateRangeFilter } from "./date-range-filter";
 import { CompanyFilter } from "./company-filter";
+import { DateRangeFilter } from "./date-range-filter";
 import { ProjectFilter } from "./project-filter";
 import { StatusFilter } from "./status-filter";
-import { useReportFilters, type DatePreset } from "./use-report-filters";
+import { useReportFilters } from "./use-report-filters";
 
 interface ReportFiltersProps {
   showCompanyFilter?: boolean;
@@ -25,19 +25,11 @@ export function ReportFilters({
   statusPlaceholder = "All Statuses",
   className,
 }: ReportFiltersProps) {
-  const {
-    filters,
-    setFilters,
-    setDatePreset,
-    setCustomDateRange,
-    resetFilters,
-  } = useReportFilters();
+  const { filters, setFilters, setDatePreset, setCustomDateRange, resetFilters } =
+    useReportFilters();
 
   const hasActiveFilters =
-    filters.companyId ||
-    filters.projectId ||
-    filters.status ||
-    filters.preset !== "last30Days";
+    filters.companyId || filters.projectId || filters.status || filters.preset !== "last30Days";
 
   return (
     <div className={className}>
@@ -88,4 +80,3 @@ export function ReportFilters({
     </div>
   );
 }
-

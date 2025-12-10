@@ -127,7 +127,7 @@ export async function getCompanies(params: GetCompaniesParams): Promise<{
   if (sort && sort.length === 2) {
     const [column, direction] = sort;
     const dir = direction === "asc" ? db`ASC` : db`DESC`;
-    
+
     switch (column) {
       case "name":
         orderBy = db`c.name ${dir}`;
@@ -147,7 +147,7 @@ export async function getCompanies(params: GetCompaniesParams): Promise<{
   let whereClause = db`1=1`;
   if (q) {
     whereClause = db`(
-      c.fts @@ to_tsquery('english', ${q.split(' ').join(' & ')}) 
+      c.fts @@ to_tsquery('english', ${q.split(" ").join(" & ")}) 
       OR c.name ILIKE ${`%${q}%`}
     )`;
   }
@@ -215,7 +215,7 @@ export async function upsertCompany(params: UpsertCompanyParams): Promise<Enhanc
   const isNew = !id;
 
   // Generate a unique token for new companies
-  const token = isNew 
+  const token = isNew
     ? `comp_${Date.now().toString(36)}${Math.random().toString(36).substring(2, 9)}`
     : undefined;
 
@@ -234,8 +234,8 @@ export async function upsertCompany(params: UpsertCompanyParams): Promise<Enhanc
         ${rest.phone || null},
         ${rest.website || null},
         ${rest.contact || null},
-        ${rest.industry || 'Other'},
-        ${rest.address || ''},
+        ${rest.industry || "Other"},
+        ${rest.address || ""},
         ${rest.addressLine1 || null},
         ${rest.addressLine2 || null},
         ${rest.city || null},
@@ -305,14 +305,14 @@ export async function upsertCompany(params: UpsertCompanyParams): Promise<Enhanc
     const currentTags = await db<{ tagId: string }[]>`
       SELECT tag_id as "tagId" FROM company_tags WHERE company_id = ${company.id}
     `;
-    
-    const currentTagIds = new Set(currentTags.map(t => t.tagId));
-    const inputTagIds = new Set(inputTags.map(t => t.id));
+
+    const currentTagIds = new Set(currentTags.map((t) => t.tagId));
+    const inputTagIds = new Set(inputTags.map((t) => t.id));
 
     // Tags to add
-    const tagsToAdd = inputTags.filter(t => !currentTagIds.has(t.id));
+    const tagsToAdd = inputTags.filter((t) => !currentTagIds.has(t.id));
     // Tags to remove
-    const tagIdsToRemove = Array.from(currentTagIds).filter(id => !inputTagIds.has(id));
+    const tagIdsToRemove = Array.from(currentTagIds).filter((id) => !inputTagIds.has(id));
 
     // Insert new tags
     for (const tag of tagsToAdd) {
@@ -343,7 +343,7 @@ export async function deleteCompany(id: string): Promise<EnhancedCompany | null>
   if (!company) return null;
 
   await db`DELETE FROM companies WHERE id = ${id}`;
-  
+
   return company;
 }
 

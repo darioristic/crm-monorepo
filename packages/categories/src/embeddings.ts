@@ -25,7 +25,7 @@ export async function generateEmbedding(text: string): Promise<EmbeddingResult> 
   const model = google.textEmbeddingModel(EMBEDDING_CONFIG.modelName);
 
   const { embedding } = await embed({
-    model: model as any,
+    model,
     value: text,
   });
 
@@ -46,7 +46,7 @@ export async function generateEmbeddings(texts: string[]): Promise<EmbeddingsRes
   const model = google.textEmbeddingModel(EMBEDDING_CONFIG.modelName);
 
   const { embeddings } = await embedMany({
-    model: model as any,
+    model,
     values: texts,
   });
 

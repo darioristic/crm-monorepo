@@ -1,30 +1,28 @@
 "use client";
 
-import { useFormContext, useWatch } from "react-hook-form";
 import {
-  MoreVertical,
   Calendar,
-  Ruler,
-  Receipt,
-  Percent,
   DollarSign,
   FileText,
   Hash,
+  MoreVertical,
+  Percent,
   QrCode,
+  Receipt,
+  Ruler,
 } from "lucide-react";
+import { useFormContext, useWatch } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import type { FormValues } from "./form-context";
 
@@ -91,9 +89,13 @@ export function SettingsMenu() {
                 key={format.value}
                 checked={dateFormat === format.value}
                 onCheckedChange={() =>
-                  setValue("template.dateFormat", format.value as any, {
-                    shouldDirty: true,
-                  })
+                  setValue(
+                    "template.dateFormat",
+                    format.value as FormValues["template"]["dateFormat"],
+                    {
+                      shouldDirty: true,
+                    }
+                  )
                 }
               >
                 {format.label}
@@ -114,7 +116,7 @@ export function SettingsMenu() {
                 key={s.value}
                 checked={size === s.value}
                 onCheckedChange={() =>
-                  setValue("template.size", s.value as any, {
+                  setValue("template.size", s.value as FormValues["template"]["size"], {
                     shouldDirty: true,
                   })
                 }

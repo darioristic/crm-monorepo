@@ -1,12 +1,12 @@
 "use client";
 
+import type { LineItem, OrderFormValues, OrderTemplate } from "@crm/schemas";
 import { orderFormSchema } from "@crm/schemas";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import type { Resolver } from "react-hook-form";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider } from "react-hook-form";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { ordersApi } from "@/lib/api";
-import type { LineItem, OrderDefaultSettings, OrderFormValues, OrderTemplate } from "@/types/order";
+import type { OrderDefaultSettings } from "@/types/order";
 import { DEFAULT_ORDER_TEMPLATE, generateOrderNumber, generateOrderToken } from "@/types/order";
 
 export type FormValues = OrderFormValues;
@@ -50,8 +50,7 @@ type FormContextProps = {
 };
 
 export function FormContext({ children, data, defaultSettings }: FormContextProps) {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(orderFormSchema) as Resolver<FormValues>,
+  const form = useZodForm(orderFormSchema, {
     defaultValues: getDefaultValues(),
     mode: "onChange",
   });
@@ -101,8 +100,8 @@ export function FormContext({ children, data, defaultSettings }: FormContextProp
     const fetchNextNumber = async () => {
       try {
         const result = await ordersApi.getNextNumber();
-        if (result && (result as any).success && (result as any).data?.orderNumber) {
-          form.setValue("orderNumber", (result as any).data.orderNumber);
+        if (result?.success && result.data?.orderNumber) {
+          form.setValue("orderNumber", result.data.orderNumber);
         }
       } catch (error) {
         // Fallback to client-side generation if API fails

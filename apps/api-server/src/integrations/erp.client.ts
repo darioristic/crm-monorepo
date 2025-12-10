@@ -175,7 +175,7 @@ class ERPClient {
       return { success: true, data };
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      logger.error(`ERP request failed: ${method} ${endpoint}`, errorMessage);
+      logger.error({ method, endpoint, error: errorMessage }, "ERP request failed");
 
       // Retry logic
       if (retryCount < this.config.retries && this.isRetryableError(error)) {

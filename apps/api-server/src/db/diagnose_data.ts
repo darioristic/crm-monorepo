@@ -40,7 +40,7 @@ async function diagnose() {
       `Totals: Quotes=${totalQ}, Invoices=${totalI}, Orders=${totalO}, DeliveryNotes=${totalD}`
     );
   } catch (error) {
-    logger.error("Diagnosis failed:", error);
+    logger.error({ error }, "Diagnosis failed");
   } finally {
     await db.end();
   }

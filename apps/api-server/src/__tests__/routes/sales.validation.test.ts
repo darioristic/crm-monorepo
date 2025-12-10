@@ -8,6 +8,7 @@ describe("Sales Routes - companyId validation", () => {
   const mockAuth = {
     userId: "user-123",
     role: "user" as const,
+    tenantRoles: [],
     sessionId: "session-123",
   };
 

@@ -1132,7 +1132,10 @@ async function seedCompanies(companies: Company[]): Promise<string[]> {
         ids.push(created.id);
       }
     } catch (error) {
-      logger.error(`  ❌ Failed to create company ${company.name}:`, error);
+      logger.error(
+        { error, companyName: company.name },
+        `  ❌ Failed to create company ${company.name}`
+      );
     }
   }
 
@@ -1155,7 +1158,7 @@ async function seedUsers(users: User[]): Promise<string[]> {
         ids.push(created.id);
       }
     } catch (error) {
-      logger.error(`  ❌ Failed to create user ${user.email}:`, error);
+      logger.error({ error, email: user.email }, `  ❌ Failed to create user ${user.email}`);
     }
   }
 
@@ -1182,7 +1185,10 @@ async function seedAuthCredentials(): Promise<void> {
         logger.info(`  ✅ Created credentials for: ${user.email}`);
       }
     } catch (error) {
-      logger.error(`  ❌ Failed to create credentials for ${user.email}:`, error);
+      logger.error(
+        { error, email: user.email },
+        `  ❌ Failed to create credentials for ${user.email}`
+      );
     }
   }
 
@@ -1199,7 +1205,10 @@ async function seedProjects(projects: Project[]): Promise<string[]> {
       logger.info(`  ✅ Created project: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      logger.error(`  ❌ Failed to create project ${project.name}:`, error);
+      logger.error(
+        { error, projectName: project.name },
+        `  ❌ Failed to create project ${project.name}`
+      );
     }
   }
 
@@ -1216,7 +1225,10 @@ async function seedMilestones(milestones: Milestone[]): Promise<string[]> {
       logger.info(`  ✅ Created milestone: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      logger.error(`  ❌ Failed to create milestone ${milestone.name}:`, error);
+      logger.error(
+        { error, milestoneName: milestone.name },
+        `  ❌ Failed to create milestone ${milestone.name}`
+      );
     }
   }
 
@@ -1231,7 +1243,7 @@ async function seedTasks(tasks: Task[]): Promise<void> {
       const created = await taskQueries.create(task);
       logger.info(`  ✅ Created task: ${created.title}`);
     } catch (error) {
-      logger.error(`  ❌ Failed to create task ${task.title}:`, error);
+      logger.error({ error, taskTitle: task.title }, `  ❌ Failed to create task ${task.title}`);
     }
   }
 }
@@ -1249,9 +1261,12 @@ async function seedQuotes(
       ids.push(created.id);
     } catch (error: unknown) {
       const e = (error as { message?: string; code?: string; detail?: string }) || {};
-      logger.error(`  ❌ Failed to create quote ${quote.quoteNumber}: ${e.message || error}`);
-      if (e.code) logger.error(`     Error code: ${e.code}`);
-      if (e.detail) logger.error(`     Detail: ${e.detail}`);
+      logger.error(
+        { error, message: e.message },
+        `  ❌ Failed to create quote ${quote.quoteNumber}`
+      );
+      if (e.code) logger.error({ code: e.code }, "     Error code");
+      if (e.detail) logger.error({ detail: e.detail }, "     Detail");
     }
   }
 
@@ -1273,7 +1288,10 @@ async function seedInvoices(
       logger.info(`  ✅ Created invoice: ${created.invoiceNumber}`);
       ids.push(created.id);
     } catch (error) {
-      logger.error(`  ❌ Failed to create invoice ${invoice.invoiceNumber}:`, error);
+      logger.error(
+        { error, invoiceNumber: invoice.invoiceNumber },
+        `  ❌ Failed to create invoice ${invoice.invoiceNumber}`
+      );
     }
   }
 
@@ -1304,14 +1322,18 @@ async function seedOrders(
         ids.push(result.data.id);
       } else {
         logger.error(
-          `  ❌ Failed to create order ${order.orderNumber}: ${result.error?.message || "Unknown error"}`
+          { error: result.error?.message, orderNumber: order.orderNumber },
+          `  ❌ Failed to create order ${order.orderNumber}`
         );
       }
     } catch (error: unknown) {
       const e = (error as { message?: string; code?: string; detail?: string }) || {};
-      logger.error(`  ❌ Failed to create order ${order.orderNumber}: ${e.message || error}`);
-      if (e.code) logger.error(`     Error code: ${e.code}`);
-      if (e.detail) logger.error(`     Detail: ${e.detail}`);
+      logger.error(
+        { error, message: e.message },
+        `  ❌ Failed to create order ${order.orderNumber}`
+      );
+      if (e.code) logger.error({ code: e.code }, "     Error code");
+      if (e.detail) logger.error({ detail: e.detail }, "     Detail");
     }
   }
 
@@ -1331,7 +1353,10 @@ async function seedDeliveryNotes(
       const created = await deliveryNoteQueries.create(note, items);
       logger.info(`  ✅ Created delivery note: ${created.deliveryNumber}`);
     } catch (error) {
-      logger.error(`  ❌ Failed to create delivery note ${note.deliveryNumber}:`, error);
+      logger.error(
+        { error, deliveryNumber: note.deliveryNumber },
+        `  ❌ Failed to create delivery note ${note.deliveryNumber}`
+      );
     }
   }
 }
@@ -1353,7 +1378,10 @@ async function seedProductCategories(categories: ProductCategory[]): Promise<str
       logger.info(`  ✅ Created category: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      logger.error(`  ❌ Failed to create category ${category.name}:`, error);
+      logger.error(
+        { error, categoryName: category.name },
+        `  ❌ Failed to create category ${category.name}`
+      );
     }
   }
 
@@ -1376,7 +1404,10 @@ async function seedProductCategories(categories: ProductCategory[]): Promise<str
       logger.info(`  ✅ Created category: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      logger.error(`  ❌ Failed to create category ${category.name}:`, error);
+      logger.error(
+        { error, categoryName: category.name },
+        `  ❌ Failed to create category ${category.name}`
+      );
     }
   }
 
@@ -1413,7 +1444,10 @@ async function seedProducts(products: Product[], categoryIds: string[]): Promise
       logger.info(`  ✅ Created product: ${created.name}`);
       ids.push(created.id);
     } catch (error) {
-      logger.error(`  ❌ Failed to create product ${product.name}:`, error);
+      logger.error(
+        { error, productName: product.name },
+        `  ❌ Failed to create product ${product.name}`
+      );
     }
   }
 
@@ -1447,11 +1481,11 @@ async function seedPayments(payments: Payment[]): Promise<void> {
         payment.recordedBy
       );
       logger.info(`  ✅ Created payment: ${created.reference}`);
-    } catch (error: any) {
-      logger.error(
-        `  ❌ Failed to create payment ${payment.reference}: ${error?.message || error}`
-      );
-      if (error?.code) logger.error(`     Error code: ${error.code}`);
+    } catch (error: unknown) {
+      const _message = error instanceof Error ? error.message : String(error);
+      const code = (error as { code?: string }).code;
+      logger.error({ error, reference: payment.reference }, "  ❌ Failed to create payment");
+      if (code) logger.error({ code }, "     Error code");
     }
   }
 }
@@ -1473,7 +1507,10 @@ async function seedNotifications(notifications: Notification[]): Promise<void> {
       });
       logger.info(`  ✅ Created notification: ${created.title}`);
     } catch (error) {
-      logger.error(`  ❌ Failed to create notification ${notification.title}:`, error);
+      logger.error(
+        { error, title: notification.title },
+        `  ❌ Failed to create notification ${notification.title}`
+      );
     }
   }
 }
@@ -1546,7 +1583,9 @@ export async function seed(): Promise<void> {
     const companiesWithUsers = await db`
       SELECT DISTINCT company_id FROM users WHERE company_id IS NOT NULL
     `;
-    const companyIdsWithUsers = companiesWithUsers.map((row: any) => row.company_id as string);
+    const companyIdsWithUsers = companiesWithUsers.map(
+      (row: Record<string, unknown>) => row.company_id as string
+    );
 
     // Generate and seed orders only for companies that have users
     // This ensures orders will be visible when users log in
@@ -1618,7 +1657,7 @@ export async function seed(): Promise<void> {
     logger.info("═".repeat(40));
     logger.info("\n✅ Database seeding completed!\n");
   } catch (error) {
-    logger.error("\n❌ Seed failed:", error);
+    logger.error({ error }, "\n❌ Seed failed");
     throw error;
   }
 }
@@ -1630,8 +1669,9 @@ export async function unseed(): Promise<void> {
     try {
       await db.unsafe(`DELETE FROM ${table}`);
       logger.info(`  ✅ Deleted ${name}`);
-    } catch (error: any) {
-      if (error?.code === "42P01") {
+    } catch (error: unknown) {
+      const e = error as { code?: string };
+      if (e?.code === "42P01") {
         logger.info(`  ⏭️  Table ${table} does not exist, skipping`);
       } else {
         throw error;
@@ -1663,7 +1703,7 @@ export async function unseed(): Promise<void> {
 
     logger.info("\n✅ All data cleared!\n");
   } catch (error) {
-    logger.error("\n❌ Unseed failed:", error);
+    logger.error({ error }, "\n❌ Unseed failed");
     throw error;
   }
 }
@@ -1693,7 +1733,7 @@ if (import.meta.main) {
     await db.end();
     process.exit(0);
   } catch (error) {
-    logger.error("Seed error:", error);
+    logger.error({ error }, "Seed error");
     await db.end();
     process.exit(1);
   }

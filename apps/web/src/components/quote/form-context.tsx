@@ -1,14 +1,13 @@
 "use client";
 
 import { quoteFormSchema } from "@crm/schemas";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import type { Resolver } from "react-hook-form";
-import { FormProvider, useForm } from "react-hook-form";
-import type { LineItem, QuoteDefaultSettings, QuoteFormValues, QuoteTemplate } from "@/types/quote";
+import { FormProvider } from "react-hook-form";
+import type { z } from "zod";
+import type { LineItem, QuoteDefaultSettings, QuoteTemplate } from "@/types/quote";
 import { DEFAULT_QUOTE_TEMPLATE, generateQuoteNumber, generateQuoteToken } from "@/types/quote";
 
-export type FormValues = QuoteFormValues;
+export type FormValues = z.infer<typeof quoteFormSchema>;
 export type LineItemFormValues = LineItem;
 export type TemplateFormValues = QuoteTemplate;
 
@@ -47,13 +46,12 @@ const getDefaultValues = (): FormValues => {
 
 type FormContextProps = {
   children: React.ReactNode;
-  data?: Partial<QuoteFormValues>;
+  data?: Partial<FormValues>;
   defaultSettings?: Partial<QuoteDefaultSettings>;
 };
 
 export function FormContext({ children, data, defaultSettings }: FormContextProps) {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(quoteFormSchema) as Resolver<FormValues>,
+  const form = useZodForm(quoteFormSchema, {
     defaultValues: getDefaultValues(),
     mode: "onChange",
   });
@@ -97,3 +95,5 @@ export function FormContext({ children, data, defaultSettings }: FormContextProp
 
   return <FormProvider {...form}>{children}</FormProvider>;
 }
+
+import { useZodForm } from "@/hooks/use-zod-form";

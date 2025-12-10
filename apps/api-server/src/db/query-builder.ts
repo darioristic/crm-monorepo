@@ -11,8 +11,7 @@ import { sql as db } from "./client";
 // Types
 // ============================================
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type QueryParam = any;
+export type QueryParam = string | number | boolean | null | Date;
 
 export interface QueryCondition {
   sql: string;
@@ -120,9 +119,18 @@ export class SafeQueryBuilder {
   addEqualCondition(column: string, value: unknown | undefined): this {
     if (value === undefined || value === null || value === "") return this;
 
+    const v =
+      typeof value === "string" ||
+      typeof value === "number" ||
+      typeof value === "boolean" ||
+      value instanceof Date
+        ? (value as QueryParam)
+        : undefined;
+    if (v === undefined) return this;
+
     this.conditions.push({
       sql: `${column} = $${this.paramIndex}`,
-      values: [value],
+      values: [v],
     });
 
     this.paramIndex++;
@@ -187,7 +195,7 @@ export class SafeQueryBuilder {
   /**
    * Dodaje IN uslov
    */
-  addInCondition(column: string, values: unknown[] | undefined): this {
+  addInCondition(column: string, values: QueryParam[] | undefined): this {
     if (!values || values.length === 0) return this;
 
     const placeholders = values.map((_, i) => `$${this.paramIndex + i}`).join(", ");
@@ -285,7 +293,7 @@ export class SafeQueryBuilder {
 export async function executeCount(
   table: string,
   whereClause: string,
-  values: unknown[]
+  values: QueryParam[]
 ): Promise<number> {
   const query = `SELECT COUNT(*) FROM ${table} ${whereClause}`;
   const result = await executeRawQuery(query, values);
@@ -301,7 +309,7 @@ export async function executeSelect<T>(
   whereClause: string,
   orderClause: string,
   paginationClause: string,
-  values: unknown[]
+  values: QueryParam[]
 ): Promise<T[]> {
   const query = `${selectClause} ${fromClause} ${whereClause} ${orderClause} ${paginationClause}`;
   return executeRawQuery(query, values) as Promise<T[]>;
@@ -313,7 +321,7 @@ export async function executeSelect<T>(
  */
 async function executeRawQuery(
   query: string,
-  values: unknown[]
+  values: QueryParam[]
 ): Promise<Record<string, unknown>[]> {
   // Zameni $1, $2, ... sa tagged template literal sintaksom
   // postgres.js očekuje tagged template literals, ali možemo koristiti i .unsafe sa nizom vrednosti
@@ -324,8 +332,7 @@ async function executeRawQuery(
 
   // Koristimo prepared statement pristup
   // postgres.js podržava pozicione parametre kada se koristi sa nizom
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return db.unsafe(query, [...values] as any[]);
+  return db.unsafe(query, [...(values as unknown[])]);
 }
 
 // ============================================

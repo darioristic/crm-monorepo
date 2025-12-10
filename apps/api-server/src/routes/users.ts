@@ -24,15 +24,19 @@ import {
 
 // Import cookie helper from auth routes
 function getNodeEnv(): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const env = (globalThis as any).Bun?.env || process.env;
-  return String(env.NODE_ENV || "development");
+  const bunObj = (globalThis as Record<string, unknown>).Bun as
+    | { env?: Record<string, string> }
+    | undefined;
+  const env = bunObj?.env || process.env;
+  return String(env?.NODE_ENV || "development");
 }
 
 function getCookieDomain(): string {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const env = (globalThis as any).Bun?.env || process.env;
-  return env.COOKIE_DOMAIN || "";
+  const bunObj = (globalThis as Record<string, unknown>).Bun as
+    | { env?: Record<string, string> }
+    | undefined;
+  const env = bunObj?.env || process.env;
+  return (env && (env as Record<string, string>).COOKIE_DOMAIN) || "";
 }
 
 function setAccessTokenCookie(accessToken: string): Record<string, string> {
@@ -229,7 +233,10 @@ router.put("/api/v1/users/me", async (request) => {
                   }
                 }
               } catch (deriveError) {
-                logger.warn("⚠️ Could not derive tenantId during session update:", deriveError);
+                logger.warn(
+                  { error: deriveError },
+                  "⚠️ Could not derive tenantId during session update"
+                );
               }
             }
             const JWT_REFRESH_EXPIRY = 7 * 24 * 60 * 60; // 7 days in seconds
@@ -243,7 +250,7 @@ router.put("/api/v1/users/me", async (request) => {
             logger.warn("⚠️ Session not found in Redis, continuing anyway");
           }
         } catch (error) {
-          logger.error("❌ Error updating session:", error);
+          logger.error({ error }, "❌ Error updating session");
           // Continue anyway - token will still be generated
         }
 
@@ -252,14 +259,19 @@ router.put("/api/v1/users/me", async (request) => {
         let newAccessToken: string;
         try {
           // Determine effective tenantId for the new token
-          let effectiveTenantId = auth.tenantId;
+          let effectiveTenantId = auth.activeTenantId;
           if (!effectiveTenantId) {
             try {
               const tenantRows =
                 await sql`SELECT tenant_id FROM companies WHERE id = ${body.companyId} LIMIT 1`;
               effectiveTenantId =
                 (tenantRows[0]?.tenant_id as string | undefined) ?? effectiveTenantId;
-            } catch {}
+            } catch (deriveError) {
+              logger.warn(
+                { error: deriveError },
+                "⚠️ Could not derive tenantId during session update"
+              );
+            }
             if (!effectiveTenantId) {
               const user = await userQueries.findById(auth.userId);
               effectiveTenantId = user?.tenantId;
@@ -275,7 +287,7 @@ router.put("/api/v1/users/me", async (request) => {
           );
           logger.info("✅ New JWT token generated");
         } catch (tokenError) {
-          logger.error("❌ Error generating JWT token:", tokenError);
+          logger.error({ error: tokenError }, "❌ Error generating JWT token");
           return errorResponse(
             "TOKEN_GENERATION_FAILED",
             tokenError instanceof Error ? tokenError.message : "Failed to generate access token"
@@ -305,9 +317,9 @@ router.put("/api/v1/users/me", async (request) => {
       logger.error("❌ CompanyId not provided or empty");
       return errorResponse("VALIDATION_ERROR", "companyId is required");
     } catch (error) {
-      logger.error("❌ Error updating user company:", error);
+      logger.error({ error }, "❌ Error updating user company");
       if (error instanceof Error) {
-        logger.error("Error stack:", error.stack);
+        logger.error({ errorStack: error.stack }, "Error stack");
       }
       return errorResponse(
         "SERVER_ERROR",

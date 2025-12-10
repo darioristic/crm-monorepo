@@ -67,7 +67,7 @@ app.use("*", async (c, next) => {
 const getQuotesQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(100).default(20),
-  status: z.string().optional(),
+  status: z.enum(["draft", "sent", "accepted", "rejected", "expired"]).optional(),
   companyId: z.string().uuid().optional(),
   search: z.string().optional(),
 });
@@ -83,7 +83,8 @@ app.get("/api/v1/quotes", zValidator("query", getQuotesQuerySchema), async (c) =
 
     // Filter by status
     if (query.status) {
-      conditions.push(eq(quotesImproved.status, query.status as any));
+      const status = query.status as import("../db/schema/improved-sales").QuoteImproved["status"];
+      conditions.push(eq(quotesImproved.status, status));
     }
 
     // Filter by company
@@ -121,12 +122,12 @@ app.get("/api/v1/quotes", zValidator("query", getQuotesQuerySchema), async (c) =
         totalPages: Math.ceil(Number(count) / query.limit),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, "Failed to fetch quotes");
     return c.json(
       {
         success: false,
-        error: error.message,
+        error: error instanceof Error ? error.message : "Unknown error",
       },
       500
     );
@@ -187,9 +188,10 @@ app.get("/api/v1/quotes/:id", async (c) => {
         relatedInvoices,
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, "Failed to fetch quote");
-    return c.json({ error: error.message }, 500);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -314,9 +316,9 @@ app.post("/api/v1/quotes", zValidator("json", createQuoteSchema), async (c) => {
         },
       });
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, "Failed to create quote");
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 
@@ -346,7 +348,7 @@ app.put("/api/v1/quotes/:id", zValidator("json", createQuoteSchema.partial()), a
 
     return await db.transaction(async (tx) => {
       // Update quote
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updatedBy: user.id,
         updatedAt: new Date(),
       };
@@ -419,9 +421,9 @@ app.put("/api/v1/quotes/:id", zValidator("json", createQuoteSchema.partial()), a
         data: updated,
       });
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, "Failed to update quote");
-    return c.json({ error: error.message }, 500);
+    return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 
@@ -457,9 +459,10 @@ app.delete("/api/v1/quotes/:id", async (c) => {
       success: true,
       message: "Quote deleted successfully",
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     logger.error({ error }, "Failed to delete quote");
-    return c.json({ error: error.message }, 500);
+    const message = error instanceof Error ? error.message : "Unknown error";
+    return c.json({ error: message }, 500);
   }
 });
 
@@ -509,9 +512,9 @@ app.post(
         success: true,
         data: order,
       });
-    } catch (error: any) {
-      logger.error("Failed to convert quote to order", { error });
-      return c.json({ error: error.message }, 400);
+    } catch (error: unknown) {
+      logger.error({ error }, "Failed to convert quote to order");
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
   }
 );
@@ -562,9 +565,9 @@ app.post(
         success: true,
         data: { invoiceId },
       });
-    } catch (error: any) {
-      logger.error("Failed to convert quote to invoice", { error });
-      return c.json({ error: error.message }, 400);
+    } catch (error: unknown) {
+      logger.error({ error }, "Failed to convert quote to invoice");
+      return c.json({ error: error instanceof Error ? error.message : String(error) }, 400);
     }
   }
 );
@@ -584,9 +587,9 @@ app.get("/api/v1/quotes/:id/chain", async (c) => {
       success: true,
       data: chain,
     });
-  } catch (error: any) {
-    logger.error("Failed to get document chain", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to get document chain");
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
 
@@ -607,7 +610,8 @@ app.get("/api/v1/orders", async (c) => {
     const conditions = [eq(ordersImproved.tenantId, user.tenantId)];
 
     if (status) {
-      conditions.push(eq(ordersImproved.status, status as any));
+      const s = status as import("../db/schema/improved-sales").OrderImproved["status"];
+      conditions.push(eq(ordersImproved.status, s));
     }
     if (companyId) {
       conditions.push(eq(ordersImproved.companyId, companyId));
@@ -633,9 +637,9 @@ app.get("/api/v1/orders", async (c) => {
         offset,
       },
     });
-  } catch (error: any) {
-    logger.error("Failed to list orders", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to list orders");
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
 
@@ -696,9 +700,9 @@ app.get("/api/v1/orders/:id", async (c) => {
         sourceQuote,
       },
     });
-  } catch (error: any) {
-    logger.error("Failed to get order", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to get order");
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
 
@@ -717,8 +721,10 @@ const createOrderSchema = z.object({
   items: z.array(
     z.object({
       productId: z.string().uuid().optional(),
+      productName: z.string().min(1),
       description: z.string().min(1),
       quantity: z.number().positive(),
+      unit: z.string().optional(),
       unitPrice: z.string().regex(/^\d+(\.\d{1,2})?$/),
       taxRate: z.number().min(0).max(100).optional(),
       discount: z.number().min(0).max(100).optional(),
@@ -777,8 +783,8 @@ app.post("/api/v1/orders", zValidator("json", createOrderSchema), async (c) => {
             : undefined,
           purchaseOrderNumber: body.purchaseOrderNumber,
           subtotal: subtotal.toFixed(2),
-          totalTax: totalTax.toFixed(2),
-          totalAmount: totalAmount.toFixed(2),
+          tax: totalTax.toFixed(2),
+          total: totalAmount.toFixed(2),
           status: "pending",
           notes: body.notes,
           createdBy: user.id,
@@ -796,20 +802,20 @@ app.post("/api/v1/orders", zValidator("json", createOrderSchema), async (c) => {
         return {
           orderId: order.id,
           productId: item.productId,
+          productName: item.productName,
           description: item.description,
-          quantity: item.quantity,
+          quantity: String(item.quantity),
+          unit: item.unit ?? "pcs",
           unitPrice: item.unitPrice,
-          taxRate: item.taxRate || 0,
-          discount: item.discount || 0,
-          subtotal: itemTotal.toFixed(2),
-          tax: tax.toFixed(2),
+          taxRate: String(item.taxRate || 0),
+          discount: String(item.discount || 0),
           total: total.toFixed(2),
         };
       });
 
       await tx.insert(orderItemsImproved).values(itemsData);
 
-      logger.info("Order created", { orderId: order.id, userId: user.id });
+      logger.info({ orderId: order.id, userId: user.id }, "Order created");
 
       return order;
     });
@@ -818,9 +824,9 @@ app.post("/api/v1/orders", zValidator("json", createOrderSchema), async (c) => {
       success: true,
       data: result,
     });
-  } catch (error: any) {
-    logger.error("Failed to create order", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to create order");
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
 
@@ -851,8 +857,10 @@ const updateOrderSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid().optional(),
+        productName: z.string().min(1),
         description: z.string().min(1),
         quantity: z.number().positive(),
+        unit: z.string().optional(),
         unitPrice: z.string().regex(/^\d+(\.\d{1,2})?$/),
         taxRate: z.number().min(0).max(100).optional(),
         discount: z.number().min(0).max(100).optional(),
@@ -882,7 +890,7 @@ app.put("/api/v1/orders/:id", zValidator("json", updateOrderSchema), async (c) =
     }
 
     return await db.transaction(async (tx) => {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updatedBy: user.id,
         updatedAt: new Date(),
       };
@@ -921,8 +929,8 @@ app.put("/api/v1/orders/:id", zValidator("json", updateOrderSchema), async (c) =
         const totalAmount = subtotal + totalTax;
 
         updateData.subtotal = subtotal.toFixed(2);
-        updateData.totalTax = totalTax.toFixed(2);
-        updateData.totalAmount = totalAmount.toFixed(2);
+        updateData.tax = totalTax.toFixed(2);
+        updateData.total = totalAmount.toFixed(2);
 
         // Insert new items
         const itemsData = body.items.map((item) => {
@@ -935,13 +943,13 @@ app.put("/api/v1/orders/:id", zValidator("json", updateOrderSchema), async (c) =
           return {
             orderId,
             productId: item.productId,
+            productName: item.productName,
             description: item.description,
-            quantity: item.quantity,
+            quantity: String(item.quantity),
+            unit: item.unit ?? "pcs",
             unitPrice: item.unitPrice,
-            taxRate: item.taxRate || 0,
-            discount: item.discount || 0,
-            subtotal: itemTotal.toFixed(2),
-            tax: tax.toFixed(2),
+            taxRate: String(item.taxRate || 0),
+            discount: String(item.discount || 0),
             total: total.toFixed(2),
           };
         });
@@ -955,16 +963,16 @@ app.put("/api/v1/orders/:id", zValidator("json", updateOrderSchema), async (c) =
         .where(eq(ordersImproved.id, orderId))
         .returning();
 
-      logger.info("Order updated", { orderId, userId: user.id });
+      logger.info({ orderId, userId: user.id }, "Order updated");
 
       return c.json({
         success: true,
         data: updated,
       });
     });
-  } catch (error: any) {
-    logger.error("Failed to update order", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to update order");
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
 
@@ -1004,15 +1012,15 @@ app.delete("/api/v1/orders/:id", async (c) => {
     // Delete order (cascade will delete items)
     await db.delete(ordersImproved).where(eq(ordersImproved.id, orderId));
 
-    logger.info("Order deleted", { orderId, userId: user.id });
+    logger.info({ orderId, userId: user.id }, "Order deleted");
 
     return c.json({
       success: true,
       message: "Order deleted successfully",
     });
-  } catch (error: any) {
-    logger.error("Failed to delete order", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to delete order");
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
 
@@ -1068,9 +1076,9 @@ app.post(
         success: true,
         data: { invoiceId },
       });
-    } catch (error: any) {
-      logger.error("Failed to convert order to invoice", { error });
-      return c.json({ error: error.message }, 400);
+    } catch (error: unknown) {
+      logger.error({ error }, "Failed to convert order to invoice");
+      return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 400);
     }
   }
 );
@@ -1092,7 +1100,7 @@ app.get("/api/v1/invoices", async (c) => {
     const conditions = [eq(invoicesImproved.tenantId, user.tenantId)];
 
     if (status) {
-      conditions.push(eq(invoicesImproved.status, status as any));
+      conditions.push(eq(invoicesImproved.status, status as unknown as string));
     }
     if (companyId) {
       conditions.push(eq(invoicesImproved.companyId, companyId));
@@ -1115,9 +1123,9 @@ app.get("/api/v1/invoices", async (c) => {
         offset,
       },
     });
-  } catch (error: any) {
-    logger.error("Failed to list invoices", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to list invoices");
+    return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 
@@ -1178,9 +1186,9 @@ app.get("/api/v1/invoices/:id", async (c) => {
         sourceQuote,
       },
     });
-  } catch (error: any) {
-    logger.error("Failed to get invoice", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to get invoice");
+    return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 
@@ -1199,11 +1207,13 @@ const createInvoiceSchema = z.object({
   items: z.array(
     z.object({
       productId: z.string().uuid().optional(),
+      productName: z.string().min(1),
       description: z.string().min(1),
       quantity: z.number().positive(),
       unitPrice: z.string().regex(/^\d+(\.\d{1,2})?$/),
       taxRate: z.number().min(0).max(100).optional(),
       discount: z.number().min(0).max(100).optional(),
+      unit: z.string().optional(),
     })
   ),
 });
@@ -1264,8 +1274,8 @@ app.post("/api/v1/invoices", zValidator("json", createInvoiceSchema), async (c) 
           dueDate,
           paymentTerms,
           subtotal: subtotal.toFixed(2),
-          totalTax: totalTax.toFixed(2),
-          totalAmount: totalAmount.toFixed(2),
+          tax: totalTax.toFixed(2),
+          total: totalAmount.toFixed(2),
           paidAmount: "0.00",
           status: "draft",
           notes: body.notes,
@@ -1284,20 +1294,20 @@ app.post("/api/v1/invoices", zValidator("json", createInvoiceSchema), async (c) 
         return {
           invoiceId: invoice.id,
           productId: item.productId,
+          productName: item.productName,
           description: item.description,
-          quantity: item.quantity,
+          quantity: String(item.quantity),
+          unit: item.unit ?? "pcs",
           unitPrice: item.unitPrice,
-          taxRate: item.taxRate || 0,
-          discount: item.discount || 0,
-          subtotal: itemTotal.toFixed(2),
-          tax: tax.toFixed(2),
+          discount: String(item.discount || 0),
+          vatRate: String(item.taxRate || 0),
           total: total.toFixed(2),
         };
       });
 
       await tx.insert(invoiceItemsImproved).values(itemsData);
 
-      logger.info("Invoice created", { invoiceId: invoice.id, userId: user.id });
+      logger.info({ invoiceId: invoice.id, userId: user.id }, "Invoice created");
 
       return invoice;
     });
@@ -1306,9 +1316,9 @@ app.post("/api/v1/invoices", zValidator("json", createInvoiceSchema), async (c) 
       success: true,
       data: result,
     });
-  } catch (error: any) {
-    logger.error("Failed to create invoice", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to create invoice");
+    return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 
@@ -1332,11 +1342,13 @@ const updateInvoiceSchema = z.object({
     .array(
       z.object({
         productId: z.string().uuid().optional(),
+        productName: z.string().min(1),
         description: z.string().min(1),
         quantity: z.number().positive(),
         unitPrice: z.string().regex(/^\d+(\.\d{1,2})?$/),
         taxRate: z.number().min(0).max(100).optional(),
         discount: z.number().min(0).max(100).optional(),
+        unit: z.string().optional(),
       })
     )
     .optional(),
@@ -1363,7 +1375,7 @@ app.put("/api/v1/invoices/:id", zValidator("json", updateInvoiceSchema), async (
     }
 
     return await db.transaction(async (tx) => {
-      const updateData: any = {
+      const updateData: Record<string, unknown> = {
         updatedBy: user.id,
         updatedAt: new Date(),
       };
@@ -1417,13 +1429,13 @@ app.put("/api/v1/invoices/:id", zValidator("json", updateInvoiceSchema), async (
           return {
             invoiceId,
             productId: item.productId,
+            productName: item.productName,
             description: item.description,
-            quantity: item.quantity,
+            quantity: String(item.quantity),
+            unit: item.unit ?? "pcs",
             unitPrice: item.unitPrice,
-            taxRate: item.taxRate || 0,
-            discount: item.discount || 0,
-            subtotal: itemTotal.toFixed(2),
-            tax: tax.toFixed(2),
+            discount: String(item.discount || 0),
+            vatRate: String(item.taxRate || 0),
             total: total.toFixed(2),
           };
         });
@@ -1437,16 +1449,16 @@ app.put("/api/v1/invoices/:id", zValidator("json", updateInvoiceSchema), async (
         .where(eq(invoicesImproved.id, invoiceId))
         .returning();
 
-      logger.info("Invoice updated", { invoiceId, userId: user.id });
+      logger.info({ invoiceId, userId: user.id }, "Invoice updated");
 
       return c.json({
         success: true,
         data: updated,
       });
     });
-  } catch (error: any) {
-    logger.error("Failed to update invoice", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to update invoice");
+    return c.json({ error: error instanceof Error ? error.message : String(error) }, 500);
   }
 });
 
@@ -1476,15 +1488,15 @@ app.delete("/api/v1/invoices/:id", async (c) => {
     // Delete invoice (cascade will delete items and invoice_orders)
     await db.delete(invoicesImproved).where(eq(invoicesImproved.id, invoiceId));
 
-    logger.info("Invoice deleted", { invoiceId, userId: user.id });
+    logger.info({ invoiceId, userId: user.id }, "Invoice deleted");
 
     return c.json({
       success: true,
       message: "Invoice deleted successfully",
     });
-  } catch (error: any) {
-    logger.error("Failed to delete invoice", { error });
-    return c.json({ error: error.message }, 500);
+  } catch (error: unknown) {
+    logger.error({ error }, "Failed to delete invoice");
+    return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 500);
   }
 });
 
@@ -1541,9 +1553,9 @@ app.post(
         success: true,
         data: { invoiceId },
       });
-    } catch (error: any) {
-      logger.error("Failed to create consolidated invoice", { error });
-      return c.json({ error: error.message }, 400);
+    } catch (error: unknown) {
+      logger.error({ error }, "Failed to create consolidated invoice");
+      return c.json({ error: error instanceof Error ? error.message : "Unknown error" }, 400);
     }
   }
 );

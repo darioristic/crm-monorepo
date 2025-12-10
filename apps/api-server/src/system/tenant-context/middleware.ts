@@ -46,13 +46,9 @@ export function requireTenantContext(
       }
 
       if (!tenantId) {
-        // If no specific tenant context, create a mock tenant context for superadmin
-        // This allows superadmin to access tenant-scoped endpoints
         const mockTenantContext: TenantContext = {
-          id: "superadmin-global",
-          name: "Superadmin Global Access",
-          slug: "superadmin",
-          status: "active",
+          tenantId: "superadmin-global",
+          tenantStatus: "active",
         };
         (request as TenantScopedRequest).tenantContext = mockTenantContext;
         return handler(request as TenantScopedRequest, url, params, auth, mockTenantContext);
@@ -71,8 +67,8 @@ export function requireTenantContext(
       return handler(request as TenantScopedRequest, url, params, auth, tenantContext);
     }
 
-    // Extract tenantId from auth context (should be in JWT for tenant_admin and crm_user)
-    let tenantId = auth.tenantId;
+    // Extract tenantId from auth context (active tenant from auth middleware)
+    let tenantId = auth.activeTenantId;
 
     // Fallback: if tenantId is not in token, get it from database
     if (!tenantId) {

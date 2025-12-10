@@ -1,8 +1,7 @@
 "use client";
 
-import { generateMeta } from "@/lib/utils";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function CalendarPage() {
   return (
@@ -10,9 +9,7 @@ export default function CalendarPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Calendar</h1>
-          <p className="text-muted-foreground">
-            Manage your schedule and appointments
-          </p>
+          <p className="text-muted-foreground">Manage your schedule and appointments</p>
         </div>
       </div>
       <Card>
@@ -31,4 +28,3 @@ export default function CalendarPage() {
     </div>
   );
 }
-

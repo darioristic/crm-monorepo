@@ -56,7 +56,7 @@ async function countCompanies() {
 
     process.exit(0);
   } catch (error) {
-    logger.error("❌ Error counting companies:", error);
+    logger.error({ error }, "❌ Error counting companies");
     process.exit(1);
   }
 }

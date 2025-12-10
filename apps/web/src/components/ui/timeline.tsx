@@ -1,7 +1,7 @@
 "use client";
 
-import * as React from "react";
 import { Slot } from "@radix-ui/react-slot";
+import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -116,7 +116,8 @@ function TimelineIndicator({
         className
       )}
       aria-hidden="true"
-      {...props}>
+      {...props}
+    >
       {children}
     </div>
   );
@@ -170,5 +171,5 @@ export {
   TimelineIndicator,
   TimelineItem,
   TimelineSeparator,
-  TimelineTitle
+  TimelineTitle,
 };

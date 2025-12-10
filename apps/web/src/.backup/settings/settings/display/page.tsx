@@ -2,9 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
@@ -13,55 +14,53 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
+  FormMessage,
 } from "@/components/ui/form";
-import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
   {
     id: "recents",
-    label: "Recents"
+    label: "Recents",
   },
   {
     id: "home",
-    label: "Home"
+    label: "Home",
   },
   {
     id: "applications",
-    label: "Applications"
+    label: "Applications",
   },
   {
     id: "desktop",
-    label: "Desktop"
+    label: "Desktop",
   },
   {
     id: "downloads",
-    label: "Downloads"
+    label: "Downloads",
   },
   {
     id: "documents",
-    label: "Documents"
-  }
+    label: "Documents",
+  },
 ] as const;
 
 const displayFormSchema = z.object({
   items: z.array(z.string()).refine((value) => value.some((item) => item), {
-    message: "You have to select at least one item."
-  })
+    message: "You have to select at least one item.",
+  }),
 });
 
 type DisplayFormValues = z.infer<typeof displayFormSchema>;
 
 // This can come from your database or API.
 const defaultValues: Partial<DisplayFormValues> = {
-  items: ["recents", "home"]
+  items: ["recents", "home"],
 };
 
 export default function Page() {
   const form = useForm<DisplayFormValues>({
-    resolver: zodResolver(displayFormSchema) as any,
-    defaultValues
+    resolver: zodResolver(displayFormSchema),
+    defaultValues,
   });
 
   function onSubmit(data: DisplayFormValues) {
@@ -70,7 +69,7 @@ export default function Page() {
         <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
           <code className="text-white">{JSON.stringify(data, null, 2)}</code>
         </pre>
-      )
+      ),
     });
   }
 

@@ -97,9 +97,10 @@ export async function verifyAndGetUser(request: Request): Promise<AuthContext | 
       return null;
     }
 
-    // Load user's tenant roles from database
+    // Load user's tenant roles and company from database
     let tenantRoles: TenantRole[] = [];
     let activeTenantId: string | undefined;
+    let freshCompanyId: string | undefined;
 
     try {
       const { sql } = await import("../db/client");
@@ -119,11 +120,11 @@ export async function verifyAndGetUser(request: Request): Promise<AuthContext | 
         ORDER BY t.name ASC
       `;
 
-      tenantRoles = userTenantRolesResult.map((row: any) => ({
-        tenantId: row.tenant_id,
-        tenantSlug: row.tenant_slug,
-        tenantName: row.tenant_name,
-        tenantLogoUrl: row.tenant_logo_url || null,
+      tenantRoles = userTenantRolesResult.map((row: Record<string, unknown>) => ({
+        tenantId: row.tenant_id as string,
+        tenantSlug: row.tenant_slug as string,
+        tenantName: row.tenant_name as string,
+        tenantLogoUrl: (row.tenant_logo_url as string | null) ?? null,
         role: row.role as "admin" | "manager" | "user",
       }));
 
@@ -149,17 +150,26 @@ export async function verifyAndGetUser(request: Request): Promise<AuthContext | 
           DO UPDATE SET active_tenant_id = ${activeTenantId}, updated_at = NOW()
         `;
       }
+
+      // Get fresh companyId from users table (JWT might be stale)
+      const userResult = await sql`
+        SELECT company_id FROM users WHERE id = ${payload.userId} LIMIT 1
+      `;
+      if (userResult.length > 0 && userResult[0].company_id) {
+        freshCompanyId = userResult[0].company_id;
+      }
     } catch (error) {
       logger.error({ error, userId: payload.userId }, "Failed to load tenant roles from database");
     }
 
     // Build auth context with multi-tenant support
+    // Use freshCompanyId from database (not JWT which may be stale)
     const authContext: AuthContext = {
       userId: payload.userId,
       role: payload.role,
       activeTenantId: activeTenantId,
       tenantRoles: tenantRoles,
-      companyId: payload.companyId, // Deprecated: will be removed
+      companyId: freshCompanyId || payload.companyId, // Prefer fresh DB value over JWT
       sessionId: payload.sessionId,
     };
 

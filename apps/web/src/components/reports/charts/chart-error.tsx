@@ -1,8 +1,8 @@
 "use client";
 
 import { AlertCircleIcon, RefreshCwIcon } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface ChartErrorProps {
   title?: string;
@@ -11,11 +11,11 @@ interface ChartErrorProps {
   className?: string;
 }
 
-export function ChartError({ 
+export function ChartError({
   title = "Error Loading Chart",
   message = "Failed to load chart data. Please try again.",
   onRetry,
-  className 
+  className,
 }: ChartErrorProps) {
   return (
     <Card className={className}>
@@ -39,4 +39,3 @@ export function ChartError({
     </Card>
   );
 }
-

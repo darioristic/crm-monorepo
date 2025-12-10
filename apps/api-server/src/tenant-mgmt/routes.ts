@@ -1,10 +1,9 @@
-import { successResponse, errorResponse } from "@crm/utils";
-import { RouteBuilder, json } from "../routes/helpers";
-import { getTenantDb } from "./db/client";
-import { tmTenants, tmTenantSettings } from "./db/schema";
-import { requireTenantMgmtAuth, requireRole, generateTenantMgmtApiKey } from "./auth";
+import { errorResponse, successResponse } from "@crm/utils";
 import { eq } from "drizzle-orm";
-import { tmApiKeys } from "./db/schema";
+import { json, RouteBuilder } from "../routes/helpers";
+import { generateTenantMgmtApiKey, requireRole, requireTenantMgmtAuth } from "./auth";
+import { getTenantDb } from "./db/client";
+import { tmApiKeys, tmTenantSettings, tmTenants } from "./db/schema";
 
 const router = new RouteBuilder();
 
@@ -53,10 +52,10 @@ router.post(
       }
 
       return json(successResponse(created), 201);
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri kreiranju"), 500);
     }
-  }),
+  })
 );
 
 // Get tenant by ID
@@ -70,15 +69,15 @@ router.get(
         return json(errorResponse("NOT_FOUND", "Tenant nije pronađen"), 404);
       }
       return json(successResponse(rows[0]));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri dohvatu"), 500);
     }
-  }),
+  })
 );
 
 router.get(
   "/api/tenant-mgmt/tenants",
-  requireTenantMgmtAuth(async (_auth, request, url) => {
+  requireTenantMgmtAuth(async (_auth, _request, url) => {
     try {
       const db = getTenantDb();
       const status = url.searchParams.get("status") || undefined;
@@ -92,10 +91,10 @@ router.get(
         rows = rows.filter((r) => (r.name || "").toLowerCase().includes(n));
       }
       return json(successResponse(rows));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri listanju"), 500);
     }
-  }),
+  })
 );
 
 // =============================
@@ -110,10 +109,10 @@ router.get(
       const db = getTenantDb();
       const rows = await db.select().from(tmApiKeys);
       return json(successResponse(rows));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri listanju ključeva"), 500);
     }
-  }),
+  })
 );
 
 // Create key
@@ -121,16 +120,19 @@ router.post(
   "/api/tenant-mgmt/api-keys",
   requireRole(["admin"])(async (_auth, request) => {
     try {
-      const body = (await request.json()) as { name: string; role?: "admin" | "manager" | "viewer" };
+      const body = (await request.json()) as {
+        name: string;
+        role?: "admin" | "manager" | "viewer";
+      };
       if (!body?.name) {
         return json(errorResponse("VALIDATION_ERROR", "Naziv je obavezan"), 400);
       }
       const rawKey = await generateTenantMgmtApiKey(body.name, body.role || "admin");
       return json(successResponse({ apiKey: rawKey }), 201);
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri kreiranju ključa"), 500);
     }
-  }),
+  })
 );
 
 // Revoke key
@@ -148,10 +150,10 @@ router.delete(
         return json(errorResponse("NOT_FOUND", "API ključ nije pronađen"), 404);
       }
       return json(successResponse({ id: updated.id, revokedAt: updated.revokedAt }));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri opozivu ključa"), 500);
     }
-  }),
+  })
 );
 
 router.patch(
@@ -182,10 +184,10 @@ router.patch(
         return json(errorResponse("NOT_FOUND", "Tenant nije pronađen"), 404);
       }
       return json(successResponse(updated));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri ažuriranju"), 500);
     }
-  }),
+  })
 );
 
 router.post(
@@ -200,10 +202,10 @@ router.post(
         .returning();
       if (!updated) return json(errorResponse("NOT_FOUND", "Tenant nije pronađen"), 404);
       return json(successResponse(updated));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri aktivaciji"), 500);
     }
-  }),
+  })
 );
 
 router.post(
@@ -218,10 +220,10 @@ router.post(
         .returning();
       if (!updated) return json(errorResponse("NOT_FOUND", "Tenant nije pronađen"), 404);
       return json(successResponse(updated));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri deaktivaciji"), 500);
     }
-  }),
+  })
 );
 
 router.delete(
@@ -232,7 +234,7 @@ router.delete(
       if (!confirm) {
         return json(
           errorResponse("VALIDATION_ERROR", "Potvrda brisanja je obavezna (?confirm=true)"),
-          400,
+          400
         );
       }
       const db = getTenantDb();
@@ -243,10 +245,10 @@ router.delete(
         .returning();
       if (!updated) return json(errorResponse("NOT_FOUND", "Tenant nije pronađen"), 404);
       return json(successResponse({ id: updated.id, status: updated.status }));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri brisanju"), 500);
     }
-  }),
+  })
 );
 
 router.get(
@@ -260,10 +262,10 @@ router.get(
         .where(eq(tmTenantSettings.tenantId, params.id))
         .limit(1);
       return json(successResponse(rows[0] || null));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri dohvatu podešavanja"), 500);
     }
-  }),
+  })
 );
 
 router.put(
@@ -305,10 +307,10 @@ router.put(
         .where(eq(tmTenantSettings.id, existing[0].id))
         .returning();
       return json(successResponse(updated));
-    } catch (error) {
+    } catch (_error) {
       return json(errorResponse("INTERNAL_ERROR", "Greška pri ažuriranju podešavanja"), 500);
     }
-  }),
+  })
 );
 
 export const tenantMgmtRoutes = router.getRoutes();

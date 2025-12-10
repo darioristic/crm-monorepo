@@ -108,6 +108,7 @@ export function RevenueChart() {
               const chart = key as keyof typeof chartConfig;
               return (
                 <button
+                  type="button"
                   key={chart}
                   data-active={activeChart === chart}
                   className="data-[active=true]:bg-muted relative flex flex-1 flex-col justify-center gap-1 px-6 py-4 text-left"

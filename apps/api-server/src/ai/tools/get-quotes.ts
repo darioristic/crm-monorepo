@@ -14,10 +14,11 @@ const getQuotesSchema = z.object({
 
 type GetQuotesParams = z.infer<typeof getQuotesSchema>;
 
-export const getQuotesTool = tool({
+export const getQuotesTool = (tool as unknown as typeof tool)({
+  name: "getQuotes",
   description: "Retrieve and filter sales quotes with pagination and status filtering",
   parameters: getQuotesSchema,
-  execute: (async (params: GetQuotesParams): Promise<ToolResponse> => {
+  execute: async (params: GetQuotesParams): Promise<ToolResponse> => {
     const { pageSize = 10, status, search } = params;
     try {
       let query = `
@@ -71,7 +72,9 @@ export const getQuotesTool = tool({
         0
       );
 
-      const acceptedCount = result.filter((q: Record<string, unknown>) => q.status === "accepted").length;
+      const acceptedCount = result.filter(
+        (q: Record<string, unknown>) => q.status === "accepted"
+      ).length;
       const pendingCount = result.filter(
         (q: Record<string, unknown>) => q.status === "sent" || q.status === "draft"
       ).length;
@@ -94,8 +97,8 @@ ${tableRows}
         text: `Failed to retrieve quotes: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  }) as any,
-} as any);
+  },
+});
 
 const getQuoteConversionSchema = z.object({
   period: z
@@ -106,10 +109,11 @@ const getQuoteConversionSchema = z.object({
 
 type GetQuoteConversionParams = z.infer<typeof getQuoteConversionSchema>;
 
-export const getQuoteConversionRateTool = tool({
+export const getQuoteConversionRateTool = (tool as unknown as typeof tool)({
+  name: "getQuoteConversion",
   description: "Get quote to invoice conversion rate and statistics",
   parameters: getQuoteConversionSchema,
-  execute: (async (params: GetQuoteConversionParams): Promise<ToolResponse> => {
+  execute: async (params: GetQuoteConversionParams): Promise<ToolResponse> => {
     const { period } = params;
     try {
       const periodDaysMap: Record<string, number> = {
@@ -141,7 +145,8 @@ export const getQuoteConversionRateTool = tool({
       const totalValue = parseFloat(stats.total_value as string) || 0;
 
       const conversionRate = totalQuotes > 0 ? ((accepted / totalQuotes) * 100).toFixed(1) : "0";
-      const valueConversionRate = totalValue > 0 ? ((acceptedValue / totalValue) * 100).toFixed(1) : "0";
+      const valueConversionRate =
+        totalValue > 0 ? ((acceptedValue / totalValue) * 100).toFixed(1) : "0";
 
       const formatCurrency = (amount: number) => {
         return new Intl.NumberFormat("sr-RS", {
@@ -174,5 +179,5 @@ export const getQuoteConversionRateTool = tool({
         text: `Failed to calculate conversion rate: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  }) as any,
-} as any);
+  },
+});

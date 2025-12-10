@@ -1,19 +1,18 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export type DeliveryStatus = "pending" | "in_transit" | "delivered" | "returned";
 
 const statusConfig: Record<
   DeliveryStatus,
-  { variant: "secondary" | "default" | "success" | "destructive"; label: string; description: string }
+  {
+    variant: "secondary" | "default" | "success" | "destructive";
+    label: string;
+    description: string;
+  }
 > = {
   pending: {
     variant: "secondary",
@@ -50,7 +49,11 @@ export function DeliveryStatusBadge({
   showTooltip = true,
   className,
 }: DeliveryStatusBadgeProps) {
-  const config = statusConfig[status] || { variant: "outline" as const, label: status, description: "Unknown status" };
+  const config = statusConfig[status] || {
+    variant: "outline" as const,
+    label: status,
+    description: "Unknown status",
+  };
 
   const sizeClasses = {
     sm: "text-xs px-1.5 py-0",
@@ -59,10 +62,7 @@ export function DeliveryStatusBadge({
   };
 
   const badge = (
-    <Badge
-      variant={config.variant}
-      className={cn("capitalize", sizeClasses[size], className)}
-    >
+    <Badge variant={config.variant} className={cn("capitalize", sizeClasses[size], className)}>
       {config.label.replace("_", " ")}
     </Badge>
   );
@@ -82,4 +82,3 @@ export function DeliveryStatusBadge({
     </TooltipProvider>
   );
 }
-

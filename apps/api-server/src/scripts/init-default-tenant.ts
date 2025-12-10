@@ -1,6 +1,6 @@
+import { isNull } from "drizzle-orm";
 import { db } from "../db/client";
-import { tenants, companies, users } from "../db/schema/index";
-import { eq, isNull } from "drizzle-orm";
+import { companies, tenants, users } from "../db/schema/index";
 import { logger } from "../lib/logger";
 
 async function initDefaultTenant() {
@@ -40,7 +40,10 @@ async function initDefaultTenant() {
       .where(isNull(users.tenantId))
       .returning({ id: users.id });
 
-    logger.info({ companiesUpdated: companiesUpdated.length, usersUpdated: usersUpdated.length }, "Backfill complete");
+    logger.info(
+      { companiesUpdated: companiesUpdated.length, usersUpdated: usersUpdated.length },
+      "Backfill complete"
+    );
 
     return {
       tenantId: defaultTenantId,

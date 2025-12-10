@@ -1,7 +1,7 @@
 "use client";
 
-import { NumericFormat } from "react-number-format";
 import { useController, useFormContext } from "react-hook-form";
+import { NumericFormat } from "react-number-format";
 
 export function VatInput() {
   const { control } = useFormContext();
@@ -28,9 +28,7 @@ export function VatInput() {
       decimalScale={2}
       isAllowed={(values) => {
         const { floatValue } = values;
-        return (
-          floatValue === undefined || (floatValue >= 0 && floatValue <= 100)
-        );
+        return floatValue === undefined || (floatValue >= 0 && floatValue <= 100);
       }}
       allowNegative={false}
     />

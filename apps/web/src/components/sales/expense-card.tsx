@@ -1,5 +1,3 @@
-import * as React from "react";
-
 import { ArrowDownIcon } from "lucide-react";
 import { Card, CardDescription, CardHeader } from "@/components/ui/card";
 

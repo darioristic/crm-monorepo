@@ -26,4 +26,3 @@ export interface EmbeddingsResult {
   embeddings: number[][];
   model: string;
 }
-

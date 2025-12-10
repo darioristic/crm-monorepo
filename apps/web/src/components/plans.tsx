@@ -5,13 +5,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { useUserQuery } from "@/hooks/use-user";
 import { logger } from "@/lib/logger";
 import { cn } from "@/lib/utils";
 
 export function Plans() {
   const [isSubmitting, setIsSubmitting] = useState(0);
-  const { data: user } = useUserQuery();
 
   const handleCheckout = async (plan: "starter" | "pro") => {
     try {

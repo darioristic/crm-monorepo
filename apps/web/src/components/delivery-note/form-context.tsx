@@ -1,10 +1,9 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect } from "react";
-import type { Resolver } from "react-hook-form";
-import { FormProvider, useForm } from "react-hook-form";
+import { FormProvider } from "react-hook-form";
 import { z } from "zod";
+import { useZodForm } from "@/hooks/use-zod-form";
 import type {
   DeliveryNoteDefaultSettings,
   DeliveryNoteFormValues,
@@ -84,8 +83,7 @@ type FormContextProps = {
 };
 
 export function FormContext({ children, data, defaultSettings }: FormContextProps) {
-  const form = useForm<FormValues>({
-    resolver: zodResolver(deliveryNoteFormSchema) as Resolver<FormValues>,
+  const form = useZodForm(deliveryNoteFormSchema, {
     defaultValues: getDefaultValues(),
     mode: "onChange",
   });

@@ -1,8 +1,8 @@
 "use client";
 
-import { calculateTotal, formatInvoiceAmount } from "@/utils/invoice-calculate";
 import { useCallback, useEffect } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
+import { calculateTotal, formatInvoiceAmount } from "@/utils/invoice-calculate";
 
 export function Summary() {
   const { control, setValue } = useFormContext();
@@ -93,9 +93,7 @@ export function Summary() {
     <div className="w-[320px] flex flex-col">
       {/* Amount before discount */}
       <div className="flex justify-between items-center py-1">
-        <span className="text-[11px] text-[#878787]">
-          Amount before discount:
-        </span>
+        <span className="text-[11px] text-[#878787]">Amount before discount:</span>
         <span className="text-right text-[11px] text-[#878787] font-mono">
           {formatInvoiceAmount({
             amount: grossTotal,
@@ -135,9 +133,7 @@ export function Summary() {
 
       {/* VAT Amount */}
       <div className="flex justify-between items-center py-1">
-        <span className="text-[11px] text-[#878787]">
-          VAT Amount ({vatRate || 20}%):
-        </span>
+        <span className="text-[11px] text-[#878787]">VAT Amount ({vatRate || 20}%):</span>
         <span className="text-right text-[11px] text-[#878787] font-mono">
           {formatInvoiceAmount({
             amount: totalVAT,

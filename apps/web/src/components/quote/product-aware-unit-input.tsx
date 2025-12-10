@@ -1,16 +1,11 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { productsApi } from "@/lib/api";
-import { useState } from "react";
-import {
-  useFormContext,
-  useWatch,
-  type FieldPath,
-  type FieldValues,
-} from "react-hook-form";
-import type { FormValues } from "./form-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { type FieldPath, type FieldValues, useFormContext, useWatch } from "react-hook-form";
+import { productsApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import type { FormValues } from "./form-context";
 
 // Same query key as ProductAutocomplete
 const PRODUCTS_QUERY_KEY = ["quote-products"];

@@ -67,8 +67,11 @@ export default function ProvisionPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Tenant Name</label>
+          <label htmlFor="tenantName" className="block text-sm font-medium mb-1">
+            Tenant Name
+          </label>
           <input
+            id="tenantName"
             type="text"
             required
             value={formData.name}
@@ -78,8 +81,11 @@ export default function ProvisionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Tenant Slug</label>
+          <label htmlFor="tenantSlug" className="block text-sm font-medium mb-1">
+            Tenant Slug
+          </label>
           <input
+            id="tenantSlug"
             type="text"
             required
             value={formData.slug}
@@ -89,8 +95,11 @@ export default function ProvisionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Admin First Name</label>
+          <label htmlFor="adminFirstName" className="block text-sm font-medium mb-1">
+            Admin First Name
+          </label>
           <input
+            id="adminFirstName"
             type="text"
             required
             value={formData.adminFirstName}
@@ -100,8 +109,11 @@ export default function ProvisionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Admin Last Name</label>
+          <label htmlFor="adminLastName" className="block text-sm font-medium mb-1">
+            Admin Last Name
+          </label>
           <input
+            id="adminLastName"
             type="text"
             required
             value={formData.adminLastName}
@@ -111,8 +123,11 @@ export default function ProvisionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Admin Email</label>
+          <label htmlFor="adminEmail" className="block text-sm font-medium mb-1">
+            Admin Email
+          </label>
           <input
+            id="adminEmail"
             type="email"
             required
             value={formData.adminEmail}
@@ -122,8 +137,11 @@ export default function ProvisionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Admin Password</label>
+          <label htmlFor="adminPassword" className="block text-sm font-medium mb-1">
+            Admin Password
+          </label>
           <input
+            id="adminPassword"
             type="password"
             required
             value={formData.adminPassword}
@@ -133,8 +151,11 @@ export default function ProvisionPage() {
         </div>
 
         <div>
-          <label className="block text-sm font-medium mb-1">Confirm Password</label>
+          <label htmlFor="adminConfirmPassword" className="block text-sm font-medium mb-1">
+            Confirm Password
+          </label>
           <input
+            id="adminConfirmPassword"
             type="password"
             required
             value={formData.adminConfirmPassword}

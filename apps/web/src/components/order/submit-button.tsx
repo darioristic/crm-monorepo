@@ -1,7 +1,7 @@
 "use client";
 
+import { Calendar, ChevronDown, Loader2, Plus, Save, Send } from "lucide-react";
 import { useFormContext, useWatch } from "react-hook-form";
-import { Loader2, ChevronDown, Send, Calendar, Plus, Save } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -38,51 +38,54 @@ export function SubmitButton({ isSubmitting, disabled, isEditMode }: SubmitButto
 
   return (
     <div className="flex items-center">
-        <Button
-          type="submit"
-          size="sm"
-          disabled={disabled || isSubmitting}
-          className="rounded-r-none"
-        >
-          {isSubmitting ? (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-          ) : (
-            <Icon className="h-4 w-4 mr-2" />
-          )}
-          {currentOption.label}
-        </Button>
+      <Button
+        type="submit"
+        size="sm"
+        disabled={disabled || isSubmitting}
+        className="rounded-r-none"
+      >
+        {isSubmitting ? (
+          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+        ) : (
+          <Icon className="h-4 w-4 mr-2" />
+        )}
+        {currentOption.label}
+      </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              disabled={disabled}
-              className="rounded-l-none border-l border-l-white/20 px-2"
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {options.map((option) => {
-              const ItemIcon = option.icon;
-              return (
-                <DropdownMenuItem
-                  key={option.value}
-                  onClick={() =>
-                    setValue("template.deliveryType", option.value as any, {
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            disabled={disabled}
+            className="rounded-l-none border-l border-l-white/20 px-2"
+          >
+            <ChevronDown className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          {options.map((option) => {
+            const ItemIcon = option.icon;
+            return (
+              <DropdownMenuItem
+                key={option.value}
+                onClick={() =>
+                  setValue(
+                    "template.deliveryType",
+                    option.value as FormValues["template"]["deliveryType"],
+                    {
                       shouldDirty: true,
-                    })
-                  }
-                >
-                  <ItemIcon className="h-4 w-4 mr-2" />
-                  {option.label}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+                    }
+                  )
+                }
+              >
+                <ItemIcon className="h-4 w-4 mr-2" />
+                {option.label}
+              </DropdownMenuItem>
+            );
+          })}
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   );
 }
-

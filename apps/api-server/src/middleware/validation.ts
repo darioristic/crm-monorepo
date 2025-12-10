@@ -122,10 +122,7 @@ export async function validateBody<T>(
 /**
  * Validira query parametre iz URL-a
  */
-export function validateQuery<T>(
-  url: URL,
-  schema: z.ZodType<T>
-): ValidationMiddlewareResult<T> {
+export function validateQuery<T>(url: URL, schema: z.ZodType<T>): ValidationMiddlewareResult<T> {
   try {
     // Konvertuj URLSearchParams u objekat
     const queryParams: Record<string, string | string[]> = {};
@@ -226,9 +223,7 @@ export function validateParams<T>(
 /**
  * Validira UUID parametar
  */
-export function validateUuidParam(
-  id: string | undefined
-): ValidationMiddlewareResult<string> {
+export function validateUuidParam(id: string | undefined): ValidationMiddlewareResult<string> {
   if (!id) {
     return {
       success: false,
@@ -261,7 +256,12 @@ export function validateUuidParam(
 // Pagination & Filter Validation
 // ============================================
 
-import { paginationSchema, filterSchema, type PaginationInput, type FilterInput } from "../validators";
+import {
+  type FilterInput,
+  filterSchema,
+  type PaginationInput,
+  paginationSchema,
+} from "../validators";
 
 /**
  * Validira i parsira pagination parametre iz URL query-ja
@@ -336,7 +336,12 @@ export function withValidation<TBody, TQuery, TParams>(options: {
     params: Record<string, string>
   ): Promise<
     | { success: false; error: Response }
-    | { success: true; body: TBody | undefined; query: TQuery | undefined; params: TParams | undefined }
+    | {
+        success: true;
+        body: TBody | undefined;
+        query: TQuery | undefined;
+        params: TParams | undefined;
+      }
   > => {
     // Validate body if schema provided
     let body: TBody | undefined;

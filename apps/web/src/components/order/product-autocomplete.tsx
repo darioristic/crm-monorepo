@@ -1,14 +1,14 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { productsApi } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
-import type { FormValues } from "./form-context";
-import { formatOrderAmount } from "@/utils/order-calculate";
-import { useProductEdit } from "./product-edit-context";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/auth-context";
+import { productsApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import { formatOrderAmount } from "@/utils/order-calculate";
+import type { FormValues } from "./form-context";
+import { useProductEdit } from "./product-edit-context";
 
 type Product = {
   id: string;
@@ -73,10 +73,7 @@ export function ProductAutocomplete({
         return response.data.map((p) => ({
           id: p.id,
           name: p.name,
-          price:
-            typeof p.unitPrice === "string"
-              ? parseFloat(p.unitPrice)
-              : p.unitPrice,
+          price: typeof p.unitPrice === "string" ? parseFloat(p.unitPrice) : p.unitPrice,
           unit: p.unit ?? undefined,
           currency: p.currency || currency || "EUR",
           description: p.description ?? undefined,
@@ -135,9 +132,7 @@ export function ProductAutocomplete({
   // Filter products based on input
   const filteredProducts =
     value.trim().length >= 1
-      ? products.filter((product) =>
-          product.name.toLowerCase().includes(value.toLowerCase())
-        )
+      ? products.filter((product) => product.name.toLowerCase().includes(value.toLowerCase()))
       : products.slice(0, 10);
 
   const handleInputChange = useCallback(
@@ -217,23 +212,13 @@ export function ProductAutocomplete({
     if (hasValidContent || needsToClearProductId) {
       saveProductMutation.mutate({
         name: trimmedValue,
-        price:
-          currentPrice !== undefined && currentPrice !== 0
-            ? currentPrice
-            : null,
+        price: currentPrice !== undefined && currentPrice !== 0 ? currentPrice : null,
         unit: currentUnit || null,
         productId: currentProductId || undefined,
         currency: currency || "EUR",
       });
     }
-  }, [
-    value,
-    currentPrice,
-    currentUnit,
-    currentProductId,
-    currency,
-    saveProductMutation,
-  ]);
+  }, [value, currentPrice, currentUnit, currentProductId, currency, saveProductMutation]);
 
   // Reset selection when filtered products change
   const prevProductsLengthRef = useRef(filteredProducts.length);
@@ -247,10 +232,7 @@ export function ProductAutocomplete({
   // Close suggestions when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        containerRef.current &&
-        !containerRef.current.contains(event.target as Node)
-      ) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
         setSelectedIndex(-1);
       }
@@ -258,8 +240,7 @@ export function ProductAutocomplete({
 
     if (showSuggestions) {
       document.addEventListener("mousedown", handleClickOutside);
-      return () =>
-        document.removeEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [showSuggestions]);
 
@@ -272,12 +253,7 @@ export function ProductAutocomplete({
             e.preventDefault();
             e.stopPropagation();
             setSelectedIndex((prev) => {
-              const newIndex =
-                prev === -1
-                  ? 0
-                  : prev < filteredProducts.length - 1
-                  ? prev + 1
-                  : 0;
+              const newIndex = prev === -1 ? 0 : prev < filteredProducts.length - 1 ? prev + 1 : 0;
               return newIndex;
             });
             return;
@@ -289,8 +265,8 @@ export function ProductAutocomplete({
                 prev === -1
                   ? filteredProducts.length - 1
                   : prev > 0
-                  ? prev - 1
-                  : filteredProducts.length - 1;
+                    ? prev - 1
+                    : filteredProducts.length - 1;
               return newIndex;
             });
             return;
@@ -355,9 +331,7 @@ export function ProductAutocomplete({
       {showSuggestions && !currentProductId && (
         <div className="absolute z-50 mt-1 bg-background border shadow-md max-h-64 overflow-y-auto right-0 left-0">
           {isLoading ? (
-            <div className="px-3 py-2 text-xs text-muted-foreground">
-              Loading products...
-            </div>
+            <div className="px-3 py-2 text-xs text-muted-foreground">Loading products...</div>
           ) : filteredProducts.length > 0 ? (
             filteredProducts.map((product, suggestionIndex) => {
               const isSelected = selectedIndex === suggestionIndex;
@@ -370,8 +344,7 @@ export function ProductAutocomplete({
                   tabIndex={0}
                   className={cn(
                     "w-full px-3 py-2 transition-colors flex items-center justify-between cursor-pointer",
-                    (isSelected || isHovered) &&
-                      "bg-accent text-accent-foreground"
+                    (isSelected || isHovered) && "bg-accent text-accent-foreground"
                   )}
                   onMouseEnter={() => {
                     setSelectedIndex(suggestionIndex);
@@ -379,9 +352,7 @@ export function ProductAutocomplete({
                   }}
                   onMouseLeave={() => setHoveredIndex(-1)}
                   onMouseDown={(e) => {
-                    if (
-                      (e.target as HTMLElement).closest("[data-edit-button]")
-                    ) {
+                    if ((e.target as HTMLElement).closest("[data-edit-button]")) {
                       return;
                     }
                     e.preventDefault();

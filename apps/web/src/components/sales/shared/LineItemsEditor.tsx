@@ -1,9 +1,11 @@
 "use client";
 
+import { Plus, Trash2 } from "lucide-react";
 import { useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -11,9 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
-import { Label } from "@/components/ui/label";
 
 export interface PricingLineItem {
   productName: string;
@@ -119,7 +119,7 @@ export function LineItemsEditor<T extends LineItem>({
       </div>
 
       {items.map((item, index) => (
-        <Card key={index} className="p-4">
+        <Card key={JSON.stringify(item)} className="p-4">
           <div className="grid gap-4 sm:grid-cols-12">
             {/* Product Name */}
             <div className={showPricing ? "sm:col-span-4" : "sm:col-span-5"}>
@@ -143,7 +143,9 @@ export function LineItemsEditor<T extends LineItem>({
                 type="number"
                 min="1"
                 value={item.quantity}
-                onChange={(e) => handleItemChange(index, "quantity" as keyof T, Number(e.target.value))}
+                onChange={(e) =>
+                  handleItemChange(index, "quantity" as keyof T, Number(e.target.value))
+                }
                 disabled={disabled}
                 className={errors[index]?.quantity ? "border-destructive" : ""}
               />
@@ -161,7 +163,9 @@ export function LineItemsEditor<T extends LineItem>({
                   min="0"
                   step="0.01"
                   value={item.unitPrice}
-                  onChange={(e) => handleItemChange(index, "unitPrice" as keyof T, Number(e.target.value))}
+                  onChange={(e) =>
+                    handleItemChange(index, "unitPrice" as keyof T, Number(e.target.value))
+                  }
                   disabled={disabled}
                   className={errors[index]?.unitPrice ? "border-destructive" : ""}
                 />
@@ -180,7 +184,9 @@ export function LineItemsEditor<T extends LineItem>({
                   min="0"
                   max="100"
                   value={item.discount}
-                  onChange={(e) => handleItemChange(index, "discount" as keyof T, Number(e.target.value))}
+                  onChange={(e) =>
+                    handleItemChange(index, "discount" as keyof T, Number(e.target.value))
+                  }
                   disabled={disabled}
                 />
               </div>
@@ -256,4 +262,3 @@ export function LineItemsEditor<T extends LineItem>({
     </div>
   );
 }
-

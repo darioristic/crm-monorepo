@@ -1,27 +1,12 @@
+import { Award, Briefcase, Calendar, Mail, MapPin, Phone, Settings } from "lucide-react";
 import Link from "next/link";
-import {
-  Settings,
-  Mail,
-  Phone,
-  MapPin,
-  Calendar,
-  Briefcase,
-  Award,
-} from "lucide-react";
-import { generateMeta } from "@/lib/utils";
-
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { generateMeta } from "@/lib/utils";
 
 export async function generateMetadata() {
   return generateMeta({
@@ -76,9 +61,7 @@ export default function Page() {
   return (
     <div className="space-y-4">
       <div className="flex flex-row items-center justify-between">
-        <h1 className="text-xl font-bold tracking-tight lg:text-2xl">
-          Profile Page
-        </h1>
+        <h1 className="text-xl font-bold tracking-tight lg:text-2xl">Profile Page</h1>
         <div className="flex items-center space-x-2">
           <Button asChild>
             <Link href="/dashboard/settings">
@@ -139,21 +122,14 @@ export default function Page() {
             <Card className="xl:col-span-2">
               <CardHeader>
                 <CardTitle>Performance Stats</CardTitle>
-                <CardDescription>
-                  Your performance metrics this year
-                </CardDescription>
+                <CardDescription>Your performance metrics this year</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                   {stats.map((stat) => (
-                    <div
-                      key={stat.label}
-                      className="rounded-lg border p-4 text-center"
-                    >
+                    <div key={stat.label} className="rounded-lg border p-4 text-center">
                       <div className="text-2xl font-bold">{stat.value}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {stat.label}
-                      </div>
+                      <div className="text-sm text-muted-foreground">{stat.label}</div>
                     </div>
                   ))}
                 </div>
@@ -170,9 +146,9 @@ export default function Page() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {activities.map((activity, i) => (
+                {activities.map((activity) => (
                   <div
-                    key={i}
+                    key={`${activity.type}-${activity.action}`}
                     className="flex items-center gap-4 rounded-lg border p-4"
                   >
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
@@ -180,9 +156,7 @@ export default function Page() {
                     </div>
                     <div className="flex-1">
                       <p className="font-medium">{activity.action}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {activity.time}
-                      </p>
+                      <p className="text-sm text-muted-foreground">{activity.time}</p>
                     </div>
                     <Badge variant="outline">{activity.type}</Badge>
                   </div>
@@ -204,9 +178,7 @@ export default function Page() {
                   <div key={skill.name} className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{skill.name}</span>
-                      <span className="text-muted-foreground">
-                        {skill.level}%
-                      </span>
+                      <span className="text-muted-foreground">{skill.level}%</span>
                     </div>
                     <Progress value={skill.level} className="h-2" />
                   </div>

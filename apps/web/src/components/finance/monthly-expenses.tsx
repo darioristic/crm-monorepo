@@ -2,7 +2,7 @@
 
 import { TrendingUpIcon } from "lucide-react";
 import { Bar, BarChart, XAxis } from "recharts";
-
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardAction,
@@ -10,14 +10,13 @@ import {
   CardDescription,
   CardFooter,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
-  ChartConfig,
+  type ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent
+  ChartTooltipContent,
 } from "@/components/ui/chart";
 
 const chartData = [
@@ -26,14 +25,14 @@ const chartData = [
   { month: "March", expenses: 120 },
   { month: "April", expenses: 190 },
   { month: "May", expenses: 130 },
-  { month: "June", expenses: 140 }
+  { month: "June", expenses: 140 },
 ];
 
 const chartConfig = {
   expenses: {
     label: "Expenses",
-    color: "var(--chart-1)"
-  }
+    color: "var(--chart-1)",
+  },
 } satisfies ChartConfig;
 
 export default function MonthlyExpenses() {

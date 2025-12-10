@@ -1,10 +1,10 @@
-import { describe, it, expect } from 'vitest';
-import { hashPassword, verifyPassword } from '../../services/auth.service';
+import { describe, expect, it } from "vitest";
+import { hashPassword, verifyPassword } from "../../services/auth.service";
 
-describe('Auth Service - Password Hashing', () => {
-  describe('hashPassword', () => {
-    it('should hash a password successfully', async () => {
-      const password = 'testPassword123!';
+describe("Auth Service - Password Hashing", () => {
+  describe("hashPassword", () => {
+    it("should hash a password successfully", async () => {
+      const password = "testPassword123!";
       const hash = await hashPassword(password);
 
       expect(hash).toBeDefined();
@@ -12,30 +12,30 @@ describe('Auth Service - Password Hashing', () => {
       expect(hash.length).toBeGreaterThan(0);
     });
 
-    it('should create different hashes for the same password', async () => {
-      const password = 'testPassword123!';
+    it("should create different hashes for the same password", async () => {
+      const password = "testPassword123!";
       const hash1 = await hashPassword(password);
       const hash2 = await hashPassword(password);
 
       expect(hash1).not.toBe(hash2);
     });
 
-    it('should reject empty string (Bun security)', async () => {
-      const password = '';
+    it("should reject empty string (Bun security)", async () => {
+      const password = "";
       // Bun.password.hash throws error for empty passwords
       await expect(hashPassword(password)).rejects.toThrow();
     });
 
-    it('should hash long passwords', async () => {
-      const password = 'a'.repeat(100);
+    it("should hash long passwords", async () => {
+      const password = "a".repeat(100);
       const hash = await hashPassword(password);
 
       expect(hash).toBeDefined();
       expect(hash.length).toBeGreaterThan(0);
     });
 
-    it('should hash passwords with special characters', async () => {
-      const password = 'P@$$w0rd!#$%^&*()';
+    it("should hash passwords with special characters", async () => {
+      const password = "P@$$w0rd!#$%^&*()";
       const hash = await hashPassword(password);
 
       expect(hash).toBeDefined();
@@ -43,42 +43,42 @@ describe('Auth Service - Password Hashing', () => {
     });
   });
 
-  describe('verifyPassword', () => {
-    it('should verify correct password', async () => {
-      const password = 'testPassword123!';
+  describe("verifyPassword", () => {
+    it("should verify correct password", async () => {
+      const password = "testPassword123!";
       const hash = await hashPassword(password);
       const isValid = await verifyPassword(password, hash);
 
       expect(isValid).toBe(true);
     });
 
-    it('should reject incorrect password', async () => {
-      const password = 'testPassword123!';
-      const wrongPassword = 'wrongPassword123!';
+    it("should reject incorrect password", async () => {
+      const password = "testPassword123!";
+      const wrongPassword = "wrongPassword123!";
       const hash = await hashPassword(password);
       const isValid = await verifyPassword(wrongPassword, hash);
 
       expect(isValid).toBe(false);
     });
 
-    it('should reject empty password against hash', async () => {
-      const password = 'testPassword123!';
+    it("should reject empty password against hash", async () => {
+      const password = "testPassword123!";
       const hash = await hashPassword(password);
-      const isValid = await verifyPassword('', hash);
+      const isValid = await verifyPassword("", hash);
 
       expect(isValid).toBe(false);
     });
 
-    it('should be case sensitive', async () => {
-      const password = 'TestPassword123!';
+    it("should be case sensitive", async () => {
+      const password = "TestPassword123!";
       const hash = await hashPassword(password);
-      const isValid = await verifyPassword('testpassword123!', hash);
+      const isValid = await verifyPassword("testpassword123!", hash);
 
       expect(isValid).toBe(false);
     });
 
-    it('should handle unicode characters', async () => {
-      const password = 'Тест123!';
+    it("should handle unicode characters", async () => {
+      const password = "Тест123!";
       const hash = await hashPassword(password);
       const isValid = await verifyPassword(password, hash);
 
@@ -86,27 +86,27 @@ describe('Auth Service - Password Hashing', () => {
     });
   });
 
-  describe('Password Security', () => {
-    it('should use bcrypt algorithm', async () => {
-      const password = 'testPassword123!';
+  describe("Password Security", () => {
+    it("should use bcrypt algorithm", async () => {
+      const password = "testPassword123!";
       const hash = await hashPassword(password);
 
       // Bcrypt hashes start with $2a$, $2b$, or $2y$
       expect(hash).toMatch(/^\$2[aby]\$/);
     });
 
-    it('should use cost factor of 12', async () => {
-      const password = 'testPassword123!';
+    it("should use cost factor of 12", async () => {
+      const password = "testPassword123!";
       const hash = await hashPassword(password);
 
       // Extract cost from bcrypt hash (format: $2b$12$...)
       const costMatch = hash.match(/^\$2[aby]\$(\d+)\$/);
       expect(costMatch).toBeTruthy();
-      expect(costMatch?.[1]).toBe('12');
+      expect(costMatch?.[1]).toBe("12");
     });
 
-    it('should take reasonable time to hash (security vs performance)', async () => {
-      const password = 'testPassword123!';
+    it("should take reasonable time to hash (security vs performance)", async () => {
+      const password = "testPassword123!";
       const startTime = performance.now();
       await hashPassword(password);
       const endTime = performance.now();
@@ -119,11 +119,11 @@ describe('Auth Service - Password Hashing', () => {
   });
 });
 
-describe('Auth Service - JWT Token Management', () => {
+describe("Auth Service - JWT Token Management", () => {
   // Note: JWT implementation uses Web Crypto API which needs to be tested carefully
   // These tests would require mocking or actual JWT generation/verification
 
-  it('should be tested with JWT mocks', () => {
+  it("should be tested with JWT mocks", () => {
     // Placeholder for JWT tests
     // Full implementation would test:
     // - Token generation
@@ -134,10 +134,10 @@ describe('Auth Service - JWT Token Management', () => {
   });
 });
 
-describe('Auth Service - Session Management', () => {
+describe("Auth Service - Session Management", () => {
   // Note: Session tests would require Redis mocks
 
-  it('should be tested with Redis mocks', () => {
+  it("should be tested with Redis mocks", () => {
     // Placeholder for session tests
     // Full implementation would test:
     // - Session creation

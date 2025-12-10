@@ -1,26 +1,26 @@
 import type {
-  User,
-  UserWithCompany,
-  CreateUserRequest,
-  UpdateUserRequest,
   ApiResponse,
-  PaginationParams,
+  CreateUserRequest,
   FilterParams,
+  PaginationParams,
+  UpdateUserRequest,
+  User,
   UserRole,
+  UserWithCompany,
 } from "@crm/types";
 import {
-  successResponse,
+  Errors,
   errorResponse,
-  paginatedResponse,
   generateUUID,
-  now,
   isEmpty,
   isValidEmail,
-  Errors,
+  now,
+  paginatedResponse,
+  successResponse,
 } from "@crm/utils";
-import { userQueries } from "../db/queries/users";
-import { companyQueries } from "../db/queries/companies";
 import { cache } from "../cache/redis";
+import { companyQueries } from "../db/queries/companies";
+import { userQueries } from "../db/queries/users";
 import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300; // 5 minutes
@@ -190,7 +190,7 @@ class UsersService {
       // Invalidate caches
       await cache.del(`${CACHE_PREFIX}:${id}`);
       await cache.invalidatePattern(`${CACHE_PREFIX}:list:*`);
-      
+
       // If companyId was updated, also invalidate company-related caches
       if (data.companyId !== undefined) {
         await cache.del(`user:${id}:company`);
@@ -203,7 +203,10 @@ class UsersService {
       return successResponse(updated);
     } catch (error) {
       serviceLogger.error(error, "Error updating user");
-      return errorResponse("DATABASE_ERROR", `Failed to update user: ${error instanceof Error ? error.message : "Unknown error"}`);
+      return errorResponse(
+        "DATABASE_ERROR",
+        `Failed to update user: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
     }
   }
 

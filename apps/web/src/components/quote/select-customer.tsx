@@ -23,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
+import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
@@ -194,18 +195,24 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
                 onValueChange={(v) => handleFilterChange(v as any)}
                 className="grid grid-cols-3 gap-2"
               >
-                <label className="flex items-center gap-2 text-[11px]">
-                  <RadioGroupItem value="all" />
-                  All
-                </label>
-                <label className="flex items-center gap-2 text-[11px]">
-                  <RadioGroupItem value="organization" />
-                  Organizations
-                </label>
-                <label className="flex items-center gap-2 text-[11px]">
-                  <RadioGroupItem value="individual" />
-                  Individuals
-                </label>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <RadioGroupItem id="filter-all" value="all" />
+                  <Label htmlFor="filter-all" className="text-[11px]">
+                    All
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <RadioGroupItem id="filter-organization" value="organization" />
+                  <Label htmlFor="filter-organization" className="text-[11px]">
+                    Organizations
+                  </Label>
+                </div>
+                <div className="flex items-center gap-2 text-[11px]">
+                  <RadioGroupItem id="filter-individual" value="individual" />
+                  <Label htmlFor="filter-individual" className="text-[11px]">
+                    Individuals
+                  </Label>
+                </div>
               </RadioGroup>
             </div>
             <CommandList className="max-h-[200px] overflow-auto">

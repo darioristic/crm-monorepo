@@ -380,7 +380,10 @@ async function seedQuotes(
       const created = await quoteQueries.create({ ...quote, quoteNumber: generatedNumber }, items);
       ids.push(created.id);
     } catch (error) {
-      logger.error(`  ❌ Failed to create quote ${quote.quoteNumber}:`, error);
+      logger.error(
+        { error, quoteNumber: quote.quoteNumber },
+        `  ❌ Failed to create quote ${quote.quoteNumber}`
+      );
     }
   }
   return ids;
@@ -404,7 +407,10 @@ async function seedInvoices(
       );
       ids.push(created.id);
     } catch (error) {
-      logger.error(`  ❌ Failed to create invoice ${invoice.invoiceNumber}:`, error);
+      logger.error(
+        { error, invoiceNumber: invoice.invoiceNumber },
+        `  ❌ Failed to create invoice ${invoice.invoiceNumber}`
+      );
     }
   }
   return ids;
@@ -432,10 +438,16 @@ async function seedOrders(
       if (result.success && result.data) {
         ids.push(result.data.id);
       } else {
-        logger.error(`  ❌ Failed to create order ${order.orderNumber}: ${result.error?.message}`);
+        logger.error(
+          { error: result.error?.message, orderNumber: order.orderNumber },
+          `  ❌ Failed to create order ${order.orderNumber}`
+        );
       }
     } catch (error) {
-      logger.error(`  ❌ Failed to create order ${order.orderNumber}:`, error);
+      logger.error(
+        { error, orderNumber: order.orderNumber },
+        `  ❌ Failed to create order ${order.orderNumber}`
+      );
     }
   }
   return ids;
@@ -453,7 +465,10 @@ async function seedDeliveryNotes(
     try {
       await deliveryNoteQueries.create(note, items);
     } catch (error) {
-      logger.error(`  ❌ Failed to create delivery note ${note.deliveryNumber}:`, error);
+      logger.error(
+        { error, deliveryNumber: note.deliveryNumber },
+        `  ❌ Failed to create delivery note ${note.deliveryNumber}`
+      );
     }
   }
 }
@@ -512,7 +527,7 @@ async function main() {
 
     logger.info("\n✨ Seeding completed successfully!");
   } catch (error) {
-    logger.error("\n❌ Fatal error:", error);
+    logger.error({ error }, "\n❌ Fatal error");
     process.exit(1);
   } finally {
     await db.end();

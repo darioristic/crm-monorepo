@@ -2,17 +2,17 @@
  * Projects Routes - Projects, Milestones, Tasks
  */
 
+import type {
+  CreateMilestoneRequest,
+  CreateProjectRequest,
+  CreateTaskRequest,
+  UpdateMilestoneRequest,
+  UpdateProjectRequest,
+  UpdateTaskRequest,
+} from "@crm/types";
 import { errorResponse } from "@crm/utils";
 import { projectsService } from "../services/projects.service";
-import { RouteBuilder, withAuth, parseBody, parsePagination, parseFilters } from "./helpers";
-import type {
-  CreateProjectRequest,
-  UpdateProjectRequest,
-  CreateTaskRequest,
-  UpdateTaskRequest,
-  CreateMilestoneRequest,
-  UpdateMilestoneRequest,
-} from "@crm/types";
+import { parseBody, parseFilters, parsePagination, RouteBuilder, withAuth } from "./helpers";
 
 const router = new RouteBuilder();
 

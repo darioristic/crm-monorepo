@@ -1,10 +1,10 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { CheckCircle, Copy, ExternalLink, Download } from "lucide-react";
+import { CheckCircle, Copy, Download, ExternalLink } from "lucide-react";
 import { useFormContext } from "react-hook-form";
-import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 
 type Props = {
   onClose?: () => void;
@@ -51,11 +51,7 @@ export function InvoiceSuccess({ onClose }: Props) {
           </div>
 
           <div className="flex gap-3">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleCopyLink}
-            >
+            <Button variant="outline" className="flex-1" onClick={handleCopyLink}>
               <Copy className="mr-2 h-4 w-4" />
               Copy Link
             </Button>
@@ -67,11 +63,7 @@ export function InvoiceSuccess({ onClose }: Props) {
               <ExternalLink className="mr-2 h-4 w-4" />
               Open
             </Button>
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleDownload}
-            >
+            <Button variant="outline" className="flex-1" onClick={handleDownload}>
               <Download className="mr-2 h-4 w-4" />
               Download
             </Button>
@@ -85,4 +77,3 @@ export function InvoiceSuccess({ onClose }: Props) {
     </div>
   );
 }
-

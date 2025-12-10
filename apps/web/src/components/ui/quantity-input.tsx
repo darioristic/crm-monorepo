@@ -30,9 +30,7 @@ export function QuantityInput({
   const inputRef = React.useRef<HTMLInputElement>(null);
   const [rawValue, setRawValue] = React.useState(String(value));
 
-  const handleInput: React.ChangeEventHandler<HTMLInputElement> = ({
-    currentTarget: el,
-  }) => {
+  const handleInput: React.ChangeEventHandler<HTMLInputElement> = ({ currentTarget: el }) => {
     const input = el.value;
     setRawValue(input);
 
@@ -42,24 +40,18 @@ export function QuantityInput({
     }
   };
 
-  const handlePointerDown =
-    (diff: number) => (event: React.PointerEvent<HTMLButtonElement>) => {
-      if (event.pointerType === "mouse") {
-        event.preventDefault();
-        inputRef.current?.focus();
-      }
-      const newVal = Math.min(Math.max(value + diff, min), max);
-      onChange?.(newVal);
-      setRawValue(String(newVal));
-    };
+  const handlePointerDown = (diff: number) => (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType === "mouse") {
+      event.preventDefault();
+      inputRef.current?.focus();
+    }
+    const newVal = Math.min(Math.max(value + diff, min), max);
+    onChange?.(newVal);
+    setRawValue(String(newVal));
+  };
 
   return (
-    <div
-      className={cn(
-        "group flex items-stretch transition-[box-shadow] font-mono",
-        className,
-      )}
-    >
+    <div className={cn("group flex items-stretch transition-[box-shadow] font-mono", className)}>
       <button
         aria-label="Decrease"
         className="flex items-center pr-[.325em]"
@@ -68,11 +60,7 @@ export function QuantityInput({
         type="button"
         tabIndex={-1}
       >
-        <Minus
-          className="size-2"
-          absoluteStrokeWidth
-          strokeWidth={3.5}
-        />
+        <Minus className="size-2" absoluteStrokeWidth strokeWidth={3.5} />
       </button>
       <div className="relative grid items-center justify-items-center text-center">
         <input
@@ -100,13 +88,8 @@ export function QuantityInput({
         type="button"
         tabIndex={-1}
       >
-        <Plus
-          className="size-2"
-          absoluteStrokeWidth
-          strokeWidth={3.5}
-        />
+        <Plus className="size-2" absoluteStrokeWidth strokeWidth={3.5} />
       </button>
     </div>
   );
 }
-

@@ -2,13 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import {
-  type FieldPath,
-  type FieldValues,
-  useController,
-  useFormContext,
-  useWatch,
-} from "react-hook-form";
+import { type FieldPath, useController, useFormContext, useWatch } from "react-hook-form";
 import { NumericFormat } from "react-number-format";
 import { productsApi } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -17,26 +11,22 @@ import type { FormValues } from "./form-context";
 // Same query key as ProductAutocomplete
 const PRODUCTS_QUERY_KEY = ["invoice-products"];
 
-type Props<T extends FieldValues> = {
-  name: FieldPath<T>;
+type Props = {
+  name: FieldPath<FormValues>;
   lineItemIndex: number;
   className?: string;
 };
 
-export function ProductAwareAmountInput<T extends FieldValues>({
-  name,
-  lineItemIndex,
-  className,
-}: Props<T>) {
+export function ProductAwareAmountInput({ name, lineItemIndex, className }: Props) {
   const [isFocused, setIsFocused] = useState(false);
   const { control, watch } = useFormContext<FormValues>();
   const queryClient = useQueryClient();
 
   const {
     field: { value, onChange, onBlur },
-  } = useController({
+  } = useController<FormValues>({
     name,
-    control: control as any,
+    control,
   });
 
   // Get current line item data for saving product

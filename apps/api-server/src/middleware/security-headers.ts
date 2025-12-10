@@ -96,7 +96,7 @@ export function applySecurityHeaders(response: Response, config?: SecurityHeader
   } catch (error) {
     // If there's an error applying security headers, return the original response
     // This prevents breaking the entire request
-    logger.error("Error applying security headers:", error);
+    logger.error({ error }, "Error applying security headers");
     return response;
   }
 }

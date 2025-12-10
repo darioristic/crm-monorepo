@@ -3,20 +3,24 @@
  * Quote → Invoice → Delivery Note flow
  */
 
-import type { ApiResponse, Quote, Invoice, DeliveryNote } from "@crm/types";
-import { successResponse, errorResponse } from "@crm/utils";
+import type { ApiResponse, DeliveryNote, Invoice, Quote } from "@crm/types";
+import { errorResponse, successResponse } from "@crm/utils";
+import { v4 as uuidv4 } from "uuid";
 import { sql } from "../db/client";
 import { runInTransaction } from "../db/transaction";
-import { emailService } from "./email.service";
 import { logger } from "../lib/logger";
-import { v4 as uuidv4 } from "uuid";
+import { emailService } from "./email.service";
 
 // ============================================
 // Types
 // ============================================
 
 export type WorkflowStatus = "pending" | "in_progress" | "completed" | "failed" | "cancelled";
-export type WorkflowType = "quote_to_invoice" | "invoice_to_delivery" | "full_sales_cycle" | "payment_reminder";
+export type WorkflowType =
+  | "quote_to_invoice"
+  | "invoice_to_delivery"
+  | "full_sales_cycle"
+  | "payment_reminder";
 
 export interface WorkflowStep {
   id: string;
@@ -67,7 +71,7 @@ export interface ConvertInvoiceOptions {
 async function generateInvoiceNumber(): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `INV-${year}-`;
-  
+
   // Get the last invoice number for this year
   const result = await sql`
     SELECT invoice_number FROM invoices 
@@ -75,7 +79,7 @@ async function generateInvoiceNumber(): Promise<string> {
     ORDER BY created_at DESC
     LIMIT 1
   `;
-  
+
   let nextNumber = 1;
   if (result.length > 0) {
     const lastNumber = result[0].invoice_number;
@@ -84,21 +88,21 @@ async function generateInvoiceNumber(): Promise<string> {
       nextNumber = numPart + 1;
     }
   }
-  
+
   return `${prefix}${String(nextNumber).padStart(4, "0")}`;
 }
 
 async function generateDeliveryNoteNumber(): Promise<string> {
   const year = new Date().getFullYear();
   const prefix = `DN-${year}-`;
-  
+
   const result = await sql`
     SELECT delivery_note_number FROM delivery_notes 
     WHERE delivery_note_number LIKE ${`${prefix}%`}
     ORDER BY created_at DESC
     LIMIT 1
   `;
-  
+
   let nextNumber = 1;
   if (result.length > 0) {
     const lastNumber = result[0].delivery_note_number;
@@ -107,7 +111,7 @@ async function generateDeliveryNoteNumber(): Promise<string> {
       nextNumber = numPart + 1;
     }
   }
-  
+
   return `${prefix}${String(nextNumber).padStart(4, "0")}`;
 }
 
@@ -124,7 +128,7 @@ class WorkflowService {
   ): Promise<ApiResponse<{ invoice: Invoice; workflow: WorkflowInstance }>> {
     const { quoteId, userId, sendEmail = false, invoiceOverrides = {} } = options;
     const workflowId = uuidv4();
-    
+
     const steps: WorkflowStep[] = [
       { id: "validate", name: "Validate Quote", status: "pending" },
       { id: "create_invoice", name: "Create Invoice", status: "pending" },
@@ -149,7 +153,7 @@ class WorkflowService {
       // Step 1: Validate Quote
       steps[0].status = "in_progress";
       steps[0].startedAt = new Date().toISOString();
-      
+
       const quoteData = await sql`
         SELECT * FROM quotes WHERE id = ${quoteId}
       `;
@@ -168,7 +172,10 @@ class WorkflowService {
         steps[0].status = "failed";
         steps[0].error = `Quote must be 'accepted' or 'sent' to convert. Current status: ${quote.status}`;
         workflow.status = "failed";
-        return errorResponse("VALIDATION_ERROR", `Quote must be 'accepted' or 'sent' to convert. Current status: ${quote.status}`);
+        return errorResponse(
+          "VALIDATION_ERROR",
+          `Quote must be 'accepted' or 'sent' to convert. Current status: ${quote.status}`
+        );
       }
 
       steps[0].status = "completed";
@@ -183,7 +190,7 @@ class WorkflowService {
         const invoiceNumber = await generateInvoiceNumber();
         const invoiceId = uuidv4();
         const issueDate = new Date();
-        const dueDate = invoiceOverrides.dueDate 
+        const dueDate = invoiceOverrides.dueDate
           ? new Date(invoiceOverrides.dueDate)
           : new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
 
@@ -195,7 +202,7 @@ class WorkflowService {
           ) VALUES (
             ${invoiceId}, ${quote.company_id}, ${quote.contact_id}, ${invoiceNumber},
             ${issueDate.toISOString()}, ${dueDate.toISOString()}, 
-            ${quote.subtotal}, ${quote.tax_rate || '0'}, ${quote.tax}, ${quote.total},
+            ${quote.subtotal}, ${quote.tax_rate || "0"}, ${quote.tax}, ${quote.total},
             'draft', ${invoiceOverrides.notes || quote.notes || null},
             ${invoiceOverrides.paymentTerms || quote.terms || null}, ${quoteId},
             ${userId}, NOW(), NOW()
@@ -266,7 +273,10 @@ class WorkflowService {
         } catch (emailError) {
           steps[4].status = "failed";
           steps[4].error = "Failed to send email";
-          logger.error({ error: emailError, invoiceId: result.invoiceId }, "Failed to send invoice email");
+          logger.error(
+            { error: emailError, invoiceId: result.invoiceId },
+            "Failed to send invoice email"
+          );
           // Don't fail the workflow for email failure
         }
       }
@@ -287,7 +297,10 @@ class WorkflowService {
         items: invoiceItems,
       } as unknown as Invoice;
 
-      logger.info({ quoteId, invoiceId: result.invoiceId, workflowId }, "Quote converted to invoice");
+      logger.info(
+        { quoteId, invoiceId: result.invoiceId, workflowId },
+        "Quote converted to invoice"
+      );
 
       return successResponse({ invoice: fullInvoice, workflow });
     } catch (error) {
@@ -377,7 +390,7 @@ class WorkflowService {
           ) VALUES (
             ${deliveryNoteId}, ${invoice.company_id}, ${invoice.contact_id}, ${invoiceId},
             ${deliveryNoteNumber},
-            ${shippingAddress || invoice.company_address || 'N/A'},
+            ${shippingAddress || invoice.company_address || "N/A"},
             'pending', ${deliveryNotes || null},
             ${userId}, NOW(), NOW()
           )
@@ -449,7 +462,10 @@ class WorkflowService {
         items: deliveryItems,
       } as unknown as DeliveryNote;
 
-      logger.info({ invoiceId, deliveryNoteId: result.deliveryNoteId, workflowId }, "Invoice converted to delivery note");
+      logger.info(
+        { invoiceId, deliveryNoteId: result.deliveryNoteId, workflowId },
+        "Invoice converted to delivery note"
+      );
 
       return successResponse({ deliveryNote: fullDeliveryNote, workflow });
     } catch (error) {
@@ -470,11 +486,13 @@ class WorkflowService {
       createDeliveryNote?: boolean;
       shippingAddress?: string;
     } = {}
-  ): Promise<ApiResponse<{
-    invoice?: Invoice;
-    deliveryNote?: DeliveryNote;
-    workflow: WorkflowInstance;
-  }>> {
+  ): Promise<
+    ApiResponse<{
+      invoice?: Invoice;
+      deliveryNote?: DeliveryNote;
+      workflow: WorkflowInstance;
+    }>
+  > {
     const workflowId = uuidv4();
     const { sendInvoiceEmail = false, createDeliveryNote = true, shippingAddress } = options;
 
@@ -488,7 +506,11 @@ class WorkflowService {
     });
 
     if (!invoiceResult.success) {
-      return invoiceResult as ApiResponse<{ invoice?: Invoice; deliveryNote?: DeliveryNote; workflow: WorkflowInstance }>;
+      return invoiceResult as ApiResponse<{
+        invoice?: Invoice;
+        deliveryNote?: DeliveryNote;
+        workflow: WorkflowInstance;
+      }>;
     }
 
     const { invoice } = invoiceResult.data!;
@@ -518,8 +540,18 @@ class WorkflowService {
       targetId: deliveryNote?.id || invoice.id,
       targetType: deliveryNote ? "delivery_note" : "invoice",
       steps: [
-        { id: "quote_to_invoice", name: "Convert Quote to Invoice", status: "completed", completedAt: new Date().toISOString() },
-        { id: "invoice_to_delivery", name: "Create Delivery Note", status: deliveryNote ? "completed" : (createDeliveryNote ? "failed" : "cancelled"), completedAt: deliveryNote ? new Date().toISOString() : undefined },
+        {
+          id: "quote_to_invoice",
+          name: "Convert Quote to Invoice",
+          status: "completed",
+          completedAt: new Date().toISOString(),
+        },
+        {
+          id: "invoice_to_delivery",
+          name: "Create Delivery Note",
+          status: deliveryNote ? "completed" : createDeliveryNote ? "failed" : "cancelled",
+          completedAt: deliveryNote ? new Date().toISOString() : undefined,
+        },
       ],
       createdBy: userId,
       createdAt: new Date().toISOString(),
@@ -527,7 +559,10 @@ class WorkflowService {
       completedAt: new Date().toISOString(),
     };
 
-    logger.info({ quoteId, invoiceId: invoice.id, deliveryNoteId: deliveryNote?.id, workflowId }, "Full sales cycle completed");
+    logger.info(
+      { quoteId, invoiceId: invoice.id, deliveryNoteId: deliveryNote?.id, workflowId },
+      "Full sales cycle completed"
+    );
 
     return successResponse({
       invoice,
@@ -542,13 +577,15 @@ class WorkflowService {
   async getWorkflowBySourceId(
     sourceId: string,
     sourceType: "quote" | "invoice"
-  ): Promise<ApiResponse<{ related: { invoiceId?: string; deliveryNoteId?: string; quoteId?: string } }>> {
+  ): Promise<
+    ApiResponse<{ related: { invoiceId?: string; deliveryNoteId?: string; quoteId?: string } }>
+  > {
     try {
       if (sourceType === "quote") {
         const quote = await sql`
           SELECT invoice_id FROM quotes WHERE id = ${sourceId}
         `;
-        
+
         if (quote.length === 0) {
           return errorResponse("NOT_FOUND", "Quote not found");
         }

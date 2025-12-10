@@ -1,14 +1,12 @@
 "use client";
 
-import { CalendarIcon } from "lucide-react";
 import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { useState } from "react";
+import type { DateRange } from "react-day-picker";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -17,9 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { DatePreset } from "./use-report-filters";
-import { useState } from "react";
-import type { DateRange } from "react-day-picker";
+import type { DatePreset } from "./use-report-filters";
 
 interface DateRangeFilterProps {
   from: string;
@@ -50,7 +46,7 @@ export function DateRangeFilter({
   className,
 }: DateRangeFilterProps) {
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
-  
+
   const dateRange: DateRange = {
     from: new Date(from),
     to: new Date(to),
@@ -98,8 +94,7 @@ export function DateRangeFilter({
             {dateRange?.from ? (
               dateRange.to ? (
                 <>
-                  {format(dateRange.from, "dd.MM.yyyy")} -{" "}
-                  {format(dateRange.to, "dd.MM.yyyy")}
+                  {format(dateRange.from, "dd.MM.yyyy")} - {format(dateRange.to, "dd.MM.yyyy")}
                 </>
               ) : (
                 format(dateRange.from, "dd.MM.yyyy")
@@ -123,4 +118,3 @@ export function DateRangeFilter({
     </div>
   );
 }
-

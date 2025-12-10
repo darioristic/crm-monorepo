@@ -18,13 +18,13 @@ export async function softDelete(
   deletedBy?: string
 ): Promise<boolean> {
   const now = new Date().toISOString();
-  
+
   const result = await sql`
     UPDATE ${sql(table)}
     SET deleted_at = ${now}, deleted_by = ${deletedBy || null}
     WHERE id = ${id} AND deleted_at IS NULL
   `;
-  
+
   return result.count > 0;
 }
 
@@ -33,16 +33,13 @@ export async function softDelete(
  * @param table Table name
  * @param id Record ID
  */
-export async function restore(
-  table: SoftDeletableTable,
-  id: string
-): Promise<boolean> {
+export async function restore(table: SoftDeletableTable, id: string): Promise<boolean> {
   const result = await sql`
     UPDATE ${sql(table)}
     SET deleted_at = NULL, deleted_by = NULL
     WHERE id = ${id} AND deleted_at IS NOT NULL
   `;
-  
+
   return result.count > 0;
 }
 
@@ -52,15 +49,12 @@ export async function restore(
  * @param table Table name
  * @param id Record ID
  */
-export async function permanentDelete(
-  table: SoftDeletableTable,
-  id: string
-): Promise<boolean> {
+export async function permanentDelete(table: SoftDeletableTable, id: string): Promise<boolean> {
   const result = await sql`
     DELETE FROM ${sql(table)}
     WHERE id = ${id} AND deleted_at IS NOT NULL
   `;
-  
+
   return result.count > 0;
 }
 
@@ -69,15 +63,12 @@ export async function permanentDelete(
  * @param table Table name
  * @param id Record ID
  */
-export async function isDeleted(
-  table: SoftDeletableTable,
-  id: string
-): Promise<boolean> {
+export async function isDeleted(table: SoftDeletableTable, id: string): Promise<boolean> {
   const result = await sql`
     SELECT deleted_at FROM ${sql(table)}
     WHERE id = ${id}
   `;
-  
+
   if (result.length === 0) return false;
   return result[0].deleted_at !== null;
 }
@@ -114,7 +105,7 @@ export async function cleanupOldDeletedRecords(
     WHERE deleted_at IS NOT NULL
     AND deleted_at < NOW() - INTERVAL '${sql.unsafe(daysOld.toString())} days'
   `;
-  
+
   return result.count;
 }
 

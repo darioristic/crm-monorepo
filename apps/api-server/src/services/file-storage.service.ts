@@ -193,7 +193,7 @@ export async function deleteFile(pathTokens: string[]): Promise<boolean> {
     unlinkSync(filePath);
     return true;
   } catch (error) {
-    serviceLogger.error(error, "Error deleting file:");
+    logger.error(error, "Error deleting file");
     return false;
   }
 }
@@ -279,7 +279,7 @@ export async function deleteCompanyFiles(companyId: string): Promise<boolean> {
     await rm(companyDir, { recursive: true, force: true });
     return true;
   } catch (error) {
-    serviceLogger.error(error, "Error deleting company files:");
+    logger.error(error, "Error deleting company files");
     return false;
   }
 }

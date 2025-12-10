@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Form,
@@ -14,22 +15,20 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
+  FormMessage,
 } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
-import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
 
 const notificationsFormSchema = z.object({
   type: z.enum(["all", "mentions", "none"], {
-    required_error: "You need to select a notification type."
+    required_error: "You need to select a notification type.",
   }),
   mobile: z.boolean().default(false).optional(),
   communication_emails: z.boolean().default(false).optional(),
   social_emails: z.boolean().default(false).optional(),
   marketing_emails: z.boolean().default(false).optional(),
-  security_emails: z.boolean()
+  security_emails: z.boolean(),
 });
 
 type NotificationsFormValues = z.infer<typeof notificationsFormSchema>;
@@ -39,13 +38,13 @@ const defaultValues: Partial<NotificationsFormValues> = {
   communication_emails: false,
   marketing_emails: false,
   social_emails: true,
-  security_emails: true
+  security_emails: true,
 };
 
 export default function Page() {
   const form = useForm<NotificationsFormValues>({
-    resolver: zodResolver(notificationsFormSchema) as any,
-    defaultValues
+    resolver: zodResolver(notificationsFormSchema),
+    defaultValues,
   });
 
   function onSubmit(data: NotificationsFormValues) {
@@ -54,7 +53,7 @@ export default function Page() {
         <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
           <code className="text-white">{JSON.stringify(data, null, 2)}</code>
         </pre>
-      )
+      ),
     });
   }
 
@@ -73,7 +72,8 @@ export default function Page() {
                     <RadioGroup
                       onValueChange={field.onChange}
                       defaultValue={field.value}
-                      className="flex flex-col space-y-1">
+                      className="flex flex-col space-y-1"
+                    >
                       <FormItem className="flex items-center">
                         <FormControl>
                           <RadioGroupItem value="all" />

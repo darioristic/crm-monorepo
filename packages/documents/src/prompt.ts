@@ -64,4 +64,3 @@ Extract the following fields:
 - language: The language of the receipt (ISO 639-1 code)
 
 Be precise with numbers and dates. If a field is not present, return null.`;
-

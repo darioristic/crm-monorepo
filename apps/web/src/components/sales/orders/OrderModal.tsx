@@ -1,15 +1,21 @@
 "use client";
 
+import type {
+  Company,
+  CreateOrderRequest,
+  Invoice,
+  Order,
+  Quote,
+  UpdateOrderRequest,
+} from "@crm/types";
+import { AlertCircle, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect } from "react";
-import { useForm, useFieldArray } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
+import { useFieldArray } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { Order, Company, CreateOrderRequest, UpdateOrderRequest, Quote, Invoice } from "@crm/types";
-import { ordersApi, companiesApi, quotesApi, invoicesApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -25,6 +31,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -32,11 +39,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle, Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { useApi, useMutation } from "@/hooks/use-api";
+import { useZodForm } from "@/hooks/use-zod-form";
+import { companiesApi, invoicesApi, ordersApi, quotesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
-import { Card } from "@/components/ui/card";
 
 const lineItemSchema = z.object({
   productName: z.string().min(1, "Product name is required"),
@@ -63,46 +70,44 @@ const orderFormSchema = z.object({
 
 type OrderFormValues = z.infer<typeof orderFormSchema>;
 
+type OrderItemInput = {
+  productName: string;
+  description?: string | null;
+  quantity: number;
+  unitPrice: number;
+  discount?: number;
+  total: number;
+};
+
 interface OrderModalProps {
-  order?: Order & { items?: any[] } | null;
+  order?: (Order & { items?: OrderItemInput[] }) | null;
   mode: "create" | "edit";
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 }
 
-export function OrderModal({
-  order,
-  mode,
-  open,
-  onOpenChange,
-  onSuccess,
-}: OrderModalProps) {
+export function OrderModal({ order, mode, open, onOpenChange, onSuccess }: OrderModalProps) {
   const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
     () => companiesApi.getAll(),
     { autoFetch: true }
   );
 
-  const { data: quotes } = useApi<Quote[]>(
-    () => quotesApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: quotes } = useApi<Quote[]>(() => quotesApi.getAll(), {
+    autoFetch: true,
+  });
 
-  const { data: invoices } = useApi<Invoice[]>(
-    () => invoicesApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: invoices } = useApi<Invoice[]>(() => invoicesApi.getAll(), {
+    autoFetch: true,
+  });
 
-  const createMutation = useMutation<Order, CreateOrderRequest>((data) =>
-    ordersApi.create(data)
-  );
+  const createMutation = useMutation<Order, CreateOrderRequest>((data) => ordersApi.create(data));
 
   const updateMutation = useMutation<Order, UpdateOrderRequest>((data) =>
     ordersApi.update(order?.id || "", data)
   );
 
-  const form = useForm<OrderFormValues>({
-    resolver: zodResolver(orderFormSchema) as any,
+  const form = useZodForm(orderFormSchema, {
     defaultValues: {
       companyId: "",
       contactId: "",
@@ -114,7 +119,16 @@ export function OrderModal({
       total: 0,
       currency: "EUR",
       notes: "",
-      items: [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 }],
+      items: [
+        {
+          productName: "",
+          description: "",
+          quantity: 1,
+          unitPrice: 0,
+          discount: 0,
+          total: 0,
+        },
+      ],
     },
   });
 
@@ -125,11 +139,11 @@ export function OrderModal({
 
   // Calculate totals when items change
   useEffect(() => {
-    const subscription = form.watch((value, { name }) => {
+    const subscription = form.watch((_value, { name }) => {
       if (name?.startsWith("items.")) {
         const items = form.getValues("items");
         let subtotal = 0;
-        
+
         items.forEach((item) => {
           const quantity = item.quantity || 0;
           const unitPrice = item.unitPrice || 0;
@@ -164,14 +178,23 @@ export function OrderModal({
         total: order.total,
         currency: order.currency,
         notes: order.notes || "",
-        items: order.items?.map((item: any) => ({
+        items: order.items?.map((item: OrderItemInput) => ({
           productName: item.productName || "",
           description: item.description || "",
           quantity: item.quantity || 1,
           unitPrice: item.unitPrice || 0,
           discount: item.discount || 0,
           total: item.total || 0,
-        })) || [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 }],
+        })) || [
+          {
+            productName: "",
+            description: "",
+            quantity: 1,
+            unitPrice: 0,
+            discount: 0,
+            total: 0,
+          },
+        ],
       });
     } else if (mode === "create") {
       form.reset({
@@ -185,7 +208,16 @@ export function OrderModal({
         total: 0,
         currency: "EUR",
         notes: "",
-        items: [{ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 }],
+        items: [
+          {
+            productName: "",
+            description: "",
+            quantity: 1,
+            unitPrice: 0,
+            discount: 0,
+            total: 0,
+          },
+        ],
       });
     }
   }, [order, mode, form]);
@@ -205,12 +237,10 @@ export function OrderModal({
       createdBy: "current-user-id",
     };
 
-    let result;
-    if (mode === "create") {
-      result = await createMutation.mutate(data as CreateOrderRequest);
-    } else {
-      result = await updateMutation.mutate(data as UpdateOrderRequest);
-    }
+    const result =
+      mode === "create"
+        ? await createMutation.mutate(data as CreateOrderRequest)
+        : await updateMutation.mutate(data as UpdateOrderRequest);
 
     if (result.success) {
       toast.success(
@@ -230,13 +260,9 @@ export function OrderModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>
-            {mode === "create" ? "Create Order" : "Edit Order"}
-          </DialogTitle>
+          <DialogTitle>{mode === "create" ? "Create Order" : "Edit Order"}</DialogTitle>
           <DialogDescription>
-            {mode === "create"
-              ? "Create a new order"
-              : `Editing order ${order?.orderNumber}`}
+            {mode === "create" ? "Create a new order" : `Editing order ${order?.orderNumber}`}
           </DialogDescription>
         </DialogHeader>
 
@@ -399,7 +425,16 @@ export function OrderModal({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => append({ productName: "", description: "", quantity: 1, unitPrice: 0, discount: 0, total: 0 })}
+                  onClick={() =>
+                    append({
+                      productName: "",
+                      description: "",
+                      quantity: 1,
+                      unitPrice: 0,
+                      discount: 0,
+                      total: 0,
+                    })
+                  }
                 >
                   <Plus className="mr-2 h-4 w-4" />
                   Add Item
@@ -430,7 +465,13 @@ export function OrderModal({
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
-                              <Input type="number" min="0.01" step="0.01" placeholder="Qty" {...field} />
+                              <Input
+                                type="number"
+                                min="0.01"
+                                step="0.01"
+                                placeholder="Qty"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -444,7 +485,13 @@ export function OrderModal({
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
-                              <Input type="number" min="0" step="0.01" placeholder="Price" {...field} />
+                              <Input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                placeholder="Price"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -458,7 +505,13 @@ export function OrderModal({
                         render={({ field }) => (
                           <FormItem>
                             <FormControl>
-                              <Input type="number" min="0" max="100" placeholder="Disc %" {...field} />
+                              <Input
+                                type="number"
+                                min="0"
+                                max="100"
+                                placeholder="Disc %"
+                                {...field}
+                              />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -531,11 +584,7 @@ export function OrderModal({
                 <FormItem>
                   <FormLabel>Notes</FormLabel>
                   <FormControl>
-                    <Textarea
-                      placeholder="Special instructions or notes..."
-                      rows={3}
-                      {...field}
-                    />
+                    <Textarea placeholder="Special instructions or notes..." rows={3} {...field} />
                   </FormControl>
                 </FormItem>
               )}
@@ -556,4 +605,3 @@ export function OrderModal({
     </Dialog>
   );
 }
-

@@ -1,17 +1,16 @@
 "use client";
 
-import * as React from "react";
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
+  type ColumnDef,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable
+  type SortingState,
+  useReactTable,
+  type VisibilityState,
 } from "@tanstack/react-table";
 import {
   ArrowUpDown,
@@ -19,20 +18,21 @@ import {
   FilterIcon,
   MoreHorizontal,
   PlusCircle,
-  Star
+  Star,
 } from "lucide-react";
 import Image from "next/image";
-
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import * as React from "react";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Command,
   CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList
+  CommandList,
 } from "@/components/ui/command";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -40,27 +40,26 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
 
 export type Product = {
   id: number;
@@ -95,7 +94,7 @@ export const columns: ColumnDef<Product>[] = [
       />
     ),
     enableSorting: false,
-    enableHiding: false
+    enableHiding: false,
   },
   {
     accessorKey: "name",
@@ -104,7 +103,8 @@ export const columns: ColumnDef<Product>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Product Name
           <ArrowUpDown className="size-3" />
         </Button>
@@ -123,7 +123,7 @@ export const columns: ColumnDef<Product>[] = [
         </figure>
         <div className="capitalize">{row.getValue("name")}</div>
       </div>
-    )
+    ),
   },
   {
     accessorKey: "price",
@@ -132,13 +132,14 @@ export const columns: ColumnDef<Product>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Price
           <ArrowUpDown className="size-3" />
         </Button>
       );
     },
-    cell: ({ row }) => row.getValue("price")
+    cell: ({ row }) => row.getValue("price"),
   },
   {
     accessorKey: "category",
@@ -147,13 +148,14 @@ export const columns: ColumnDef<Product>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Category
           <ArrowUpDown className="size-3" />
         </Button>
       );
     },
-    cell: ({ row }) => <div className="capitalize">{row.getValue("category")}</div>
+    cell: ({ row }) => <div className="capitalize">{row.getValue("category")}</div>,
   },
   {
     accessorKey: "stock",
@@ -162,18 +164,19 @@ export const columns: ColumnDef<Product>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Stock
           <ArrowUpDown className="size-3" />
         </Button>
       );
     },
-    cell: ({ row }) => row.getValue("stock")
+    cell: ({ row }) => row.getValue("stock"),
   },
   {
     accessorKey: "sku",
     header: "SKU",
-    cell: ({ row }) => row.getValue("sku")
+    cell: ({ row }) => row.getValue("sku"),
   },
   {
     accessorKey: "rating",
@@ -182,7 +185,7 @@ export const columns: ColumnDef<Product>[] = [
       <div className="flex items-center gap-1">
         <Star className="size-4 fill-orange-400 text-orange-400" /> {row.getValue("rating")}
       </div>
-    )
+    ),
   },
   {
     accessorKey: "status",
@@ -191,7 +194,8 @@ export const columns: ColumnDef<Product>[] = [
         <Button
           className="-ml-3"
           variant="ghost"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
           Status
           <ArrowUpDown className="size-3" />
         </Button>
@@ -204,7 +208,7 @@ export const columns: ColumnDef<Product>[] = [
         active: "success",
         "out-of-stock": "warning",
         "closed-for-sale": "destructive",
-        completed: "success"
+        completed: "success",
       } as const;
 
       const statusClass = statusMap[status] ?? "default";
@@ -216,12 +220,12 @@ export const columns: ColumnDef<Product>[] = [
           </Badge>
         </div>
       );
-    }
+    },
   },
   {
     id: "actions",
     enableHiding: false,
-    cell: ({ row }) => {
+    cell: () => {
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -240,8 +244,8 @@ export const columns: ColumnDef<Product>[] = [
           </DropdownMenuContent>
         </DropdownMenu>
       );
-    }
-  }
+    },
+  },
 ];
 
 export default function ProductList({ data }: { data: Product[] }) {
@@ -265,50 +269,50 @@ export default function ProductList({ data }: { data: Product[] }) {
       sorting,
       columnFilters,
       columnVisibility,
-      rowSelection
-    }
+      rowSelection,
+    },
   });
 
   const statuses = [
     {
       value: "active",
-      label: "Active"
+      label: "Active",
     },
     {
       value: "inactive",
-      label: "Inactive"
+      label: "Inactive",
     },
     {
       value: "out-of-stock",
-      label: "Out of stock"
+      label: "Out of stock",
     },
     {
       value: "closed-for-sale",
-      label: "Closed for sale"
-    }
+      label: "Closed for sale",
+    },
   ];
 
   const categories = [
     {
       value: "beauty",
-      label: "Beauty"
+      label: "Beauty",
     },
     {
       value: "technology",
-      label: "Technology"
+      label: "Technology",
     },
     {
       value: "toys",
-      label: "Toys"
+      label: "Toys",
     },
     {
       value: "food",
-      label: "Food"
+      label: "Food",
     },
     {
       value: "home-appliances",
-      label: "Home Appliances"
-    }
+      label: "Home Appliances",
+    },
   ];
 
   const Filters = () => {
@@ -333,13 +337,15 @@ export default function ProductList({ data }: { data: Product[] }) {
                       <CommandItem
                         key={status.value}
                         value={status.value}
-                        onSelect={(currentValue) => {
+                        onSelect={(_currentValue) => {
                           // setValue(currentValue === value ? "" : currentValue);
                           // setOpen(false);
-                        }}>
+                        }}
+                      >
                         <Label
                           htmlFor={checkboxId}
-                          className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
                           <Checkbox id={checkboxId} />
                           <span>{status.label}</span>
                         </Label>
@@ -370,7 +376,8 @@ export default function ProductList({ data }: { data: Product[] }) {
                       <CommandItem key={category.value} value={category.label}>
                         <Label
                           htmlFor={checkboxId}
-                          className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                          className="flex items-center space-x-3 py-1 cursor-pointer leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
                           <Checkbox id={checkboxId} />
                           <span>{category.label}</span>
                         </Label>
@@ -444,7 +451,8 @@ export default function ProductList({ data }: { data: Product[] }) {
                       key={column.id}
                       className="capitalize"
                       checked={column.getIsVisible()}
-                      onCheckedChange={(value) => column.toggleVisibility(value)}>
+                      onCheckedChange={(value) => column.toggleVisibility(value)}
+                    >
                       {column.id}
                     </DropdownMenuCheckboxItem>
                   );
@@ -502,14 +510,16 @@ export default function ProductList({ data }: { data: Product[] }) {
             variant="outline"
             size="sm"
             onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}>
+            disabled={!table.getCanPreviousPage()}
+          >
             Previous
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}>
+            disabled={!table.getCanNextPage()}
+          >
             Next
           </Button>
         </div>

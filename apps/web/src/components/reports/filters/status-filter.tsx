@@ -1,6 +1,7 @@
 "use client";
 
 import { XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -8,7 +9,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
 
 interface StatusOption {
   value: string;
@@ -33,10 +33,7 @@ export function StatusFilter({
   return (
     <div className={className}>
       <div className="flex items-center gap-1">
-        <Select
-          value={value || "all"}
-          onValueChange={(v) => onChange(v === "all" ? undefined : v)}
-        >
+        <Select value={value || "all"} onValueChange={(v) => onChange(v === "all" ? undefined : v)}>
           <SelectTrigger className="w-[160px]">
             <SelectValue placeholder={placeholder} />
           </SelectTrigger>
@@ -95,4 +92,3 @@ export const milestoneStatusOptions: StatusOption[] = [
   { value: "completed", label: "Completed" },
   { value: "delayed", label: "Delayed" },
 ];
-

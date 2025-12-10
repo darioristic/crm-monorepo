@@ -1,17 +1,17 @@
 "use client";
 
-import { use } from "react";
+import type { Project, Task, User as UserType } from "@crm/types";
+import { AlertCircle, ArrowLeft, Calendar, Clock, Folder, Pencil, User } from "lucide-react";
 import Link from "next/link";
-import { tasksApi, projectsApi, usersApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
+import { use } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, Calendar, User, Folder, Clock, ArrowLeft, Pencil } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/hooks/use-api";
+import { projectsApi, tasksApi, usersApi } from "@/lib/api";
 import { formatDate } from "@/lib/utils";
-import type { Task, Project, User as UserType } from "@crm/types";
 
 interface TaskDetailPageProps {
   params: Promise<{ id: string }>;
@@ -21,33 +21,28 @@ const statusColors = {
   todo: "secondary",
   in_progress: "default",
   review: "warning",
-  done: "success"
+  done: "success",
 } as const;
 
 const priorityColors = {
   low: "outline",
   medium: "secondary",
   high: "warning",
-  urgent: "destructive"
+  urgent: "destructive",
 } as const;
 
 export default function TaskDetailPage({ params }: TaskDetailPageProps) {
   const { id } = use(params);
 
-  const { data: task, isLoading, error } = useApi<Task>(
-    () => tasksApi.getById(id),
-    { autoFetch: true }
-  );
+  const {
+    data: task,
+    isLoading,
+    error,
+  } = useApi<Task>(() => tasksApi.getById(id), { autoFetch: true });
 
-  const { data: projects } = useApi<Project[]>(
-    () => projectsApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: projects } = useApi<Project[]>(() => projectsApi.getAll(), { autoFetch: true });
 
-  const { data: users } = useApi<UserType[]>(
-    () => usersApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: users } = useApi<UserType[]>(() => usersApi.getAll(), { autoFetch: true });
 
   const project = projects?.find((p) => p.id === task?.projectId);
   const assignee = users?.find((u) => u.id === task?.assignedTo);
@@ -191,4 +186,3 @@ export default function TaskDetailPage({ params }: TaskDetailPageProps) {
     </div>
   );
 }
-

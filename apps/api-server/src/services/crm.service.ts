@@ -1,24 +1,24 @@
 import type {
-  Lead,
-  Contact,
-  CreateLeadRequest,
-  UpdateLeadRequest,
-  CreateContactRequest,
   ApiResponse,
-  PaginationParams,
+  Contact,
+  CreateContactRequest,
+  CreateLeadRequest,
   FilterParams,
+  Lead,
+  PaginationParams,
+  UpdateLeadRequest,
 } from "@crm/types";
 import {
-  successResponse,
-  errorResponse,
-  paginatedResponse,
-  generateUUID,
-  now,
-  isValidEmail,
   Errors,
+  errorResponse,
+  generateUUID,
+  isValidEmail,
+  now,
+  paginatedResponse,
+  successResponse,
 } from "@crm/utils";
-import { leadQueries, contactQueries } from "../db/queries";
 import { cache } from "../cache/redis";
+import { contactQueries, leadQueries } from "../db/queries";
 import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300; // 5 minutes

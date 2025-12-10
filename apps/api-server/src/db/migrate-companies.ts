@@ -39,7 +39,7 @@ async function addCompanyColumns() {
 
     logger.info("\n✅ Migration completed!\n");
   } catch (error) {
-    logger.error("Migration failed:", error);
+    logger.error({ error }, "Migration failed");
     throw error;
   } finally {
     await db.end();

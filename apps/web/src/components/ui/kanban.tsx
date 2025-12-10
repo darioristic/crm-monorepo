@@ -3,42 +3,42 @@
 import {
   type Announcements,
   type CollisionDetection,
+  closestCenter,
+  closestCorners,
   DndContext,
   type DndContextProps,
   type DragCancelEvent,
   type DragEndEvent,
+  type DraggableAttributes,
+  type DraggableSyntheticListeners,
   type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
-  type DraggableAttributes,
-  type DraggableSyntheticListeners,
   type DropAnimation,
   type DroppableContainer,
+  defaultDropAnimationSideEffects,
+  getFirstCollision,
   KeyboardCode,
   type KeyboardCoordinateGetter,
   KeyboardSensor,
   MeasuringStrategy,
   MouseSensor,
-  TouchSensor,
-  type UniqueIdentifier,
-  closestCenter,
-  closestCorners,
-  defaultDropAnimationSideEffects,
-  getFirstCollision,
   pointerWithin,
   rectIntersection,
+  TouchSensor,
+  type UniqueIdentifier,
   useSensor,
-  useSensors
+  useSensors,
 } from "@dnd-kit/core";
 import {
   type AnimateLayoutChanges,
-  SortableContext,
-  type SortableContextProps,
   arrayMove,
   defaultAnimateLayoutChanges,
   horizontalListSortingStrategy,
+  SortableContext,
+  type SortableContextProps,
   useSortable,
-  verticalListSortingStrategy
+  verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Slot } from "@radix-ui/react-slot";
@@ -52,7 +52,7 @@ const directions: string[] = [
   KeyboardCode.Down,
   KeyboardCode.Right,
   KeyboardCode.Up,
-  KeyboardCode.Left
+  KeyboardCode.Left,
 ];
 
 const coordinateGetter: KeyboardCoordinateGetter = (event, { context }) => {
@@ -113,7 +113,7 @@ const coordinateGetter: KeyboardCoordinateGetter = (event, { context }) => {
       collisionRect: collisionRect,
       droppableRects,
       droppableContainers: filteredContainers,
-      pointerCoordinates: null
+      pointerCoordinates: null,
     });
     const closestId = getFirstCollision(collisions, "id");
 
@@ -126,20 +126,20 @@ const coordinateGetter: KeyboardCoordinateGetter = (event, { context }) => {
         if (newDroppable.id === "placeholder") {
           return {
             x: newRect.left + (newRect.width - collisionRect.width) / 2,
-            y: newRect.top + (newRect.height - collisionRect.height) / 2
+            y: newRect.top + (newRect.height - collisionRect.height) / 2,
           };
         }
 
         if (newDroppable.data.current?.type === "container") {
           return {
             x: newRect.left + 20,
-            y: newRect.top + 74
+            y: newRect.top + 74,
           };
         }
 
         return {
           x: newRect.left,
-          y: newRect.top
+          y: newRect.top,
         };
       }
     }
@@ -219,7 +219,7 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
     useSensor(MouseSensor),
     useSensor(TouchSensor),
     useSensor(KeyboardSensor, {
-      coordinateGetter
+      coordinateGetter,
     })
   );
 
@@ -253,7 +253,9 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
       if (activeId && activeId in value) {
         return closestCenter({
           ...args,
-          droppableContainers: args.droppableContainers.filter((container) => container.id in value)
+          droppableContainers: args.droppableContainers.filter(
+            (container) => container.id in value
+          ),
         });
       }
 
@@ -278,7 +280,7 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
               (container) =>
                 container.id !== overId &&
                 containerItems.some((item) => getItemValue(item) === container.id)
-            )
+            ),
           });
 
           if (closestItem.length > 0) {
@@ -345,7 +347,7 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
         const updatedItems = {
           ...value,
           [activeColumn]: activeItems.filter((item) => getItemValue(item) !== active.id),
-          [overColumn]: [...overItems, activeItem]
+          [overColumn]: [...overItems, activeItem],
         };
 
         onValueChange?.(updatedItems);
@@ -416,7 +418,7 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
               onMove({
                 ...event,
                 activeIndex,
-                overIndex
+                overIndex,
               });
             } else {
               onValueChange?.(newColumns);
@@ -532,7 +534,7 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
         const isColumn = active.id in value;
         const itemType = isColumn ? "column" : "item";
         return `Dragging was cancelled. ${itemType} was dropped.`;
-      }
+      },
     }),
     [value, getColumn, getItemValue]
   );
@@ -547,7 +549,7 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
       activeId,
       setActiveId,
       getItemValue,
-      flatCursor
+      flatCursor,
     }),
     [id, value, activeId, modifiers, strategy, orientation, getItemValue, flatCursor]
   );
@@ -562,8 +564,8 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
         id={id}
         measuring={{
           droppable: {
-            strategy: MeasuringStrategy.Always
-          }
+            strategy: MeasuringStrategy.Always,
+          },
         }}
         onDragStart={onDragStart}
         onDragOver={onDragOver}
@@ -576,9 +578,9 @@ function KanbanRoot<T>(props: KanbanRootProps<T>) {
             To pick up a kanban item or column, press space or enter.
             While dragging, use the arrow keys to move the item.
             Press space or enter again to drop the item in its new position, or press escape to cancel.
-          `
+          `,
           },
-          ...accessibility
+          ...accessibility,
         }}
       />
     </KanbanContext.Provider>
@@ -612,7 +614,8 @@ const KanbanBoard = React.forwardRef<HTMLDivElement, KanbanBoardProps>((props, f
           context.orientation === "horizontal"
             ? horizontalListSortingStrategy
             : verticalListSortingStrategy
-        }>
+        }
+      >
         <BoardPrimitive
           aria-orientation={context.orientation}
           data-orientation={context.orientation}
@@ -687,11 +690,11 @@ const KanbanColumn = React.forwardRef<HTMLDivElement, KanbanColumnProps>((props,
     setActivatorNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging,
   } = useSortable({
     id: value,
     disabled,
-    animateLayoutChanges
+    animateLayoutChanges,
   });
 
   const composedRef = useComposedRefs(forwardedRef, (node) => {
@@ -703,7 +706,7 @@ const KanbanColumn = React.forwardRef<HTMLDivElement, KanbanColumnProps>((props,
     return {
       transform: CSS.Transform.toString(transform),
       transition,
-      ...style
+      ...style,
     };
   }, [transform, transition, style]);
 
@@ -719,7 +722,7 @@ const KanbanColumn = React.forwardRef<HTMLDivElement, KanbanColumnProps>((props,
       listeners,
       setActivatorNodeRef,
       isDragging,
-      disabled
+      disabled,
     }),
     [id, attributes, listeners, setActivatorNodeRef, isDragging, disabled]
   );
@@ -734,7 +737,8 @@ const KanbanColumn = React.forwardRef<HTMLDivElement, KanbanColumnProps>((props,
           context.orientation === "horizontal"
             ? horizontalListSortingStrategy
             : verticalListSortingStrategy
-        }>
+        }
+      >
         <ColumnPrimitive
           id={id}
           data-disabled={disabled}
@@ -753,7 +757,7 @@ const KanbanColumn = React.forwardRef<HTMLDivElement, KanbanColumnProps>((props,
               "data-dragging:cursor-grabbing": !context.flatCursor,
               "cursor-grab": !isDragging && asHandle && !context.flatCursor,
               "opacity-50": isDragging,
-              "pointer-events-none opacity-50": disabled
+              "pointer-events-none opacity-50": disabled,
             },
             className
           )}
@@ -853,7 +857,7 @@ const KanbanItem = React.forwardRef<HTMLDivElement, KanbanItemProps>((props, for
     setActivatorNodeRef,
     transform,
     transition,
-    isDragging
+    isDragging,
   } = useSortable({ id: value, disabled });
 
   if (value === "") {
@@ -869,7 +873,7 @@ const KanbanItem = React.forwardRef<HTMLDivElement, KanbanItemProps>((props, for
     return {
       transform: CSS.Transform.toString(transform),
       transition,
-      ...style
+      ...style,
     };
   }, [transform, transition, style]);
 
@@ -880,7 +884,7 @@ const KanbanItem = React.forwardRef<HTMLDivElement, KanbanItemProps>((props, for
       listeners,
       setActivatorNodeRef,
       isDragging,
-      disabled
+      disabled,
     }),
     [id, attributes, listeners, setActivatorNodeRef, isDragging, disabled]
   );
@@ -907,7 +911,7 @@ const KanbanItem = React.forwardRef<HTMLDivElement, KanbanItemProps>((props, for
             "data-dragging:cursor-grabbing": !context.flatCursor,
             "cursor-grab": !isDragging && asHandle && !context.flatCursor,
             "opacity-50": isDragging,
-            "pointer-events-none opacity-50": disabled
+            "pointer-events-none opacity-50": disabled,
           },
           className
         )}
@@ -967,10 +971,10 @@ const dropAnimation: DropAnimation = {
   sideEffects: defaultDropAnimationSideEffects({
     styles: {
       active: {
-        opacity: "0.4"
-      }
-    }
-  })
+        opacity: "0.4",
+      },
+    },
+  }),
 };
 
 interface KanbanOverlayProps
@@ -1000,13 +1004,14 @@ function KanbanOverlay(props: KanbanOverlayProps) {
       dropAnimation={dropAnimation}
       modifiers={context.modifiers}
       className={cn(!context.flatCursor && "cursor-grabbing")}
-      {...overlayProps}>
+      {...overlayProps}
+    >
       <KanbanOverlayContext.Provider value={true}>
         {context.activeId && children
           ? typeof children === "function"
             ? children({
                 value: context.activeId,
-                variant
+                variant,
               })
             : children
           : null}
@@ -1031,5 +1036,5 @@ export {
   KanbanColumnHandle as ColumnHandle,
   KanbanItem as Item,
   KanbanItemHandle as ItemHandle,
-  KanbanOverlay as Overlay
+  KanbanOverlay as Overlay,
 };

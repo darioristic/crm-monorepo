@@ -1,28 +1,27 @@
 "use client";
 
-import { create } from "zustand";
 import type { RowSelectionState, Updater } from "@tanstack/react-table";
+import { create } from "zustand";
 
 // ============================================
 // Documents Selection Store
 // ============================================
 
 interface DocumentsState {
-	rowSelection: Record<string, boolean>;
-	setRowSelection: (updater: Updater<RowSelectionState>) => void;
-	clearSelection: () => void;
+  rowSelection: Record<string, boolean>;
+  setRowSelection: (updater: Updater<RowSelectionState>) => void;
+  clearSelection: () => void;
 }
 
 export const useDocumentsStore = create<DocumentsState>()((set) => ({
-	rowSelection: {},
+  rowSelection: {},
 
-	setRowSelection: (updater: Updater<RowSelectionState>) =>
-		set((state) => ({
-			rowSelection:
-				typeof updater === "function" ? updater(state.rowSelection) : updater,
-		})),
+  setRowSelection: (updater: Updater<RowSelectionState>) =>
+    set((state) => ({
+      rowSelection: typeof updater === "function" ? updater(state.rowSelection) : updater,
+    })),
 
-	clearSelection: () => set({ rowSelection: {} }),
+  clearSelection: () => set({ rowSelection: {} }),
 }));
 
 // ============================================
@@ -30,27 +29,27 @@ export const useDocumentsStore = create<DocumentsState>()((set) => ({
 // ============================================
 
 interface DocumentDetailsState {
-	isOpen: boolean;
-	documentId: string | null;
-	open: (documentId: string) => void;
-	close: () => void;
+  isOpen: boolean;
+  documentId: string | null;
+  open: (documentId: string) => void;
+  close: () => void;
 }
 
 export const useDocumentDetailsStore = create<DocumentDetailsState>((set) => ({
-	isOpen: false,
-	documentId: null,
+  isOpen: false,
+  documentId: null,
 
-	open: (documentId: string) =>
-		set({
-			isOpen: true,
-			documentId,
-		}),
+  open: (documentId: string) =>
+    set({
+      isOpen: true,
+      documentId,
+    }),
 
-	close: () =>
-		set({
-			isOpen: false,
-			documentId: null,
-		}),
+  close: () =>
+    set({
+      isOpen: false,
+      documentId: null,
+    }),
 }));
 
 // ============================================
@@ -58,42 +57,42 @@ export const useDocumentDetailsStore = create<DocumentDetailsState>((set) => ({
 // ============================================
 
 interface UploadProgressState {
-	isUploading: boolean;
-	progress: number;
-	fileCount: number;
-	startUpload: (fileCount: number) => void;
-	updateProgress: (progress: number) => void;
-	finishUpload: () => void;
-	reset: () => void;
+  isUploading: boolean;
+  progress: number;
+  fileCount: number;
+  startUpload: (fileCount: number) => void;
+  updateProgress: (progress: number) => void;
+  finishUpload: () => void;
+  reset: () => void;
 }
 
 export const useUploadProgressStore = create<UploadProgressState>((set) => ({
-	isUploading: false,
-	progress: 0,
-	fileCount: 0,
+  isUploading: false,
+  progress: 0,
+  fileCount: 0,
 
-	startUpload: (fileCount: number) =>
-		set({
-			isUploading: true,
-			progress: 0,
-			fileCount,
-		}),
+  startUpload: (fileCount: number) =>
+    set({
+      isUploading: true,
+      progress: 0,
+      fileCount,
+    }),
 
-	updateProgress: (progress: number) =>
-		set({
-			progress: Math.min(100, Math.max(0, progress)),
-		}),
+  updateProgress: (progress: number) =>
+    set({
+      progress: Math.min(100, Math.max(0, progress)),
+    }),
 
-	finishUpload: () =>
-		set({
-			isUploading: false,
-			progress: 100,
-		}),
+  finishUpload: () =>
+    set({
+      isUploading: false,
+      progress: 100,
+    }),
 
-	reset: () =>
-		set({
-			isUploading: false,
-			progress: 0,
-			fileCount: 0,
-		}),
+  reset: () =>
+    set({
+      isUploading: false,
+      progress: 0,
+      fileCount: 0,
+    }),
 }));

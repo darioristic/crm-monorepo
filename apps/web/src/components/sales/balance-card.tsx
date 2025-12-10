@@ -1,6 +1,5 @@
 import { ArrowUpIcon } from "lucide-react";
-import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card";
-import * as React from "react";
+import { Card, CardDescription, CardHeader } from "@/components/ui/card";
 
 export function BalanceCard() {
   return (

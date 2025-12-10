@@ -1,48 +1,46 @@
 "use client";
 
-import * as React from "react";
 import {
-  ColumnDef,
-  ColumnFiltersState,
-  SortingState,
-  VisibilityState,
+  type ColumnDef,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  useReactTable
+  type SortingState,
+  useReactTable,
+  type VisibilityState,
 } from "@tanstack/react-table";
-import { ArrowDownIcon, ArrowUpIcon, ChevronDown, ChevronDownIcon } from "lucide-react";
-
+import { ArrowDownIcon, ArrowUpIcon, ChevronDown } from "lucide-react";
+import * as React from "react";
+import { ExportButton } from "@/components/CardActionMenus";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from "@/components/ui/table";
 import {
   Card,
   CardAction,
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@/components/ui/card";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
-import { ExportButton } from "@/components/CardActionMenus";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type Order = {
   id: string;
@@ -60,7 +58,7 @@ const data: Order[] = [
     items: 2,
     amount: 34.5,
     paymentMethod: "E-Wallet",
-    status: "new-order"
+    status: "new-order",
   },
   {
     id: "1082",
@@ -68,7 +66,7 @@ const data: Order[] = [
     items: 6,
     amount: 60.5,
     paymentMethod: "Bank Transfer",
-    status: "in-progress"
+    status: "in-progress",
   },
   {
     id: "1081",
@@ -76,7 +74,7 @@ const data: Order[] = [
     items: 3,
     amount: 47.5,
     paymentMethod: "E-Wallet",
-    status: "new-order"
+    status: "new-order",
   },
   {
     id: "1079",
@@ -84,7 +82,7 @@ const data: Order[] = [
     items: 15,
     amount: 89.8,
     paymentMethod: "Bank Transfer",
-    status: "on-hold"
+    status: "on-hold",
   },
   {
     id: "1078",
@@ -92,7 +90,7 @@ const data: Order[] = [
     items: 4,
     amount: 120.75,
     paymentMethod: "Credit Card",
-    status: "completed"
+    status: "completed",
   },
   {
     id: "1077",
@@ -100,7 +98,7 @@ const data: Order[] = [
     items: 8,
     amount: 210.5,
     paymentMethod: "PayPal",
-    status: "completed"
+    status: "completed",
   },
   {
     id: "1076",
@@ -108,7 +106,7 @@ const data: Order[] = [
     items: 1,
     amount: 25.99,
     paymentMethod: "E-Wallet",
-    status: "in-progress"
+    status: "in-progress",
   },
   {
     id: "1075",
@@ -116,7 +114,7 @@ const data: Order[] = [
     items: 3,
     amount: 78.45,
     paymentMethod: "Bank Transfer",
-    status: "return"
+    status: "return",
   },
   {
     id: "1074",
@@ -124,7 +122,7 @@ const data: Order[] = [
     items: 5,
     amount: 145.2,
     paymentMethod: "Credit Card",
-    status: "new-order"
+    status: "new-order",
   },
   {
     id: "1073",
@@ -132,7 +130,7 @@ const data: Order[] = [
     items: 2,
     amount: 67.8,
     paymentMethod: "PayPal",
-    status: "in-progress"
+    status: "in-progress",
   },
   {
     id: "1072",
@@ -140,7 +138,7 @@ const data: Order[] = [
     items: 7,
     amount: 198.35,
     paymentMethod: "Bank Transfer",
-    status: "completed"
+    status: "completed",
   },
   {
     id: "1071",
@@ -148,7 +146,7 @@ const data: Order[] = [
     items: 4,
     amount: 112.9,
     paymentMethod: "E-Wallet",
-    status: "on-hold"
+    status: "on-hold",
   },
   {
     id: "1070",
@@ -156,7 +154,7 @@ const data: Order[] = [
     items: 9,
     amount: 245.75,
     paymentMethod: "Credit Card",
-    status: "new-order"
+    status: "new-order",
   },
   {
     id: "1069",
@@ -164,7 +162,7 @@ const data: Order[] = [
     items: 3,
     amount: 87.6,
     paymentMethod: "Bank Transfer",
-    status: "return"
+    status: "return",
   },
   {
     id: "1068",
@@ -172,7 +170,7 @@ const data: Order[] = [
     items: 6,
     amount: 156.4,
     paymentMethod: "PayPal",
-    status: "completed"
+    status: "completed",
   },
   {
     id: "1067",
@@ -180,33 +178,33 @@ const data: Order[] = [
     items: 2,
     amount: 54.25,
     paymentMethod: "E-Wallet",
-    status: "in-progress"
-  }
+    status: "in-progress",
+  },
 ];
 
 const columns: ColumnDef<Order>[] = [
   {
     accessorKey: "id",
     header: "ID",
-    size: 80
+    size: 80,
   },
   {
     accessorKey: "customerName",
-    header: "Customer Name"
+    header: "Customer Name",
   },
   {
     accessorKey: "items",
     header: "Qty Items",
-    cell: ({ row }) => `${row.getValue("items")} Items`
+    cell: ({ row }) => `${row.getValue("items")} Items`,
   },
   {
     accessorKey: "amount",
     header: "Amount",
-    cell: ({ row }) => `$${row.getValue("amount")}`
+    cell: ({ row }) => `$${row.getValue("amount")}`,
   },
   {
     accessorKey: "paymentMethod",
-    header: "Payment Method"
+    header: "Payment Method",
   },
   {
     accessorKey: "status",
@@ -219,7 +217,7 @@ const columns: ColumnDef<Order>[] = [
         "new-order": "info",
         "in-progress": "warning",
         "on-hold": "warning",
-        return: "destructive"
+        return: "destructive",
       } as const;
 
       const statusClass = statusMap[status] ?? "default";
@@ -229,8 +227,8 @@ const columns: ColumnDef<Order>[] = [
           {status.replace("-", " ")}
         </Badge>
       );
-    }
-  }
+    },
+  },
 ];
 
 export function TableOrderStatus() {
@@ -254,13 +252,13 @@ export function TableOrderStatus() {
       sorting,
       columnFilters,
       columnVisibility,
-      rowSelection
+      rowSelection,
     },
     initialState: {
       pagination: {
-        pageSize: 6
-      }
-    }
+        pageSize: 6,
+      },
+    },
   });
 
   return (
@@ -362,7 +360,8 @@ export function TableOrderStatus() {
                         key={column.id}
                         className="capitalize"
                         checked={column.getIsVisible()}
-                        onCheckedChange={(value) => column.toggleVisibility(!!value)}>
+                        onCheckedChange={(value) => column.toggleVisibility(!!value)}
+                      >
                         {column.id}
                       </DropdownMenuCheckboxItem>
                     );
@@ -418,14 +417,16 @@ export function TableOrderStatus() {
                 variant="outline"
                 size="sm"
                 onClick={() => table.previousPage()}
-                disabled={!table.getCanPreviousPage()}>
+                disabled={!table.getCanPreviousPage()}
+              >
                 Previous
               </Button>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => table.nextPage()}
-                disabled={!table.getCanNextPage()}>
+                disabled={!table.getCanNextPage()}
+              >
                 Next
               </Button>
             </div>

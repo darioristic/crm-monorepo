@@ -5,6 +5,35 @@ import { NextResponse } from "next/server";
 import type { Order } from "@/types/order";
 import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
 
+type CompanyApi = {
+  name?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  address?: string;
+  postalCode?: string;
+  zip?: string;
+  city?: string;
+  country?: string;
+  billingEmail?: string;
+  email?: string;
+  phone?: string;
+  vatNumber?: string;
+  companyNumber?: string;
+  registrationNumber?: string;
+  website?: string;
+};
+
+type OrderItemApi = {
+  productName?: string;
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+  unit?: string;
+  discount?: number;
+  vat?: number;
+  vatRate?: number;
+};
+
 function getLogoDataUrl(logoPath?: string): string | null {
   try {
     let filePath: string;
@@ -66,20 +95,20 @@ export async function GET(request: NextRequest) {
         );
         if (companyRes.ok) {
           const companyData = await companyRes.json();
-          const company = companyData.data;
+          const company = companyData.data as Partial<CompanyApi>;
           const lines: string[] = [];
           if (company?.name) lines.push(company.name);
-          if ((company as any)?.addressLine1) lines.push((company as any).addressLine1);
+          if (company?.addressLine1) lines.push(company.addressLine1);
           else if (company?.address) lines.push(company.address);
-          if ((company as any)?.addressLine2) lines.push((company as any).addressLine2);
-          const postal = (company as any)?.postalCode || company?.zip;
+          if (company?.addressLine2) lines.push(company.addressLine2);
+          const postal = company?.postalCode || company?.zip;
           const cityLine = [company?.city, postal, company?.country].filter(Boolean).join(", ");
           if (cityLine) lines.push(cityLine);
-          const email = (company as any)?.billingEmail || company?.email;
+          const email = company?.billingEmail || company?.email;
           if (email) lines.push(email);
           if (company?.phone) lines.push(company.phone);
           if (company?.vatNumber) lines.push(`PIB: ${company.vatNumber}`);
-          const mbSource = (company as any)?.companyNumber || (company as any)?.registrationNumber;
+          const mbSource = company?.companyNumber || company?.registrationNumber;
           if (mbSource) lines.push(`MB: ${String(mbSource)}`);
           customerDetails =
             lines.length > 0
@@ -95,21 +124,21 @@ export async function GET(request: NextRequest) {
       } catch {}
       // Fallback if company fetch is forbidden or failed
       if (!customerDetails) {
-        const company = apiOrder.company || {};
+        const company = (apiOrder.company || {}) as Partial<CompanyApi>;
         const lines: string[] = [];
         const name = apiOrder.companyName || company.name;
         if (name) lines.push(name);
-        if ((company as any).addressLine1) lines.push((company as any).addressLine1);
+        if (company.addressLine1) lines.push(company.addressLine1);
         else if (company.address) lines.push(company.address);
-        if ((company as any).addressLine2) lines.push((company as any).addressLine2);
-        const postal = (company as any).postalCode || company.zip;
+        if (company.addressLine2) lines.push(company.addressLine2);
+        const postal = company.postalCode || company.zip;
         const cityLine = [company.city, postal, company.country].filter(Boolean).join(", ");
         if (cityLine) lines.push(cityLine);
-        const email = (company as any).billingEmail || company.email;
+        const email = company.billingEmail || company.email;
         if (email) lines.push(email);
         if (company.phone) lines.push(company.phone);
-        if ((company as any).vatNumber) lines.push(`PIB: ${(company as any).vatNumber}`);
-        const mbSource = (company as any).companyNumber || (company as any).registrationNumber;
+        if (company.vatNumber) lines.push(`PIB: ${company.vatNumber}`);
+        const mbSource = company.companyNumber || company.registrationNumber;
         if (mbSource) lines.push(`MB: ${String(mbSource)}`);
         customerDetails =
           lines.length > 0
@@ -179,7 +208,7 @@ export async function GET(request: NextRequest) {
       amount: apiOrder.total,
       currency: apiOrder.currency || "EUR",
       lineItems:
-        apiOrder.items?.map((item: any) => ({
+        apiOrder.items?.map((item: OrderItemApi) => ({
           name: item.productName || item.description || "",
           quantity: item.quantity || 1,
           price: item.unitPrice || 0,
@@ -256,7 +285,9 @@ export async function GET(request: NextRequest) {
     const { renderToBuffer } = await import("@react-pdf/renderer");
     const { PdfTemplate } = await import("@/components/order/templates/pdf-template");
     const pdfDocument = await PdfTemplate({ order });
-    const buffer = await renderToBuffer(pdfDocument as any);
+    const buffer = await renderToBuffer(
+      pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]
+    );
 
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",

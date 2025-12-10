@@ -88,7 +88,7 @@ export function Summary({
   includeDecimals,
   subtotalLabel,
 }: Props) {
-  const maximumFractionDigits = includeDecimals ? 2 : 0;
+  const _maximumFractionDigits = includeDecimals ? 2 : 0;
 
   const {
     grossTotal,
@@ -118,19 +118,13 @@ export function Summary({
     <div className="w-[320px] flex flex-col">
       {/* Amount before discount */}
       <div className="flex justify-between items-center py-1">
-        <span className="text-[11px] text-[#878787]">
-          Amount before discount:
-        </span>
-        <span className="text-right text-[11px] text-[#878787]">
-          {formatCurrency(grossTotal)}
-        </span>
+        <span className="text-[11px] text-[#878787]">Amount before discount:</span>
+        <span className="text-right text-[11px] text-[#878787]">{formatCurrency(grossTotal)}</span>
       </div>
 
       {/* Discount */}
       <div className="flex justify-between items-center py-1">
-        <span className="text-[11px] text-[#878787]">
-          {discountLabel}:
-        </span>
+        <span className="text-[11px] text-[#878787]">{discountLabel}:</span>
         <span className="text-right text-[11px] text-[#878787]">
           -{formatCurrency(discountAmount)}
         </span>
@@ -138,32 +132,20 @@ export function Summary({
 
       {/* Subtotal */}
       <div className="flex justify-between items-center py-1">
-        <span className="text-[11px] text-[#878787]">
-          {subtotalLabel}:
-        </span>
-        <span className="text-right text-[11px] text-[#878787]">
-          {formatCurrency(subTotal)}
-        </span>
+        <span className="text-[11px] text-[#878787]">{subtotalLabel}:</span>
+        <span className="text-right text-[11px] text-[#878787]">{formatCurrency(subTotal)}</span>
       </div>
 
       {/* VAT Amount */}
       <div className="flex justify-between items-center py-1">
-        <span className="text-[11px] text-[#878787]">
-          VAT Amount ({vatRate}%):
-        </span>
-        <span className="text-right text-[11px] text-[#878787]">
-          {formatCurrency(totalVAT)}
-        </span>
+        <span className="text-[11px] text-[#878787]">VAT Amount ({vatRate}%):</span>
+        <span className="text-right text-[11px] text-[#878787]">{formatCurrency(totalVAT)}</span>
       </div>
 
       {/* Total */}
       <div className="flex justify-between items-center py-4 mt-2 border-t border-border">
-        <span className="text-[11px] text-[#878787]">
-          {totalLabel}:
-        </span>
-        <span className="text-right text-[21px]">
-          {formatCurrency(total)}
-        </span>
+        <span className="text-[11px] text-[#878787]">{totalLabel}:</span>
+        <span className="text-right text-[21px]">{formatCurrency(total)}</span>
       </div>
     </div>
   );

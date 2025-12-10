@@ -1,13 +1,11 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
-import { BadgeCheckIcon, BriefcaseBusinessIcon, ClockIcon } from "lucide-react";
 import { DownloadIcon } from "@radix-ui/react-icons";
-
-import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BadgeCheckIcon, BriefcaseBusinessIcon, ClockIcon } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardAction, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function LatestActivity() {
   return (
@@ -17,7 +15,8 @@ export function LatestActivity() {
         <CardAction>
           <Link
             href="#"
-            className="text-muted-foreground hover:text-primary text-sm hover:underline">
+            className="text-muted-foreground hover:text-primary text-sm hover:underline"
+          >
             View All
           </Link>
         </CardAction>

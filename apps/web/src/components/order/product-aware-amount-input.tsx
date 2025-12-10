@@ -1,42 +1,32 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { productsApi } from "@/lib/api";
-import { NumericFormat } from "react-number-format";
-import { useState } from "react";
-import {
-  useController,
-  useFormContext,
-  useWatch,
-  type FieldPath,
-  type FieldValues,
-} from "react-hook-form";
-import type { FormValues } from "./form-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { type FieldPath, useController, useFormContext, useWatch } from "react-hook-form";
+import { NumericFormat } from "react-number-format";
+import { productsApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import type { FormValues } from "./form-context";
 
 // Same query key as ProductAutocomplete
 const PRODUCTS_QUERY_KEY = ["order-products"];
 
-type Props<T extends FieldValues> = {
-  name: FieldPath<T>;
+type Props = {
+  name: FieldPath<FormValues>;
   lineItemIndex: number;
   className?: string;
 };
 
-export function ProductAwareAmountInput<T extends FieldValues>({
-  name,
-  lineItemIndex,
-  className,
-}: Props<T>) {
+export function ProductAwareAmountInput({ name, lineItemIndex, className }: Props) {
   const [isFocused, setIsFocused] = useState(false);
   const { control, watch } = useFormContext<FormValues>();
   const queryClient = useQueryClient();
 
   const {
     field: { value, onChange, onBlur },
-  } = useController({
+  } = useController<FormValues>({
     name,
-    control: control as any,
+    control,
   });
 
   // Get current line item data for saving product
@@ -87,9 +77,7 @@ export function ProductAwareAmountInput<T extends FieldValues>({
         value={value}
         onValueChange={(values) => {
           onChange(
-            values.floatValue !== undefined && values.floatValue !== null
-              ? values.floatValue
-              : 0
+            values.floatValue !== undefined && values.floatValue !== null ? values.floatValue : 0
           );
         }}
         onFocus={() => setIsFocused(true)}

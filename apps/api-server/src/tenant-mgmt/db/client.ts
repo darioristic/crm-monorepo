@@ -1,9 +1,9 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema";
 import { logger } from "../../lib/logger";
+import * as schema from "./schema";
 
-let queryClient: postgres.Sql<{}> | null = null;
+let queryClient: postgres.Sql<Record<string, unknown>> | null = null;
 let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
 
 function ensureEnv(): string {
@@ -16,7 +16,7 @@ function ensureEnv(): string {
   return url;
 }
 
-export function getTenantQueryClient(): postgres.Sql<{}> {
+export function getTenantQueryClient(): postgres.Sql<Record<string, unknown>> {
   if (queryClient) return queryClient;
   const DATABASE_URL = ensureEnv();
   queryClient = postgres(DATABASE_URL, {
@@ -56,4 +56,3 @@ export async function closeTenantConnection(): Promise<void> {
     logger.info("Tenant management DB connection closed");
   }
 }
-

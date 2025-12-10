@@ -1,38 +1,37 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
+import type { Project, Task, User } from "@crm/types";
 import {
-  Search,
-  Plus,
-  RefreshCw,
   Calendar,
   ChevronDown,
-  LayoutGrid,
-  Smartphone,
-  Globe,
-  Layers,
-  Grid3X3,
   ChevronLeft,
   ChevronRight,
+  Globe,
+  Grid3X3,
+  Layers,
+  LayoutGrid,
+  Plus,
+  RefreshCw,
+  Search,
+  Smartphone,
 } from "lucide-react";
-import type { Project, User, Task } from "@crm/types";
-
+import Link from "next/link";
+import * as React from "react";
+import { toast } from "sonner";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { ProjectCard, type ProjectWithRelations } from "./project-card";
-import { projectsApi, usersApi, tasksApi } from "@/lib/api";
-import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
-import { toast } from "sonner";
+import { useApi, useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { projectsApi, tasksApi, usersApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
+import { ProjectCard, type ProjectWithRelations } from "./project-card";
 
 type CategoryFilter = "all" | "saas" | "website" | "mobile";
 type DateFilter = "all" | "today" | "week" | "month";
@@ -121,14 +120,11 @@ const ITEMS_PER_PAGE = 9;
 
 export function ProjectsBoardView() {
   const [searchValue, setSearchValue] = React.useState("");
-  const [categoryFilter, setCategoryFilter] =
-    React.useState<CategoryFilter>("all");
+  const [categoryFilter, setCategoryFilter] = React.useState<CategoryFilter>("all");
   const [dateFilter, setDateFilter] = React.useState<DateFilter>("all");
-  const [priorityFilter, setPriorityFilter] =
-    React.useState<PriorityFilter>("all");
+  const [priorityFilter, setPriorityFilter] = React.useState<PriorityFilter>("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [selectedProject, setSelectedProject] =
-    React.useState<ProjectWithRelations | null>(null);
+  const [selectedProject, setSelectedProject] = React.useState<ProjectWithRelations | null>(null);
   const [currentPage, setCurrentPage] = React.useState(1);
 
   // Fetch users for member lookup
@@ -137,10 +133,9 @@ export function ProjectsBoardView() {
   });
 
   // Fetch tasks for task count
-  const { data: tasks } = useApi<Task[]>(
-    () => tasksApi.getAll({ pageSize: 1000 }),
-    { autoFetch: true }
-  );
+  const { data: tasks } = useApi<Task[]>(() => tasksApi.getAll({ pageSize: 1000 }), {
+    autoFetch: true,
+  });
 
   // Create user lookup map
   const userMap = React.useMemo(() => {
@@ -167,15 +162,12 @@ export function ProjectsBoardView() {
     isLoading,
     error,
     refetch,
-  } = usePaginatedApi<Project>(
-    (params) => projectsApi.getAll({ ...params, pageSize: 100 }),
-    { search: searchValue }
-  );
+  } = usePaginatedApi<Project>((params) => projectsApi.getAll({ ...params, pageSize: 100 }), {
+    search: searchValue,
+  });
 
   // Delete mutation
-  const deleteMutation = useMutation<void, string>((id) =>
-    projectsApi.delete(id)
-  );
+  const deleteMutation = useMutation<void, string>((id) => projectsApi.delete(id));
 
   // Enrich and filter projects
   const enrichedProjects: ProjectWithRelations[] = React.useMemo(() => {
@@ -197,14 +189,7 @@ export function ProjectsBoardView() {
       .filter((project) => filterByCategory(project, categoryFilter))
       .filter((project) => filterByDate(project, dateFilter))
       .filter((project) => filterByPriority(project, priorityFilter));
-  }, [
-    projects,
-    userMap,
-    taskCountMap,
-    categoryFilter,
-    dateFilter,
-    priorityFilter,
-  ]);
+  }, [projects, userMap, taskCountMap, categoryFilter, dateFilter, priorityFilter]);
 
   // Pagination calculations
   const totalItems = enrichedProjects.length;
@@ -275,9 +260,7 @@ export function ProjectsBoardView() {
         <Button
           variant={dateFilter === "today" ? "default" : "outline"}
           size="sm"
-          onClick={() =>
-            setDateFilter(dateFilter === "today" ? "all" : "today")
-          }
+          onClick={() => setDateFilter(dateFilter === "today" ? "all" : "today")}
           className="gap-2"
         >
           <Calendar className="h-4 w-4" />
@@ -288,8 +271,7 @@ export function ProjectsBoardView() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2">
-              {dateOptions.find((o) => o.value === dateFilter)?.label ||
-                "All Date"}
+              {dateOptions.find((o) => o.value === dateFilter)?.label || "All Date"}
               <ChevronDown className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -310,8 +292,7 @@ export function ProjectsBoardView() {
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="sm" className="gap-2">
-              {priorityOptions.find((o) => o.value === priorityFilter)?.label ||
-                "All Priority"}
+              {priorityOptions.find((o) => o.value === priorityFilter)?.label || "All Priority"}
               <ChevronDown className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -366,6 +347,7 @@ export function ProjectsBoardView() {
           const isActive = categoryFilter === tab.id;
           return (
             <button
+              type="button"
               key={tab.id}
               onClick={() => setCategoryFilter(tab.id)}
               className={`
@@ -409,11 +391,7 @@ export function ProjectsBoardView() {
         <>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {paginatedProjects.map((project) => (
-              <ProjectCard
-                key={project.id}
-                project={project}
-                onDelete={openDeleteDialog}
-              />
+              <ProjectCard key={project.id} project={project} onDelete={openDeleteDialog} />
             ))}
           </div>
 
@@ -421,8 +399,8 @@ export function ProjectsBoardView() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-6 border-t">
               <p className="text-sm text-muted-foreground">
-                Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of{" "}
-                {totalItems} projects
+                Showing {startIndex + 1} to {Math.min(endIndex, totalItems)} of {totalItems}{" "}
+                projects
               </p>
               <div className="flex items-center gap-2">
                 <Button
@@ -437,53 +415,43 @@ export function ProjectsBoardView() {
                 </Button>
 
                 <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (page) => {
-                      // Show first page, last page, current page, and pages around current
-                      const showPage =
-                        page === 1 ||
-                        page === totalPages ||
-                        Math.abs(page - currentPage) <= 1;
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // Show first page, last page, current page, and pages around current
+                    const showPage =
+                      page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1;
 
-                      const showEllipsis =
-                        (page === 2 && currentPage > 3) ||
-                        (page === totalPages - 1 &&
-                          currentPage < totalPages - 2);
+                    const showEllipsis =
+                      (page === 2 && currentPage > 3) ||
+                      (page === totalPages - 1 && currentPage < totalPages - 2);
 
-                      if (showEllipsis && !showPage) {
-                        return (
-                          <span
-                            key={page}
-                            className="px-2 text-muted-foreground"
-                          >
-                            ...
-                          </span>
-                        );
-                      }
-
-                      if (!showPage) return null;
-
+                    if (showEllipsis && !showPage) {
                       return (
-                        <Button
-                          key={page}
-                          variant={currentPage === page ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(page)}
-                          className="w-9 h-9 p-0"
-                        >
-                          {page}
-                        </Button>
+                        <span key={page} className="px-2 text-muted-foreground">
+                          ...
+                        </span>
                       );
                     }
-                  )}
+
+                    if (!showPage) return null;
+
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="w-9 h-9 p-0"
+                      >
+                        {page}
+                      </Button>
+                    );
+                  })}
                 </div>
 
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() =>
-                    setCurrentPage((p) => Math.min(totalPages, p + 1))
-                  }
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
                   className="gap-1"
                 >

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { FileX } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function InvoiceNotFound() {
@@ -12,8 +12,8 @@ export default function InvoiceNotFound() {
 
         <h1 className="text-2xl font-semibold mb-2">Invoice Not Found</h1>
         <p className="text-muted-foreground mb-8">
-          The invoice you're looking for doesn't exist or has been removed.
-          Please check the link and try again.
+          The invoice you're looking for doesn't exist or has been removed. Please check the link
+          and try again.
         </p>
 
         <Button asChild>
@@ -23,4 +23,3 @@ export default function InvoiceNotFound() {
     </div>
   );
 }
-

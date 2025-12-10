@@ -1,19 +1,18 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
 export type InvoiceStatus = "draft" | "sent" | "paid" | "partial" | "overdue" | "cancelled";
 
 const statusConfig: Record<
   InvoiceStatus,
-  { variant: "secondary" | "default" | "success" | "warning" | "destructive" | "outline"; label: string; description: string }
+  {
+    variant: "secondary" | "default" | "success" | "warning" | "destructive" | "outline";
+    label: string;
+    description: string;
+  }
 > = {
   draft: {
     variant: "secondary",
@@ -60,7 +59,11 @@ export function InvoiceStatusBadge({
   showTooltip = true,
   className,
 }: InvoiceStatusBadgeProps) {
-  const config = statusConfig[status] || { variant: "outline" as const, label: status, description: "Unknown status" };
+  const config = statusConfig[status] || {
+    variant: "outline" as const,
+    label: status,
+    description: "Unknown status",
+  };
 
   const sizeClasses = {
     sm: "text-xs px-1.5 py-0",
@@ -69,10 +72,7 @@ export function InvoiceStatusBadge({
   };
 
   const badge = (
-    <Badge
-      variant={config.variant}
-      className={cn("capitalize", sizeClasses[size], className)}
-    >
+    <Badge variant={config.variant} className={cn("capitalize", sizeClasses[size], className)}>
       {config.label}
     </Badge>
   );
@@ -92,4 +92,3 @@ export function InvoiceStatusBadge({
     </TooltipProvider>
   );
 }
-

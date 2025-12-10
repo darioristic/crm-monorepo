@@ -1,12 +1,10 @@
 "use client";
 
 import type { Company, CreateQuoteRequest, Quote, UpdateQuoteRequest } from "@crm/types";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { Reorder, useDragControls } from "framer-motion";
 import { AlertCircle, GripVertical, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import type { Resolver } from "react-hook-form";
-import { useFieldArray, useForm } from "react-hook-form";
+import { useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { CreateCompanyInlineForm } from "@/components/shared/documents/create-company-inline-form";
@@ -31,6 +29,7 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useApi, useMutation } from "@/hooks/use-api";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { companiesApi, quotesApi } from "@/lib/api";
 import { formatCurrency, getErrorMessage } from "@/lib/utils";
 
@@ -203,8 +202,7 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
     .toISOString()
     .split("T")[0];
 
-  const form = useForm<QuoteFormValues>({
-    resolver: zodResolver(quoteFormSchema) as Resolver<QuoteFormValues>,
+  const form = useZodForm(quoteFormSchema, {
     shouldUnregister: true,
     defaultValues: {
       companyId: "",
@@ -291,13 +289,7 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
   };
 
   const onSubmit = async (values: QuoteFormValues) => {
-    const items = values.items.map((item) => {
-      const lineTotal = item.quantity * item.unitPrice;
-      const discountAmount = lineTotal * (item.discount / 100);
-      return { ...item, total: lineTotal - discountAmount };
-    });
-
-    const data = {
+    const baseData = {
       companyId: values.companyId,
       issueDate: new Date(values.issueDate).toISOString(),
       validUntil: new Date(values.validUntil).toISOString(),
@@ -308,16 +300,22 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
       total: calculations.total,
       notes: values.notes || undefined,
       terms: values.terms || undefined,
-      items,
       createdBy: "current-user-id",
     };
 
-    let result;
-    if (mode === "create") {
-      result = await createMutation.mutate(data as CreateQuoteRequest);
-    } else {
-      result = await updateMutation.mutate(data as UpdateQuoteRequest);
-    }
+    const result: { success: true; data: Quote } | { success: false; error: string } =
+      mode === "create"
+        ? await createMutation.mutate({
+            ...baseData,
+            items: values.items.map((item) => ({
+              productName: item.productName,
+              description: item.description || undefined,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+              discount: item.discount || 0,
+            })),
+          } as CreateQuoteRequest)
+        : await updateMutation.mutate(baseData as UpdateQuoteRequest);
 
     if (result.success) {
       toast.success(

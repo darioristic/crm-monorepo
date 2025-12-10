@@ -101,7 +101,7 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
                     .split("\n")
                     .map((l) => l.trim())
                     .filter(Boolean);
-                  return lines.length ? lines.map((line, idx) => <p key={idx}>{line}</p>) : null;
+                  return lines.length ? lines.map((line) => <p key={line}>{line}</p>) : null;
                 }
 
                 if (cd && typeof cd === "object") {
@@ -113,7 +113,7 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
                   if (cd.email) lines.push(String(cd.email));
                   if (cd.phone) lines.push(String(cd.phone));
                   if (cd.vatNumber) lines.push(`PIB: ${String(cd.vatNumber)}`);
-                  return lines.length ? lines.map((line, idx) => <p key={idx}>{line}</p>) : null;
+                  return lines.length ? lines.map((line) => <p key={line}>{line}</p>) : null;
                 }
 
                 const company = (invoice as any).company;
@@ -158,7 +158,7 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
               <div className="space-y-2">
                 {invoice.items?.map((item, index) => (
                   <div
-                    key={index}
+                    key={`${item.productName}-${index}`}
                     className="flex justify-between text-sm py-2 border-b last:border-0"
                   >
                     <div>

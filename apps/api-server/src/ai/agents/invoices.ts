@@ -1,9 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import {
-  COMMON_AGENT_RULES,
-  createAgent,
-  formatContextForLLM,
-} from "./config/shared";
+import { COMMON_AGENT_RULES, createAgent, formatContextForLLM } from "./config/shared";
 
 export const invoicesAgent = createAgent({
   name: "invoices",
@@ -42,4 +38,3 @@ ${COMMON_AGENT_RULES}
 - Provide actionable insights on payment collection
 </response_guidelines>`,
 });
-

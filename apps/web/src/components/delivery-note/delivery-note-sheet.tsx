@@ -376,6 +376,7 @@ function SuccessContent({
               className="w-full h-full text-background"
               preserveAspectRatio="none"
             >
+              <title>Decorative wave</title>
               <path
                 d="M0,20 Q10,0 20,20 T40,20 T60,20 T80,20 T100,20 T120,20 T140,20 T160,20 T180,20 T200,20 T220,20 T240,20 T260,20 T280,20 T300,20 T320,20 T340,20 T360,20 T380,20 T400,20 L400,20 L0,20 Z"
                 fill="currentColor"
@@ -402,9 +403,16 @@ function SuccessContent({
 function transformDeliveryNoteToFormValues(
   deliveryNote: DeliveryNoteApiResponse
 ): Partial<DeliveryNoteFormValues> {
+  const allowedStatuses = new Set(["pending", "in_transit", "delivered", "returned"]);
+  const status = (
+    allowedStatuses.has(deliveryNote.status as string)
+      ? (deliveryNote.status as DeliveryNoteFormValues["status"])
+      : "pending"
+  ) as DeliveryNoteFormValues["status"];
+
   return {
     id: deliveryNote.id,
-    status: deliveryNote.status,
+    status,
     deliveryNumber: deliveryNote.deliveryNumber ?? "",
     issueDate: (deliveryNote.deliveryDate ?? deliveryNote.createdAt ?? "") as string,
     customerId: deliveryNote.companyId,
@@ -432,6 +440,7 @@ function transformDeliveryNoteToFormValues(
       price: item.unitPrice || 0,
       unit: item.unit || "pcs",
       discount: item.discount || 0,
+      vat: item.vat ?? item.vatRate ?? 20,
     })),
     template: {
       ...DEFAULT_DELIVERY_NOTE_TEMPLATE,

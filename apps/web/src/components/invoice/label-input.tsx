@@ -1,7 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { useFormContext } from "react-hook-form";
+import { cn } from "@/lib/utils";
 
 type Props = {
   name: string;
@@ -15,25 +15,20 @@ export function LabelInput({ name, className, onSave }: Props) {
   const value = watch(name);
 
   return (
-    <span
-      className={cn(
-        "text-[11px] text-[#878787] min-w-10 outline-none",
-        className
-      )}
+    <input
       id={name}
-      contentEditable
-      suppressContentEditableWarning
+      name={name}
+      type="text"
+      aria-label={name}
+      className={cn("text-[11px] text-[#878787] min-w-10 outline-none bg-transparent", className)}
+      defaultValue={value}
       onBlur={(e) => {
-        const newValue = e.currentTarget.textContent || "";
+        const newValue = e.currentTarget.value || "";
         setValue(name, newValue, { shouldValidate: true, shouldDirty: true });
-
-        // Only call onSave if the value has changed
         if (newValue !== value) {
           onSave?.(newValue);
         }
       }}
-    >
-      {value}
-    </span>
+    />
   );
 }

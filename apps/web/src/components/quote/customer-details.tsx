@@ -1,6 +1,6 @@
 "use client";
 
-import type { Company } from "@crm/types";
+import type { Company, Contact } from "@crm/types";
 import type { JSONContent } from "@tiptap/react";
 import { useCallback, useEffect, useState } from "react";
 import { Controller, useFormContext } from "react-hook-form";
@@ -99,21 +99,21 @@ export function CustomerDetails() {
             shouldDirty: true,
           });
           const res = await companiesApi.getById(selectedCustomerId);
-          c = (res.success && (res.data as any)) || undefined;
+          c = res.success && res.data ? res.data : undefined;
         }
         if (!c) return;
-        const customerContent = transformCustomerToContent(c as any);
+        const customerContent = transformCustomerToContent(c);
         setSelectedCustomerId(null);
         setSelectedType(null);
-        setValue("customerName", (c as any).name, {
+        setValue("customerName", c.name, {
           shouldValidate: true,
           shouldDirty: true,
         });
-        setValue("customerId", (c as any).id, {
+        setValue("customerId", c.id, {
           shouldValidate: true,
           shouldDirty: true,
         });
-        setValue("companyId", (c as any).id, {
+        setValue("companyId", c.id, {
           shouldValidate: true,
           shouldDirty: true,
         });
@@ -124,7 +124,7 @@ export function CustomerDetails() {
         });
       } else {
         const res = await contactsApi.getById(selectedCustomerId);
-        const ct: any = res.success && res.data ? res.data : null;
+        const ct: Contact | null = res.success && res.data ? res.data : null;
         if (!ct) return;
         const lines = [
           `${ct.firstName} ${ct.lastName}`.trim(),

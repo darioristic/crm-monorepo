@@ -3,18 +3,28 @@
 import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 import { DEFAULT_THEME, type ThemeType } from "@/lib/themes";
 
-function setThemeCookie(key: string, value: string | null) {
+async function setThemeCookie(key: string, value: string | null) {
   if (typeof window === "undefined") return;
-
+  const cs = (
+    window as unknown as {
+      cookieStore?: {
+        set: (opts: unknown) => Promise<unknown>;
+        delete: (name: string) => Promise<unknown>;
+      };
+    }
+  ).cookieStore;
+  if (!cs) return;
   if (!value) {
-    document.cookie = `${key}=; path=/; max-age=0; SameSite=Lax; ${
-      window.location.protocol === "https:" ? "Secure;" : ""
-    }`;
-  } else {
-    document.cookie = `${key}=${value}; path=/; max-age=31536000; SameSite=Lax; ${
-      window.location.protocol === "https:" ? "Secure;" : ""
-    }`;
+    await cs.delete(key);
+    return;
   }
+  await cs.set({
+    name: key,
+    value,
+    sameSite: "lax",
+    secure: window.location.protocol === "https:",
+    path: "/",
+  });
 }
 
 type ThemeContextType = {
@@ -38,14 +48,14 @@ export function ActiveThemeProvider({
   useEffect(() => {
     const body = document.body;
 
-    setThemeCookie("theme_radius", theme.radius);
+    void setThemeCookie("theme_radius", theme.radius);
     body.setAttribute("data-theme-radius", theme.radius);
 
     if (theme.radius !== "default") {
-      setThemeCookie("theme_preset", theme.radius);
+      void setThemeCookie("theme_preset", theme.radius);
       body.setAttribute("data-theme-radius", theme.radius);
     } else {
-      setThemeCookie("theme_preset", null);
+      void setThemeCookie("theme_preset", null);
       body.removeAttribute("data-theme-radius");
     }
 
@@ -57,14 +67,14 @@ export function ActiveThemeProvider({
       body.removeAttribute("data-theme-preset");
     }
 
-    setThemeCookie("theme_content_layout", theme.contentLayout);
+    void setThemeCookie("theme_content_layout", theme.contentLayout);
     body.setAttribute("data-theme-content-layout", theme.contentLayout);
 
     if (theme.scale !== "none") {
-      setThemeCookie("theme_scale", theme.scale);
+      void setThemeCookie("theme_scale", theme.scale);
       body.setAttribute("data-theme-scale", theme.scale);
     } else {
-      setThemeCookie("theme_scale", null);
+      void setThemeCookie("theme_scale", null);
       body.removeAttribute("data-theme-scale");
     }
   }, [theme.preset, theme.radius, theme.scale, theme.contentLayout]);

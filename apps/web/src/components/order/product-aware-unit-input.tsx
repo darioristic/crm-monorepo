@@ -1,33 +1,28 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { productsApi } from "@/lib/api";
-import { useState } from "react";
-import {
-  useFormContext,
-  useWatch,
-  type FieldPath,
-  type FieldValues,
-} from "react-hook-form";
-import type { FormValues } from "./form-context";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { type FieldPath, useFormContext, useWatch } from "react-hook-form";
+import { productsApi } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import type { FormValues } from "./form-context";
 
 // Same query key as ProductAutocomplete
 const PRODUCTS_QUERY_KEY = ["order-products"];
 
-type Props<T extends FieldValues> = {
-  name: FieldPath<T>;
+type Props = {
+  name: FieldPath<FormValues>;
   lineItemIndex: number;
   className?: string;
   placeholder?: string;
 };
 
-export function ProductAwareUnitInput<T extends FieldValues>({
+export function ProductAwareUnitInput({
   name,
   lineItemIndex,
   className,
   placeholder = "pcs",
-}: Props<T>) {
+}: Props) {
   const [isFocused, setIsFocused] = useState(false);
   const { control, watch, register } = useFormContext<FormValues>();
   const queryClient = useQueryClient();
@@ -39,7 +34,7 @@ export function ProductAwareUnitInput<T extends FieldValues>({
   const currentProductId = watch(`lineItems.${lineItemIndex}.productId`);
   const currency = useWatch({ control, name: "template.currency" });
 
-  const { ref, ...registerProps } = register(name as any);
+  const { ref, ...registerProps } = register(name);
 
   // Mutation for saving product with React Query
   const saveProductMutation = useMutation({

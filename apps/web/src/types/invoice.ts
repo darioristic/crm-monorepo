@@ -13,16 +13,19 @@ export interface LineItem {
 }
 
 export interface EditorDoc {
-  type: "doc";
-  content: EditorNode[];
+  [x: string]: unknown;
+  type: string;
+  content?: EditorDoc[];
 }
 
 export interface EditorNode {
+  [x: string]: unknown;
   type: string;
-  content?: InlineContent[];
+  content?: EditorDoc[];
 }
 
 interface InlineContent {
+  [x: string]: unknown;
   type: string;
   text?: string;
   marks?: Mark[];
@@ -232,10 +235,15 @@ export function extractTextFromEditorDoc(doc: EditorDoc | string | null): string
   if (!doc) return "";
   if (typeof doc === "string") return doc;
 
-  return doc.content
+  const nodes = doc.content ?? [];
+  return nodes
     .map((node) => {
-      if (!node.content) return "";
-      return node.content.map((inline) => inline.text || "").join("");
+      const inlines = node.content ?? [];
+      return inlines
+        .map((inline: InlineContent | string | null) =>
+          typeof inline === "object" && inline && "text" in inline ? String(inline.text || "") : ""
+        )
+        .join("");
     })
     .join("\n");
 }

@@ -18,6 +18,7 @@ import {
   ReceiptIcon,
   SettingsIcon,
   ShoppingCartIcon,
+  SparklesIcon,
   SquareKanbanIcon,
   TruckIcon,
   UserIcon,
@@ -67,6 +68,11 @@ export const navItems: NavGroup[] = [
         title: "Dashboard",
         href: "/dashboard",
         icon: LayoutDashboardIcon,
+      },
+      {
+        title: "AI Assistant",
+        href: "/dashboard/chat",
+        icon: SparklesIcon,
       },
       {
         title: "Calendar",
@@ -283,8 +289,8 @@ export function NavMain() {
                           </CollapsibleTrigger>
                           <CollapsibleContent forceMount id={contentId}>
                             <SidebarMenuSub>
-                              {item?.items?.map((subItem, key) => (
-                                <SidebarMenuSubItem key={key}>
+                              {item?.items?.map((subItem) => (
+                                <SidebarMenuSubItem key={subItem.href}>
                                   <SidebarMenuSubButton
                                     asChild
                                     className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 w-full"

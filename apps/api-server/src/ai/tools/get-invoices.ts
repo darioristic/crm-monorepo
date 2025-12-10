@@ -14,17 +14,14 @@ const getInvoicesSchema = z.object({
 
 type GetInvoicesParams = z.infer<typeof getInvoicesSchema>;
 
-export const getInvoicesTool = tool({
+export const getInvoicesTool = (tool as unknown as typeof tool)({
+  name: "getInvoices",
   description: "Retrieve and filter invoices with pagination and status filtering",
   parameters: getInvoicesSchema,
-  execute: (async (params: GetInvoicesParams): Promise<ToolResponse> => {
+  execute: async (params: GetInvoicesParams): Promise<ToolResponse> => {
     const { pageSize = 10, status, search } = params;
     try {
-      const result = await invoiceQueries.findAll(
-        null,
-        { page: 1, pageSize },
-        { status, search }
-      );
+      const result = await invoiceQueries.findAll(null, { page: 1, pageSize }, { status, search });
 
       if (result.data.length === 0) {
         return { text: "No invoices found matching your criteria." };
@@ -83,16 +80,17 @@ ${tableRows}
         text: `Failed to retrieve invoices: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  }) as any,
-} as any);
+  },
+});
 
 const emptySchema = z.object({});
 type EmptyParams = z.infer<typeof emptySchema>;
 
-export const getOverdueInvoicesTool = tool({
+export const getOverdueInvoicesTool = (tool as unknown as typeof tool)({
+  name: "getOverdueInvoices",
   description: "Get all overdue invoices that need attention",
   parameters: emptySchema,
-  execute: (async (_params: EmptyParams): Promise<ToolResponse> => {
+  execute: async (_params: EmptyParams): Promise<ToolResponse> => {
     try {
       const overdueInvoices = await invoiceQueries.getOverdue(null);
 
@@ -117,7 +115,10 @@ export const getOverdueInvoicesTool = tool({
         return Math.floor((now.getTime() - due.getTime()) / (1000 * 60 * 60 * 24));
       };
 
-      const totalOverdue = overdueInvoices.reduce((sum, inv) => sum + (inv.total - inv.paidAmount), 0);
+      const totalOverdue = overdueInvoices.reduce(
+        (sum, inv) => sum + (inv.total - inv.paidAmount),
+        0
+      );
       const currency = overdueInvoices[0]?.currency || "EUR";
 
       const tableRows = overdueInvoices
@@ -148,5 +149,5 @@ ${tableRows}
         text: `Failed to retrieve overdue invoices: ${error instanceof Error ? error.message : "Unknown error"}`,
       };
     }
-  }) as any,
-} as any);
+  },
+});

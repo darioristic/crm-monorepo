@@ -1,5 +1,6 @@
 "use client";
 
+import type { CustomerOrganization } from "@crm/types";
 import { RefreshCwIcon } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
@@ -25,7 +26,7 @@ export default function OrganizationsPage() {
     setPage,
     setFilters,
     refetch,
-  } = usePaginatedApi<any>((params) => organizationsApi.getAll(params), {
+  } = usePaginatedApi<CustomerOrganization>((params) => organizationsApi.getAll(params), {
     search: "",
   });
 

@@ -1,5 +1,6 @@
 "use client";
 
+import type { OrderFormValues } from "@crm/schemas";
 import type { Company, EnhancedCompany } from "@crm/types";
 import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useApi } from "@/hooks/use-api";
 import { companiesApi, ordersApi } from "@/lib/api";
-import type { OrderDefaultSettings, OrderFormValues } from "@/types/order";
+import type { OrderDefaultSettings } from "@/types/order";
 import { DEFAULT_ORDER_TEMPLATE, formatOrderNumber } from "@/types/order";
 import { Form } from "./form";
 import { FormContext } from "./form-context";
@@ -155,7 +156,7 @@ function OrderSheetContent({
   orderId,
   orderData,
   onSuccess,
-  onClose,
+  onClose: _onClose,
   isLoading,
 }: OrderSheetContentProps) {
   const [size] = useState(700);
@@ -250,8 +251,8 @@ function SuccessContent({ orderId, order, onViewOrder, onCreateAnother }: Succes
       if (company || !order?.companyId) return;
       try {
         const res = await companiesApi.getById(order.companyId);
-        if (res && (res as any).success && (res as any).data && active) {
-          setCompany((res as any).data as Company);
+        if (res?.success && res.data && active) {
+          setCompany(res.data);
         }
       } catch {}
     }
@@ -305,17 +306,21 @@ function SuccessContent({ orderId, order, onViewOrder, onCreateAnother }: Succes
               {company?.phone && (
                 <p className="text-sm text-muted-foreground">Tel: {company.phone}</p>
               )}
-              {(company?.email || (company as any)?.billingEmail) && (
-                <p className="text-sm text-muted-foreground">
-                  E-mail:{" "}
-                  <a
-                    href={`mailto:${company?.email || (company as any)?.billingEmail}`}
-                    className="underline"
-                  >
-                    {company?.email || (company as any)?.billingEmail}
-                  </a>
-                </p>
-              )}
+              {(() => {
+                const billingEmail =
+                  company && "billingEmail" in company
+                    ? (company as EnhancedCompany).billingEmail
+                    : undefined;
+                const email = company?.email || billingEmail;
+                return email ? (
+                  <p className="text-sm text-muted-foreground">
+                    E-mail:{" "}
+                    <a href={`mailto:${email}`} className="underline">
+                      {email}
+                    </a>
+                  </p>
+                ) : null;
+              })()}
               {!companyName && !company && (
                 <p className="text-sm text-muted-foreground">Customer</p>
               )}
@@ -368,6 +373,7 @@ function SuccessContent({ orderId, order, onViewOrder, onCreateAnother }: Succes
               className="w-full h-full text-background"
               preserveAspectRatio="none"
             >
+              <title>Decorative wave</title>
               <path
                 d="M0,20 Q10,0 20,20 T40,20 T60,20 T80,20 T100,20 T120,20 T140,20 T160,20 T180,20 T200,20 T220,20 T240,20 T260,20 T280,20 T300,20 T320,20 T340,20 T360,20 T380,20 T400,20 L400,20 L0,20 Z"
                 fill="currentColor"
@@ -392,9 +398,13 @@ function SuccessContent({ orderId, order, onViewOrder, onCreateAnother }: Succes
 
 // Transform API order to form values
 function transformOrderToFormValues(order: OrderApiResponse): Partial<OrderFormValues> {
+  const allowed = ["pending", "processing", "completed", "cancelled", "refunded"] as const;
+  const statusRaw = order.status ?? "pending";
+  const statusCandidate = allowed.find((s) => s === statusRaw) ?? "pending";
+  const status: OrderFormValues["status"] = statusCandidate;
   return {
     id: order.id,
-    status: order.status,
+    status,
     orderNumber: order.orderNumber ?? "",
     issueDate: (order.issueDate ?? order.createdAt ?? "") as string,
     customerId: order.companyId,
@@ -404,7 +414,6 @@ function transformOrderToFormValues(order: OrderApiResponse): Partial<OrderFormV
     vat: order.vat || 0,
     tax: order.tax || 0,
     discount: order.discount || 0,
-    invoiceId: order.invoiceId,
     noteDetails: order.notes
       ? {
           type: "doc",
@@ -419,11 +428,13 @@ function transformOrderToFormValues(order: OrderApiResponse): Partial<OrderFormV
     paymentDetails: null,
     lineItems: (order.items || []).map((item) => ({
       name: item.productName || item.description || "",
-      quantity: item.quantity || 1,
-      price: item.unitPrice || 0,
-      unit: item.unit || "pcs",
-      discount: item.discount || 0,
+      quantity: item.quantity ?? 1,
+      price: item.unitPrice ?? 0,
+      unit: item.unit ?? "pcs",
+      discount: item.discount ?? 0,
+      vat: item.vat ?? item.vatRate ?? 20,
     })),
+
     template: {
       ...DEFAULT_ORDER_TEMPLATE,
       currency: order.currency || "EUR",

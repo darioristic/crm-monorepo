@@ -127,9 +127,9 @@ export default function MembersSettingsPage() {
       </div>
 
       {successMessage && (
-        <p role="status" className="text-sm text-green-600">
+        <output className="text-sm text-green-600" aria-live="polite">
           {successMessage}
-        </p>
+        </output>
       )}
 
       <Card>

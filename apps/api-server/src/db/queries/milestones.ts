@@ -1,12 +1,12 @@
 import type {
+  FilterParams,
   Milestone,
+  MilestoneStatus,
   MilestoneWithTasks,
   PaginationParams,
-  FilterParams,
-  MilestoneStatus,
 } from "@crm/types";
 import { sql as db } from "../client";
-import { createQueryBuilder, sanitizeSortOrder, type QueryParam } from "../query-builder";
+import { createQueryBuilder, type QueryParam, sanitizeSortOrder } from "../query-builder";
 
 // ============================================
 // Milestone Queries
@@ -38,7 +38,14 @@ export const milestoneQueries = {
     // Milestone default sort je sort_order, ne created_at
     let sortBy = pagination.sortBy || "sort_order";
     // Dodaj validaciju za sort_order kolonu
-    const allowedSortColumns = ["sort_order", "created_at", "updated_at", "name", "status", "due_date"];
+    const allowedSortColumns = [
+      "sort_order",
+      "created_at",
+      "updated_at",
+      "name",
+      "status",
+      "due_date",
+    ];
     if (!allowedSortColumns.includes(sortBy)) {
       sortBy = "sort_order";
     }
@@ -51,7 +58,11 @@ export const milestoneQueries = {
       LIMIT $${whereValues.length + 1} OFFSET $${whereValues.length + 2}
     `;
 
-    const data = await db.unsafe(selectQuery, [...whereValues, safePageSize, safeOffset] as QueryParam[]);
+    const data = await db.unsafe(selectQuery, [
+      ...whereValues,
+      safePageSize,
+      safeOffset,
+    ] as QueryParam[]);
 
     return { data: data.map(mapMilestone), total };
   },
@@ -202,7 +213,7 @@ export const milestoneQueries = {
 
 function toISOString(value: unknown): string {
   if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'string') return value;
+  if (typeof value === "string") return value;
   return String(value);
 }
 
@@ -216,9 +227,7 @@ function mapMilestone(row: Record<string, unknown>): Milestone {
     projectId: row.project_id as string,
     status: row.status as MilestoneStatus,
     dueDate: toISOString(row.due_date),
-    completedDate: row.completed_date 
-      ? toISOString(row.completed_date) 
-      : undefined,
+    completedDate: row.completed_date ? toISOString(row.completed_date) : undefined,
     order: row.sort_order as number,
   };
 }

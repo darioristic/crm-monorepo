@@ -1,50 +1,56 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
+import type { Milestone, Project } from "@crm/types";
 import {
-  ColumnDef,
+  type ColumnDef,
   flexRender,
   getCoreRowModel,
+  type RowSelectionState,
   useReactTable,
-  RowSelectionState,
 } from "@tanstack/react-table";
-import { ArrowUpDown, MoreHorizontal, RefreshCwIcon, Pencil, Trash2, Eye, CheckCircle } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import type { Milestone, Project } from "@crm/types";
-
+import {
+  ArrowUpDown,
+  CheckCircle,
+  Eye,
+  MoreHorizontal,
+  Pencil,
+  RefreshCwIcon,
+  Trash2,
+} from "lucide-react";
+import Link from "next/link";
+import * as React from "react";
+import { toast } from "sonner";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
-  TableRow
+  TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { formatDate } from "@/lib/utils";
+import { useApi, useMutation, usePaginatedApi } from "@/hooks/use-api";
 import { milestonesApi, projectsApi } from "@/lib/api";
-import { usePaginatedApi, useMutation, useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DeleteDialog } from "@/components/shared/delete-dialog";
-import { toast } from "sonner";
-import { getErrorMessage } from "@/lib/utils";
+import { formatDate, getErrorMessage } from "@/lib/utils";
 
 type MilestoneWithRelations = Milestone & {
   projectName?: string;
@@ -54,7 +60,7 @@ const statusColors = {
   pending: "secondary",
   in_progress: "default",
   completed: "success",
-  delayed: "destructive"
+  delayed: "destructive",
 } as const;
 
 const statusOptions = [
@@ -62,7 +68,7 @@ const statusOptions = [
   { value: "pending", label: "Pending" },
   { value: "in_progress", label: "In Progress" },
   { value: "completed", label: "Completed" },
-  { value: "delayed", label: "Delayed" }
+  { value: "delayed", label: "Delayed" },
 ];
 
 interface MilestonesDataTableProps {
@@ -73,16 +79,15 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
   const [searchValue, setSearchValue] = React.useState("");
   const [statusFilter, setStatusFilter] = React.useState("all");
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
-  const [selectedMilestone, setSelectedMilestone] = React.useState<MilestoneWithRelations | null>(null);
+  const [selectedMilestone, setSelectedMilestone] = React.useState<MilestoneWithRelations | null>(
+    null
+  );
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = React.useState(false);
   const [isBulkDeleting, setIsBulkDeleting] = React.useState(false);
 
   // Fetch projects for lookup
-  const { data: projects } = useApi<Project[]>(
-    () => projectsApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: projects } = useApi<Project[]>(() => projectsApi.getAll(), { autoFetch: true });
 
   // Create lookup map
   const projectMap = React.useMemo(() => {
@@ -104,24 +109,24 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
     totalCount,
     totalPages,
     setPage,
-    setFilters
-  } = usePaginatedApi<Milestone>(
-    (params) => milestonesApi.getAll(params),
-    {
-      search: searchValue,
-      status: statusFilter === "all" ? undefined : statusFilter,
-      projectId: projectId
-    }
-  );
+    setFilters,
+  } = usePaginatedApi<Milestone>((params) => milestonesApi.getAll(params), {
+    search: searchValue,
+    status: statusFilter === "all" ? undefined : statusFilter,
+    projectId: projectId,
+  });
 
   // Delete mutation
   const deleteMutation = useMutation<void, string>((id) => milestonesApi.delete(id));
 
   // Update mutation for marking complete
-  const updateMutation = useMutation<Milestone, { id: string; status: string; completedDate?: string }>((data) =>
+  const updateMutation = useMutation<
+    Milestone,
+    { id: string; status: string; completedDate?: string }
+  >((data) =>
     milestonesApi.update(data.id, {
       status: data.status as Milestone["status"],
-      completedDate: data.completedDate
+      completedDate: data.completedDate,
     })
   );
 
@@ -129,7 +134,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
   const enrichedMilestones: MilestoneWithRelations[] = React.useMemo(() => {
     return (milestones || []).map((milestone) => ({
       ...milestone,
-      projectName: projectMap.get(milestone.projectId) || "Unknown Project"
+      projectName: projectMap.get(milestone.projectId) || "Unknown Project",
     }));
   }, [milestones, projectMap]);
 
@@ -139,7 +144,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
       setFilters({
         search: searchValue,
         status: statusFilter === "all" ? undefined : statusFilter,
-        projectId: projectId
+        projectId: projectId,
       });
     }, 300);
     return () => clearTimeout(timer);
@@ -165,7 +170,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
     const result = await updateMutation.mutate({
       id: milestone.id,
       status: "completed",
-      completedDate: new Date().toISOString()
+      completedDate: new Date().toISOString(),
     });
     if (result.success) {
       toast.success("Milestone marked as complete");
@@ -185,7 +190,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
     let failCount = 0;
 
     for (const rowIndex of selectedRows) {
-      const milestone = enrichedMilestones[parseInt(rowIndex)];
+      const milestone = enrichedMilestones[parseInt(rowIndex, 10)];
       if (milestone) {
         const result = await deleteMutation.mutate(milestone.id);
         if (result.success) {
@@ -234,16 +239,17 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
       enableSorting: false,
       enableHiding: false,
     },
-  {
-    accessorKey: "name",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-        Milestone
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    {
+      accessorKey: "name",
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+        >
+          Milestone
+          <ArrowUpDown className="ml-2 h-4 w-4" />
+        </Button>
+      ),
       cell: ({ row }) => (
         <Link
           href={`/dashboard/projects/milestones/${row.original.id}`}
@@ -251,7 +257,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
         >
           {row.original.name}
         </Link>
-      )
+      ),
     },
     {
       accessorKey: "projectName",
@@ -263,20 +269,20 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
         >
           {row.original.projectName}
         </Link>
-      )
-  },
-  {
-    accessorKey: "status",
-    header: "Status",
-    cell: ({ row }) => (
-      <Badge variant={statusColors[row.original.status]} className="capitalize">
-        {row.original.status.replace("_", " ")}
-      </Badge>
-    )
-  },
-  {
-    accessorKey: "dueDate",
-    header: "Due Date",
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant={statusColors[row.original.status]} className="capitalize">
+          {row.original.status.replace("_", " ")}
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "dueDate",
+      header: "Due Date",
       cell: ({ row }) => {
         const dueDate = new Date(row.original.dueDate);
         const isOverdue = dueDate < new Date() && row.original.status !== "completed";
@@ -285,28 +291,29 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
             {formatDate(row.original.dueDate)}
           </span>
         );
-      }
-  },
+      },
+    },
     {
       accessorKey: "completedDate",
-    header: "Completed",
-      cell: ({ row }) => row.original.completedDate ? formatDate(row.original.completedDate) : "-"
-  },
-  {
-    accessorKey: "createdAt",
-    header: "Created",
-    cell: ({ row }) => formatDate(row.original.createdAt)
-  },
-  {
-    id: "actions",
-    cell: ({ row }) => (
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+      header: "Completed",
+      cell: ({ row }) =>
+        row.original.completedDate ? formatDate(row.original.completedDate) : "-",
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Created",
+      cell: ({ row }) => formatDate(row.original.createdAt),
+    },
+    {
+      id: "actions",
+      cell: ({ row }) => (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon">
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
             <DropdownMenuItem asChild>
               <Link href={`/dashboard/projects/milestones/${row.original.id}`}>
                 <Eye className="mr-2 h-4 w-4" />
@@ -336,11 +343,11 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
               <Trash2 className="mr-2 h-4 w-4" />
               Delete
             </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    )
-  }
-];
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ),
+    },
+  ];
 
   const table = useReactTable({
     data: enrichedMilestones,
@@ -397,11 +404,7 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
           <RefreshCwIcon className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`} />
         </Button>
         {selectedCount > 0 && (
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setBulkDeleteDialogOpen(true)}
-          >
+          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
             Delete ({selectedCount})
           </Button>
@@ -448,32 +451,37 @@ export function MilestonesDataTable({ projectId }: MilestonesDataTableProps) {
       <div className="flex items-center justify-between pt-4">
         <div className="text-sm text-muted-foreground">
           {selectedCount > 0 ? (
-            <span>{selectedCount} of {totalCount} row(s) selected</span>
+            <span>
+              {selectedCount} of {totalCount} row(s) selected
+            </span>
           ) : (
-            <span>Showing {((page - 1) * pageSize) + 1} to {Math.min(page * pageSize, totalCount)} of {totalCount} milestones</span>
+            <span>
+              Showing {(page - 1) * pageSize + 1} to {Math.min(page * pageSize, totalCount)} of{" "}
+              {totalCount} milestones
+            </span>
           )}
         </div>
         <div className="flex items-center space-x-2">
-        <Button
-          variant="outline"
-          size="sm"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage(page - 1)}
             disabled={page <= 1}
           >
-          Previous
-        </Button>
+            Previous
+          </Button>
           <span className="text-sm text-muted-foreground">
             Page {page} of {totalPages || 1}
           </span>
-        <Button
-          variant="outline"
-          size="sm"
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setPage(page + 1)}
             disabled={page >= totalPages}
           >
-          Next
-        </Button>
-      </div>
+            Next
+          </Button>
+        </div>
       </div>
 
       <DeleteDialog

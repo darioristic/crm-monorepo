@@ -1,5 +1,5 @@
-import { Metadata } from "next";
 import { type ClassValue, clsx } from "clsx";
+import type { Metadata } from "next";
 import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
@@ -15,7 +15,7 @@ export function generateAvatarFallback(string: string) {
 export function generateMeta({
   title,
   description,
-  canonical
+  canonical,
 }: {
   title: string;
   description: string;
@@ -26,11 +26,11 @@ export function generateMeta({
     description: description,
     metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"),
     alternates: {
-      canonical: canonical
+      canonical: canonical,
     },
     openGraph: {
-      images: [`/images/seo.jpg`]
-    }
+      images: [`/images/seo.jpg`],
+    },
   };
 }
 
@@ -44,7 +44,7 @@ export const getInitials = (fullName: string) => {
 export function formatCurrency(amount: number, currency = "EUR"): string {
   return new Intl.NumberFormat("sr-RS", {
     style: "currency",
-    currency
+    currency,
   }).format(amount);
 }
 
@@ -67,8 +67,13 @@ export function formatDateTime(date: string | Date): string {
 }
 
 export function getErrorMessage(error: unknown, fallback = "An error occurred"): string {
-  if (typeof error === 'string') return error;
-  if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string') {
+  if (typeof error === "string") return error;
+  if (
+    error &&
+    typeof error === "object" &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
     return error.message;
   }
   return fallback;
@@ -78,7 +83,7 @@ export function formatRelativeTime(date: Date | string): string {
   const now = new Date();
   const d = date instanceof Date ? date : new Date(date);
   const diff = now.getTime() - d.getTime();
-  
+
   const seconds = Math.floor(diff / 1000);
   const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);

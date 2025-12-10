@@ -346,12 +346,15 @@ class SalesService {
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discount: item.discount || 0,
-        total: item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100),
+        discount: (item as { discount?: number }).discount ?? 0,
+        total:
+          item.quantity *
+          item.unitPrice *
+          (1 - ((item as { discount?: number }).discount ?? 0) / 100),
       }));
 
       const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-      const taxRate = data.taxRate || 0;
+      const taxRate = (data as { taxRate?: number }).taxRate ?? 0;
       const tax = subtotal * (taxRate / 100);
       const total = subtotal + tax;
 
@@ -416,12 +419,19 @@ class SalesService {
           created = await quoteQueries.create(quote, items);
           break;
         } catch (err: unknown) {
-          const e = err as PgError | Error | any;
+          const e = err as Partial<PgError> | Error | unknown;
           const msg = [
-            typeof e?.message === "string" ? e.message : "",
-            typeof e?.code === "string" || typeof e?.code === "number" ? String(e.code) : "",
-            typeof e?.constraint === "string" ? e.constraint : "",
-            typeof e?.detail === "string" ? e.detail : "",
+            typeof (e as Error)?.message === "string" ? (e as Error).message : "",
+            typeof (e as { code?: string | number })?.code === "string" ||
+            typeof (e as { code?: string | number })?.code === "number"
+              ? String((e as { code?: string | number }).code)
+              : "",
+            typeof (e as { constraint?: string })?.constraint === "string"
+              ? (e as { constraint?: string }).constraint
+              : "",
+            typeof (e as { detail?: string })?.detail === "string"
+              ? (e as { detail?: string }).detail
+              : "",
           ].join(" ");
           // Retry on unique constraint violation for quote_number
           if (msg.includes("quote_number") || msg.includes("unique") || msg.includes("23505")) {
@@ -634,7 +644,7 @@ class SalesService {
         if (process.env.NODE_ENV === "test") {
           const d = new Date();
           d.setDate(d.getDate() + 7);
-          (data as any).dueDate = d.toISOString();
+          (data as { dueDate?: string }).dueDate = d.toISOString();
         } else {
           errors.push("Due date is required");
         }
@@ -656,15 +666,18 @@ class SalesService {
         description: item.description,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
-        discount: item.discount || 0,
+        discount: (item as { discount?: number }).discount ?? 0,
         unit: item.unit || "pcs",
         vatRate: item.vatRate ?? data.vatRate ?? 20,
-        total: item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100),
+        total:
+          item.quantity *
+          item.unitPrice *
+          (1 - ((item as { discount?: number }).discount ?? 0) / 100),
       }));
 
       const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-      const taxRate = data.taxRate || 0;
-      const vatRate = data.vatRate || 20;
+      const taxRate = (data as { taxRate?: number }).taxRate ?? 0;
+      const vatRate = (data as { vatRate?: number }).vatRate ?? 20;
       const tax = subtotal * (taxRate / 100);
       const vat = subtotal * (vatRate / 100);
       const total = subtotal + tax + vat;
@@ -761,11 +774,13 @@ class SalesService {
             logoUrl: (data.logoUrl ?? sellerAccount?.logoUrl) || undefined,
             vatRate: vatRate,
             currency:
-              (data.currency && String(data.currency).trim() !== "" ? data.currency : undefined) ||
-              "EUR",
+              ((data as { currency?: string }).currency &&
+              String((data as { currency?: string }).currency).trim() !== ""
+                ? (data as { currency?: string }).currency
+                : undefined) || "EUR",
             templateSettings: data.templateSettings || null,
             sellerCompanyId: tenantId,
-          } as any;
+          } as unknown;
 
           created = await invoiceQueries.create(invoice, items);
         } catch (err: unknown) {
@@ -835,8 +850,8 @@ class SalesService {
           total: item.quantity * item.unitPrice * (1 - (item.discount || 0) / 100),
         }));
         subtotal = items.reduce((sum, item) => sum + item.total, 0);
-        const taxRate = data.taxRate ?? existing.taxRate ?? 0;
-        const vatRate = data.vatRate ?? existing.vatRate ?? 20;
+        const taxRate = (data as { taxRate?: number }).taxRate ?? existing.taxRate ?? 0;
+        const vatRate = (data as { vatRate?: number }).vatRate ?? existing.vatRate ?? 20;
         tax = subtotal * (taxRate / 100);
         const vat = subtotal * (vatRate / 100);
         total = subtotal + tax + vat;
@@ -1029,7 +1044,7 @@ class SalesService {
         const discountAmount = lineTotal * (item.discount / 100);
         return sum + (lineTotal - discountAmount);
       }, 0);
-      const taxRate = data.taxRate || 0;
+      const taxRate = (data as { taxRate?: number }).taxRate ?? 0;
       const tax = subtotal * (taxRate / 100);
       const total = subtotal + tax;
 
@@ -1064,7 +1079,7 @@ class SalesService {
             }
           : null;
 
-      const note: Omit<DeliveryNote, "items"> = {
+      const note: Omit<DeliveryNote, "items"> & { sellerCompanyId?: string } = {
         id: generateUUID(),
         createdAt: now(),
         updatedAt: now(),
@@ -1088,7 +1103,7 @@ class SalesService {
         fromDetails: data.fromDetails ?? builtFromDetails,
         createdBy: data.createdBy,
         sellerCompanyId: tenantId,
-      } as any;
+      };
 
       const created = await deliveryNoteQueries.create(note, items);
 

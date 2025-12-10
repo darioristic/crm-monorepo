@@ -996,7 +996,10 @@ async function seedCompaniesData(companies: Company[]): Promise<string[]> {
         ids.push(created.id);
       }
     } catch (error) {
-      logger.error(`  ❌ Failed to create/update company ${company.name}:`, error);
+      logger.error(
+        { error, companyName: company.name },
+        `  ❌ Failed to create/update company ${company.name}`
+      );
     }
   }
 
@@ -1029,7 +1032,7 @@ export async function seedSerbianAndGlobalCompanies(): Promise<void> {
     logger.info("═".repeat(50));
     logger.info("\n✅ Company seeding completed!\n");
   } catch (error) {
-    logger.error("\n❌ Seed failed:", error);
+    logger.error({ error }, "\n❌ Seed failed");
     throw error;
   }
 }
@@ -1041,7 +1044,7 @@ if (import.meta.main) {
     await db.end();
     process.exit(0);
   } catch (error) {
-    logger.error("Seed error:", error);
+    logger.error({ error }, "Seed error");
     await db.end();
     process.exit(1);
   }

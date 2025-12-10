@@ -1,4 +1,4 @@
-import type { Invoice, Template, EditorDoc, defaultTemplate } from "../types";
+import type { EditorDoc } from "../types";
 
 interface CompanyData {
   name?: string | null;

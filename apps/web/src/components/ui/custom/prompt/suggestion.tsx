@@ -1,8 +1,8 @@
 "use client";
 
-import { Button, buttonVariants } from "@/components/ui/button";
+import type { VariantProps } from "class-variance-authority";
+import { Button, type buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { VariantProps } from "class-variance-authority";
 
 export type PromptSuggestionProps = {
   children: React.ReactNode;
@@ -29,7 +29,8 @@ function Suggestion({
         variant={variant || "outline"}
         size={size || "lg"}
         className={cn("rounded-full", className)}
-        {...props}>
+        {...props}
+      >
         {children}
       </Button>
     );
@@ -45,7 +46,8 @@ function Suggestion({
           "hover:bg-muted",
           className
         )}
-        {...props}>
+        {...props}
+      >
         {children}
       </Button>
     );
@@ -65,7 +67,8 @@ function Suggestion({
         "hover:bg-muted",
         className
       )}
-      {...props}>
+      {...props}
+    >
       {shouldHighlight ? (
         (() => {
           const index = contentLower.indexOf(highlightLower);

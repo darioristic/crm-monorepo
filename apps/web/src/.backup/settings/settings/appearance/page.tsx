@@ -1,12 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ChevronDownIcon } from "@radix-ui/react-icons";
+import { useTheme } from "next-themes";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-
-import { cn } from "@/lib/utils";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -17,8 +17,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { toast } from "sonner";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -26,8 +24,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import Link from "next/link";
-import { useTheme } from "next-themes";
 
 const appearanceFormSchema = z.object({
   theme: z.enum(["light", "dark"], {
@@ -46,10 +42,10 @@ const defaultValues: Partial<AppearanceFormValues> = {
 };
 
 export default function Page() {
-  const { theme, setTheme } = useTheme();
+  const { theme: _theme, setTheme } = useTheme();
 
   const form = useForm<AppearanceFormValues>({
-    resolver: zodResolver(appearanceFormSchema) as any,
+    resolver: zodResolver(appearanceFormSchema),
     defaultValues,
   });
 
@@ -74,10 +70,7 @@ export default function Page() {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Font</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
+                  <Select onValueChange={field.onChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger className="w-full">
                         <SelectValue placeholder="Select font" />
@@ -89,9 +82,7 @@ export default function Page() {
                       <SelectItem value="System">System</SelectItem>
                     </SelectContent>
                   </Select>
-                  <FormDescription>
-                    Set the font you want to use in the dashboard.
-                  </FormDescription>
+                  <FormDescription>Set the font you want to use in the dashboard.</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -103,9 +94,7 @@ export default function Page() {
               render={({ field }) => (
                 <FormItem className="space-y-1">
                   <FormLabel>Theme</FormLabel>
-                  <FormDescription>
-                    Select the theme for the dashboard.
-                  </FormDescription>
+                  <FormDescription>Select the theme for the dashboard.</FormDescription>
                   <FormMessage />
                   <RadioGroup
                     onValueChange={(value) => {
@@ -136,9 +125,7 @@ export default function Page() {
                             </div>
                           </div>
                         </div>
-                        <span className="block w-full p-2 text-center font-normal">
-                          Light
-                        </span>
+                        <span className="block w-full p-2 text-center font-normal">Light</span>
                       </FormLabel>
                     </FormItem>
                     <FormItem>
@@ -162,9 +149,7 @@ export default function Page() {
                             </div>
                           </div>
                         </div>
-                        <span className="block w-full p-2 text-center font-normal">
-                          Dark
-                        </span>
+                        <span className="block w-full p-2 text-center font-normal">Dark</span>
                       </FormLabel>
                     </FormItem>
                   </RadioGroup>

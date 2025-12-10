@@ -83,7 +83,6 @@ export function QuotesDataTable({ refreshSignal }: { refreshSignal?: number | st
     totalCount,
     totalPages,
     setPage,
-    filters,
     setFilters,
   } = usePaginatedApi<Quote>((params) => quotesApi.getAll(params), {
     search: searchValue,

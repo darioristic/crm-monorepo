@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useState } from "react";
 
 type ProductEditContextType = {
   editProductId: string | null;
@@ -45,7 +45,7 @@ export function ProductEditProvider({ children }: { children: ReactNode }) {
 
 export function useProductEdit() {
   const context = useContext(ProductEditContext);
-  
+
   // Return safe defaults if used outside provider (prevents crashes)
   if (!context) {
     return {
@@ -56,7 +56,6 @@ export function useProductEdit() {
       setOnProductUpdated: () => {},
     };
   }
-  
+
   return context;
 }
-

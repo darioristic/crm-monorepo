@@ -1,10 +1,12 @@
 "use client";
 
+import type { Invoice } from "@crm/types";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import type { Invoice } from "@crm/types";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -13,8 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Form,
   FormControl,
@@ -24,8 +24,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { formatCurrency } from "@/lib/utils";
-import { Loader2 } from "lucide-react";
 
 const paymentSchema = z.object({
   amount: z.coerce.number().positive("Amount must be positive"),
@@ -39,7 +39,12 @@ interface PaymentDialogProps {
   invoice: Invoice | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (invoiceId: string, amount: number, reference?: string, notes?: string) => Promise<void>;
+  onSubmit: (
+    invoiceId: string,
+    amount: number,
+    reference?: string,
+    notes?: string
+  ) => Promise<void>;
   isLoading?: boolean;
 }
 
@@ -53,7 +58,7 @@ export function PaymentDialog({
   const balance = invoice ? invoice.total - invoice.paidAmount : 0;
 
   const form = useForm<PaymentFormValues>({
-    resolver: zodResolver(paymentSchema) as any,
+    resolver: zodResolver(paymentSchema),
     defaultValues: {
       amount: balance,
       reference: "",
@@ -97,15 +102,11 @@ export function PaymentDialog({
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Already Paid:</span>
-            <span className="font-medium text-green-600">
-              {formatCurrency(invoice.paidAmount)}
-            </span>
+            <span className="font-medium text-green-600">{formatCurrency(invoice.paidAmount)}</span>
           </div>
           <div className="flex justify-between border-t pt-2">
             <span className="font-medium">Balance Due:</span>
-            <span className="font-bold text-destructive">
-              {formatCurrency(balance)}
-            </span>
+            <span className="font-bold text-destructive">{formatCurrency(balance)}</span>
           </div>
         </div>
 
@@ -118,17 +119,9 @@ export function PaymentDialog({
                 <FormItem>
                   <FormLabel>Payment Amount *</FormLabel>
                   <FormControl>
-                    <Input
-                      type="number"
-                      min="0.01"
-                      max={balance}
-                      step="0.01"
-                      {...field}
-                    />
+                    <Input type="number" min="0.01" max={balance} step="0.01" {...field} />
                   </FormControl>
-                  <FormDescription>
-                    Maximum: {formatCurrency(balance)}
-                  </FormDescription>
+                  <FormDescription>Maximum: {formatCurrency(balance)}</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
@@ -141,10 +134,7 @@ export function PaymentDialog({
                 <FormItem>
                   <FormLabel>Payment Reference</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="e.g., Check #1234, Wire transfer"
-                      {...field}
-                    />
+                    <Input placeholder="e.g., Check #1234, Wire transfer" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -166,11 +156,7 @@ export function PaymentDialog({
             />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => onOpenChange(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
@@ -184,4 +170,3 @@ export function PaymentDialog({
     </Dialog>
   );
 }
-

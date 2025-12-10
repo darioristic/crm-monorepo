@@ -6,4 +6,3 @@ export const SHEET_SIZES = {
   LARGE: 900,
   SMALL: 500,
 } as const;
-

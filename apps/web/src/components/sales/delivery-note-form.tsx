@@ -22,7 +22,6 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { Resolver } from "react-hook-form";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -146,7 +145,7 @@ export function DeliveryNoteForm({
   }, []);
 
   const form = useForm<DeliveryNoteFormValues>({
-    resolver: zodResolver(deliveryNoteFormSchema) as Resolver<DeliveryNoteFormValues>,
+    resolver: zodResolver(deliveryNoteFormSchema) as any,
     defaultValues: {
       companyId: deliveryNote?.companyId || "",
       shippingAddress: deliveryNote?.shippingAddress || "",
@@ -245,6 +244,7 @@ export function DeliveryNoteForm({
       const discountAmount = lineTotal * (item.discount / 100);
       return {
         ...item,
+        id: crypto.randomUUID(),
         unit: "pcs", // Default unit value to match backend schema
         total: lineTotal - discountAmount,
       };
@@ -268,6 +268,7 @@ export function DeliveryNoteForm({
       : undefined;
 
     const data = {
+      companyId: (user?.companyId as string) || "",
       customerCompanyId: values.companyId,
       sellerCompanyId: user?.companyId,
       shippingAddress: values.shippingAddress,

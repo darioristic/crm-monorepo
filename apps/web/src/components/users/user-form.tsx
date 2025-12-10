@@ -1,10 +1,7 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Loader2 } from "lucide-react";
-import type { Resolver } from "react-hook-form";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -25,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { type TenantUser, tenantAdminApi } from "@/lib/api";
 
 const formSchema = z.object({
@@ -58,8 +56,7 @@ export function UserForm({ user, onSuccess }: Props) {
   const isEdit = !!user;
   const queryClient = useQueryClient();
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema) as Resolver<z.infer<typeof formSchema>>,
+  const form = useZodForm(formSchema, {
     defaultValues: {
       firstName: user?.firstName || "",
       lastName: user?.lastName || "",

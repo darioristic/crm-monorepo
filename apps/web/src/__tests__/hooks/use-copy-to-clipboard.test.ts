@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useCopyToClipboard } from '../../hooks/use-copy-to-clipboard';
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useCopyToClipboard } from "../../hooks/use-copy-to-clipboard";
 
-describe('useCopyToClipboard', () => {
+describe("useCopyToClipboard", () => {
   beforeEach(() => {
     // Mock clipboard API
     Object.assign(navigator, {
@@ -12,16 +12,16 @@ describe('useCopyToClipboard', () => {
     });
   });
 
-  it('should initialize with null copied text', () => {
+  it("should initialize with null copied text", () => {
     const { result } = renderHook(() => useCopyToClipboard());
     const [copiedText] = result.current;
 
     expect(copiedText).toBeNull();
   });
 
-  it('should copy text to clipboard and return true', async () => {
+  it("should copy text to clipboard and return true", async () => {
     const { result } = renderHook(() => useCopyToClipboard());
-    const testText = 'Hello, World!';
+    const testText = "Hello, World!";
     let success = false;
 
     await act(async () => {
@@ -37,12 +37,12 @@ describe('useCopyToClipboard', () => {
     expect(copiedText).toBe(testText);
   });
 
-  it('should handle clipboard errors gracefully', async () => {
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it("should handle clipboard errors gracefully", async () => {
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     Object.assign(navigator, {
       clipboard: {
-        writeText: vi.fn(() => Promise.reject(new Error('Clipboard error'))),
+        writeText: vi.fn(() => Promise.reject(new Error("Clipboard error"))),
       },
     });
 
@@ -51,11 +51,11 @@ describe('useCopyToClipboard', () => {
 
     await act(async () => {
       const [, copy] = result.current;
-      success = await copy('test');
+      success = await copy("test");
     });
 
     expect(success).toBe(false);
-    expect(consoleWarnSpy).toHaveBeenCalledWith('Copy failed', expect.any(Error));
+    expect(consoleWarnSpy).toHaveBeenCalledWith("Copy failed", expect.any(Error));
 
     const [copiedText] = result.current;
     expect(copiedText).toBeNull();
@@ -63,8 +63,8 @@ describe('useCopyToClipboard', () => {
     consoleWarnSpy.mockRestore();
   });
 
-  it('should handle missing clipboard API', async () => {
-    const consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it("should handle missing clipboard API", async () => {
+    const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
     // Remove clipboard API
     Object.assign(navigator, {
@@ -76,33 +76,33 @@ describe('useCopyToClipboard', () => {
 
     await act(async () => {
       const [, copy] = result.current;
-      success = await copy('test');
+      success = await copy("test");
     });
 
     expect(success).toBe(false);
-    expect(consoleWarnSpy).toHaveBeenCalledWith('Clipboard not supported');
+    expect(consoleWarnSpy).toHaveBeenCalledWith("Clipboard not supported");
 
     consoleWarnSpy.mockRestore();
   });
 
-  it('should allow copying different texts sequentially', async () => {
+  it("should allow copying different texts sequentially", async () => {
     const { result } = renderHook(() => useCopyToClipboard());
 
     await act(async () => {
       const [, copy] = result.current;
-      await copy('first');
+      await copy("first");
     });
 
     let [copiedText] = result.current;
-    expect(copiedText).toBe('first');
+    expect(copiedText).toBe("first");
 
     await act(async () => {
       const [, copy] = result.current;
-      await copy('second');
+      await copy("second");
     });
 
     [copiedText] = result.current;
-    expect(copiedText).toBe('second');
+    expect(copiedText).toBe("second");
     expect(navigator.clipboard.writeText).toHaveBeenCalledTimes(2);
   });
 });

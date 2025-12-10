@@ -1,12 +1,13 @@
 "use client";
 
-import { use } from "react";
-import { deliveryNotesApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { DeliveryNotePublicView } from "../../[token]/delivery-note-public-view";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Button } from "@/components/ui/button";
+import type { DeliveryNoteWithRelations } from "@crm/types";
 import Link from "next/link";
+import { use } from "react";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/hooks/use-api";
+import { deliveryNotesApi } from "@/lib/api";
+import { DeliveryNotePublicView } from "../../[token]/delivery-note-public-view";
 
 type Props = {
   params: Promise<{ id: string }>;
@@ -19,7 +20,7 @@ export default function DeliveryNoteByIdPage({ params }: Props) {
     data: deliveryNote,
     isLoading,
     error,
-  } = useApi<any>(() => deliveryNotesApi.getById(id), { autoFetch: true });
+  } = useApi<DeliveryNoteWithRelations>(() => deliveryNotesApi.getById(id), { autoFetch: true });
 
   if (isLoading) {
     return (
@@ -56,4 +57,3 @@ export default function DeliveryNoteByIdPage({ params }: Props) {
 
   return <DeliveryNotePublicView deliveryNote={deliveryNote} token={id} />;
 }
-

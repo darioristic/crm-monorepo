@@ -1,9 +1,9 @@
 "use client";
 
-import { useFormContext, Controller } from "react-hook-form";
+import { Controller, useFormContext } from "react-hook-form";
 import { Input } from "@/components/ui/input";
-import { LabelInput } from "./label-input";
 import type { FormValues } from "./form-context";
+import { LabelInput } from "./label-input";
 
 export function InvoiceNo() {
   const { control, formState } = useFormContext<FormValues>();
@@ -11,10 +11,7 @@ export function InvoiceNo() {
 
   return (
     <div className="flex items-center gap-2">
-      <LabelInput
-        name="template.invoiceNoLabel"
-        className="text-[11px] text-[#878787] w-[70px]"
-      />
+      <LabelInput name="template.invoiceNoLabel" className="text-[11px] text-[#878787] w-[70px]" />
       <Controller
         control={control}
         name="invoiceNumber"

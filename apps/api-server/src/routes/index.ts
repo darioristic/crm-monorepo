@@ -410,7 +410,7 @@ export async function handleRequest(request: Request, url: URL): Promise<Respons
     if (!match) continue;
 
     if (method === "PUT" && path.startsWith("/api/v1/companies")) {
-      logger.info("Matched route for PUT", route.pattern.source, "path", path);
+      logger.info({ pattern: route.pattern.source, path }, "Matched route for PUT");
     }
 
     // Extract params
@@ -433,10 +433,19 @@ export async function handleRequest(request: Request, url: URL): Promise<Respons
         contentType.startsWith("image/") ||
         contentType === "application/pdf" ||
         contentType === "application/octet-stream";
+      const isStreamingAllowed =
+        contentType.includes("text/plain") || contentType.includes("text/event-stream");
       const isFileDownloadRoute =
         path.startsWith("/api/v1/files/") || path.startsWith("/api/v1/documents/download/");
+      const isChatRoute = path.startsWith("/api/v1/chat");
 
-      if (!isJson && !isBinaryAllowed && !isFileDownloadRoute) {
+      if (
+        !isJson &&
+        !isBinaryAllowed &&
+        !isStreamingAllowed &&
+        !isFileDownloadRoute &&
+        !isChatRoute
+      ) {
         logger.warn(
           { path, method, contentType },
           "Non-JSON response detected, converting to JSON"

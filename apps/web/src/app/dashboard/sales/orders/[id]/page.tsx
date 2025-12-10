@@ -1,5 +1,6 @@
 "use client";
 
+import type { OrderWithRelations } from "@crm/types";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Copy, Download, Pencil } from "lucide-react";
 import Link from "next/link";
@@ -57,7 +58,9 @@ export default function OrderDetailPage({ params }: PageProps) {
     data: order,
     isLoading,
     error,
-  } = useApi<any>(() => ordersApi.getById(id), { autoFetch: true });
+  } = useApi<OrderWithRelations>(() => ordersApi.getById(id), {
+    autoFetch: true,
+  });
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -260,7 +263,7 @@ export default function OrderDetailPage({ params }: PageProps) {
 }
 
 // Transform API order to Order type
-function transformOrderToTemplateData(order: any): OrderType {
+function transformOrderToTemplateData(order: OrderWithRelations): OrderType {
   // Default template
   const defaultTemplate: OrderTemplate = {
     title: "Order",
@@ -340,7 +343,7 @@ function transformOrderToTemplateData(order: any): OrderType {
       : null,
     team: null,
     scheduledAt: null,
-    lineItems: (order.items || []).map((item: any) => ({
+    lineItems: (order.items || []).map((item: OrderWithRelations["items"][number]) => ({
       name: item.productName || item.description || "",
       quantity: Number(item.quantity) || 1,
       price: Number(item.unitPrice) || 0,

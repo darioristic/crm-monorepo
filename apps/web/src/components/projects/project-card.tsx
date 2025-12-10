@@ -1,13 +1,12 @@
 "use client";
 
-import * as React from "react";
-import Link from "next/link";
-import { MoreVertical, Eye, Pencil, LayoutGrid, Trash2, FileText, Calendar, Users } from "lucide-react";
 import type { Project, User } from "@crm/types";
-
-import { Card, CardContent } from "@/components/ui/card";
+import { Eye, FileText, LayoutGrid, MoreVertical, Pencil, Trash2, Users } from "lucide-react";
+import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +14,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDate, getInitials } from "@/lib/utils";
 
 export type ProjectWithRelations = Project & {
@@ -37,35 +35,40 @@ const priorityColors = {
 } as const;
 
 const categoryColors = {
-  "saas": "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
-  "website": "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
-  "mobile": "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800",
-  "default": "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800",
+  saas: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800",
+  website:
+    "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:border-blue-800",
+  mobile:
+    "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-800",
+  default:
+    "bg-slate-50 text-slate-700 border-slate-200 dark:bg-slate-900/30 dark:text-slate-400 dark:border-slate-800",
 } as const;
 
 function getProjectCategory(tags?: string[]): { label: string; color: string } {
   if (!tags || tags.length === 0) return { label: "Project", color: categoryColors.default };
-  
-  const lowerTags = tags.map(t => t.toLowerCase());
-  
-  if (lowerTags.some(t => t.includes("saas"))) {
+
+  const lowerTags = tags.map((t) => t.toLowerCase());
+
+  if (lowerTags.some((t) => t.includes("saas"))) {
     return { label: "SaaS Project", color: categoryColors.saas };
   }
-  if (lowerTags.some(t => t.includes("website") || t.includes("web"))) {
+  if (lowerTags.some((t) => t.includes("website") || t.includes("web"))) {
     return { label: "Website", color: categoryColors.website };
   }
-  if (lowerTags.some(t => t.includes("mobile") || t.includes("app"))) {
+  if (lowerTags.some((t) => t.includes("mobile") || t.includes("app"))) {
     return { label: "Mobile App", color: categoryColors.mobile };
   }
-  
+
   return { label: tags[0], color: categoryColors.default };
 }
 
-function getProjectPriority(tags?: string[]): { label: string; variant: keyof typeof priorityColors } | null {
+function getProjectPriority(
+  tags?: string[]
+): { label: string; variant: keyof typeof priorityColors } | null {
   if (!tags || tags.length === 0) return null;
-  
-  const lowerTags = tags.map(t => t.toLowerCase());
-  
+
+  const lowerTags = tags.map((t) => t.toLowerCase());
+
   if (lowerTags.includes("high") || lowerTags.includes("urgent")) {
     return { label: "High", variant: "high" };
   }
@@ -75,7 +78,7 @@ function getProjectPriority(tags?: string[]): { label: string; variant: keyof ty
   if (lowerTags.includes("low")) {
     return { label: "Low", variant: "low" };
   }
-  
+
   return null;
 }
 
@@ -96,14 +99,14 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
               <FileText className="h-5 w-5" />
             </div>
-            <Link 
+            <Link
               href={`/dashboard/projects/${project.id}`}
               className="font-semibold text-foreground hover:text-primary transition-colors truncate"
             >
               {project.name}
             </Link>
           </div>
-          
+
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
@@ -148,18 +151,20 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 
         {/* Tags */}
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${category.color}`}>
+          <span
+            className={`inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-full border ${category.color}`}
+          >
             <FileText className="h-3 w-3" />
             {category.label}
           </span>
-          
+
           {taskCount > 0 && (
             <Badge variant="secondary" className="gap-1">
               <span className="text-amber-600 dark:text-amber-400">●</span>
               {taskCount} {taskCount === 1 ? "Task" : "Tasks"}
             </Badge>
           )}
-          
+
           {priority && (
             <Badge variant={priorityColors[priority.variant]} className="gap-1">
               <span>●</span>
@@ -170,9 +175,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
 
         {/* Description */}
         {project.description && (
-          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
-            {project.description}
-          </p>
+          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{project.description}</p>
         )}
 
         {/* Dates */}
@@ -186,11 +189,13 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
               <span className="text-muted-foreground">
                 {project.status === "completed" ? "Completion Date" : "Deadline"}
               </span>
-              <span className={`font-medium ${
-                project.status !== "completed" && new Date(project.endDate) < new Date() 
-                  ? "text-destructive" 
-                  : ""
-              }`}>
+              <span
+                className={`font-medium ${
+                  project.status !== "completed" && new Date(project.endDate) < new Date()
+                    ? "text-destructive"
+                    : ""
+                }`}
+              >
                 {formatDate(project.endDate)}
               </span>
             </div>
@@ -205,12 +210,15 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
           </span>
           <div className="flex items-center -space-x-2">
             {visibleMembers.map((member, index) => (
-              <Avatar 
-                key={member.id} 
+              <Avatar
+                key={member.id}
                 className="h-8 w-8 border-2 border-background"
                 style={{ zIndex: visibleMembers.length - index }}
               >
-                <AvatarImage src={member.avatarUrl || undefined} alt={`${member.firstName} ${member.lastName}`} />
+                <AvatarImage
+                  src={member.avatarUrl || undefined}
+                  alt={`${member.firstName} ${member.lastName}`}
+                />
                 <AvatarFallback className="text-xs bg-gradient-to-br from-primary/80 to-primary text-primary-foreground">
                   {getInitials(`${member.firstName} ${member.lastName}`)}
                 </AvatarFallback>
@@ -232,4 +240,3 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
     </Card>
   );
 }
-

@@ -2,38 +2,17 @@
 
 export interface LineItem {
   name: string;
-  quantity?: number;
-  price?: number;
-  unit?: string;
+  quantity: number;
+  price: number;
+  unit: string;
   productId?: string;
   /** Discount percentage for this line item (0-100) */
-  discount?: number;
+  discount: number;
   /** VAT percentage for this line item */
-  vat?: number;
+  vat: number;
 }
 
-export interface EditorDoc {
-  type: "doc";
-  content: EditorNode[];
-}
-
-export interface EditorNode {
-  type: string;
-  content?: InlineContent[];
-}
-
-interface InlineContent {
-  type: string;
-  text?: string;
-  marks?: Mark[];
-}
-
-export interface Mark {
-  type: string;
-  attrs?: {
-    href?: string;
-  };
-}
+import type { EditorDoc } from "@crm/schemas";
 
 export interface TextStyle {
   fontSize: number;
@@ -138,7 +117,7 @@ export interface Order {
 
 export interface OrderFormValues {
   id: string;
-  status: string;
+  status: OrderStatus;
   template: OrderTemplate;
   fromDetails: EditorDoc | string | null;
   customerDetails: EditorDoc | string | null;
@@ -232,10 +211,15 @@ export function extractTextFromEditorDoc(doc: EditorDoc | string | null): string
   if (!doc) return "";
   if (typeof doc === "string") return doc;
 
-  return doc.content
+  const nodes = doc.content ?? [];
+  return nodes
     .map((node) => {
-      if (!node.content) return "";
-      return node.content.map((inline) => inline.text || "").join("");
+      const inlines = (node as { content?: Array<InlineContent | string | null> }).content ?? [];
+      return inlines
+        .map((inline: InlineContent | string | null) =>
+          typeof inline === "object" && inline && "text" in inline ? String(inline.text || "") : ""
+        )
+        .join("");
     })
     .join("\n");
 }
@@ -301,4 +285,9 @@ export function formatOrderNumber(num: string | null | undefined): string {
     return `ORD-${year}-${seq}`;
   }
   return num;
+}
+interface InlineContent {
+  [x: string]: unknown;
+  type: string;
+  text?: string;
 }

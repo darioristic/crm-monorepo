@@ -9,7 +9,12 @@ export const EXPENSE_CATEGORIES: Category[] = [
   { id: "utilities", name: "Utilities", slug: "utilities", color: "#6366F1" },
   { id: "rent", name: "Rent & Lease", slug: "rent-lease", color: "#EC4899" },
   { id: "marketing", name: "Marketing & Advertising", slug: "marketing", color: "#14B8A6" },
-  { id: "professional", name: "Professional Services", slug: "professional-services", color: "#F97316" },
+  {
+    id: "professional",
+    name: "Professional Services",
+    slug: "professional-services",
+    color: "#F97316",
+  },
   { id: "insurance", name: "Insurance", slug: "insurance", color: "#8B5CF6" },
   { id: "taxes", name: "Taxes & Fees", slug: "taxes-fees", color: "#EF4444" },
   { id: "equipment", name: "Equipment & Hardware", slug: "equipment", color: "#06B6D4" },
@@ -41,9 +46,7 @@ export function getCategoryBySlug(slug: string): Category | undefined {
 }
 
 export function getCategoryByName(name: string): Category | undefined {
-  return ALL_CATEGORIES.find(
-    (c) => c.name.toLowerCase() === name.toLowerCase()
-  );
+  return ALL_CATEGORIES.find((c) => c.name.toLowerCase() === name.toLowerCase());
 }
 
 export function getExpenseCategories(): Category[] {
@@ -53,4 +56,3 @@ export function getExpenseCategories(): Category[] {
 export function getIncomeCategories(): Category[] {
   return INCOME_CATEGORIES;
 }
-

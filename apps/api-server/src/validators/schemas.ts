@@ -30,7 +30,10 @@ export const positiveNumberSchema = z.number().positive("Must be a positive numb
 
 export const nonNegativeNumberSchema = z.number().nonnegative("Must be zero or positive");
 
-export const currencySchema = z.string().length(3, "Currency must be a 3-letter code").toUpperCase();
+export const currencySchema = z
+  .string()
+  .length(3, "Currency must be a 3-letter code")
+  .toUpperCase();
 
 export const phoneSchema = z
   .string()
@@ -121,8 +124,22 @@ export const updateCompanySchema = createCompanySchema.partial();
 // Lead Schemas
 // ============================================
 
-export const leadStatusSchema = z.enum(["new", "contacted", "qualified", "proposal", "won", "lost"]);
-export const leadSourceSchema = z.enum(["website", "referral", "linkedin", "cold_call", "advertisement", "other"]);
+export const leadStatusSchema = z.enum([
+  "new",
+  "contacted",
+  "qualified",
+  "proposal",
+  "won",
+  "lost",
+]);
+export const leadSourceSchema = z.enum([
+  "website",
+  "referral",
+  "linkedin",
+  "cold_call",
+  "advertisement",
+  "other",
+]);
 
 export const createLeadSchema = z.object({
   name: z.string().min(1, "Name is required").max(255).trim(),
@@ -231,7 +248,14 @@ export const updateQuoteSchema = createQuoteSchema.partial().omit({ createdBy: t
 // Invoice Schemas
 // ============================================
 
-export const invoiceStatusSchema = z.enum(["draft", "sent", "paid", "partial", "overdue", "cancelled"]);
+export const invoiceStatusSchema = z.enum([
+  "draft",
+  "sent",
+  "paid",
+  "partial",
+  "overdue",
+  "cancelled",
+]);
 
 export const invoiceItemSchema = z.object({
   id: uuidSchema.optional(),
@@ -291,13 +315,21 @@ export const createDeliveryNoteSchema = z.object({
   createdBy: uuidSchema,
 });
 
-export const updateDeliveryNoteSchema = createDeliveryNoteSchema.partial().omit({ createdBy: true });
+export const updateDeliveryNoteSchema = createDeliveryNoteSchema
+  .partial()
+  .omit({ createdBy: true });
 
 // ============================================
 // Project Schemas
 // ============================================
 
-export const projectStatusSchema = z.enum(["planning", "in_progress", "on_hold", "completed", "cancelled"]);
+export const projectStatusSchema = z.enum([
+  "planning",
+  "in_progress",
+  "on_hold",
+  "completed",
+  "cancelled",
+]);
 
 export const createProjectSchema = z.object({
   name: z.string().min(1, "Project name is required").max(255).trim(),
@@ -452,7 +484,13 @@ export const paymentMethodSchema = z.enum([
   "other",
 ]);
 
-export const paymentStatusSchema = z.enum(["pending", "completed", "failed", "refunded", "cancelled"]);
+export const paymentStatusSchema = z.enum([
+  "pending",
+  "completed",
+  "failed",
+  "refunded",
+  "cancelled",
+]);
 
 export const createPaymentSchema = z.object({
   invoiceId: uuidSchema,
@@ -468,7 +506,9 @@ export const createPaymentSchema = z.object({
   recordedBy: uuidSchema,
 });
 
-export const updatePaymentSchema = createPaymentSchema.partial().omit({ invoiceId: true, recordedBy: true });
+export const updatePaymentSchema = createPaymentSchema
+  .partial()
+  .omit({ invoiceId: true, recordedBy: true });
 
 // ============================================
 // Invoice Template Schema
@@ -543,4 +583,3 @@ export type UpdateProductInput = z.infer<typeof updateProductSchema>;
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type UpdatePaymentInput = z.infer<typeof updatePaymentSchema>;
 export type InvoiceTemplateInput = z.infer<typeof invoiceTemplateSchema>;
-

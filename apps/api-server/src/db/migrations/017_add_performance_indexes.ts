@@ -192,7 +192,7 @@ export async function up(): Promise<void> {
 			`;
     }
   } catch (error) {
-    logger.warn("Orders table not found, skipping order indexes:", error);
+    logger.warn({ error }, "Orders table not found, skipping order indexes");
   }
 
   logger.info("Performance indexes created successfully");
@@ -235,7 +235,7 @@ export async function down(): Promise<void> {
         await db.unsafe(`DROP INDEX IF EXISTS ${indexName}`);
         logger.info(`Dropped index: ${indexName}`);
       } catch (error) {
-        logger.warn(`Failed to drop index ${indexName}:`, error);
+        logger.warn({ error, indexName }, "Failed to drop index");
       }
     }
   }

@@ -5,7 +5,7 @@ export async function generateMetadata() {
   return generateMeta({
     title: "Reports",
     description: "Analytics and reporting dashboard",
-    canonical: "/dashboard/reports"
+    canonical: "/dashboard/reports",
   });
 }
 

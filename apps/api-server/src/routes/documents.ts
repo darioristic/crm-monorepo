@@ -4,7 +4,7 @@
  * API endpoints for document management
  */
 
-import { errorResponse } from "@crm/utils";
+import { errorResponse, successResponse } from "@crm/utils";
 import { logger } from "../lib/logger";
 import {
   documentsService,
@@ -33,11 +33,13 @@ const router = new RouteBuilder();
 router.get("/api/v1/documents", async (request, url) => {
   return withAuth(request, async (auth) => {
     try {
-      const effectiveUrl = applyCompanyIdFromHeader(request, url);
-      const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
-      if (error) return error;
+      // For documents, use auth.companyId directly (FK references companies.id, not tenants.id)
+      const companyId = auth.companyId || null;
       if (!companyId) {
-        return errorResponse("VALIDATION_ERROR", "Company ID required");
+        return errorResponse(
+          "VALIDATION_ERROR",
+          "Company ID required - user must be assigned to a company"
+        );
       }
 
       const pagination = {
@@ -56,7 +58,7 @@ router.get("/api/v1/documents", async (request, url) => {
 
       return documentsService.getDocuments(companyId, pagination, filters);
     } catch (error) {
-      logger.error("Error in /api/v1/documents route:", error);
+      logger.error({ error }, "Error in /api/v1/documents route");
       return errorResponse("INTERNAL_ERROR", "Failed to fetch documents");
     }
   });
@@ -99,11 +101,10 @@ router.get("/api/v1/documents/count", async (request, url) => {
 /**
  * GET /api/v1/documents/:id - Get document by ID
  */
-router.get("/api/v1/documents/:id", async (request, url, params) => {
+router.get("/api/v1/documents/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const effectiveUrl = applyCompanyIdFromHeader(request, url);
-    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
-    if (error) return error;
+    // Use auth.companyId directly - documents.company_id references companies.id
+    const companyId = auth.companyId || null;
     if (!companyId) {
       return errorResponse("VALIDATION_ERROR", "Company ID required");
     }
@@ -157,13 +158,16 @@ router.post("/api/v1/documents/upload", async (request) => {
         });
       }
       try {
-        const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
-        const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
-        if (error) return error;
-        const resolvedCompanyId = companyId || auth.activeTenantId || auth.companyId || null;
+        // For document upload, use auth.companyId directly
+        // The documents.company_id FK references companies.id (not tenants.id)
+        const resolvedCompanyId = auth.companyId || null;
         if (!resolvedCompanyId) {
-          return errorResponse("VALIDATION_ERROR", "Company ID required");
+          return errorResponse(
+            "VALIDATION_ERROR",
+            "Company ID required - user must be assigned to a company"
+          );
         }
+
         const formData = await request.formData();
         const files: Array<{
           file: File | Blob;
@@ -171,17 +175,28 @@ router.post("/api/v1/documents/upload", async (request) => {
           mimetype: string;
         }> = [];
 
-        // Process uploaded files
-        for (const [, value] of formData.entries()) {
+        // Use getAll("files") to get all files - this is the key the frontend uses
+        const filesFromForm = formData.getAll("files");
+
+        // Process uploaded files - use duck typing for Bun compatibility
+        for (const value of filesFromForm) {
+          const hasFileProperties =
+            value !== null &&
+            typeof value === "object" &&
+            typeof (value as { size?: number }).size === "number" &&
+            typeof (value as { arrayBuffer?: () => Promise<ArrayBuffer> }).arrayBuffer ===
+              "function";
+
           const isFile = typeof File !== "undefined" && value instanceof File;
           const isBlob = typeof Blob !== "undefined" && value instanceof Blob;
-          if (isFile || isBlob) {
-            const fileObj = value as File | Blob;
-            const name = isFile ? (value as File).name : "upload.bin";
+
+          if (hasFileProperties || isFile || isBlob) {
+            const fileObj = value as Blob;
+            const name = (value as { name?: string }).name || "upload.bin";
             files.push({
-              file: fileObj,
+              file: (isFile ? (value as File) : fileObj) as File | Blob,
               originalName: name,
-              mimetype: (fileObj as any).type || "application/octet-stream",
+              mimetype: (fileObj as Blob).type || "application/octet-stream",
             });
           }
         }
@@ -192,7 +207,7 @@ router.post("/api/v1/documents/upload", async (request) => {
 
         return documentsService.uploadFiles(resolvedCompanyId, auth.userId, files);
       } catch (error) {
-        logger.error("Upload error:", error);
+        logger.error({ error }, "Upload error");
         if (process.env.NODE_ENV === "test") {
           const cid =
             auth.activeTenantId || auth.companyId || "00000000-0000-0000-0000-000000000000";
@@ -268,7 +283,7 @@ router.post("/api/v1/documents/upload-json", async (request) => {
 /**
  * PATCH /api/v1/documents/:id - Update document
  */
-router.patch("/api/v1/documents/:id", async (request, url, params) => {
+router.patch("/api/v1/documents/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
     const effectiveUrl = applyCompanyIdFromHeader(request, url);
     const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
@@ -289,7 +304,7 @@ router.patch("/api/v1/documents/:id", async (request, url, params) => {
 /**
  * DELETE /api/v1/documents/:id - Delete document
  */
-router.delete("/api/v1/documents/:id", async (request, url, params) => {
+router.delete("/api/v1/documents/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
     const effectiveUrl = applyCompanyIdFromHeader(request, url);
     const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
@@ -303,14 +318,62 @@ router.delete("/api/v1/documents/:id", async (request, url, params) => {
 });
 
 /**
+ * GET /api/v1/documents/view/:companyId/:filename - View file inline (for PDF viewer)
+ * Serves file with inline disposition for embedding in viewers
+ */
+router.get("/api/v1/documents/view/:companyId/:filename", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const companyId = auth.companyId || null;
+    if (!companyId) {
+      return json(errorResponse("VALIDATION_ERROR", "Company ID required"), 400);
+    }
+
+    if (params.companyId !== companyId) {
+      return json(errorResponse("FORBIDDEN", "Access denied"), 403);
+    }
+
+    const pathTokens = [params.companyId, params.filename];
+    const fileInfo = fileStorage.getFileInfo(pathTokens);
+
+    if (!fileInfo.exists || !fileInfo.path) {
+      return json(errorResponse("NOT_FOUND", "File not found"), 404);
+    }
+
+    const mimetype = fileStorage.getMimeType(params.filename);
+    const stream = fileStorage.createFileReadStream(pathTokens);
+
+    if (!stream) {
+      return json(errorResponse("NOT_FOUND", "File not found"), 404);
+    }
+
+    const webStream = new ReadableStream({
+      start(controller) {
+        stream.on("data", (chunk) => controller.enqueue(chunk));
+        stream.on("end", () => controller.close());
+        stream.on("error", (err) => controller.error(err));
+      },
+    });
+
+    return new Response(webStream, {
+      status: 200,
+      headers: {
+        "Content-Type": mimetype,
+        "Content-Disposition": "inline",
+        "Content-Length": fileInfo.size?.toString() || "",
+        "Cache-Control": "private, max-age=3600",
+      },
+    });
+  });
+});
+
+/**
  * GET /api/v1/documents/download/* - Download file (wildcard path)
  * This handles paths like /api/v1/documents/download/companyId/filename.pdf
  */
-router.get("/api/v1/documents/download/:companyId/:filename", async (request, url, params) => {
+router.get("/api/v1/documents/download/:companyId/:filename", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const effectiveUrl = applyCompanyIdFromHeader(request, url);
-    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
-    if (error) return error;
+    // Use auth.companyId directly - documents.company_id references companies.id
+    const companyId = auth.companyId || null;
     if (!companyId) {
       return json(errorResponse("VALIDATION_ERROR", "Company ID required"), 400);
     }
@@ -377,6 +440,62 @@ router.get("/api/v1/documents/download/:companyId/:filename", async (request, ur
         "Content-Length": fileInfo.size?.toString() || "",
       },
     });
+  });
+});
+
+/**
+ * GET /api/v1/documents/preview/:companyId/:filename - Get PDF thumbnail preview
+ * Converts the first page of a PDF to a PNG image for thumbnail display
+ */
+router.get("/api/v1/documents/preview/:companyId/:filename", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const companyId = auth.companyId || null;
+    if (!companyId) {
+      return json(errorResponse("VALIDATION_ERROR", "Company ID required"), 400);
+    }
+
+    // Ensure user can only preview from their company
+    if (params.companyId !== companyId) {
+      return json(errorResponse("FORBIDDEN", "Access denied"), 403);
+    }
+
+    const pathTokens = [params.companyId, params.filename];
+    const fileInfo = fileStorage.getFileInfo(pathTokens);
+
+    if (!fileInfo.exists || !fileInfo.path) {
+      return json(errorResponse("NOT_FOUND", "File not found"), 404);
+    }
+
+    const mimetype = fileStorage.getMimeType(params.filename);
+
+    // Only process PDFs
+    if (mimetype !== "application/pdf") {
+      return json(errorResponse("VALIDATION_ERROR", "File is not a PDF"), 400);
+    }
+
+    try {
+      // Read the PDF file
+      const file = Bun.file(fileInfo.path);
+      const pdfBuffer = await file.arrayBuffer();
+
+      // Convert to PNG thumbnail
+      const { getPdfImage } = await import("../utils/pdf-to-img");
+      const imageBuffer = await getPdfImage(pdfBuffer);
+
+      if (!imageBuffer) {
+        return json(errorResponse("SERVER_ERROR", "Failed to convert PDF to image"), 500);
+      }
+
+      return new Response(new Uint8Array(imageBuffer), {
+        headers: {
+          "Content-Type": "image/png",
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    } catch (error) {
+      logger.error({ error, pathTokens }, "PDF preview generation failed");
+      return json(errorResponse("SERVER_ERROR", "PDF preview generation failed"), 500);
+    }
   });
 });
 
@@ -523,6 +642,69 @@ router.delete("/api/v1/document-tag-assignments", async (request) => {
     }
 
     return documentTagAssignmentsService.removeTag(companyId, body);
+  });
+});
+
+// ============================================
+// GENERATED DOCUMENTS (Invoices, Quotes, etc.)
+// ============================================
+
+/**
+ * POST /api/v1/documents/store-generated - Store a generated document (invoice, quote PDF)
+ * This endpoint is called after PDF generation to save it in the vault
+ */
+router.post("/api/v1/documents/store-generated", async (request) => {
+  return withAuth(
+    request,
+    async (auth) => {
+      const companyId = auth.companyId || null;
+      if (!companyId) {
+        return errorResponse("VALIDATION_ERROR", "Company ID required");
+      }
+
+      const body = await parseBody<{
+        pdfBase64: string;
+        documentType: "invoice" | "quote" | "delivery-note" | "order";
+        entityId: string;
+        title: string;
+        documentNumber?: string;
+        metadata?: Record<string, unknown>;
+      }>(request);
+
+      if (!body?.pdfBase64 || !body?.documentType || !body?.entityId || !body?.title) {
+        return errorResponse(
+          "VALIDATION_ERROR",
+          "pdfBase64, documentType, entityId, and title are required"
+        );
+      }
+
+      // Convert base64 to buffer
+      const pdfBuffer = Buffer.from(body.pdfBase64, "base64");
+
+      return documentsService.storeGeneratedDocument(companyId, auth.userId, {
+        pdfBuffer,
+        documentType: body.documentType,
+        entityId: body.entityId,
+        title: body.title,
+        documentNumber: body.documentNumber,
+        metadata: body.metadata,
+      });
+    },
+    201
+  );
+});
+
+/**
+ * GET /api/v1/documents/by-entity/:type/:id - Find document by entity reference
+ */
+router.get("/api/v1/documents/by-entity/:type/:id", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const companyId = auth.companyId || null;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    return documentsService.findByEntityId(companyId, params.type, params.id);
   });
 });
 

@@ -1,12 +1,13 @@
 "use client";
 
+import type { InvoiceFormValues } from "@crm/schemas";
+import { ArrowLeft, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, Send, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import type { InvoiceDefaultSettings } from "@/types/invoice";
 import { Form } from "./form";
-import { SettingsMenu } from "./settings-menu";
 import { FormContext } from "./form-context";
-import type { InvoiceFormValues, InvoiceDefaultSettings } from "@/types/invoice";
+import { SettingsMenu } from "./settings-menu";
 
 type InvoiceContentProps = {
   type: "create" | "edit" | "success";
@@ -91,8 +92,8 @@ function SuccessContent({
 
       <h2 className="text-2xl font-semibold mb-2">Invoice Created</h2>
       <p className="text-muted-foreground mb-8 max-w-md">
-        Your invoice has been created successfully. You can now view it, send it
-        to your customer, or create another one.
+        Your invoice has been created successfully. You can now view it, send it to your customer,
+        or create another one.
       </p>
 
       <div className="flex gap-3">

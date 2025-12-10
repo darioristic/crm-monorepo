@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
-import { Editor } from "@/components/invoice/editor";
-import { Controller, useFormContext } from "react-hook-form";
-import { LabelInput } from "./label-input";
 import type { JSONContent } from "@tiptap/react";
+import { useEffect } from "react";
+import { Controller, useFormContext } from "react-hook-form";
+import { Editor } from "@/components/invoice/editor";
+import { LabelInput } from "./label-input";
 
 const STORAGE_KEY = "invoice_payment_details";
 const STORAGE_LABEL_KEY = "invoice_payment_label";
@@ -24,7 +24,7 @@ export function PaymentDetails() {
           const parsed = JSON.parse(saved);
           setValue("paymentDetails", parsed, { shouldDirty: false });
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore
       }
     }
@@ -35,7 +35,7 @@ export function PaymentDetails() {
         if (savedLabel) {
           setValue("template.paymentLabel", savedLabel, { shouldDirty: false });
         }
-      } catch (e) {
+      } catch (_e) {
         // Ignore
       }
     }
@@ -48,7 +48,7 @@ export function PaymentDetails() {
       } else {
         localStorage.removeItem(STORAGE_KEY);
       }
-    } catch (e) {
+    } catch (_e) {
       // Ignore
     }
   };
@@ -56,18 +56,14 @@ export function PaymentDetails() {
   const handleLabelSave = (value: string) => {
     try {
       localStorage.setItem(STORAGE_LABEL_KEY, value);
-    } catch (e) {
+    } catch (_e) {
       // Ignore
     }
   };
 
   return (
     <div>
-      <LabelInput
-        name="template.paymentLabel"
-        className="mb-2 block"
-        onSave={handleLabelSave}
-      />
+      <LabelInput name="template.paymentLabel" className="mb-2 block" onSave={handleLabelSave} />
 
       <Controller
         name="paymentDetails"

@@ -1,12 +1,12 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import type { ColumnDef } from "@tanstack/react-table";
 
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { labels, priorities, statuses } from "../data/data";
-import { Task } from "../data/schema";
+import type { Task } from "../data/schema";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
 
@@ -32,14 +32,14 @@ export const columns: ColumnDef<Task>[] = [
       />
     ),
     enableSorting: false,
-    enableHiding: false
+    enableHiding: false,
   },
   {
     accessorKey: "id",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Task" />,
     cell: ({ row }) => <div className="w-[80px]">{row.getValue("id")}</div>,
     enableSorting: false,
-    enableHiding: false
+    enableHiding: false,
   },
   {
     accessorKey: "title",
@@ -53,7 +53,7 @@ export const columns: ColumnDef<Task>[] = [
           <span className="max-w-[500px] truncate font-medium">{row.getValue("title")}</span>
         </div>
       );
-    }
+    },
   },
   {
     accessorKey: "status",
@@ -74,7 +74,7 @@ export const columns: ColumnDef<Task>[] = [
     },
     filterFn: (row, id, value) => {
       return value.includes(row.getValue(id));
-    }
+    },
   },
   {
     accessorKey: "priority",
@@ -95,10 +95,10 @@ export const columns: ColumnDef<Task>[] = [
     },
     filterFn: (row, id, value) => {
       return value.includes(row.getValue(id));
-    }
+    },
   },
   {
     id: "actions",
-    cell: ({ row }) => <DataTableRowActions row={row} />
-  }
+    cell: ({ row }) => <DataTableRowActions row={row} />,
+  },
 ];

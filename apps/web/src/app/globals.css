@@ -234,3 +234,13 @@
 .preview-fallback .hidden {
   display: flex !important;
 }
+
+/* Hide scrollbar - from Midday */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

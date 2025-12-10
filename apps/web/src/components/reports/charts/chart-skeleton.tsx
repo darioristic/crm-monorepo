@@ -1,7 +1,7 @@
 "use client";
 
-import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ChartSkeletonProps {
   className?: string;
@@ -9,11 +9,7 @@ interface ChartSkeletonProps {
   height?: number;
 }
 
-export function ChartSkeleton({ 
-  className, 
-  showHeader = true,
-  height = 300 
-}: ChartSkeletonProps) {
+export function ChartSkeleton({ className, showHeader = true, height = 300 }: ChartSkeletonProps) {
   return (
     <Card className={className}>
       {showHeader && (
@@ -28,4 +24,3 @@ export function ChartSkeleton({
     </Card>
   );
 }
-

@@ -1,18 +1,22 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  DollarSign,
+  FileText,
+  Globe,
+  ImageIcon,
+  Loader2,
+  Palette,
+  Receipt,
+  Save,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -34,17 +38,7 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import {
-import { logger } from '@/lib/logger';
-  FileText,
-  Save,
-  Loader2,
-  ImageIcon,
-  Palette,
-  Globe,
-  DollarSign,
-  Receipt,
-} from "lucide-react";
+import { logger } from "@/lib/logger";
 
 const templateSchema = z.object({
   logoUrl: z.string().url().optional().or(z.literal("")),
@@ -154,7 +148,7 @@ export default function InvoiceTemplateSettingsPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   const form = useForm<TemplateFormValues>({
-    resolver: zodResolver(templateSchema) as any,
+    resolver: zodResolver(templateSchema),
     defaultValues,
   });
 
@@ -167,7 +161,7 @@ export default function InvoiceTemplateSettingsPage() {
         const response = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/v1/invoice-templates/${companyId}`
         );
-        
+
         if (response.ok) {
           const data = await response.json();
           if (data) {
@@ -281,9 +275,7 @@ export default function InvoiceTemplateSettingsPage() {
                   <ImageIcon className="h-5 w-5" />
                   Branding
                 </CardTitle>
-                <CardDescription>
-                  Your company logo and invoice title
-                </CardDescription>
+                <CardDescription>Your company logo and invoice title</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
@@ -293,10 +285,7 @@ export default function InvoiceTemplateSettingsPage() {
                     <FormItem>
                       <FormLabel>Logo URL</FormLabel>
                       <FormControl>
-                        <Input
-                          placeholder="https://example.com/logo.png"
-                          {...field}
-                        />
+                        <Input placeholder="https://example.com/logo.png" {...field} />
                       </FormControl>
                       <FormDescription>
                         URL to your company logo (recommended size: 200x60px)
@@ -329,9 +318,7 @@ export default function InvoiceTemplateSettingsPage() {
                   <Globe className="h-5 w-5" />
                   Regional Settings
                 </CardTitle>
-                <CardDescription>
-                  Currency, date format, and localization
-                </CardDescription>
+                <CardDescription>Currency, date format, and localization</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
@@ -340,10 +327,7 @@ export default function InvoiceTemplateSettingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Currency</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select currency" />
@@ -368,10 +352,7 @@ export default function InvoiceTemplateSettingsPage() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Date Format</FormLabel>
-                      <Select
-                        onValueChange={field.onChange}
-                        defaultValue={field.value}
-                      >
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select format" />
@@ -397,10 +378,7 @@ export default function InvoiceTemplateSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Locale</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue />
@@ -425,10 +403,7 @@ export default function InvoiceTemplateSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Page Size</FormLabel>
-                        <Select
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                        >
+                        <Select onValueChange={field.onChange} defaultValue={field.value}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue />
@@ -454,17 +429,13 @@ export default function InvoiceTemplateSettingsPage() {
                   <DollarSign className="h-5 w-5" />
                   Tax & Calculations
                 </CardTitle>
-                <CardDescription>
-                  Configure VAT, tax rates, and display options
-                </CardDescription>
+                <CardDescription>Configure VAT, tax rates, and display options</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <FormLabel>Include VAT</FormLabel>
-                    <FormDescription>
-                      Show VAT calculation on invoices
-                    </FormDescription>
+                    <FormDescription>Show VAT calculation on invoices</FormDescription>
                   </div>
                   <FormField
                     control={form.control}
@@ -472,10 +443,7 @@ export default function InvoiceTemplateSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -490,13 +458,7 @@ export default function InvoiceTemplateSettingsPage() {
                       <FormItem>
                         <FormLabel>Default VAT Rate (%)</FormLabel>
                         <FormControl>
-                          <Input
-                            type="number"
-                            min="0"
-                            max="100"
-                            step="0.01"
-                            {...field}
-                          />
+                          <Input type="number" min="0" max="100" step="0.01" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -509,9 +471,7 @@ export default function InvoiceTemplateSettingsPage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <FormLabel>Include Tax</FormLabel>
-                    <FormDescription>
-                      Show additional tax calculation
-                    </FormDescription>
+                    <FormDescription>Show additional tax calculation</FormDescription>
                   </div>
                   <FormField
                     control={form.control}
@@ -519,10 +479,7 @@ export default function InvoiceTemplateSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -534,9 +491,7 @@ export default function InvoiceTemplateSettingsPage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <FormLabel>Show Discount Column</FormLabel>
-                    <FormDescription>
-                      Display discount per line item
-                    </FormDescription>
+                    <FormDescription>Display discount per line item</FormDescription>
                   </div>
                   <FormField
                     control={form.control}
@@ -544,10 +499,7 @@ export default function InvoiceTemplateSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -559,9 +511,7 @@ export default function InvoiceTemplateSettingsPage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <FormLabel>Show Decimals</FormLabel>
-                    <FormDescription>
-                      Display decimal places in amounts
-                    </FormDescription>
+                    <FormDescription>Display decimal places in amounts</FormDescription>
                   </div>
                   <FormField
                     control={form.control}
@@ -569,10 +519,7 @@ export default function InvoiceTemplateSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -584,9 +531,7 @@ export default function InvoiceTemplateSettingsPage() {
                 <div className="flex items-center justify-between">
                   <div className="space-y-0.5">
                     <FormLabel>Include QR Code</FormLabel>
-                    <FormDescription>
-                      Add payment QR code to invoice
-                    </FormDescription>
+                    <FormDescription>Add payment QR code to invoice</FormDescription>
                   </div>
                   <FormField
                     control={form.control}
@@ -594,10 +539,7 @@ export default function InvoiceTemplateSettingsPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
+                          <Switch checked={field.value} onCheckedChange={field.onChange} />
                         </FormControl>
                       </FormItem>
                     )}
@@ -613,9 +555,7 @@ export default function InvoiceTemplateSettingsPage() {
                   <FileText className="h-5 w-5" />
                   Default Content
                 </CardTitle>
-                <CardDescription>
-                  Pre-fill payment details and notes
-                </CardDescription>
+                <CardDescription>Pre-fill payment details and notes</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <FormField
@@ -652,9 +592,7 @@ export default function InvoiceTemplateSettingsPage() {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Bank account and payment instructions
-                      </FormDescription>
+                      <FormDescription>Bank account and payment instructions</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -673,9 +611,7 @@ export default function InvoiceTemplateSettingsPage() {
                           {...field}
                         />
                       </FormControl>
-                      <FormDescription>
-                        Default note that appears on every invoice
-                      </FormDescription>
+                      <FormDescription>Default note that appears on every invoice</FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -691,9 +627,7 @@ export default function InvoiceTemplateSettingsPage() {
                 <Palette className="h-5 w-5" />
                 Label Customization
               </CardTitle>
-              <CardDescription>
-                Customize labels for multilingual support
-              </CardDescription>
+              <CardDescription>Customize labels for multilingual support</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="grid gap-4 md:grid-cols-4">
@@ -897,4 +831,3 @@ export default function InvoiceTemplateSettingsPage() {
     </div>
   );
 }
-

@@ -160,7 +160,7 @@ export async function GET(request: NextRequest) {
       amount: apiQuote.total,
       currency: apiQuote.currency || "EUR",
       lineItems:
-        apiQuote.items?.map((item: any) => ({
+        apiQuote.items?.map((item: QuoteItemApi) => ({
           name: item.productName || item.description || "",
           quantity: item.quantity || 1,
           price: item.unitPrice || 0,
@@ -235,7 +235,9 @@ export async function GET(request: NextRequest) {
     const { renderToBuffer } = await import("@react-pdf/renderer");
     const { PdfTemplate } = await import("@/components/quote/templates/pdf-template");
     const pdfDocument = await PdfTemplate({ quote });
-    const buffer = await renderToBuffer(pdfDocument as any);
+    const buffer = await renderToBuffer(
+      pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]
+    );
 
     const headers: Record<string, string> = {
       "Content-Type": "application/pdf",
@@ -258,3 +260,13 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+type QuoteItemApi = {
+  productName?: string;
+  description?: string;
+  quantity?: number;
+  unitPrice?: number;
+  unit?: string;
+  discount?: number;
+  vat?: number;
+  vatRate?: number;
+};

@@ -1,13 +1,13 @@
 import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
-import * as schema from "./schema/index";
 import { dbLogger } from "../lib/logger";
+import * as schema from "./schema/index";
 
 const DATABASE_URL = process.env.DATABASE_URL;
 if (!DATABASE_URL) {
   throw new Error(
     "FATAL: DATABASE_URL environment variable is required. " +
-    "Example: postgresql://username:password@localhost:5432/crm_db"
+      "Example: postgresql://username:password@localhost:5432/crm_db"
   );
 }
 
@@ -42,9 +42,7 @@ export async function testConnection(): Promise<boolean> {
 }
 
 // Transaction helper using Drizzle
-export async function transaction<T>(
-  callback: Parameters<typeof db.transaction>[0]
-): Promise<T> {
+export async function transaction<T>(callback: Parameters<typeof db.transaction>[0]): Promise<T> {
   return db.transaction(callback) as Promise<T>;
 }
 

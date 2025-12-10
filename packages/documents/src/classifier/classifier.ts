@@ -13,7 +13,7 @@ export class DocumentClassifier {
 
   async #processDocument({ content }: DocumentClassifierRequest): Promise<ClassificationResult> {
     const result = await generateObject({
-      model: this.model as any,
+      model: this.model,
       schema: documentClassifierSchema,
       temperature: 0.3,
       messages: [
@@ -33,7 +33,7 @@ export class DocumentClassifier {
 
   async #processImage(request: DocumentClassifierImageRequest): Promise<ClassificationResult> {
     const result = await generateObject({
-      model: this.model as any,
+      model: this.model,
       schema: imageClassifierSchema,
       temperature: 0.3,
       messages: [

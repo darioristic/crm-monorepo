@@ -1,10 +1,9 @@
 "use client";
 
-import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
-
+import { cva, type VariantProps } from "class-variance-authority";
+import type * as React from "react";
 import { cn } from "@/lib/utils";
-import { cva, VariantProps } from "class-variance-authority";
 
 function Avatar({ className, ...props }: React.ComponentProps<typeof AvatarPrimitive.Root>) {
   return (
@@ -44,15 +43,15 @@ const indicatorVariants = cva("size-2 absolute rounded-full", {
     variant: {
       success: "bg-green-400",
       danger: "bg-red-400",
-      warning: "bg-orange-400"
+      warning: "bg-orange-400",
     },
     position: {
       "top-end": "end-0.5 top-0.5",
       "bottom-end": "end-0.5 bottom-0.5",
       "bottom-start": "start-0.5 bottom-0.5",
-      "top-start": "start-0.5 top-0.5"
-    }
-  }
+      "top-start": "start-0.5 top-0.5",
+    },
+  },
 });
 
 export interface AvatarIndicatorProps
@@ -72,7 +71,8 @@ function AvatarIndicator({
     <div
       data-slot="avatar-indicator"
       className={cn(indicatorVariants({ variant, position, className }))}
-      {...props}></div>
+      {...props}
+    ></div>
   );
 }
 

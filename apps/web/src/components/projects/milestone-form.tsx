@@ -1,16 +1,21 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import type {
+  CreateMilestoneRequest,
+  Milestone,
+  Project,
+  UpdateMilestoneRequest,
+} from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { Milestone, Project, CreateMilestoneRequest, UpdateMilestoneRequest } from "@crm/types";
-import { milestonesApi, projectsApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -19,6 +24,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -26,10 +32,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, AlertCircle } from "lucide-react";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { useApi, useMutation } from "@/hooks/use-api";
+import { milestonesApi, projectsApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
 const milestoneFormSchema = z.object({
@@ -65,7 +70,7 @@ export function MilestoneForm({ milestone, mode, defaultProjectId }: MilestoneFo
   );
 
   const form = useForm<MilestoneFormValues>({
-    resolver: zodResolver(milestoneFormSchema) as any,
+    resolver: zodResolver(milestoneFormSchema),
     defaultValues: {
       name: milestone?.name || "",
       description: milestone?.description || "",
@@ -98,7 +103,7 @@ export function MilestoneForm({ milestone, mode, defaultProjectId }: MilestoneFo
       order: milestone?.order || 0,
     };
 
-    let result;
+    let result: { success: boolean; data?: Milestone; error?: string };
     if (mode === "create") {
       result = await createMutation.mutate(data as CreateMilestoneRequest);
     } else {
@@ -106,7 +111,9 @@ export function MilestoneForm({ milestone, mode, defaultProjectId }: MilestoneFo
     }
 
     if (result.success) {
-      toast.success(mode === "create" ? "Milestone created successfully" : "Milestone updated successfully");
+      toast.success(
+        mode === "create" ? "Milestone created successfully" : "Milestone updated successfully"
+      );
       router.push("/dashboard/projects/milestones");
       router.refresh();
     } else {
@@ -246,11 +253,7 @@ export function MilestoneForm({ milestone, mode, defaultProjectId }: MilestoneFo
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {mode === "create" ? "Create Milestone" : "Update Milestone"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
+                <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
               </div>
@@ -261,4 +264,3 @@ export function MilestoneForm({ milestone, mode, defaultProjectId }: MilestoneFo
     </div>
   );
 }
-

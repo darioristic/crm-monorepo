@@ -1,16 +1,23 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useForm } from "react-hook-form";
+import type {
+  Company,
+  CreateProjectRequest,
+  Project,
+  UpdateProjectRequest,
+  User,
+} from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AlertCircle, Loader2, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
-import type { Project, User, Company, CreateProjectRequest, UpdateProjectRequest } from "@crm/types";
-import { projectsApi, usersApi, companiesApi } from "@/lib/api";
-import { useMutation, useApi } from "@/hooks/use-api";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Form,
   FormControl,
@@ -20,6 +27,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -27,11 +35,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, AlertCircle, X } from "lucide-react";
-import { toast } from "sonner";
+import { Textarea } from "@/components/ui/textarea";
+import { useApi, useMutation } from "@/hooks/use-api";
+import { companiesApi, projectsApi, usersApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
 const projectFormSchema = z.object({
@@ -57,10 +63,9 @@ interface ProjectFormProps {
 export function ProjectForm({ project, mode }: ProjectFormProps) {
   const router = useRouter();
 
-  const { data: users, isLoading: usersLoading } = useApi<User[]>(
-    () => usersApi.getAll(),
-    { autoFetch: true }
-  );
+  const { data: users, isLoading: usersLoading } = useApi<User[]>(() => usersApi.getAll(), {
+    autoFetch: true,
+  });
 
   const { data: companies, isLoading: companiesLoading } = useApi<Company[]>(
     () => companiesApi.getAll(),
@@ -76,8 +81,7 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
   );
 
   const form = useForm<ProjectFormValues>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: zodResolver(projectFormSchema) as any,
+    resolver: zodResolver(projectFormSchema),
     defaultValues: {
       name: project?.name || "",
       description: project?.description || "",
@@ -119,7 +123,10 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
   };
 
   const removeTag = (tagToRemove: string) => {
-    form.setValue("tags", watchedTags.filter((tag) => tag !== tagToRemove));
+    form.setValue(
+      "tags",
+      watchedTags.filter((tag) => tag !== tagToRemove)
+    );
   };
 
   const onSubmit = async (values: ProjectFormValues) => {
@@ -137,7 +144,7 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
       teamMembers: project?.teamMembers || [],
     };
 
-    let result;
+    let result: { success: boolean; data?: Project; error?: string };
     if (mode === "create") {
       result = await createMutation.mutate(data as CreateProjectRequest);
     } else {
@@ -145,7 +152,9 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
     }
 
     if (result.success) {
-      toast.success(mode === "create" ? "Project created successfully" : "Project updated successfully");
+      toast.success(
+        mode === "create" ? "Project created successfully" : "Project updated successfully"
+      );
       router.push("/dashboard/projects");
       router.refresh();
     } else {
@@ -336,13 +345,7 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
                     <FormItem>
                       <FormLabel>Budget</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="0.00"
-                          {...field}
-                        />
+                        <Input type="number" min="0" step="0.01" placeholder="0.00" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -418,11 +421,7 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
                   {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                   {mode === "create" ? "Create Project" : "Update Project"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => router.back()}
-                >
+                <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>
               </div>
@@ -433,4 +432,3 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
     </div>
   );
 }
-

@@ -1,9 +1,9 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-import { NumericFormat } from "react-number-format";
 import { useState } from "react";
-import { useController, useFormContext, type FieldPath, type FieldValues } from "react-hook-form";
+import { type FieldPath, type FieldValues, useController, useFormContext } from "react-hook-form";
+import { NumericFormat } from "react-number-format";
+import { cn } from "@/lib/utils";
 
 type Props<T extends FieldValues> = {
   name: FieldPath<T>;
@@ -30,9 +30,7 @@ export function AmountInput<T extends FieldValues>({ name, className }: Props<T>
         onValueChange={(values) => {
           // Preserve the exact floatValue, including 0 and decimals like 1.20
           onChange(
-            values.floatValue !== undefined && values.floatValue !== null
-              ? values.floatValue
-              : 0
+            values.floatValue !== undefined && values.floatValue !== null ? values.floatValue : 0
           );
         }}
         onFocus={() => setIsFocused(true)}

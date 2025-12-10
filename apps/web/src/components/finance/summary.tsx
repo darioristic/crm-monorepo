@@ -119,8 +119,11 @@ export default function Summary() {
           </ChartContainer>
         </div>
         <div className="grid gap-2 md:grid-cols-2">
-          {summaryData.map((item, index) => (
-            <div key={index} className="bg-muted flex items-center justify-between rounded-md p-4">
+          {summaryData.map((item) => (
+            <div
+              key={item.name}
+              className="bg-muted flex items-center justify-between rounded-md p-4"
+            >
               <div className="flex items-center space-x-2">
                 <div className="size-3 rounded-full" style={{ backgroundColor: item.color }}></div>
                 <span className="text-muted-foreground text-sm">{item.name}</span>

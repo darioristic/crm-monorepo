@@ -1,13 +1,13 @@
 "use client";
 
+import type { Task } from "@crm/types";
+import { AlertCircle } from "lucide-react";
 import { use } from "react";
 import { TaskForm } from "@/components/projects/task-form";
-import { tasksApi } from "@/lib/api";
-import { useApi } from "@/hooks/use-api";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle } from "lucide-react";
-import type { Task } from "@crm/types";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useApi } from "@/hooks/use-api";
+import { tasksApi } from "@/lib/api";
 
 interface EditTaskPageProps {
   params: Promise<{ id: string }>;
@@ -16,10 +16,11 @@ interface EditTaskPageProps {
 export default function EditTaskPage({ params }: EditTaskPageProps) {
   const { id } = use(params);
 
-  const { data: task, isLoading, error } = useApi<Task>(
-    () => tasksApi.getById(id),
-    { autoFetch: true }
-  );
+  const {
+    data: task,
+    isLoading,
+    error,
+  } = useApi<Task>(() => tasksApi.getById(id), { autoFetch: true });
 
   if (isLoading) {
     return (
@@ -54,4 +55,3 @@ export default function EditTaskPage({ params }: EditTaskPageProps) {
     </div>
   );
 }
-
