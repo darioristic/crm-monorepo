@@ -20,6 +20,7 @@ import {
   documentTagAssignmentQueries,
   documentTagQueries,
 } from "../db/queries/documents";
+import { addDocumentProcessingJob } from "../jobs/queue";
 import { serviceLogger } from "../lib/logger";
 import { aiService } from "./ai.service";
 import { auditService } from "./audit.service";
@@ -118,6 +119,24 @@ export const documentsService = {
             entityId: document.id,
             metadata: { name: originalName },
           });
+
+          // Trigger AI processing in background
+          try {
+            await addDocumentProcessingJob({
+              documentId: document.id,
+              companyId,
+              filePath: uploadResult.path,
+              mimetype: uploadResult.mimetype,
+              processingType: "full",
+            });
+            serviceLogger.info({ documentId: document.id }, "Document processing job queued");
+          } catch (jobErr) {
+            serviceLogger.warn(
+              { error: jobErr, documentId: document.id },
+              "Failed to queue document processing job"
+            );
+          }
+
           uploadedDocuments.push(document);
         } catch (err: unknown) {
           serviceLogger.error({ error: err, originalName }, "Error uploading document");
@@ -206,6 +225,24 @@ export const documentsService = {
             entityId: document.id,
             metadata: { name: originalName },
           });
+
+          // Trigger AI processing in background
+          try {
+            await addDocumentProcessingJob({
+              documentId: document.id,
+              companyId,
+              filePath: uploadResult.path,
+              mimetype: uploadResult.mimetype,
+              processingType: "full",
+            });
+            serviceLogger.info({ documentId: document.id }, "Document processing job queued");
+          } catch (jobErr) {
+            serviceLogger.warn(
+              { error: jobErr, documentId: document.id },
+              "Failed to queue document processing job"
+            );
+          }
+
           uploadedDocuments.push(document);
         } catch (err: unknown) {
           failures.push({ name: originalName, reason: "UPLOAD_FAILED" });
@@ -572,12 +609,27 @@ export const documentsService = {
         "application/pdf"
       );
 
+      // Generate a descriptive summary
+      const docTypeName =
+        documentType.charAt(0).toUpperCase() + documentType.slice(1).replace("-", " ");
+      const customerName = metadata?.customerName || metadata?.companyName;
+      const total = metadata?.total;
+      const currency = metadata?.currency;
+
+      let summary = `${docTypeName} ${documentNumber || entityId}`;
+      if (customerName) {
+        summary += ` for ${customerName}`;
+      }
+      if (total && currency) {
+        summary += ` - ${currency} ${Number(total).toLocaleString()}`;
+      }
+
       // Create document record with pre-filled metadata
       const document = await documentQueries.create({
         name: uploadResult.path.join("/"),
         pathTokens: uploadResult.path,
         title,
-        summary: `${documentType.charAt(0).toUpperCase() + documentType.slice(1)} ${documentNumber || entityId}`,
+        summary,
         metadata: {
           size: uploadResult.size,
           mimetype: "application/pdf",

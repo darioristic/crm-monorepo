@@ -216,7 +216,7 @@ export const documentQueries = {
 				LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
 			`;
 
-      data = await db.unsafe(selectQuery, [...values, safePageSize, offset] as any[]);
+      data = await db.unsafe(selectQuery, [...values, safePageSize, offset] as unknown[]);
     } catch (error) {
       logger.error({ error }, "Error selecting documents");
       logger.error({ companyId }, "CompanyId");
@@ -323,6 +323,8 @@ export const documentQueries = {
     metadata: DocumentMetadata;
     companyId: string;
     ownerId?: string;
+    title?: string;
+    summary?: string;
     processingStatus?: DocumentProcessingStatus;
   }): Promise<Document> {
     // Serialize metadata to JSON string for proper JSONB insertion
@@ -331,13 +333,15 @@ export const documentQueries = {
     const status = data.processingStatus || "completed";
     const result = await db`
 			INSERT INTO documents (
-				name, path_tokens, metadata, company_id, owner_id, processing_status, created_at, updated_at
+				name, path_tokens, metadata, company_id, owner_id, title, summary, processing_status, created_at, updated_at
 			) VALUES (
 				${data.name},
 				${data.pathTokens},
 				${metadataJson}::jsonb,
 				${data.companyId},
 				${data.ownerId || null},
+				${data.title || null},
+				${data.summary || null},
 				${status},
 				NOW(),
 				NOW()

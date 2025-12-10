@@ -1,5 +1,9 @@
 import { type Job, Worker } from "bullmq";
-import { documentQueries } from "../db/queries/documents";
+import {
+  documentQueries,
+  documentTagAssignmentQueries,
+  documentTagQueries,
+} from "../db/queries/documents";
 import { notificationQueries } from "../db/queries/notifications";
 import { emailService } from "../integrations/email.service";
 import { logger } from "../lib/logger";
@@ -221,6 +225,32 @@ function createDocumentProcessingWorker(): Worker {
           language: result.language || undefined,
           processingStatus: "completed",
         });
+
+        // Create tags if any were suggested by AI
+        if (result.tags && result.tags.length > 0) {
+          for (const tagName of result.tags) {
+            try {
+              const tagSlug = tagName.toLowerCase().replace(/\s+/g, "-");
+              // Find or create the tag
+              let tag = await documentTagQueries.findBySlug(tagSlug, companyId);
+              if (!tag) {
+                tag = await documentTagQueries.create({
+                  name: tagName,
+                  slug: tagSlug,
+                  companyId,
+                });
+              }
+              // Assign tag to document
+              await documentTagAssignmentQueries.create({
+                documentId,
+                tagId: tag.id,
+                companyId,
+              });
+            } catch (tagError) {
+              logger.warn({ tagError, tagName }, "Failed to create/assign tag in worker");
+            }
+          }
+        }
 
         logger.info({ jobId: job.id, documentId }, "Document processing completed");
 

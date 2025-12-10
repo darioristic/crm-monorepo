@@ -6,6 +6,7 @@
  */
 
 import { logger } from "../lib/logger";
+import { documentLoader } from "./document-loader.service";
 import * as fileStorage from "./file-storage.service";
 
 // ============================================
@@ -139,32 +140,45 @@ export const aiService = {
 
     logger.info({ documentId, mimetype }, "Classifying document");
 
-    // Read file content for text-based files
-    let fileContent = "";
     const filename = filePath[filePath.length - 1] || "document";
+    let extractedContent = "";
 
-    if (
-      mimetype.includes("text") ||
-      mimetype === "application/pdf" ||
-      mimetype.includes("document")
-    ) {
+    // Extract actual text content from the document
+    if (documentLoader.isSupportedForExtraction(mimetype)) {
       try {
         const buffer = await fileStorage.readFileAsBuffer(filePath);
         if (buffer) {
-          // For now, we'll use the filename and basic info
-          // In a full implementation, you'd extract text from PDFs/documents
-          fileContent = `Filename: ${filename}\nMimetype: ${mimetype}\nSize: ${buffer.length} bytes`;
+          const fullContent = await documentLoader.loadDocument({
+            content: buffer,
+            mimetype,
+          });
+
+          if (fullContent && fullContent.length > 0) {
+            // Get a sample of the content for AI processing (max 5000 chars)
+            extractedContent = documentLoader.getContentSample(fullContent, 5000);
+            logger.info(
+              {
+                documentId,
+                contentLength: fullContent.length,
+                sampleLength: extractedContent.length,
+              },
+              "Document text extracted successfully"
+            );
+          } else {
+            logger.warn({ documentId }, "No text could be extracted from document");
+          }
         }
       } catch (error) {
-        logger.warn({ error }, "Could not read file content");
+        logger.warn({ error, documentId }, "Could not extract document content");
       }
     }
 
+    // Build the prompt with actual document content
     const systemPrompt = `You are an expert multilingual document analyzer. Your task is to analyze the provided business document and generate structured metadata.
 
 Return a JSON object with these fields:
 - title: A clear, descriptive title for the document. If no clear title exists, create one from the content (max 100 chars)
-- summary: A single sentence capturing the essence of the document (e.g., "Invoice from Supplier X for services rendered in May 2024", "Employment agreement between Company Y and John Doe")
+- summary: A single sentence capturing the essence of the document (e.g., "Invoice from Supplier X for services rendered in May 2024", "Employment agreement between Company Y and John Doe", "Quarterly financial report for Q1 2024")
 - tags: Up to 5 highly relevant and distinct tags. STRONGLY PRIORITIZE:
   * The inferred document type (e.g., "Invoice", "Contract", "Receipt", "Report", "Agreement")
   * Key company or individual names explicitly mentioned
@@ -176,6 +190,7 @@ Return a JSON object with these fields:
 - confidence: A number 0-1 indicating your confidence in the classification
 
 IMPORTANT RULES:
+- Analyze the actual document content carefully
 - Avoid overly generic tags like "document", "file", "text"
 - Do not use date-related tags (the date is extracted separately)
 - Base tags strictly on the content provided
@@ -183,12 +198,30 @@ IMPORTANT RULES:
 
 Examples of good tags: "Invoice", "Contract", "Receipt", "Tax Return", "Employment Agreement", "Consulting Services", "Software License", "Financial Report"`;
 
-    const userPrompt = `Classify this document:
+    let userPrompt: string;
+    if (extractedContent && extractedContent.length > 50) {
+      // We have actual document content - use it for classification
+      userPrompt = `Classify this document based on its content:
+
 Filename: ${filename}
 Type: ${mimetype}
-${fileContent ? `Content preview:\n${fileContent.slice(0, 1000)}` : ""}`;
 
-    const response = await callAI(systemPrompt, userPrompt);
+Document Content:
+${extractedContent}`;
+    } else {
+      // Fallback to filename-based classification
+      userPrompt = `Classify this document based on filename only (no content available):
+
+Filename: ${filename}
+Type: ${mimetype}
+
+Please infer the document type and create appropriate metadata based on the filename.`;
+    }
+
+    const response = await callAI(systemPrompt, userPrompt, {
+      maxTokens: 800,
+      temperature: 0.3,
+    });
     const result = parseJSONResponse<DocumentClassificationResult>(response);
 
     if (!result) {

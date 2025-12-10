@@ -38,14 +38,20 @@ type Props = {
   companies: Company[];
   onSelect: (type: "individual" | "organization", id: string) => void;
   onCompanyCreated?: () => void;
+  /** Restrict to only organizations (companies) - for B2B documents */
+  organizationsOnly?: boolean;
 };
 
-export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props) {
+export function SelectCustomer({
+  companies,
+  onSelect,
+  onCompanyCreated,
+  organizationsOnly = true,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [showCreateSheet, setShowCreateSheet] = useState(false);
   const [prefillName, setPrefillName] = useState("");
-  // Always search across all types
   const [results, setResults] = useState<
     Array<{
       type: "individual" | "organization";
@@ -110,15 +116,31 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
     onCompanyCreated?.();
   };
 
-  const runSearch = async (q: string, t: "all" | "individual" | "organization") => {
+  const runSearch = async (q: string) => {
     setIsLoading(true);
     try {
-      const typeParam = t === "all" ? undefined : t;
-      const res = await accountsApi.search({ q, type: typeParam, limit: 20 });
-      if (res.success && res.data) {
-        setResults(res.data);
+      if (organizationsOnly) {
+        // For organizations-only mode, filter from the companies prop (which comes from companies table)
+        const query = q.toLowerCase();
+        const filtered = companies
+          .filter((c) => !query || c.name.toLowerCase().includes(query))
+          .slice(0, 20)
+          .map((c) => ({
+            type: "organization" as const,
+            id: c.id,
+            display: c.name,
+            subtitle: c.email || undefined,
+            favorite: false,
+          }));
+        setResults(filtered);
       } else {
-        setResults([]);
+        // For all types, use the API search (includes individuals from contacts)
+        const res = await accountsApi.search({ q, type: undefined, limit: 20 });
+        if (res.success && res.data) {
+          setResults(res.data);
+        } else {
+          setResults([]);
+        }
       }
     } finally {
       setIsLoading(false);
@@ -127,14 +149,14 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
 
   const handleValueChange = (v: string) => {
     setValue(v);
-    runSearch(v, "all");
+    runSearch(v);
   };
 
   useEffect(() => {
     if (open) {
-      runSearch("", "all");
+      runSearch("");
     }
-  }, [open]);
+  }, [open, organizationsOnly, companies]);
 
   if (!companies?.length) {
     return (
@@ -253,37 +275,70 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
               onSuccess={handleCompanyCreated}
               onCancel={() => setShowCreateSheet(false)}
             />
-            <div className="border-t pt-6">
-              <h3 className="text-sm font-medium mb-3">Create Individual</h3>
-              <Form {...individualForm}>
-                <form
-                  onSubmit={individualForm.handleSubmit(async (data) => {
-                    const res = await contactsApi.create({
-                      firstName: data.firstName,
-                      lastName: data.lastName,
-                      email: data.email || "",
-                      phone: data.phone,
-                      company: undefined,
-                      position: undefined,
-                      address: undefined,
-                      notes: undefined,
-                      leadId: undefined,
-                      jmbg: data.jmbg,
-                    });
-                    if (res.success && res.data) {
-                      setShowCreateSheet(false);
-                      onSelect("individual", res.data.id);
-                    }
-                  })}
-                  className="space-y-3"
-                >
-                  <div className="grid grid-cols-2 gap-3">
+            {/* Only show Individual creation when not restricted to organizations */}
+            {!organizationsOnly && (
+              <div className="border-t pt-6">
+                <h3 className="text-sm font-medium mb-3">Create Individual</h3>
+                <Form {...individualForm}>
+                  <form
+                    onSubmit={individualForm.handleSubmit(async (data) => {
+                      const res = await contactsApi.create({
+                        firstName: data.firstName,
+                        lastName: data.lastName,
+                        email: data.email || "",
+                        phone: data.phone,
+                        company: undefined,
+                        position: undefined,
+                        address: undefined,
+                        notes: undefined,
+                        leadId: undefined,
+                        jmbg: data.jmbg,
+                      });
+                      if (res.success && res.data) {
+                        setShowCreateSheet(false);
+                        onSelect("individual", res.data.id);
+                      }
+                    })}
+                    className="space-y-3"
+                  >
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField
+                        control={individualForm.control}
+                        name="firstName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">First Name</FormLabel>
+                            <FormControl>
+                              <InputGroup>
+                                <InputGroupInput {...field} />
+                              </InputGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={individualForm.control}
+                        name="lastName"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Last Name</FormLabel>
+                            <FormControl>
+                              <InputGroup>
+                                <InputGroupInput {...field} />
+                              </InputGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                     <FormField
                       control={individualForm.control}
-                      name="firstName"
+                      name="jmbg"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs">First Name</FormLabel>
+                          <FormLabel className="text-xs">JMBG</FormLabel>
                           <FormControl>
                             <InputGroup>
                               <InputGroupInput {...field} />
@@ -293,82 +348,52 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
                         </FormItem>
                       )}
                     />
-                    <FormField
-                      control={individualForm.control}
-                      name="lastName"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Last Name</FormLabel>
-                          <FormControl>
-                            <InputGroup>
-                              <InputGroupInput {...field} />
-                            </InputGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <FormField
-                    control={individualForm.control}
-                    name="jmbg"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel className="text-xs">JMBG</FormLabel>
-                        <FormControl>
-                          <InputGroup>
-                            <InputGroupInput {...field} />
-                          </InputGroup>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <div className="grid grid-cols-2 gap-3">
-                    <FormField
-                      control={individualForm.control}
-                      name="email"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Email</FormLabel>
-                          <FormControl>
-                            <InputGroup>
-                              <InputGroupInput type="email" {...field} />
-                            </InputGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={individualForm.control}
-                      name="phone"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-xs">Phone</FormLabel>
-                          <FormControl>
-                            <InputGroup>
-                              <InputGroupInput {...field} />
-                            </InputGroup>
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                  <div className="sticky bottom-0 bg-background pt-4 border-t flex justify-end gap-2 [padding-bottom:env(safe-area-inset-bottom)]">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setShowCreateSheet(false)}
-                    >
-                      Cancel
-                    </Button>
-                    <Button type="submit">Create & Select</Button>
-                  </div>
-                </form>
-              </Form>
-            </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <FormField
+                        control={individualForm.control}
+                        name="email"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Email</FormLabel>
+                            <FormControl>
+                              <InputGroup>
+                                <InputGroupInput type="email" {...field} />
+                              </InputGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={individualForm.control}
+                        name="phone"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel className="text-xs">Phone</FormLabel>
+                            <FormControl>
+                              <InputGroup>
+                                <InputGroupInput {...field} />
+                              </InputGroup>
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                    <div className="sticky bottom-0 bg-background pt-4 border-t flex justify-end gap-2 [padding-bottom:env(safe-area-inset-bottom)]">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setShowCreateSheet(false)}
+                      >
+                        Cancel
+                      </Button>
+                      <Button type="submit">Create & Select</Button>
+                    </div>
+                  </form>
+                </Form>
+              </div>
+            )}
           </div>
         </SheetContent>
       </Sheet>
