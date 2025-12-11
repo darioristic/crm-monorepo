@@ -35,7 +35,7 @@ patches:
       - op: replace
         path: /spec/replicas
         value: 1
-  
+
   # Set dev-specific resource limits
   - target:
       kind: Deployment
@@ -53,7 +53,7 @@ patches:
       - op: replace
         path: /spec/template/spec/containers/0/resources/limits/cpu
         value: "250m"
-  
+
   - target:
       kind: Deployment
       name: crm-backend
@@ -78,5 +78,8 @@ configMapGenerator:
     literals:
       - NODE_ENV=development
       - LOG_LEVEL=debug
-      - API_URL=https://api.dev.crm.apps.cluster-domain.com
-      - FRONTEND_URL=https://dev.crm.apps.cluster-domain.com
+      - API_URL=https://crm-backend-crm-dev.apps.ocp-5.datsci.softergee.si
+      - FRONTEND_URL=https://crm-frontend-crm-dev.apps.ocp-5.datsci.softergee.si
+      - CORS_ORIGINS=https://crm-frontend-crm-dev.apps.ocp-5.datsci.softergee.si,http://localhost:3000
+      - ALLOWED_ORIGINS=https://crm-frontend-crm-dev.apps.ocp-5.datsci.softergee.si,http://localhost:3000
+      - COOKIE_DOMAIN=
