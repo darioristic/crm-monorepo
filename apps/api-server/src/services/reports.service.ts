@@ -1676,14 +1676,14 @@ class ReportsService {
       try {
         const kpiResult = await db.unsafe(`
           WITH revenue AS (
-            SELECT COALESCE(SUM(CAST(NULLIF(p.amount, '') AS DECIMAL)), 0) AS total_revenue
+            SELECT COALESCE(SUM(CASE WHEN p.amount ~ '^[0-9]+(\\.[0-9]+)?$' THEN p.amount::DECIMAL ELSE 0 END), 0) AS total_revenue
             FROM payments p
             JOIN invoices i ON p.invoice_id = i.id
             WHERE p.status = 'completed' ${tenantFilter}
           ), pending AS (
             SELECT COALESCE(SUM(
-              CAST(NULLIF(i.total, '') AS DECIMAL) - COALESCE((
-                SELECT SUM(CAST(NULLIF(p2.amount, '') AS DECIMAL))
+              (CASE WHEN i.total ~ '^[0-9]+(\\.[0-9]+)?$' THEN i.total::DECIMAL ELSE 0 END) - COALESCE((
+                SELECT SUM(CASE WHEN p2.amount ~ '^[0-9]+(\\.[0-9]+)?$' THEN p2.amount::DECIMAL ELSE 0 END)
                 FROM payments p2
                 WHERE p2.invoice_id = i.id AND p2.status != 'cancelled'
               ), 0)
@@ -1704,7 +1704,7 @@ class ReportsService {
         const revenueByCompanyResult = await db.unsafe(`
           SELECT
             COALESCE(c.name, 'Unknown') AS category,
-            COALESCE(SUM(CAST(NULLIF(p.amount, '') AS DECIMAL)), 0) AS amount
+            COALESCE(SUM(CASE WHEN p.amount ~ '^[0-9]+(\\.[0-9]+)?$' THEN p.amount::DECIMAL ELSE 0 END), 0) AS amount
           FROM payments p
           JOIN invoices i ON p.invoice_id = i.id
           LEFT JOIN companies c ON i.company_id = c.id
@@ -1759,7 +1759,11 @@ class ReportsService {
         transactions = transactionsResult.map((row: Record<string, unknown>) => ({
           id: row.id as string,
           description: row.description as string,
-          amount: parseFloat((row.amount as string) || "0"),
+          amount: (() => {
+            const v = row.amount as string;
+            const n = parseFloat(v);
+            return Number.isFinite(n) ? n : 0;
+          })(),
           type: (row.type as string) === "expense" ? "expense" : "income",
           date: row.date ? (row.date as Date).toISOString() : new Date().toISOString(),
           status: row.status as string,
@@ -1774,7 +1778,7 @@ class ReportsService {
         const monthlyResult = await db.unsafe(`
           SELECT
             TO_CHAR(DATE_TRUNC('month', p.payment_date), 'Mon') AS month,
-            COALESCE(SUM(CAST(NULLIF(p.amount, '') AS DECIMAL)), 0) AS revenue
+            COALESCE(SUM(CASE WHEN p.amount ~ '^[0-9]+(\\.[0-9]+)?$' THEN p.amount::DECIMAL ELSE 0 END), 0) AS revenue
           FROM payments p
           JOIN invoices i ON p.invoice_id = i.id
           WHERE p.payment_date >= NOW() - INTERVAL '6 months'
