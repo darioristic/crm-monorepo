@@ -49,7 +49,6 @@
     "ai": "4.0.30",
     "bcryptjs": "3.0.3",
     "bullmq": "^5.30.0",
-    "canvas": "3.2.0",
     "drizzle-orm": "0.44.7",
     "ioredis": "^5.4.1",
     "nanoid": "^5.0.6",
@@ -61,6 +60,9 @@
     "postgres": "^3.4.4",
     "tesseract.js": "6.0.1",
     "zod": "^3.23.8"
+  },
+  "optionalDependencies": {
+    "canvas": "3.2.0"
   },
   "devDependencies": {
     "@types/bun": "^1.1.0",

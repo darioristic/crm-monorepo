@@ -7,7 +7,7 @@ metadata:
     app.kubernetes.io/component: pipeline
 spec:
   description: Build and push the CRM backend Docker image
-  
+
   params:
     - name: git-url
       type: string
@@ -48,61 +48,66 @@ spec:
 
   steps:
     - name: git-clone
-      image: gcr.io/tekton-releases/github.com/tektoncd/pipeline/cmd/git-init:v0.40.2
+      image: alpine/git:latest
       script: |
         #!/usr/bin/env sh
         set -eu
-        
+
+        # Ensure workspace is clean
+        if [ -d "$(workspaces.source.path)" ]; then
+          rm -rf "$(workspaces.source.path)"/*
+        fi
+        mkdir -p "$(workspaces.source.path)"
+
         echo "Cloning $(params.git-url) at revision $(params.git-revision)"
         git clone --depth 1 --branch $(params.git-revision) $(params.git-url) $(workspaces.source.path)
-        
+
         cd $(workspaces.source.path)
-        echo "Checked out commit: $(git rev-parse HEAD)"
+        echo "Checked out commit: $(git -c safe.directory=$(workspaces.source.path) rev-parse HEAD)"
       securityContext:
         runAsNonRoot: true
-        runAsUser: 65532
+
+    - name: prepare-dockerconfig
+      image: alpine:3.19
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+        mkdir -p /workspace/.docker
+        if [ -f "$(workspaces.dockerconfig.path)/.dockercfg" ]; then
+          echo '{"auths":' > /workspace/.docker/config.json
+          cat "$(workspaces.dockerconfig.path)/.dockercfg" >> /workspace/.docker/config.json
+          echo '}' >> /workspace/.docker/config.json
+        elif [ -f "$(workspaces.dockerconfig.path)/config.json" ]; then
+          cp "$(workspaces.dockerconfig.path)/config.json" \
+             "/workspace/.docker/config.json"
+        fi
 
     - name: build-and-push
-      image: quay.io/buildah/stable:v1.31
+      image: quay.io/openshift/origin-cli:4.14
       script: |
-        #!/usr/bin/env bash
+        #!/usr/bin/env sh
         set -eu
-        
-        cd $(workspaces.source.path)
-        
-        FULL_IMAGE="$(params.registry)/$(params.namespace)/$(params.image-name):$(params.image-tag)"
-        CONTEXT_DIR="."
-        DOCKERFILE="docker/api.Dockerfile"
-        
-        echo "Building image: ${FULL_IMAGE}"
-        echo "Using Dockerfile: ${DOCKERFILE}"
-        
-        # Build the image
-        buildah bud \
-          --storage-driver=vfs \
-          --format=oci \
-          -f ${DOCKERFILE} \
-          -t ${FULL_IMAGE} \
-          ${CONTEXT_DIR}
-        
-        # Push to registry
-        echo "Pushing image to registry..."
-        buildah push \
-          --storage-driver=vfs \
-          --digestfile /tmp/image-digest \
-          ${FULL_IMAGE} \
-          docker://${FULL_IMAGE}
-        
-        # Write results
+
+        NAMESPACE=$(params.namespace)
+        TAG=$(params.image-tag)
+
+        echo "Starting OpenShift Binary Build: crm-backend in namespace ${NAMESPACE}"
+        oc start-build -n "${NAMESPACE}" crm-backend --from-dir=$(workspaces.source.path) --follow
+
+        echo "Fetching built image reference..."
+        IMAGE_REF=$(oc get istag -n "${NAMESPACE}" crm-backend:${TAG} -o jsonpath='{.image.dockerImageReference}')
+        echo "Built image: ${IMAGE_REF}"
+
+        echo "${IMAGE_REF}" | tee $(results.image-url.path)
+        DIGEST=$(echo "${IMAGE_REF}" | awk -F@ '{print $2}')
+        [ -n "${DIGEST}" ] && echo "${DIGEST}" | tee $(results.image-digest.path) || echo "" | tee $(results.image-digest.path)
+    - name: write-results
+      image: alpine:3.19
+      script: |
+        #!/usr/bin/env sh
+        set -eu
         cat /tmp/image-digest | tee $(results.image-digest.path)
-        echo -n "${FULL_IMAGE}" | tee $(results.image-url.path)
-        
-        echo "Build complete!"
-      securityContext:
-        privileged: true
-      volumeMounts:
-        - name: varlibcontainers
-          mountPath: /var/lib/containers
+        echo -n "$(params.registry)/$(params.namespace)/$(params.image-name):$(params.image-tag)" | tee $(results.image-url.path)
       resources:
         requests:
           memory: "1Gi"
@@ -111,6 +116,4 @@ spec:
           memory: "2Gi"
           cpu: "1000m"
 
-  volumes:
-    - name: varlibcontainers
-      emptyDir: {}
+  volumes: []

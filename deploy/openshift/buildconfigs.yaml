@@ -1,0 +1,56 @@
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: crm-backend
+  namespace: crm-dev
+---
+apiVersion: image.openshift.io/v1
+kind: ImageStream
+metadata:
+  name: crm-frontend
+  namespace: crm-dev
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: crm-backend
+  namespace: crm-dev
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/darioristic/crm-monorepo.git
+      ref: main
+    contextDir: .
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: docker/api.Dockerfile
+  output:
+    to:
+      kind: ImageStreamTag
+      name: crm-backend:latest
+---
+apiVersion: build.openshift.io/v1
+kind: BuildConfig
+metadata:
+  name: crm-frontend
+  namespace: crm-dev
+spec:
+  source:
+    type: Git
+    git:
+      uri: https://github.com/darioristic/crm-monorepo.git
+      ref: main
+    contextDir: .
+  strategy:
+    type: Docker
+    dockerStrategy:
+      dockerfilePath: docker/web.Dockerfile
+      buildArgs:
+        - name: NEXT_PUBLIC_API_URL
+          value: https://crm-backend-crm-dev.apps.ocp-5.datsci.softergee.si
+  output:
+    to:
+      kind: ImageStreamTag
+      name: crm-frontend:latest

@@ -117,7 +117,15 @@ class CacheService {
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     try {
       const serialized = JSON.stringify(value);
-      await redis.setex(key, ttl || this.defaultTTL, serialized);
+      if (typeof ttl === "number") {
+        if (ttl > 0) {
+          await redis.setex(key, ttl, serialized);
+        } else {
+          await redis.set(key, serialized);
+        }
+      } else {
+        await redis.setex(key, this.defaultTTL, serialized);
+      }
     } catch (error) {
       cacheLogger.error({ key, error }, "Cache set error");
     }

@@ -8,7 +8,7 @@
 # ============================================
 # Stage 1: Dependencies
 # ============================================
-FROM oven/bun:1-alpine AS deps
+FROM node:20-alpine AS deps
 
 WORKDIR /app
 
@@ -31,9 +31,10 @@ COPY package.json ./
 COPY apps/api-server/package.json ./apps/api-server/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
+COPY packages/schemas/package.json ./packages/schemas/
 
-# Install production dependencies (generate fresh lockfile)
-RUN bun install --production
+# Install production dependencies with npm (workspaces)
+RUN npm install --omit=dev
 
 # ============================================
 # Stage 2: Builder (copy sources only)

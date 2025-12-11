@@ -1,3 +1,4 @@
+import type { ApiResponse, User } from "@crm/types";
 import { errorResponse, successResponse } from "@crm/utils";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
@@ -65,7 +66,7 @@ function setAuthCookies(
   refreshToken: string,
   sessionId: string
 ): Record<string, string | string[]> {
-  const isProduction = getNodeEnv() === "production";
+  const _isProduction = getNodeEnv() === "production";
   const forwardedProto = (request.headers.get("X-Forwarded-Proto") || "").toLowerCase();
   const reqUrl = new URL(request.url);
   const originHeader = request.headers.get("Origin") || "";
@@ -310,10 +311,23 @@ export async function meHandler(request: Request, _url: URL): Promise<Response> 
     return json(errorResponse("UNAUTHORIZED", "Not authenticated"), 401);
   }
 
-  const result = await authService.getCurrentUser(auth.userId);
+  const result: ApiResponse<User> = await authService.getCurrentUser(auth.userId);
 
   if (!result.success || !result.data) {
-    return json(result, result.success ? 200 : 404);
+    const code = result.error?.code;
+    if (code === "NOT_FOUND") {
+      return json(result, 404);
+    }
+    if (code === "UNAUTHORIZED") {
+      return json(result, 401);
+    }
+    if (code === "FORBIDDEN") {
+      return json(result, 403);
+    }
+    if (code === "VALIDATION_ERROR") {
+      return json(result, 400);
+    }
+    return json(result, 500);
   }
 
   // Map User to AuthUser format (only include fields that frontend expects)

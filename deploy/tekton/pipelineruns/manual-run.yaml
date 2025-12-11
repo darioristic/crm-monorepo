@@ -13,7 +13,7 @@ spec:
     name: crm-build-deploy
   params:
     - name: git-url
-      value: https://github.com/your-org/crm-monorepo.git
+      value: https://github.com/darioristic/crm-monorepo.git
     - name: git-revision
       value: main
     - name: image-tag
@@ -25,16 +25,13 @@ spec:
     - name: registry
       value: image-registry.openshift-image-registry.svc:5000
     - name: api-url
-      value: https://api.crm.apps.cluster-domain.com
+      value: https://crm-backend-crm-dev.apps.ocp-5.datsci.softergee.si
   workspaces:
     - name: shared-workspace
-      volumeClaimTemplate:
-        spec:
-          accessModes:
-            - ReadWriteOnce
-          resources:
-            requests:
-              storage: 2Gi
+      emptyDir: {}
+    - name: dockerconfig
+      secret:
+        secretName: crm-pipeline-dockercfg-9svfd
   serviceAccountName: crm-pipeline
   timeout: 1h0m0s
 ---
@@ -54,7 +51,7 @@ spec:
     name: crm-build-deploy
   params:
     - name: git-url
-      value: https://github.com/your-org/crm-monorepo.git
+      value: https://github.com/darioristic/crm-monorepo.git
     - name: git-revision
       value: main
     - name: image-tag
@@ -66,16 +63,12 @@ spec:
     - name: registry
       value: image-registry.openshift-image-registry.svc:5000
     - name: api-url
-      value: https://api.staging.crm.apps.cluster-domain.com
+      value: https://crm-backend-crm-staging.apps.ocp-5.datsci.softergee.si
   workspaces:
     - name: shared-workspace
-      volumeClaimTemplate:
-        spec:
-          accessModes:
-            - ReadWriteOnce
-          resources:
-            requests:
-              storage: 2Gi
+      emptyDir: {}
+    - name: dockerconfig
+      secret:
+        secretName: crm-pipeline-dockercfg-9svfd
   serviceAccountName: crm-pipeline
   timeout: 1h0m0s
-
