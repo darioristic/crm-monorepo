@@ -39,12 +39,10 @@ spec:
         
         echo "Updating image references in manifests..."
         
-        # Update frontend image in deployment
-        sed -i "s|image:.*crm-frontend.*|image: $(params.frontend-image)|g" \
+        sed -i "s|image:.*crm-web.*|image: $(params.frontend-image)|g" \
           deploy/openshift/base/frontend-deployment.yaml
         
-        # Update backend image in deployment
-        sed -i "s|image:.*crm-backend.*|image: $(params.backend-image)|g" \
+        sed -i "s|image:.*crm-api.*|image: $(params.backend-image)|g" \
           deploy/openshift/base/backend-deployment.yaml
         
         echo "Manifests updated successfully"
@@ -138,4 +136,3 @@ spec:
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
-
