@@ -368,6 +368,34 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
   }
 }
 
+function prefix(endpoint: string): string {
+  if (endpoint.startsWith("/api/")) return endpoint;
+  if (endpoint.startsWith("/api/v1/")) return endpoint;
+  const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `/api/v1${path}`;
+}
+
+export const apiClient = {
+  get<T>(endpoint: string): Promise<ApiResponse<T>> {
+    return request<T>(prefix(endpoint), { method: "GET" });
+  },
+  post<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
+    return request<T>(prefix(endpoint), {
+      method: "POST",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+  patch<T>(endpoint: string, data?: unknown): Promise<ApiResponse<T>> {
+    return request<T>(prefix(endpoint), {
+      method: "PATCH",
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+  delete<T = never>(endpoint: string): Promise<ApiResponse<T>> {
+    return request<T>(prefix(endpoint), { method: "DELETE" });
+  },
+};
+
 function buildQueryString(params: FilterParams & PaginationParams): string {
   const searchParams = new URLSearchParams();
 
