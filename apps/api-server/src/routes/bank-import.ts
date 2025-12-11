@@ -6,9 +6,9 @@
 import { errorResponse, successResponse } from "@crm/utils";
 import { serviceLogger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
+import * as bankImportService from "../services/bank-import.service";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
-import * as bankImportService from "../services/bank-import.service";
 
 // ==============================================
 // ROUTES
@@ -28,11 +28,15 @@ export const bankImportRoutes: Route[] = [
       try {
         const presets = bankImportService.getBankPresets();
 
-        return json(successResponse(presets.map((p) => ({
-          id: p.id,
-          name: p.name,
-          country: p.country,
-        }))));
+        return json(
+          successResponse(
+            presets.map((p) => ({
+              id: p.id,
+              name: p.name,
+              country: p.country,
+            }))
+          )
+        );
       } catch (error) {
         serviceLogger.error({ error }, "Failed to get bank presets");
         return json(errorResponse("INTERNAL_ERROR", "Failed to get bank presets"), 500);
@@ -86,21 +90,24 @@ export const bankImportRoutes: Route[] = [
 
         const detectedPreset = bankImportService.detectBank(body.csvContent);
 
-        return json(successResponse(detectedPreset
-          ? {
-              detected: true,
-              preset: {
-                id: detectedPreset.id,
-                name: detectedPreset.name,
-                country: detectedPreset.country,
-                config: detectedPreset.config,
-              },
-            }
-          : {
-              detected: false,
-              preset: null,
-            }
-        ));
+        return json(
+          successResponse(
+            detectedPreset
+              ? {
+                  detected: true,
+                  preset: {
+                    id: detectedPreset.id,
+                    name: detectedPreset.name,
+                    country: detectedPreset.country,
+                    config: detectedPreset.config,
+                  },
+                }
+              : {
+                  detected: false,
+                  preset: null,
+                }
+          )
+        );
       } catch (error) {
         serviceLogger.error({ error }, "Failed to detect bank");
         return json(errorResponse("INTERNAL_ERROR", "Failed to detect bank format"), 500);
@@ -143,28 +150,36 @@ export const bankImportRoutes: Route[] = [
         } else {
           const detected = bankImportService.detectBank(body.csvContent);
           if (!detected) {
-            return json(errorResponse("VALIDATION_ERROR", "Could not detect bank format. Please specify a preset or custom config."), 400);
+            return json(
+              errorResponse(
+                "VALIDATION_ERROR",
+                "Could not detect bank format. Please specify a preset or custom config."
+              ),
+              400
+            );
           }
           config = detected.config;
         }
 
         const result = bankImportService.parseBankStatement(body.csvContent, config);
 
-        return json(successResponse({
-          totalRows: result.totalRows,
-          parsed: result.imported,
-          errors: result.errors,
-          errorDetails: result.errorDetails,
-          preview: result.transactions.slice(0, 10).map((tx) => ({
-            date: tx.date.toISOString(),
-            amount: tx.amount,
-            currency: tx.currency,
-            description: tx.description,
-            reference: tx.reference,
-            isExpense: tx.isExpense,
-          })),
-          hasMore: result.transactions.length > 10,
-        }));
+        return json(
+          successResponse({
+            totalRows: result.totalRows,
+            parsed: result.imported,
+            errors: result.errors,
+            errorDetails: result.errorDetails,
+            preview: result.transactions.slice(0, 10).map((tx) => ({
+              date: tx.date.toISOString(),
+              amount: tx.amount,
+              currency: tx.currency,
+              description: tx.description,
+              reference: tx.reference,
+              isExpense: tx.isExpense,
+            })),
+            hasMore: result.transactions.length > 10,
+          })
+        );
       } catch (error) {
         serviceLogger.error({ error }, "Failed to parse bank statement");
         return json(errorResponse("INTERNAL_ERROR", "Failed to parse bank statement"), 500);
@@ -200,7 +215,10 @@ export const bankImportRoutes: Route[] = [
         }
 
         if (!body.defaultInvoiceId) {
-          return json(errorResponse("VALIDATION_ERROR", "Default invoice ID is required for import"), 400);
+          return json(
+            errorResponse("VALIDATION_ERROR", "Default invoice ID is required for import"),
+            400
+          );
         }
 
         let config: bankImportService.BankImportConfig;
@@ -225,14 +243,16 @@ export const bankImportRoutes: Route[] = [
         const parseResult = bankImportService.parseBankStatement(body.csvContent, config);
 
         if (parseResult.transactions.length === 0) {
-          return json(successResponse({
-            success: false,
-            parsed: 0,
-            imported: 0,
-            duplicates: 0,
-            errors: parseResult.errors,
-            errorDetails: parseResult.errorDetails,
-          }));
+          return json(
+            successResponse({
+              success: false,
+              parsed: 0,
+              imported: 0,
+              duplicates: 0,
+              errors: parseResult.errors,
+              errorDetails: parseResult.errorDetails,
+            })
+          );
         }
 
         // Import the transactions
@@ -246,14 +266,16 @@ export const bankImportRoutes: Route[] = [
           }
         );
 
-        return json(successResponse({
-          success: true,
-          parsed: parseResult.imported,
-          imported: importResult.imported,
-          duplicates: importResult.duplicates,
-          errors: importResult.errors + parseResult.errors,
-          errorDetails: parseResult.errorDetails,
-        }));
+        return json(
+          successResponse({
+            success: true,
+            parsed: parseResult.imported,
+            imported: importResult.imported,
+            duplicates: importResult.duplicates,
+            errors: importResult.errors + parseResult.errors,
+            errorDetails: parseResult.errorDetails,
+          })
+        );
       } catch (error) {
         serviceLogger.error({ error }, "Failed to import bank statement");
         return json(errorResponse("INTERNAL_ERROR", "Failed to import bank statement"), 500);

@@ -4,8 +4,8 @@
  * Detects subscriptions, regular bills, and other periodic payments
  */
 
-import { serviceLogger } from "../lib/logger";
 import { sql as db } from "../db/client";
+import { serviceLogger } from "../lib/logger";
 
 // ==============================================
 // TYPES
@@ -97,7 +97,10 @@ function calculateAverageInterval(dates: Date[]): number {
 /**
  * Detect frequency from average interval
  */
-function detectFrequency(avgInterval: number): { frequency: TransactionFrequency; confidence: number } {
+function detectFrequency(avgInterval: number): {
+  frequency: TransactionFrequency;
+  confidence: number;
+} {
   const { frequencyWindows } = DETECTION_CONFIG;
 
   // Check each frequency window
@@ -359,10 +362,7 @@ export async function markTransactionsAsRecurring(
     totalUpdated += result.count;
   }
 
-  serviceLogger.info(
-    { tenantId, updated: totalUpdated },
-    "Transactions marked as recurring"
-  );
+  serviceLogger.info({ tenantId, updated: totalUpdated }, "Transactions marked as recurring");
 
   return { updated: totalUpdated };
 }

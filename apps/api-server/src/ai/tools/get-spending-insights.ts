@@ -15,7 +15,8 @@ const getSpendingInsightsSchema = z.object({
 type GetSpendingInsightsParams = z.infer<typeof getSpendingInsightsSchema>;
 
 export const getSpendingInsightsTool = tool({
-  description: "Get intelligent insights about spending patterns, anomalies, savings opportunities, and unusual transactions. Use this to understand spending behavior.",
+  description:
+    "Get intelligent insights about spending patterns, anomalies, savings opportunities, and unusual transactions. Use this to understand spending behavior.",
   parameters: getSpendingInsightsSchema,
   execute: async (params: GetSpendingInsightsParams): Promise<string> => {
     const { tenantId, months } = params;
@@ -41,7 +42,8 @@ export const getSpendingInsightsTool = tool({
       `;
 
       // Calculate spending by category
-      const categorySpend: Map<string, { total: number; count: number; transactions: any[] }> = new Map();
+      const categorySpend: Map<string, { total: number; count: number; transactions: any[] }> =
+        new Map();
       for (const exp of expenses) {
         const cat = exp.category as string;
         if (!categorySpend.has(cat)) {
@@ -70,7 +72,7 @@ export const getSpendingInsightsTool = tool({
             anomalies.push({
               ...exp,
               expectedAmount: avgTransaction,
-              variance: (Number(exp.amount) - avgTransaction) / avgTransaction * 100,
+              variance: ((Number(exp.amount) - avgTransaction) / avgTransaction) * 100,
             });
           }
         }
@@ -80,7 +82,7 @@ export const getSpendingInsightsTool = tool({
       const duplicates: any[] = [];
       const transactionsByDay: Map<string, any[]> = new Map();
       for (const exp of expenses) {
-        const dateKey = new Date(exp.date as string).toISOString().split('T')[0];
+        const dateKey = new Date(exp.date as string).toISOString().split("T")[0];
         if (!transactionsByDay.has(dateKey)) {
           transactionsByDay.set(dateKey, []);
         }
@@ -92,8 +94,10 @@ export const getSpendingInsightsTool = tool({
           for (let j = i + 1; j < dayTransactions.length; j++) {
             const t1 = dayTransactions[i];
             const t2 = dayTransactions[j];
-            if (Math.abs(Number(t1.amount) - Number(t2.amount)) < 1 &&
-                (t1.merchant_name === t2.merchant_name || t1.description === t2.description)) {
+            if (
+              Math.abs(Number(t1.amount) - Number(t2.amount)) < 1 &&
+              (t1.merchant_name === t2.merchant_name || t1.description === t2.description)
+            ) {
               duplicates.push({ transaction1: t1, transaction2: t2 });
             }
           }
@@ -110,7 +114,7 @@ export const getSpendingInsightsTool = tool({
         weekEnd.setDate(weekEnd.getDate() - week * 7);
 
         const weekTotal = expenses
-          .filter(e => {
+          .filter((e) => {
             const d = new Date(e.date as string);
             return d >= weekStart && d < weekEnd;
           })
@@ -120,21 +124,24 @@ export const getSpendingInsightsTool = tool({
 
       const recentWeeklyAvg = weeklySpending.slice(0, 4).reduce((a, b) => a + b, 0) / 4;
       const olderWeeklyAvg = weeklySpending.slice(-4).reduce((a, b) => a + b, 0) / 4;
-      const velocityChange = olderWeeklyAvg > 0 ? ((recentWeeklyAvg - olderWeeklyAvg) / olderWeeklyAvg) * 100 : 0;
+      const velocityChange =
+        olderWeeklyAvg > 0 ? ((recentWeeklyAvg - olderWeeklyAvg) / olderWeeklyAvg) * 100 : 0;
 
       // Find savings opportunities
       const savingsOpportunities: string[] = [];
 
       // Check for subscription stacking
-      const subscriptions = expenses.filter(e => e.is_recurring);
+      const subscriptions = expenses.filter((e) => e.is_recurring);
       const subscriptionsByCategory: Map<string, number> = new Map();
-      subscriptions.forEach(s => {
+      subscriptions.forEach((s) => {
         const cat = s.category as string;
         subscriptionsByCategory.set(cat, (subscriptionsByCategory.get(cat) || 0) + 1);
       });
       subscriptionsByCategory.forEach((count, cat) => {
         if (count > 2) {
-          savingsOpportunities.push(`Multiple ${cat} subscriptions (${count}) - consider consolidating`);
+          savingsOpportunities.push(
+            `Multiple ${cat} subscriptions (${count}) - consider consolidating`
+          );
         }
       });
 
@@ -142,7 +149,9 @@ export const getSpendingInsightsTool = tool({
       const totalSpend = Array.from(categorySpend.values()).reduce((sum, d) => sum + d.total, 0);
       categorySpend.forEach((data, cat) => {
         if (data.total / totalSpend > 0.3 && data.total > 500) {
-          savingsOpportunities.push(`${cat} is ${((data.total / totalSpend) * 100).toFixed(0)}% of spending - review for optimization`);
+          savingsOpportunities.push(
+            `${cat} is ${((data.total / totalSpend) * 100).toFixed(0)}% of spending - review for optimization`
+          );
         }
       });
 
@@ -152,8 +161,8 @@ export const getSpendingInsightsTool = tool({
 
       // Spending velocity
       response += `### 📊 Spending Velocity\n`;
-      const velocityEmoji = velocityChange > 10 ? '🔴' : velocityChange < -10 ? '🟢' : '🟡';
-      response += `${velocityEmoji} Spending is ${velocityChange > 0 ? 'up' : 'down'} **${Math.abs(velocityChange).toFixed(0)}%** compared to earlier in the period\n\n`;
+      const velocityEmoji = velocityChange > 10 ? "🔴" : velocityChange < -10 ? "🟢" : "🟡";
+      response += `${velocityEmoji} Spending is ${velocityChange > 0 ? "up" : "down"} **${Math.abs(velocityChange).toFixed(0)}%** compared to earlier in the period\n\n`;
 
       // Top spending categories with insights
       response += `### 💰 Spending by Category\n`;
@@ -167,7 +176,7 @@ export const getSpendingInsightsTool = tool({
       for (const [cat, data] of sortedCategories) {
         const monthlyAvg = data.total / months;
         const share = totalSpend > 0 ? (data.total / totalSpend) * 100 : 0;
-        const trend = share > 25 ? '⚠️ High' : share > 15 ? '📊 Medium' : '✅ Normal';
+        const trend = share > 25 ? "⚠️ High" : share > 15 ? "📊 Medium" : "✅ Normal";
         response += `| ${truncate(cat, 18)} | ${formatCurrency(data.total)} | ${formatCurrency(monthlyAvg)} | ${trend} |\n`;
       }
       response += `\n`;
@@ -180,7 +189,10 @@ export const getSpendingInsightsTool = tool({
         response += `|------|-------------|--------|----------|----------|\n`;
 
         for (const anomaly of anomalies.slice(0, 5)) {
-          const date = new Date(anomaly.date as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const date = new Date(anomaly.date as string).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
           const desc = anomaly.merchant_name || anomaly.description;
           response += `| ${date} | ${truncate(String(desc), 20)} | ${formatCurrency(Number(anomaly.amount))} | ${formatCurrency(anomaly.expectedAmount)} | +${anomaly.variance.toFixed(0)}% |\n`;
         }
@@ -193,7 +205,10 @@ export const getSpendingInsightsTool = tool({
         response += `Found ${duplicates.length} potential duplicate transaction(s):\n\n`;
 
         for (const dup of duplicates.slice(0, 3)) {
-          const date = new Date(dup.transaction1.date as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const date = new Date(dup.transaction1.date as string).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
           const desc = dup.transaction1.merchant_name || dup.transaction1.description;
           response += `- **${date}**: ${truncate(String(desc), 25)} - ${formatCurrency(Number(dup.transaction1.amount))} (appears twice)\n`;
         }
@@ -247,20 +262,20 @@ export const getSpendingInsightsTool = tool({
       return response;
     } catch (error) {
       console.error("Error generating spending insights:", error);
-      return `❌ Error generating insights: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return `❌ Error generating insights: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
 }
 
 function truncate(str: string, maxLen: number): string {
-  return str.length > maxLen ? str.slice(0, maxLen - 1) + '…' : str;
+  return str.length > maxLen ? `${str.slice(0, maxLen - 1)}…` : str;
 }

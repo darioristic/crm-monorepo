@@ -107,16 +107,16 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
         total: values.amount,
         notes: values.noteDetails
           ? extractTextFromContent(
-            typeof values.noteDetails === "string"
-              ? createContentFromText(values.noteDetails)
-              : (values.noteDetails as JSONContent | null | undefined)
+              typeof values.noteDetails === "string"
+                ? createContentFromText(values.noteDetails)
+                : (values.noteDetails as JSONContent | null | undefined)
             )
           : undefined,
         terms: values.paymentDetails
           ? extractTextFromContent(
-            typeof values.paymentDetails === "string"
-              ? createContentFromText(values.paymentDetails)
-              : (values.paymentDetails as JSONContent | null | undefined)
+              typeof values.paymentDetails === "string"
+                ? createContentFromText(values.paymentDetails)
+                : (values.paymentDetails as JSONContent | null | undefined)
             )
           : undefined,
         // Store fromDetails, customerDetails and logo for PDF generation
@@ -235,14 +235,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
       .finally(() => {
         isSavingDraftRef.current = false;
       });
-  }, [
-    quoteId,
-    debouncedValue,
-    isDirty,
-    form,
-    onDraftSaved,
-    transformFormValuesToDraft,
-  ]);
+  }, [quoteId, debouncedValue, isDirty, form, onDraftSaved, transformFormValuesToDraft]);
 
   // Submit the form
   const handleSubmit = async (values: FormValues) => {

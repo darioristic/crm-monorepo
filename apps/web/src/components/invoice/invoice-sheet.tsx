@@ -116,42 +116,20 @@ export function InvoiceSheet({ defaultSettings, onInvoiceCreated }: InvoiceSheet
       router.push(`${pathname}?${params.toString()}`);
       onInvoiceCreated?.();
 
-      // Store the invoice PDF in vault (fire and forget)
+      // Store the invoice PDF in vault (server-side for reliability)
       try {
-        // Fetch the invoice data to get invoice number
-        const invoiceResponse = await invoicesApi.getById(id);
-        if (!invoiceResponse.success || !invoiceResponse.data) return;
-
-        const invoice = invoiceResponse.data;
-        const invoiceNumber = invoice.invoiceNumber || id;
-
-        // Fetch the PDF
-        const pdfResponse = await fetch(`/api/download/invoice?id=${id}`);
-        if (!pdfResponse.ok) return;
-
-        const pdfBlob = await pdfResponse.blob();
-        const pdfBuffer = await pdfBlob.arrayBuffer();
-        const pdfBase64 = btoa(
-          new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
-        );
-
-        // Store in vault
-        await documentsApi.storeGenerated({
-          pdfBase64,
-          documentType: "invoice",
-          entityId: id,
-          title: `Invoice ${invoiceNumber}`,
-          documentNumber: invoiceNumber,
-          metadata: {
-            customerName: invoice.companyName || invoice.company?.name,
-            total: invoice.total,
-            currency: invoice.currency,
-            dueDate: invoice.dueDate,
-          },
+        const response = await fetch("/api/vault/store-invoice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ invoiceId: id }),
         });
-      } catch {
-        // Silent fail - vault storage is optional
-        console.warn("Failed to store invoice PDF in vault");
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn("Failed to store invoice PDF in vault:", errorData);
+        }
+      } catch (error) {
+        console.warn("Failed to store invoice PDF in vault:", error);
       }
     },
     [router, pathname, searchParams, onInvoiceCreated]

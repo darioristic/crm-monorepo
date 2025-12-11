@@ -25,6 +25,8 @@ import * as migration022 from "./022_add_from_details_orders";
 import * as migration023 from "./023_add_customer_details_orders";
 import * as migration024_orgs from "./024_add_customer_organizations";
 import * as migration025 from "./025_create_tenant_accounts_and_migrate";
+import * as migration026 from "./026_create_inbox_tables";
+import * as migration027 from "./027_fix_inbox_constraints";
 
 interface Migration {
   name: string;
@@ -59,6 +61,8 @@ const migrations: Migration[] = [
   migration022,
   migration023,
   migration025,
+  migration026,
+  migration027,
 ];
 
 // Migrations tracking table

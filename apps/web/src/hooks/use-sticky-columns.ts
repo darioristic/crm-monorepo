@@ -1,6 +1,6 @@
-import { cn } from "@/lib/utils";
 import type { VisibilityState } from "@tanstack/react-table";
 import { useMemo } from "react";
+import { cn } from "@/lib/utils";
 
 interface TableColumn {
   id: string;
@@ -67,10 +67,7 @@ export function useStickyColumns({
 
   const getStickyClassName = (columnId: string, baseClassName?: string) => {
     const isSticky = stickyColumns.includes(columnId);
-    return cn(
-      baseClassName,
-      isSticky && "md:sticky md:left-[var(--sticky-left)] md:z-10"
-    );
+    return cn(baseClassName, isSticky && "md:sticky md:left-[var(--sticky-left)] md:z-10");
   };
 
   return {

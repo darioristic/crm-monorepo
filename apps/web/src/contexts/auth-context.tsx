@@ -100,7 +100,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   useEffect(() => {
     const initAuth = async () => {
       setIsLoading(true);
-      const authenticated = await fetchUser();
+      let authenticated = await fetchUser();
+
+      // If not authenticated, try to refresh the token first
+      // (access_token may have expired but refresh_token is still valid)
+      if (!authenticated && !isPublicPath) {
+        const refreshResult = await refreshToken();
+        if (refreshResult.success) {
+          // Token refreshed, try fetching user again
+          authenticated = await fetchUser();
+        }
+      }
 
       if (!authenticated && !isPublicPath) {
         // Clear any stale cookies by calling logout

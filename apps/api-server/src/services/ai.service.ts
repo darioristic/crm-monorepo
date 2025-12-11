@@ -174,29 +174,51 @@ export const aiService = {
     }
 
     // Build the prompt with actual document content
-    const systemPrompt = `You are an expert multilingual document analyzer. Your task is to analyze the provided business document and generate structured metadata.
+    const systemPrompt = `You are an expert multilingual document analyzer specializing in business documents from all regions (US, EU, Balkans, etc.).
+
+Your task is to analyze the provided business document and generate structured metadata.
 
 Return a JSON object with these fields:
-- title: A clear, descriptive title for the document. If no clear title exists, create one from the content (max 100 chars)
-- summary: A single sentence capturing the essence of the document (e.g., "Invoice from Supplier X for services rendered in May 2024", "Employment agreement between Company Y and John Doe", "Quarterly financial report for Q1 2024")
+- title: A clear, descriptive title for the document. If no clear title exists, create one from the content (max 100 chars). Include company name if identifiable.
+- summary: A specific, one-sentence summary capturing the essence of the document. ALWAYS include:
+  * The document type (Invoice, Receipt, Contract, etc.)
+  * The company/merchant name if mentioned
+  * The main subject or service
+  * Example: "Invoice from Slack Technologies Inc for annual software subscription" NOT "Business document"
 - tags: Up to 5 highly relevant and distinct tags. STRONGLY PRIORITIZE:
-  * The inferred document type (e.g., "Invoice", "Contract", "Receipt", "Report", "Agreement")
-  * Key company or individual names explicitly mentioned
-  * The core subject or 1-2 defining keywords from the content
-  * If a purchase document, include the most significant item or service purchased
-  Make tags concise and informative. Ensure all tags are in singular form (e.g., "Invoice" not "Invoices")
-- language: The language as a PostgreSQL text search configuration name (e.g., "english", "serbian", "german", "french")
+  * The document type (e.g., "Invoice", "Contract", "Receipt", "Report")
+  * Company/Merchant name with legal entity suffix (e.g., "Slack Technologies Inc", "ABC d.o.o.", "XYZ GmbH")
+  * Main service/product (e.g., "Software License", "Consulting Services", "Office Supplies")
+  * Industry if clear (e.g., "SaaS", "Professional Services", "Retail")
+- language: The language as a PostgreSQL text search configuration name (e.g., "english", "serbian", "german", "french", "croatian")
 - date: The single most relevant date (e.g., issue date, signing date) in ISO 8601 format (YYYY-MM-DD). If no clear date, return null
 - confidence: A number 0-1 indicating your confidence in the classification
 
-IMPORTANT RULES:
-- Analyze the actual document content carefully
-- Avoid overly generic tags like "document", "file", "text"
-- Do not use date-related tags (the date is extracted separately)
+MERCHANT NAME EXTRACTION:
+When identifying company names, look for:
+- Legal entity suffixes: Inc, LLC, Corp, Ltd, Co, d.o.o., d.d., GmbH, AG, S.A., SRL, etc.
+- Header/letterhead area for vendor name
+- "Bill From:", "From:", "Seller:", "Issued by:" fields
+- Company registration numbers (OIB, PIB, VAT ID)
+- Transform common abbreviations to full names:
+  * "AMZN" → "Amazon.com Inc"
+  * "MSFT" → "Microsoft Corporation"
+  * "Slack" → "Slack Technologies Inc"
+  * "GitHub" → "GitHub Inc"
+
+CRITICAL RULES:
+- NEVER return generic summaries like "Business document" or "Document identified by..."
+- ALWAYS extract and include specific company names when present
+- Analyze content thoroughly for merchant/vendor identification
 - Base tags strictly on the content provided
 - Return ONLY valid JSON, no markdown, no explanation
 
-Examples of good tags: "Invoice", "Contract", "Receipt", "Tax Return", "Employment Agreement", "Consulting Services", "Software License", "Financial Report"`;
+Examples of good summaries:
+✓ "Invoice #12345 from Slack Technologies Inc for Pro subscription - $150"
+✓ "Receipt from Starbucks Corporation for office refreshments"
+✓ "Service agreement between ABC d.o.o. and XYZ Corp"
+✗ "Business document identified by unique identifier"
+✗ "A document containing business information"`;
 
     let userPrompt: string;
     if (extractedContent && extractedContent.length > 50) {
@@ -209,13 +231,31 @@ Type: ${mimetype}
 Document Content:
 ${extractedContent}`;
     } else {
-      // Fallback to filename-based classification
-      userPrompt = `Classify this document based on filename only (no content available):
+      // Fallback to filename-based classification with improved prompt
+      userPrompt = `Classify this document based on filename only (content could not be extracted):
 
 Filename: ${filename}
 Type: ${mimetype}
 
-Please infer the document type and create appropriate metadata based on the filename.`;
+IMPORTANT INSTRUCTIONS:
+1. Parse the filename carefully - extract company names, document numbers, dates from it
+2. Common filename patterns:
+   - "Invoice_12345.pdf" → Type: Invoice, Number: 12345
+   - "Faktura_CompanyName_2024.pdf" → Type: Invoice (Faktura=Invoice in Croatian/Serbian)
+   - "Receipt_Starbucks_Jan2024.pdf" → Type: Receipt, Merchant: Starbucks
+   - "Contract_ABC_Corp.docx" → Type: Contract, Company: ABC Corp
+   - "Report_Q1_2024.xlsx" → Type: Report, Period: Q1 2024
+3. Recognize multilingual terms: Faktura/Račun (Invoice), Ugovor (Contract), Izvještaj (Report)
+4. Create a specific summary mentioning the company/entity if identifiable from filename
+5. Generate useful tags from filename components
+
+Example outputs:
+- Filename: "Invoice_SlackTech_2024-01.pdf" → Summary: "Invoice from Slack Technologies dated January 2024", Tags: ["Invoice", "Slack Technologies", "Software"]
+- Filename: "Faktura_123456_ABC_doo.pdf" → Summary: "Invoice #123456 from ABC d.o.o.", Tags: ["Invoice", "ABC d.o.o."]
+- Filename: "doc_20241115_scan.pdf" → Summary: "Scanned document dated November 15, 2024", Tags: ["Scan"]
+
+DO NOT return generic descriptions like "Business document identified by unique identifier".
+BE SPECIFIC with any information you can extract from the filename.`;
     }
 
     const response = await callAI(systemPrompt, userPrompt, {
@@ -330,7 +370,8 @@ Return only a JSON array of tag strings.`;
     maxTokens?: number;
     temperature?: number;
   }): Promise<string> {
-    const systemPrompt = options.systemPrompt || "You are a helpful assistant. Be concise and direct.";
+    const systemPrompt =
+      options.systemPrompt || "You are a helpful assistant. Be concise and direct.";
 
     const response = await callAI(systemPrompt, options.prompt, {
       maxTokens: options.maxTokens || 500,

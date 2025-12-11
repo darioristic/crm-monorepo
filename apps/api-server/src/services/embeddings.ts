@@ -55,7 +55,7 @@ export async function generateEmbedding(text: string): Promise<{
       throw new Error(`Embedding API error: ${error}`);
     }
 
-    const data = await response.json() as { embedding?: { values?: number[] } };
+    const data = (await response.json()) as { embedding?: { values?: number[] } };
     const embedding = data.embedding?.values;
 
     if (!embedding || !Array.isArray(embedding)) {
@@ -113,7 +113,7 @@ export async function generateEmbeddings(texts: string[]): Promise<{
       throw new Error(`Batch embedding API error: ${error}`);
     }
 
-    const data = await response.json() as { embeddings?: Array<{ values: number[] }> };
+    const data = (await response.json()) as { embeddings?: Array<{ values: number[] }> };
     const embeddings = data.embeddings?.map((e) => e.values);
 
     if (!embeddings || !Array.isArray(embeddings)) {

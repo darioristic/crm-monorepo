@@ -10,13 +10,17 @@ import { sql } from "../../db/client";
 const getRevenueSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
   months: z.number().min(1).max(24).default(12).describe("Number of months to analyze"),
-  groupBy: z.enum(["month", "client", "category"]).default("month").describe("How to group revenue data"),
+  groupBy: z
+    .enum(["month", "client", "category"])
+    .default("month")
+    .describe("How to group revenue data"),
 });
 
 type GetRevenueParams = z.infer<typeof getRevenueSchema>;
 
 export const getRevenueTool = tool({
-  description: "Analyze revenue streams, growth rates, top clients, and revenue trends. Use this to understand income sources and patterns.",
+  description:
+    "Analyze revenue streams, growth rates, top clients, and revenue trends. Use this to understand income sources and patterns.",
   parameters: getRevenueSchema,
   execute: async (params: GetRevenueParams): Promise<string> => {
     const { tenantId, months, groupBy } = params;
@@ -74,7 +78,7 @@ export const getRevenueTool = tool({
       `;
 
       // Calculate key metrics
-      const revenueData = monthlyRevenue.map(r => ({
+      const revenueData = monthlyRevenue.map((r) => ({
         month: r.month as string,
         revenue: Number(r.revenue) || 0,
         count: Number(r.transaction_count) || 0,
@@ -98,7 +102,10 @@ export const getRevenueTool = tool({
       if (revenueData.length >= 12) {
         const currentYearRevenue = revenueData.slice(0, 12).reduce((sum, m) => sum + m.revenue, 0);
         const lastYearRevenue = revenueData.slice(12, 24).reduce((sum, m) => sum + m.revenue, 0);
-        yoyGrowth = lastYearRevenue > 0 ? ((currentYearRevenue - lastYearRevenue) / lastYearRevenue) * 100 : 0;
+        yoyGrowth =
+          lastYearRevenue > 0
+            ? ((currentYearRevenue - lastYearRevenue) / lastYearRevenue) * 100
+            : 0;
       }
 
       // Best and worst months
@@ -107,7 +114,9 @@ export const getRevenueTool = tool({
       const worstMonth = sortedByRevenue[sortedByRevenue.length - 1];
 
       // Calculate revenue concentration (top 3 clients % of total)
-      const topClientsRevenue = revenueByClient.slice(0, 3).reduce((sum, c) => sum + (Number(c.revenue) || 0), 0);
+      const topClientsRevenue = revenueByClient
+        .slice(0, 3)
+        .reduce((sum, c) => sum + (Number(c.revenue) || 0), 0);
       const revenueConcentration = totalRevenue > 0 ? (topClientsRevenue / totalRevenue) * 100 : 0;
 
       // Format response
@@ -122,10 +131,10 @@ export const getRevenueTool = tool({
       response += `| 📊 Average Monthly | ${formatCurrency(avgMonthlyRevenue)} |\n`;
       response += `| 📝 Total Transactions | ${totalTransactions.toLocaleString()} |\n`;
       response += `| 💳 Avg Transaction | ${formatCurrency(totalTransactions > 0 ? totalRevenue / totalTransactions : 0)} |\n`;
-      response += `| ${momGrowth >= 0 ? '📈' : '📉'} MoM Growth | ${momGrowth.toFixed(1)}% |\n`;
+      response += `| ${momGrowth >= 0 ? "📈" : "📉"} MoM Growth | ${momGrowth.toFixed(1)}% |\n`;
 
       if (revenueData.length >= 12) {
-        response += `| ${yoyGrowth >= 0 ? '📈' : '📉'} YoY Growth | ${yoyGrowth.toFixed(1)}% |\n`;
+        response += `| ${yoyGrowth >= 0 ? "📈" : "📉"} YoY Growth | ${yoyGrowth.toFixed(1)}% |\n`;
       }
       response += `\n`;
 
@@ -138,12 +147,13 @@ export const getRevenueTool = tool({
         for (let i = 0; i < Math.min(revenueData.length, 12); i++) {
           const month = revenueData[i];
           const prevMonth = revenueData[i + 1];
-          let trend = '-';
+          let trend = "-";
           if (prevMonth) {
-            const change = prevMonth.revenue > 0
-              ? ((month.revenue - prevMonth.revenue) / prevMonth.revenue) * 100
-              : 0;
-            trend = `${change >= 0 ? '📈' : '📉'} ${change.toFixed(0)}%`;
+            const change =
+              prevMonth.revenue > 0
+                ? ((month.revenue - prevMonth.revenue) / prevMonth.revenue) * 100
+                : 0;
+            trend = `${change >= 0 ? "📈" : "📉"} ${change.toFixed(0)}%`;
           }
           response += `| ${month.month} | ${formatCurrency(month.revenue)} | ${month.count} | ${formatCurrency(month.avgTx)} | ${trend} |\n`;
         }
@@ -157,7 +167,8 @@ export const getRevenueTool = tool({
         response += `|--------|---------|-------|----------|\n`;
 
         for (const client of revenueByClient.slice(0, 10)) {
-          const share = totalRevenue > 0 ? ((Number(client.revenue) / totalRevenue) * 100).toFixed(1) : '0';
+          const share =
+            totalRevenue > 0 ? ((Number(client.revenue) / totalRevenue) * 100).toFixed(1) : "0";
           response += `| ${truncate(String(client.client_name), 25)} | ${formatCurrency(Number(client.revenue))} | ${share}% | ${client.invoice_count} |\n`;
         }
         response += `\n`;
@@ -170,7 +181,8 @@ export const getRevenueTool = tool({
         response += `|----------|---------|-------|------|\n`;
 
         for (const cat of revenueByCategory.slice(0, 8)) {
-          const share = totalRevenue > 0 ? ((Number(cat.revenue) / totalRevenue) * 100).toFixed(1) : '0';
+          const share =
+            totalRevenue > 0 ? ((Number(cat.revenue) / totalRevenue) * 100).toFixed(1) : "0";
           response += `| ${truncate(String(cat.category), 20)} | ${formatCurrency(Number(cat.revenue))} | ${share}% | ${cat.transaction_count} |\n`;
         }
         response += `\n`;
@@ -203,7 +215,7 @@ export const getRevenueTool = tool({
 
       // Seasonality check
       if (revenueData.length >= 6) {
-        const variance = calculateVariance(revenueData.map(m => m.revenue));
+        const variance = calculateVariance(revenueData.map((m) => m.revenue));
         const cv = avgMonthlyRevenue > 0 ? (Math.sqrt(variance) / avgMonthlyRevenue) * 100 : 0;
         if (cv > 30) {
           response += `- 📅 High revenue variability (${cv.toFixed(0)}% coefficient of variation) - consider seasonality\n`;
@@ -213,26 +225,26 @@ export const getRevenueTool = tool({
       return response;
     } catch (error) {
       console.error("Error analyzing revenue:", error);
-      return `❌ Error analyzing revenue: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return `❌ Error analyzing revenue: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
 }
 
 function truncate(str: string, maxLen: number): string {
-  return str.length > maxLen ? str.slice(0, maxLen - 1) + '…' : str;
+  return str.length > maxLen ? `${str.slice(0, maxLen - 1)}…` : str;
 }
 
 function calculateVariance(values: number[]): number {
   if (values.length === 0) return 0;
   const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  return values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+  return values.reduce((sum, val) => sum + (val - mean) ** 2, 0) / values.length;
 }

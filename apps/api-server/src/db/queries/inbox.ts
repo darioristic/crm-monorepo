@@ -3,8 +3,8 @@
  * Adapted from Midday's Magic Inbox feature
  */
 
-import { sql as db } from "../client";
 import { serviceLogger } from "../../lib/logger";
+import { sql as db } from "../client";
 
 // ==============================================
 // TYPES
@@ -128,10 +128,7 @@ export function calculateAmountScore(
   return 0.3;
 }
 
-export function calculateCurrencyScore(
-  currency1?: string,
-  currency2?: string
-): number {
+export function calculateCurrencyScore(currency1?: string, currency2?: string): number {
   if (!currency1 || !currency2) return 0.5;
   if (currency1 === currency2) return 1.0;
   return 0.3;
@@ -177,7 +174,7 @@ export async function getInbox(params: GetInboxParams) {
 
   try {
     // Build dynamic query based on filters
-    let result;
+    let result: Array<Record<string, unknown>>;
 
     if (q && status) {
       const searchPattern = `%${q}%`;
@@ -332,8 +329,7 @@ export async function getInbox(params: GetInboxParams) {
         : null,
     }));
 
-    const nextCursor =
-      data.length === pageSize ? (offset + pageSize).toString() : undefined;
+    const nextCursor = data.length === pageSize ? (offset + pageSize).toString() : undefined;
 
     return {
       meta: {
@@ -910,10 +906,7 @@ export async function getInboxStats(tenantId: string) {
 // INBOX MATCHING QUERIES
 // ==============================================
 
-export async function getPendingInboxForMatching(
-  tenantId: string,
-  limit: number = 100
-) {
+export async function getPendingInboxForMatching(tenantId: string, limit: number = 100) {
   try {
     const result = await db`
       SELECT id, amount, date, currency, created_at
@@ -932,10 +925,7 @@ export async function getPendingInboxForMatching(
   }
 }
 
-export async function getInboxByStatus(
-  tenantId: string,
-  status?: InboxStatus
-) {
+export async function getInboxByStatus(tenantId: string, status?: InboxStatus) {
   try {
     if (status) {
       const result = await db`
@@ -985,6 +975,118 @@ export async function wasPreviouslyDismissed(
   }
 }
 
+/**
+ * Unmatch a previously matched inbox item
+ * Records the unmatch as negative feedback for calibration
+ */
+export async function unmatchInboxItem(params: {
+  tenantId: string;
+  inboxId: string;
+  userId: string;
+}): Promise<{ success: boolean; transactionId?: string }> {
+  const { tenantId, inboxId, userId } = params;
+
+  try {
+    // Get current inbox state
+    const inboxResult = await db`
+      SELECT id, transaction_id, status
+      FROM inbox
+      WHERE id = ${inboxId} AND tenant_id = ${tenantId}
+      LIMIT 1
+    `;
+
+    if (inboxResult.length === 0) {
+      serviceLogger.warn({ inboxId }, "Inbox item not found for unmatch");
+      return { success: false };
+    }
+
+    const inbox = inboxResult[0] as Record<string, unknown>;
+    const transactionId = inbox.transaction_id as string | null;
+
+    if (!transactionId) {
+      serviceLogger.warn({ inboxId }, "Inbox item not matched, cannot unmatch");
+      return { success: false };
+    }
+
+    // Find the confirmed suggestion and update to 'unmatched'
+    await db`
+      UPDATE transaction_match_suggestions
+      SET
+        status = 'unmatched',
+        user_action_at = NOW(),
+        user_id = ${userId}
+      WHERE tenant_id = ${tenantId}
+        AND inbox_id = ${inboxId}
+        AND transaction_id = ${transactionId}
+        AND status = 'confirmed'
+    `;
+
+    // Clear the transaction link and reset status
+    await db`
+      UPDATE inbox
+      SET
+        transaction_id = NULL,
+        status = 'pending',
+        updated_at = NOW()
+      WHERE id = ${inboxId} AND tenant_id = ${tenantId}
+    `;
+
+    serviceLogger.info(
+      { inboxId, transactionId, userId },
+      "Inbox item unmatched successfully"
+    );
+
+    return { success: true, transactionId };
+  } catch (error) {
+    serviceLogger.error({ error, inboxId }, "Error in unmatchInboxItem");
+    throw error;
+  }
+}
+
+/**
+ * Get match suggestion history for an inbox item
+ */
+export async function getMatchSuggestionHistory(
+  tenantId: string,
+  inboxId: string
+): Promise<MatchSuggestion[]> {
+  try {
+    const result = await db`
+      SELECT
+        id, tenant_id, inbox_id, transaction_id,
+        confidence_score, amount_score, currency_score, date_score,
+        embedding_score, name_score, match_type, match_details,
+        status, user_action_at, user_id, created_at, updated_at
+      FROM transaction_match_suggestions
+      WHERE tenant_id = ${tenantId} AND inbox_id = ${inboxId}
+      ORDER BY created_at DESC
+    `;
+
+    return result.map((row: Record<string, unknown>) => ({
+      id: row.id as string,
+      tenantId: row.tenant_id as string,
+      inboxId: row.inbox_id as string,
+      transactionId: row.transaction_id as string,
+      confidenceScore: Number(row.confidence_score),
+      amountScore: row.amount_score ? Number(row.amount_score) : null,
+      currencyScore: row.currency_score ? Number(row.currency_score) : null,
+      dateScore: row.date_score ? Number(row.date_score) : null,
+      embeddingScore: row.embedding_score ? Number(row.embedding_score) : null,
+      nameScore: row.name_score ? Number(row.name_score) : null,
+      matchType: row.match_type as string,
+      matchDetails: row.match_details as Record<string, unknown> | null,
+      status: row.status as string,
+      userActionAt: row.user_action_at as string | null,
+      userId: row.user_id as string | null,
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+    }));
+  } catch (error) {
+    serviceLogger.error({ error, inboxId }, "Error in getMatchSuggestionHistory");
+    throw error;
+  }
+}
+
 export default {
   // Inbox
   getInbox,
@@ -1019,6 +1121,8 @@ export default {
   confirmSuggestedMatch,
   declineSuggestedMatch,
   wasPreviouslyDismissed,
+  unmatchInboxItem,
+  getMatchSuggestionHistory,
 
   // Scoring utilities
   calculateAmountScore,

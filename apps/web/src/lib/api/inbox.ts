@@ -206,10 +206,9 @@ export const inboxApi = {
     transactionId: string,
     suggestionId: string
   ): Promise<InboxItem> {
-    const response = await apiClient.post<InboxItem>(
-      `/inbox/${inboxId}/match/${transactionId}`,
-      { suggestionId }
-    );
+    const response = await apiClient.post<InboxItem>(`/inbox/${inboxId}/match/${transactionId}`, {
+      suggestionId,
+    });
     if (!response.success) {
       throw new Error(response.error?.message || "Failed to confirm match");
     }
@@ -226,6 +225,44 @@ export const inboxApi = {
     if (!response.success) {
       throw new Error(response.error?.message || "Failed to decline match");
     }
+  },
+
+  /**
+   * Manually trigger AI processing (OCR extraction)
+   */
+  async process(
+    id: string,
+    options: { generateEmbeddings?: boolean } = {}
+  ): Promise<{
+    message: string;
+    ocrResult: {
+      confidence: number;
+      provider: string;
+      extractedData: Record<string, unknown>;
+    } | null;
+    embeddingCreated: boolean;
+  }> {
+    const response = await apiClient.post<{
+      message: string;
+      ocrResult: {
+        confidence: number;
+        provider: string;
+        extractedData: Record<string, unknown>;
+      } | null;
+      embeddingCreated: boolean;
+    }>(`/inbox/${id}/process`, options);
+    if (!response.success) {
+      throw new Error(response.error?.message || "Failed to process inbox item");
+    }
+    return response.data as {
+      message: string;
+      ocrResult: {
+        confidence: number;
+        provider: string;
+        extractedData: Record<string, unknown>;
+      } | null;
+      embeddingCreated: boolean;
+    };
   },
 
   // ==============================================
@@ -289,10 +326,7 @@ export const inboxApi = {
   /**
    * Add to blocklist
    */
-  async addToBlocklist(
-    type: InboxBlocklistType,
-    value: string
-  ): Promise<InboxBlocklistItem> {
+  async addToBlocklist(type: InboxBlocklistType, value: string): Promise<InboxBlocklistItem> {
     const response = await apiClient.post<InboxBlocklistItem>("/inbox/blocklist", {
       type,
       value,

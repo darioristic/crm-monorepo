@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import type { ForwardedRef } from "react";
 import { forwardRef } from "react";
 
 type LoadMoreProps = {

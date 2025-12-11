@@ -1,8 +1,8 @@
 "use client";
 
 import { ImageIcon, Loader2, Upload, X } from "lucide-react";
-import Link from "next/link";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -120,8 +120,7 @@ export default function WorkspaceSettingsPage() {
   };
 
   const onChange =
-    (key: string) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    (key: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((prev) => ({ ...prev, [key]: e.target.value }));
     };
 
@@ -146,12 +145,8 @@ export default function WorkspaceSettingsPage() {
     <main className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Workspace Settings
-          </h1>
-          <p className="text-muted-foreground">
-            Company details and team overview
-          </p>
+          <h1 className="text-2xl font-bold tracking-tight">Workspace Settings</h1>
+          <p className="text-muted-foreground">Company details and team overview</p>
         </div>
         <Button variant="outline" asChild>
           <Link href="/dashboard/settings/members">Manage Members</Link>
@@ -170,60 +165,31 @@ export default function WorkspaceSettingsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input
-                  id="name"
-                  value={form.name}
-                  onChange={onChange("name")}
-                />
+                <Input id="name" value={form.name} onChange={onChange("name")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="industry">Industry</Label>
-                <Input
-                  id="industry"
-                  value={form.industry}
-                  onChange={onChange("industry")}
-                />
+                <Input id="industry" value={form.industry} onChange={onChange("industry")} />
               </div>
               <div className="lg:col-span-2 grid gap-2">
                 <Label htmlFor="address">Address</Label>
-                <Input
-                  id="address"
-                  value={form.address}
-                  onChange={onChange("address")}
-                />
+                <Input id="address" value={form.address} onChange={onChange("address")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={form.email}
-                  onChange={onChange("email")}
-                />
+                <Input id="email" type="email" value={form.email} onChange={onChange("email")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone">Phone</Label>
-                <Input
-                  id="phone"
-                  value={form.phone}
-                  onChange={onChange("phone")}
-                />
+                <Input id="phone" value={form.phone} onChange={onChange("phone")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="website">Website</Label>
-                <Input
-                  id="website"
-                  value={form.website}
-                  onChange={onChange("website")}
-                />
+                <Input id="website" value={form.website} onChange={onChange("website")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="vatNumber">VAT</Label>
-                <Input
-                  id="vatNumber"
-                  value={form.vatNumber}
-                  onChange={onChange("vatNumber")}
-                />
+                <Input id="vatNumber" value={form.vatNumber} onChange={onChange("vatNumber")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="companyNumber">Company No</Label>
@@ -236,19 +202,11 @@ export default function WorkspaceSettingsPage() {
               <Separator className="lg:col-span-2" />
               <div className="grid gap-2">
                 <Label htmlFor="contact">Primary Contact</Label>
-                <Input
-                  id="contact"
-                  value={form.contact}
-                  onChange={onChange("contact")}
-                />
+                <Input id="contact" value={form.contact} onChange={onChange("contact")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  value={form.city}
-                  onChange={onChange("city")}
-                />
+                <Input id="city" value={form.city} onChange={onChange("city")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="zip">ZIP</Label>
@@ -256,11 +214,7 @@ export default function WorkspaceSettingsPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="country">Country</Label>
-                <Input
-                  id="country"
-                  value={form.country}
-                  onChange={onChange("country")}
-                />
+                <Input id="country" value={form.country} onChange={onChange("country")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="countryCode">Country Code</Label>
@@ -272,12 +226,7 @@ export default function WorkspaceSettingsPage() {
               </div>
               <div className="lg:col-span-2 grid gap-2">
                 <Label htmlFor="note">Notes</Label>
-                <Textarea
-                  id="note"
-                  rows={3}
-                  value={form.note}
-                  onChange={onChange("note")}
-                />
+                <Textarea id="note" rows={3} value={form.note} onChange={onChange("note")} />
               </div>
             </div>
           )}
@@ -293,9 +242,7 @@ export default function WorkspaceSettingsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Logo</CardTitle>
-          <CardDescription>
-            Company logo for invoices, quotes and documents
-          </CardDescription>
+          <CardDescription>Company logo for invoices, quotes and documents</CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (
@@ -305,12 +252,7 @@ export default function WorkspaceSettingsPage() {
               <div className="relative w-40 h-40 border rounded-lg overflow-hidden bg-muted flex items-center justify-center">
                 {form.logoUrl ? (
                   <>
-                    <Image
-                      fill
-                      src={form.logoUrl}
-                      alt="Company logo"
-                      className="object-contain"
-                    />
+                    <Image fill src={form.logoUrl} alt="Company logo" className="object-contain" />
                     <Button
                       type="button"
                       variant="destructive"
@@ -353,9 +295,7 @@ export default function WorkspaceSettingsPage() {
                     </>
                   )}
                 </Button>
-                <p className="text-xs text-muted-foreground">
-                  PNG, JPG or SVG. Max 2MB.
-                </p>
+                <p className="text-xs text-muted-foreground">PNG, JPG or SVG. Max 2MB.</p>
               </div>
             </div>
           )}

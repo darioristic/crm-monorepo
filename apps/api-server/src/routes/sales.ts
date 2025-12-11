@@ -4,7 +4,6 @@
 
 import { errorResponse, isValidUUID, successResponse } from "@crm/utils";
 import { invoiceQueries } from "../db/queries";
-import { hasCompanyAccess } from "../db/queries/companies-members";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
 import {
@@ -17,7 +16,6 @@ import {
 } from "../services/document-workflow.service";
 import { salesService } from "../services/sales.service";
 import {
-  getCompanyIdForFilter,
   getStatusFromResponse,
   json,
   parseFilters,
@@ -95,6 +93,24 @@ router.get("/api/quotes/token/:token", async (_request, _url, params) => {
   }
 });
 
+// Get quote by ID for public viewing (no auth required)
+router.get("/api/quotes/public/:id", async (_request, _url, params) => {
+  try {
+    const { quoteQueries } = await import("../db/queries/quotes");
+    if (!isValidUUID(params.id)) {
+      return json(errorResponse("VALIDATION_ERROR", "Invalid quote ID"), 400);
+    }
+    const quote = await quoteQueries.findById(params.id);
+    if (!quote) {
+      return json(errorResponse("NOT_FOUND", "Quote not found"), 404);
+    }
+    return json(successResponse(quote));
+  } catch (error) {
+    logger.error({ error }, "Error fetching quote by ID (public)");
+    return json(errorResponse("DATABASE_ERROR", "Failed to fetch quote"), 500);
+  }
+});
+
 // Mark quote as viewed (no auth required)
 router.post("/api/quotes/token/:token/viewed", async (_request, _url, params) => {
   try {
@@ -111,6 +127,42 @@ router.post("/api/quotes/token/:token/viewed", async (_request, _url, params) =>
   } catch (error) {
     logger.error({ error }, "Error updating quote viewed");
     return json(errorResponse("DATABASE_ERROR", "Failed to update quote"), 500);
+  }
+});
+
+// Get order by ID for public viewing (no auth required)
+router.get("/api/orders/public/:id", async (_request, _url, params) => {
+  try {
+    const { orderQueries } = await import("../db/queries/orders");
+    if (!isValidUUID(params.id)) {
+      return json(errorResponse("VALIDATION_ERROR", "Invalid order ID"), 400);
+    }
+    const order = await orderQueries.findById(params.id);
+    if (!order) {
+      return json(errorResponse("NOT_FOUND", "Order not found"), 404);
+    }
+    return json(successResponse(order));
+  } catch (error) {
+    logger.error({ error }, "Error fetching order by ID (public)");
+    return json(errorResponse("DATABASE_ERROR", "Failed to fetch order"), 500);
+  }
+});
+
+// Get delivery note by ID for public viewing (no auth required)
+router.get("/api/delivery-notes/public/:id", async (_request, _url, params) => {
+  try {
+    const { deliveryNoteQueries } = await import("../db/queries/delivery-notes");
+    if (!isValidUUID(params.id)) {
+      return json(errorResponse("VALIDATION_ERROR", "Invalid delivery note ID"), 400);
+    }
+    const deliveryNote = await deliveryNoteQueries.findById(params.id);
+    if (!deliveryNote) {
+      return json(errorResponse("NOT_FOUND", "Delivery note not found"), 404);
+    }
+    return json(successResponse(deliveryNote));
+  } catch (error) {
+    logger.error({ error }, "Error fetching delivery note by ID (public)");
+    return json(errorResponse("DATABASE_ERROR", "Failed to fetch delivery note"), 500);
   }
 });
 
@@ -277,7 +329,7 @@ router.get("/api/v1/invoices", async (request, url) => {
   });
 });
 
-router.get("/api/v1/invoices/overdue", async (request, url) => {
+router.get("/api/v1/invoices/overdue", async (request, _url) => {
   return withAuth(request, async (auth) => {
     // Require valid tenant ID for proper segmentation
     const tenantId = auth.activeTenantId;
@@ -535,7 +587,7 @@ router.post("/api/v1/quotes/:id/convert-to-order", async (request, _url, params)
             : undefined,
         });
         return successResponse({ id: (order as { id: string }).id } as any);
-      } catch (err) {
+      } catch (_err) {
         const { quoteQueries } = await import("../db/queries/quotes");
         const { orderQueries } = await import("../db/queries/orders");
         const quote = await quoteQueries.findById(params.id);
@@ -611,7 +663,7 @@ router.post("/api/v1/quotes/:id/convert-to-invoice", async (request, _url, param
             : undefined,
         });
         return successResponse({ invoiceId });
-      } catch (err) {
+      } catch (_err) {
         const { quoteQueries } = await import("../db/queries/quotes");
         const { invoiceQueries } = await import("../db/queries/invoices");
         const quote = await quoteQueries.findById(params.id);

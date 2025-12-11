@@ -4,8 +4,8 @@
  * Uses exchangerate.host API for rates (free tier available)
  */
 
-import { serviceLogger } from "../lib/logger";
 import { sql as db } from "../db/client";
+import { serviceLogger } from "../lib/logger";
 
 // ==============================================
 // TYPES
@@ -55,9 +55,27 @@ const CURRENCY_CONFIG = {
 
   // Supported currencies
   supportedCurrencies: [
-    "EUR", "USD", "GBP", "CHF", "RSD", "BAM", "HRK",
-    "JPY", "CNY", "AUD", "CAD", "PLN", "CZK", "HUF",
-    "RON", "BGN", "SEK", "NOK", "DKK", "TRY", "RUB",
+    "EUR",
+    "USD",
+    "GBP",
+    "CHF",
+    "RSD",
+    "BAM",
+    "HRK",
+    "JPY",
+    "CNY",
+    "AUD",
+    "CAD",
+    "PLN",
+    "CZK",
+    "HUF",
+    "RON",
+    "BGN",
+    "SEK",
+    "NOK",
+    "DKK",
+    "TRY",
+    "RUB",
   ],
 };
 
@@ -137,7 +155,7 @@ async function fetchRateFromPrimary(
       date?: string;
     };
 
-    if (data.rates && data.rates[to]) {
+    if (data.rates?.[to]) {
       return {
         rate: data.rates[to],
         date: data.date || new Date().toISOString().split("T")[0],
@@ -180,7 +198,7 @@ async function fetchRateFromFallback(
       date?: string;
     };
 
-    if (data.rates && data.rates[to]) {
+    if (data.rates?.[to]) {
       return {
         rate: data.rates[to],
         date: data.date || new Date().toISOString().split("T")[0],
@@ -243,8 +261,8 @@ export async function getExchangeRate(
 
   if (!result) {
     // Try reverse rate
-    const reverseResult = await fetchRateFromPrimary(to, from, date)
-      || await fetchRateFromFallback(to, from, date);
+    const reverseResult =
+      (await fetchRateFromPrimary(to, from, date)) || (await fetchRateFromFallback(to, from, date));
 
     if (reverseResult) {
       result = {
@@ -293,8 +311,8 @@ export async function convertAmount(
   const targetInfo = CURRENCIES[toCurrency.toUpperCase()];
   const decimalPlaces = targetInfo?.decimalPlaces ?? 2;
 
-  const convertedAmount = Math.round(amount * rate.rate * Math.pow(10, decimalPlaces))
-    / Math.pow(10, decimalPlaces);
+  const convertedAmount =
+    Math.round(amount * rate.rate * 10 ** decimalPlaces) / 10 ** decimalPlaces;
 
   return {
     originalAmount: amount,
@@ -426,9 +444,7 @@ export async function batchUpdateBaseCurrency(
  * Get all supported currencies
  */
 export function getSupportedCurrencies(): CurrencyInfo[] {
-  return CURRENCY_CONFIG.supportedCurrencies
-    .map((code) => CURRENCIES[code])
-    .filter(Boolean);
+  return CURRENCY_CONFIG.supportedCurrencies.map((code) => CURRENCIES[code]).filter(Boolean);
 }
 
 /**
@@ -453,9 +469,7 @@ export function formatCurrency(amount: number, currencyCode: string): string {
   // Symbol placement varies by currency
   const symbolBefore = ["USD", "GBP", "EUR", "JPY", "CNY"].includes(currency.code);
 
-  return symbolBefore
-    ? `${currency.symbol}${formatted}`
-    : `${formatted} ${currency.symbol}`;
+  return symbolBefore ? `${currency.symbol}${formatted}` : `${formatted} ${currency.symbol}`;
 }
 
 /**

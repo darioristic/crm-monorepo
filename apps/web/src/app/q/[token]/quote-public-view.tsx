@@ -57,6 +57,9 @@ interface QuoteApiResponse {
     vatNumber?: string;
     website?: string;
   };
+  fromDetails?: unknown;
+  customerDetails?: unknown;
+  logoUrl?: string | null;
   vat?: number | null;
   tax?: number | null;
   discount?: number | null;
@@ -199,9 +202,36 @@ function buildCustomerDetails(quote: QuoteApiResponse): EditorDoc | null {
   };
 }
 
-// Build from details (seller info) - uses localStorage or defaults
-function buildFromDetails(storedFromDetails: EditorDoc | null): EditorDoc | null {
-  // If stored details exist, use them
+// Parse fromDetails from API response
+function parseFromDetails(apiFromDetails: unknown): EditorDoc | null {
+  if (!apiFromDetails) return null;
+
+  let parsed = apiFromDetails;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  if (parsed && typeof parsed === "object" && (parsed as EditorDoc).type === "doc") {
+    return parsed as EditorDoc;
+  }
+
+  return null;
+}
+
+// Build from details (seller info) - uses API data first, then localStorage, then defaults
+function buildFromDetails(
+  apiFromDetails: unknown,
+  storedFromDetails: EditorDoc | null
+): EditorDoc | null {
+  // First priority: use from API if available
+  const fromApi = parseFromDetails(apiFromDetails);
+  if (fromApi) return fromApi;
+
+  // Second priority: use from localStorage
   if (storedFromDetails) return storedFromDetails;
 
   // Default company info (can be configured in settings)
@@ -230,13 +260,13 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
   const [paymentDetails, setPaymentDetails] = useState<EditorDoc | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
-  // Load stored details on mount
+  // Load stored details on mount (for fallback only)
   useEffect(() => {
     setFromDetails(getStoredFromDetails());
     setPaymentDetails(getStoredPaymentDetails());
-    // Use stored logo or default
-    setLogoUrl(getStoredLogo() || DEFAULT_LOGO_URL);
-  }, []);
+    // Priority: API logoUrl > localStorage > default
+    setLogoUrl(quote.logoUrl || getStoredLogo() || DEFAULT_LOGO_URL);
+  }, [quote.logoUrl]);
 
   // Get customer name from company object
   const customerName = quote.companyName || quote.company?.name || "Customer";
@@ -274,7 +304,7 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
           }
         : null),
     customerDetails: buildCustomerDetails(quote),
-    fromDetails: buildFromDetails(fromDetails),
+    fromDetails: buildFromDetails(quote.fromDetails, fromDetails),
     noteDetails: quote.notes
       ? {
           type: "doc",

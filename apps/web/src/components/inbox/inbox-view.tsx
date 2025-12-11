@@ -1,368 +1,265 @@
 "use client";
 
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
-import {
-  Inbox,
-  Search,
-  Filter,
-  MoreHorizontal,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  AlertCircle,
-  FileText,
-  Receipt,
-  CreditCard,
-  Trash2,
-  Eye,
-  Upload,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "framer-motion";
+import { AlertCircle } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import { inboxApi, type InboxItem, type InboxStatus } from "@/lib/api/inbox";
-import { InboxItemSheet } from "./inbox-item-sheet";
-import { formatCurrency } from "@/lib/utils";
-
-const statusConfig: Record<
-  InboxStatus,
-  { label: string; color: string; icon: React.ElementType }
-> = {
-  new: { label: "New", color: "bg-blue-500", icon: AlertCircle },
-  processing: { label: "Processing", color: "bg-yellow-500", icon: Clock },
-  analyzing: { label: "Analyzing", color: "bg-purple-500", icon: Clock },
-  pending: { label: "Pending", color: "bg-orange-500", icon: Clock },
-  suggested_match: { label: "Match Found", color: "bg-green-500", icon: CheckCircle2 },
-  no_match: { label: "No Match", color: "bg-gray-500", icon: XCircle },
-  done: { label: "Done", color: "bg-green-600", icon: CheckCircle2 },
-  archived: { label: "Archived", color: "bg-gray-400", icon: FileText },
-  deleted: { label: "Deleted", color: "bg-red-500", icon: Trash2 },
-};
-
-const typeIcons: Record<string, React.ElementType> = {
-  invoice: FileText,
-  expense: CreditCard,
-  receipt: Receipt,
-  other: FileText,
-};
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useInboxParams } from "@/hooks/use-inbox-params";
+import { type InboxItem as InboxItemType, inboxApi } from "@/lib/api/inbox";
+import { InboxDetails } from "./inbox-details";
+import { InboxEmpty, InboxNoResults } from "./inbox-empty";
+import { InboxHeader } from "./inbox-header";
+import { InboxItem } from "./inbox-item";
+import { InboxUploadZone } from "./inbox-upload-zone";
 
 export function InboxView() {
   const queryClient = useQueryClient();
-  const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<InboxStatus | "all">("all");
-  const [selectedItem, setSelectedItem] = useState<InboxItem | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const { params, setParams } = useInboxParams();
+  const itemRefs = useRef<Map<string, HTMLButtonElement>>(new Map());
+  const scrollAreaViewportRef = useRef<HTMLDivElement | null>(null);
+  const shouldScrollRef = useRef(false);
+  const allSeenIdsRef = useRef(new Set<string>());
 
   // Fetch inbox items
-  const { data, isLoading, error } = useQuery({
-    queryKey: ["inbox", search, statusFilter],
+  const { data, isLoading, error, refetch } = useQuery({
+    queryKey: ["inbox", params.sort, params.order, params.status],
     queryFn: () =>
       inboxApi.getAll({
-        q: search || null,
-        status: statusFilter === "all" ? null : statusFilter,
         pageSize: 50,
+        status: params.status || undefined,
       }),
   });
 
-  // Fetch stats
-  const { data: stats } = useQuery({
-    queryKey: ["inbox-stats"],
-    queryFn: () => inboxApi.getStats(),
-  });
+  const items = useMemo(() => {
+    const itemsList = data?.data || [];
+    return [...itemsList].sort((a, b) => {
+      let comparison = 0;
+      if (params.sort === "date") {
+        comparison = new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime();
+      } else {
+        comparison = (a.displayName || a.fileName || "").localeCompare(
+          b.displayName || b.fileName || ""
+        );
+      }
+      return params.order === "asc" ? comparison : -comparison;
+    });
+  }, [data, params.sort, params.order]);
 
-  // Delete mutation
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => inboxApi.delete(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inbox"] });
-      queryClient.invalidateQueries({ queryKey: ["inbox-stats"] });
-      toast.success("Item deleted");
-    },
-    onError: () => {
-      toast.error("Failed to delete item");
-    },
-  });
+  const newItemIds = useMemo(() => {
+    const newIds = new Set<string>();
 
-  // Update mutation (for archiving)
-  const updateMutation = useMutation({
-    mutationFn: ({ id, status }: { id: string; status: InboxStatus }) =>
-      inboxApi.update(id, { status }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["inbox"] });
-      queryClient.invalidateQueries({ queryKey: ["inbox-stats"] });
-      toast.success("Item updated");
-    },
-    onError: () => {
-      toast.error("Failed to update item");
-    },
-  });
-
-  const handleItemClick = (item: InboxItem) => {
-    setSelectedItem(item);
-    setSheetOpen(true);
-  };
-
-  const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (confirm("Are you sure you want to delete this item?")) {
-      deleteMutation.mutate(id);
+    for (const item of items) {
+      if (!allSeenIdsRef.current.has(item.id)) {
+        newIds.add(item.id);
+        allSeenIdsRef.current.add(item.id);
+      }
     }
-  };
 
-  const handleArchive = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    updateMutation.mutate({ id, status: "archived" });
-  };
+    return newIds;
+  }, [items]);
 
-  const items = data?.data || [];
+  useEffect(() => {
+    if (!params.inboxId && items.length > 0) {
+      setParams({ inboxId: items[0]?.id ?? null });
+    }
+  }, [items, params.inboxId, setParams]);
+
+  // Arrow key navigation
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        const currentIndex = items.findIndex((item) => item.id === params.inboxId);
+        if (currentIndex > 0) {
+          const prevItem = items[currentIndex - 1];
+          shouldScrollRef.current = true;
+          setParams({ inboxId: prevItem?.id });
+        }
+      } else if (event.key === "ArrowDown") {
+        event.preventDefault();
+        const currentIndex = items.findIndex((item) => item.id === params.inboxId);
+        if (currentIndex < items.length - 1) {
+          const nextItem = items[currentIndex + 1];
+          shouldScrollRef.current = true;
+          setParams({ inboxId: nextItem?.id });
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [items, params.inboxId, setParams]);
+
+  // Scroll selected item to center
+  useEffect(() => {
+    const inboxId = params.inboxId;
+    if (!inboxId) return;
+    if (!shouldScrollRef.current) return;
+
+    requestAnimationFrame(() => {
+      const itemElement = itemRefs.current.get(inboxId);
+      const viewport = scrollAreaViewportRef.current;
+      if (!itemElement || !viewport) {
+        shouldScrollRef.current = false;
+        return;
+      }
+
+      const viewportRect = viewport.getBoundingClientRect();
+      const itemRect = itemElement.getBoundingClientRect();
+      const itemTop = itemRect.top - viewportRect.top + viewport.scrollTop;
+      const itemHeight = itemRect.height;
+      const viewportHeight = viewport.clientHeight;
+      const scrollPosition = itemTop - viewportHeight / 2 + itemHeight / 2;
+
+      viewport.scrollTo({
+        top: Math.max(0, scrollPosition),
+        behavior: "smooth",
+      });
+
+      shouldScrollRef.current = false;
+    });
+  }, [params.inboxId, items]);
+
+  const handleRefresh = useCallback(() => {
+    refetch();
+    queryClient.invalidateQueries({ queryKey: ["inbox-stats"] });
+  }, [refetch, queryClient]);
+
+  const handleUpload = useCallback(() => {
+    const input = document.getElementById("upload-inbox-files");
+    if (input) {
+      input.click();
+    }
+  }, []);
+
+  const handleConnectEmail = useCallback(() => {
+    toast.info("Gmail connection will be available soon");
+  }, []);
+
+  const isEmptyInbox = !isLoading && !error && data?.data?.length === 0;
+  const hasFilter = Boolean(params.status);
+
+  if (isEmptyInbox && !hasFilter) {
+    return (
+      <InboxUploadZone onUploadComplete={handleRefresh}>
+        <InboxEmpty onUpload={handleUpload} onConnectEmail={handleConnectEmail} />
+      </InboxUploadZone>
+    );
+  }
+
+  if (hasFilter && items.length === 0) {
+    return (
+      <InboxUploadZone onUploadComplete={handleRefresh}>
+        <InboxHeader />
+        <InboxNoResults />
+      </InboxUploadZone>
+    );
+  }
 
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Magic Inbox</h1>
-          <p className="text-muted-foreground">
-            Documents automatically matched with your transactions
-          </p>
-        </div>
-        <Button>
-          <Upload className="mr-2 h-4 w-4" />
-          Upload Document
-        </Button>
-      </div>
+    <InboxUploadZone onUploadComplete={handleRefresh}>
+      <InboxHeader />
 
-      {/* Stats */}
-      {stats && (
-        <div className="grid gap-4 md:grid-cols-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">New</CardTitle>
-              <AlertCircle className="h-4 w-4 text-blue-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.newItems}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Matches Found</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.suggestedMatches}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <Clock className="h-4 w-4 text-orange-500" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.pendingItems}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Done</CardTitle>
-              <CheckCircle2 className="h-4 w-4 text-green-600" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.doneItems}</div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search inbox..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <Select
-          value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as InboxStatus | "all")}
-        >
-          <SelectTrigger className="w-[180px]">
-            <Filter className="mr-2 h-4 w-4" />
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All</SelectItem>
-            <SelectItem value="new">New</SelectItem>
-            <SelectItem value="suggested_match">Match Found</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="done">Done</SelectItem>
-            <SelectItem value="no_match">No Match</SelectItem>
-            <SelectItem value="archived">Archived</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* Inbox List */}
-      <div className="rounded-lg border">
-        {isLoading ? (
-          <div className="p-4 space-y-4">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="flex items-center gap-4">
-                <Skeleton className="h-12 w-12 rounded" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-                <Skeleton className="h-6 w-20" />
-              </div>
-            ))}
-          </div>
-        ) : error ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center">
-            <AlertCircle className="h-12 w-12 text-destructive mb-4" />
-            <p className="text-muted-foreground">Failed to load inbox</p>
-            <Button
-              variant="outline"
-              className="mt-4"
-              onClick={() => queryClient.invalidateQueries({ queryKey: ["inbox"] })}
-            >
-              Try Again
-            </Button>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="flex flex-col items-center justify-center p-8 text-center">
-            <Inbox className="h-12 w-12 text-muted-foreground mb-4" />
-            <p className="text-lg font-medium">No items in inbox</p>
-            <p className="text-muted-foreground">
-              Upload documents or connect your email to get started
-            </p>
-          </div>
-        ) : (
-          <div className="divide-y">
-            {items.map((item) => {
-              const status = statusConfig[item.status];
-              const StatusIcon = status.icon;
-              const TypeIcon = typeIcons[item.contentType?.includes("invoice") ? "invoice" : "expense"];
-
-              return (
+      <div className="flex flex-row space-x-8 mt-4">
+        <div className="w-full h-full">
+          {isLoading ? (
+            <div className="flex flex-col gap-4">
+              {[1, 2, 3, 4, 5].map((i) => (
                 <div
-                  key={item.id}
-                  className="flex items-center gap-4 p-4 hover:bg-muted/50 cursor-pointer transition-colors"
-                  onClick={() => handleItemClick(item)}
+                  key={i}
+                  className="flex flex-col items-start gap-2 border p-4 text-left text-sm transition-all h-[82px]"
                 >
-                  {/* Icon */}
-                  <div className="flex h-12 w-12 items-center justify-center rounded bg-muted">
-                    <TypeIcon className="h-6 w-6 text-muted-foreground" />
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <p className="font-medium truncate">
-                        {item.displayName || item.fileName || "Unknown"}
-                      </p>
-                      {item.suggestion && (
-                        <Badge variant="secondary" className="text-xs">
-                          {Math.round(item.suggestion.confidenceScore * 100)}% match
-                        </Badge>
-                      )}
+                  <div className="flex w-full flex-col gap-1">
+                    <div className="flex items-center mb-4">
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold">
+                          <Skeleton className="h-3 w-[140px]" />
+                        </div>
+                      </div>
+                      <div className="ml-auto text-xs text-muted-foreground">
+                        <Skeleton className="h-3 w-[40px]" />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {item.amount && (
-                        <span>{formatCurrency(item.amount, item.currency || "RSD")}</span>
-                      )}
-                      {item.date && (
-                        <>
-                          <span>•</span>
-                          <span>{new Date(item.date).toLocaleDateString()}</span>
-                        </>
-                      )}
-                      {item.senderEmail && (
-                        <>
-                          <span>•</span>
-                          <span className="truncate">{item.senderEmail}</span>
-                        </>
-                      )}
+                    <div className="flex">
+                      <div className="text-xs font-medium">
+                        <Skeleton className="h-2 w-[110px]" />
+                      </div>
+                      <div className="ml-auto text-xs font-medium">
+                        <Skeleton className="h-2 w-[60px]" />
+                      </div>
                     </div>
                   </div>
-
-                  {/* Status */}
-                  <Badge
-                    variant="outline"
-                    className="flex items-center gap-1 whitespace-nowrap"
-                  >
-                    <StatusIcon className="h-3 w-3" />
-                    {status.label}
-                  </Badge>
-
-                  {/* Time */}
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">
-                    {formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}
-                  </span>
-
-                  {/* Actions */}
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="icon">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleItemClick(item); }}>
-                        <Eye className="mr-2 h-4 w-4" />
-                        View Details
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => handleArchive(e, item.id)}>
-                        <FileText className="mr-2 h-4 w-4" />
-                        Archive
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={(e) => handleDelete(e, item.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center h-full p-8 text-center">
+              <AlertCircle className="h-12 w-12 text-destructive mb-4" />
+              <p className="text-muted-foreground">Failed to load inbox</p>
+              <button
+                onClick={handleRefresh}
+                className="mt-4 text-sm text-primary hover:underline"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : (
+            <ScrollArea
+              ref={(node) => {
+                scrollAreaViewportRef.current = node as HTMLDivElement | null;
+              }}
+              className="relative w-full h-[calc(100vh-180px)] overflow-hidden"
+            >
+              <AnimatePresence initial={false}>
+                <div className="m-0 h-full space-y-4">
+                  {items.map((item, index) => {
+                    const isNewItem = newItemIds.has(item.id);
 
-      {/* Item Sheet */}
-      <InboxItemSheet
-        item={selectedItem}
-        open={sheetOpen}
-        onOpenChange={setSheetOpen}
-        onUpdate={() => {
-          queryClient.invalidateQueries({ queryKey: ["inbox"] });
-          queryClient.invalidateQueries({ queryKey: ["inbox-stats"] });
-        }}
-      />
-    </div>
+                    return (
+                      <motion.div
+                        key={item.id}
+                        initial={
+                          isNewItem ? { opacity: 0, y: -30, scale: 0.95 } : false
+                        }
+                        animate={
+                          isNewItem ? { opacity: 1, y: 0, scale: 1 } : "visible"
+                        }
+                        transition={
+                          isNewItem
+                            ? {
+                                duration: 0.4,
+                                ease: [0.23, 1, 0.32, 1],
+                                delay: index < 5 ? index * 0.05 : 0,
+                              }
+                            : undefined
+                        }
+                        exit={{ opacity: 0 }}
+                      >
+                        <InboxItem
+                          ref={(el) => {
+                            if (el) {
+                              itemRefs.current.set(item.id, el);
+                            } else {
+                              itemRefs.current.delete(item.id);
+                            }
+                          }}
+                          item={item}
+                          index={index}
+                        />
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              </AnimatePresence>
+            </ScrollArea>
+          )}
+        </div>
+
+        <InboxDetails />
+      </div>
+    </InboxUploadZone>
   );
 }

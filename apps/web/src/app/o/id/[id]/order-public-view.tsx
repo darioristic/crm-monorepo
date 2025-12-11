@@ -64,6 +64,8 @@ interface OrderApiResponse {
   refundedAt?: string | null;
   quoteId?: string | null;
   invoiceId?: string | null;
+  fromDetails?: EditorDoc | string | null;
+  logoUrl?: string | null;
 }
 
 type OrderPublicViewProps = {
@@ -185,10 +187,39 @@ function buildCustomerDetails(order: any): EditorDoc | null {
   };
 }
 
-// Build from details (seller info)
-function buildFromDetails(storedFromDetails: EditorDoc | null): EditorDoc | null {
+// Parse fromDetails from API response (may be string or object)
+function parseFromDetails(apiFromDetails: EditorDoc | string | null | undefined): EditorDoc | null {
+  if (!apiFromDetails) return null;
+
+  let parsed: unknown = apiFromDetails;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  if (parsed && typeof parsed === "object" && (parsed as EditorDoc).type === "doc") {
+    return parsed as EditorDoc;
+  }
+
+  return null;
+}
+
+// Build from details (seller info) with fallback chain: API -> localStorage -> default
+function buildFromDetails(
+  apiFromDetails: EditorDoc | string | null | undefined,
+  storedFromDetails: EditorDoc | null
+): EditorDoc | null {
+  // First try API response
+  const fromApi = parseFromDetails(apiFromDetails);
+  if (fromApi) return fromApi;
+
+  // Then try localStorage
   if (storedFromDetails) return storedFromDetails;
 
+  // Return default placeholder
   return {
     type: "doc",
     content: [
@@ -214,12 +245,13 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
   const [paymentDetails, setPaymentDetails] = useState<EditorDoc | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
-  // Load stored details on mount
+  // Load stored details on mount - API data takes priority
   useEffect(() => {
     setFromDetails(getStoredFromDetails());
     setPaymentDetails(getStoredPaymentDetails());
-    setLogoUrl(getStoredLogo() || DEFAULT_LOGO_URL);
-  }, []);
+    // Use API logoUrl first, then localStorage, then default
+    setLogoUrl(order.logoUrl || getStoredLogo() || DEFAULT_LOGO_URL);
+  }, [order.logoUrl]);
 
   const customerName = order.companyName || order.company?.name || "Customer";
 
@@ -271,7 +303,7 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
           }
         : null),
     customerDetails: customerDoc || buildCustomerDetails(order),
-    fromDetails: buildFromDetails(fromDetails),
+    fromDetails: buildFromDetails(order.fromDetails, fromDetails),
     noteDetails: order.notes
       ? {
           type: "doc",

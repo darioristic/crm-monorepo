@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useApi } from "@/hooks/use-api";
-import { ordersApi } from "@/lib/api";
 import { OrderPublicView } from "./order-public-view";
 
 type Props = {
@@ -14,12 +12,31 @@ type Props = {
 
 export default function OrderByIdPage({ params }: Props) {
   const { id } = use(params);
+  const [order, setOrder] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const {
-    data: order,
-    isLoading,
-    error,
-  } = useApi<any>(() => ordersApi.getById(id), { autoFetch: true });
+  useEffect(() => {
+    async function fetchOrder() {
+      try {
+        // Use public API endpoint that doesn't require authentication
+        const response = await fetch(`/api/orders/public/${id}`);
+
+        if (!response.ok) {
+          throw new Error("Order not found");
+        }
+
+        const data = await response.json();
+        setOrder(data.data);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error("Failed to load order"));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchOrder();
+  }, [id]);
 
   if (isLoading) {
     return (

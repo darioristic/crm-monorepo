@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  ArrowDownIcon,
   ArrowUpIcon,
   DollarSignIcon,
   FileTextIcon,
-  TrendingDownIcon,
   TrendingUpIcon,
   WalletIcon,
 } from "lucide-react";
@@ -19,94 +17,92 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-
-const chartData = [
-  { date: "2024-04-01", desktop: 222, mobile: 150 },
-  { date: "2024-04-02", desktop: 97, mobile: 180 },
-  { date: "2024-04-03", desktop: 167, mobile: 120 },
-  { date: "2024-04-04", desktop: 242, mobile: 260 },
-  { date: "2024-04-05", desktop: 373, mobile: 290 },
-  { date: "2024-04-06", desktop: 301, mobile: 340 },
-  { date: "2024-04-07", desktop: 245, mobile: 180 },
-  { date: "2024-04-08", desktop: 409, mobile: 320 },
-  { date: "2024-04-09", desktop: 59, mobile: 110 },
-  { date: "2024-04-10", desktop: 261, mobile: 190 },
-  { date: "2024-04-11", desktop: 327, mobile: 350 },
-  { date: "2024-04-12", desktop: 292, mobile: 210 },
-  { date: "2024-04-13", desktop: 342, mobile: 380 },
-  { date: "2024-04-14", desktop: 137, mobile: 220 },
-  { date: "2024-04-15", desktop: 120, mobile: 170 },
-  { date: "2024-04-16", desktop: 138, mobile: 190 },
-  { date: "2024-04-17", desktop: 446, mobile: 360 },
-  { date: "2024-04-18", desktop: 364, mobile: 410 },
-  { date: "2024-04-19", desktop: 243, mobile: 180 },
-  { date: "2024-04-20", desktop: 89, mobile: 150 },
-  { date: "2024-04-21", desktop: 137, mobile: 200 },
-  { date: "2024-04-22", desktop: 224, mobile: 170 },
-  { date: "2024-04-23", desktop: 138, mobile: 230 },
-  { date: "2024-04-24", desktop: 387, mobile: 290 },
-  { date: "2024-04-25", desktop: 215, mobile: 250 },
-  { date: "2024-04-26", desktop: 75, mobile: 130 },
-  { date: "2024-04-27", desktop: 383, mobile: 420 },
-  { date: "2024-04-28", desktop: 122, mobile: 180 },
-  { date: "2024-04-29", desktop: 315, mobile: 240 },
-  { date: "2024-04-30", desktop: 454, mobile: 380 },
-  { date: "2024-05-01", desktop: 165, mobile: 220 },
-  { date: "2024-05-02", desktop: 293, mobile: 310 },
-  { date: "2024-05-03", desktop: 247, mobile: 190 },
-  { date: "2024-05-04", desktop: 385, mobile: 420 },
-  { date: "2024-05-05", desktop: 481, mobile: 390 },
-  { date: "2024-05-06", desktop: 498, mobile: 520 },
-  { date: "2024-05-07", desktop: 388, mobile: 300 },
-  { date: "2024-05-08", desktop: 149, mobile: 210 },
-  { date: "2024-05-09", desktop: 227, mobile: 180 },
-  { date: "2024-05-10", desktop: 293, mobile: 330 },
-  { date: "2024-05-11", desktop: 335, mobile: 270 },
-  { date: "2024-05-12", desktop: 197, mobile: 240 },
-  { date: "2024-05-13", desktop: 197, mobile: 160 },
-  { date: "2024-05-14", desktop: 448, mobile: 490 },
-  { date: "2024-05-15", desktop: 473, mobile: 380 },
-  { date: "2024-05-16", desktop: 338, mobile: 400 },
-  { date: "2024-05-17", desktop: 499, mobile: 420 },
-  { date: "2024-05-18", desktop: 315, mobile: 350 },
-];
+import { Skeleton } from "@/components/ui/skeleton";
+import { useFinanceDashboard } from "@/hooks/use-finance-dashboard";
 
 const chartConfig = {
-  desktop: {
-    label: "Desktop",
+  revenue: {
+    label: "Revenue",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
 
+function formatCurrency(amount: number, currency: string = "EUR"): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(amount);
+}
+
 export default function KPICards() {
+  const { data, isLoading, error } = useFinanceDashboard();
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <Card key={i}>
+            <CardHeader>
+              <Skeleton className="h-6 w-32" />
+            </CardHeader>
+            <CardContent>
+              <Skeleton className="h-10 w-24 mb-2" />
+              <Skeleton className="h-4 w-40" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
+        <Card className="col-span-full">
+          <CardContent className="py-8 text-center text-muted-foreground">
+            {error || "No finance data available"}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const { kpi, monthlyTrend } = data;
+  const chartData = monthlyTrend.map((item) => ({
+    month: item.month,
+    revenue: item.revenue,
+  }));
+
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-4">
       <Card>
         <CardHeader>
           <CardTitle className="text-muted-foreground text-sm">
             <WalletIcon className="mr-3 inline size-7 rounded-md border p-1.5" />
-            My Balance
+            Total Revenue
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
-            <div className="font-display text-3xl">$125,430</div>
+            <div className="font-display text-3xl" suppressHydrationWarning>
+              {formatCurrency(kpi.totalRevenue, kpi.currency)}
+            </div>
             <div className="flex flex-col text-sm text-green-600">
               <span className="flex items-center gap-2">
                 <TrendingUpIcon className="size-4" />
-                12.5%
+                Paid
               </span>
-              <span className="text-muted-foreground ml-1">compared to last month</span>
+              <span className="text-muted-foreground ml-1">from invoices</span>
             </div>
           </div>
           <div className="flex gap-2">
-            <Button className="grow">
-              <ArrowUpIcon />
-              Transfer
-            </Button>
-            <Button className="grow" variant="outline">
-              <ArrowDownIcon />
-              Request
+            <Button className="grow" variant="outline" asChild>
+              <a href="/sales/invoices">
+                <ArrowUpIcon />
+                View Invoices
+              </a>
             </Button>
           </div>
         </CardContent>
@@ -120,11 +116,12 @@ export default function KPICards() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex h-full flex-col justify-between">
-          <div className="font-display mb-2 text-3xl">$38,700</div>
+          <div className="font-display mb-2 text-3xl" suppressHydrationWarning>
+            {formatCurrency(kpi.netProfit, kpi.currency)}
+          </div>
           <div className="flex items-center text-sm text-green-600">
             <TrendingUpIcon className="mr-1 h-4 w-4" />
-            8.5%
-            <span className="text-muted-foreground ml-1">compared to last month</span>
+            <span className="text-muted-foreground ml-1">Total profit after expenses</span>
           </div>
         </CardContent>
       </Card>
@@ -137,11 +134,11 @@ export default function KPICards() {
           </CardTitle>
         </CardHeader>
         <CardContent className="flex h-full flex-col justify-between">
-          <div className="font-display mb-2 text-3xl">$26,450</div>
-          <div className="flex items-center text-sm text-red-600">
-            <TrendingDownIcon className="mr-1 h-4 w-4" />
-            5.5%
-            <span className="text-muted-foreground ml-1">compared to last month</span>
+          <div className="font-display mb-2 text-3xl" suppressHydrationWarning>
+            {formatCurrency(kpi.totalExpenses, kpi.currency)}
+          </div>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <span>Not tracked yet</span>
           </div>
         </CardContent>
       </Card>
@@ -153,28 +150,35 @@ export default function KPICards() {
             Pending Invoices
           </CardTitle>
           <CardAction>
-            <Badge variant="destructive" className="text-xs">
-              3 overdue invoices
+            <Badge
+              variant={kpi.pendingInvoices > 0 ? "destructive" : "secondary"}
+              className="text-xs"
+            >
+              {kpi.pendingInvoices > 0 ? "Unpaid" : "All paid"}
             </Badge>
           </CardAction>
         </CardHeader>
         <CardContent className="flex h-full flex-col justify-between">
           <div className="space-y-2">
-            <div className="font-display text-3xl">$3,200</div>
+            <div className="font-display text-3xl" suppressHydrationWarning>
+              {formatCurrency(kpi.pendingInvoices, kpi.currency)}
+            </div>
           </div>
         </CardContent>
-        <div className="-mb-1.5">
-          <ChartContainer
-            id="finance-kpi-pending-invoices"
-            config={chartConfig}
-            className="h-14 w-full"
-          >
-            <BarChart accessibilityLayer data={chartData}>
-              <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
-              <Bar dataKey="desktop" fill="var(--color-desktop)" radius={[7, 7, 0, 0]} />
-            </BarChart>
-          </ChartContainer>
-        </div>
+        {chartData.length > 0 && (
+          <div className="-mb-1.5">
+            <ChartContainer
+              id="finance-kpi-pending-invoices"
+              config={chartConfig}
+              className="h-14 w-full"
+            >
+              <BarChart accessibilityLayer data={chartData}>
+                <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel />} />
+                <Bar dataKey="revenue" fill="var(--color-revenue)" radius={[7, 7, 0, 0]} />
+              </BarChart>
+            </ChartContainer>
+          </div>
+        )}
       </Card>
     </div>
   );

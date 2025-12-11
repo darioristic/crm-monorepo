@@ -23,7 +23,8 @@ interface RunwayScenario {
 }
 
 export const getRunwayTool = tool({
-  description: "Calculate financial runway - how many months until funds run out. Includes multiple scenarios based on spending patterns.",
+  description:
+    "Calculate financial runway - how many months until funds run out. Includes multiple scenarios based on spending patterns.",
   parameters: getRunwaySchema,
   execute: async (params: GetRunwayParams): Promise<string> => {
     const { tenantId, includeScenarios, growthRate } = params;
@@ -75,23 +76,27 @@ export const getRunwayTool = tool({
         ORDER BY month DESC
       `;
 
-      const monthlyExpenses = expensesResult.map(r => Number(r.expenses) || 0);
-      const monthlyIncome = incomeResult.map(r => Number(r.income) || 0);
+      const monthlyExpenses = expensesResult.map((r) => Number(r.expenses) || 0);
+      const monthlyIncome = incomeResult.map((r) => Number(r.income) || 0);
 
-      const avgExpenses = monthlyExpenses.length > 0
-        ? monthlyExpenses.reduce((a, b) => a + b, 0) / monthlyExpenses.length
-        : 0;
+      const avgExpenses =
+        monthlyExpenses.length > 0
+          ? monthlyExpenses.reduce((a, b) => a + b, 0) / monthlyExpenses.length
+          : 0;
 
-      const avgIncome = monthlyIncome.length > 0
-        ? monthlyIncome.reduce((a, b) => a + b, 0) / monthlyIncome.length
-        : 0;
+      const avgIncome =
+        monthlyIncome.length > 0
+          ? monthlyIncome.reduce((a, b) => a + b, 0) / monthlyIncome.length
+          : 0;
 
       const netBurn = avgExpenses - avgIncome;
 
       // Calculate expense volatility
-      const expenseVariance = monthlyExpenses.length > 1
-        ? monthlyExpenses.reduce((sum, exp) => sum + Math.pow(exp - avgExpenses, 2), 0) / monthlyExpenses.length
-        : 0;
+      const expenseVariance =
+        monthlyExpenses.length > 1
+          ? monthlyExpenses.reduce((sum, exp) => sum + (exp - avgExpenses) ** 2, 0) /
+            monthlyExpenses.length
+          : 0;
       const expenseStdDev = Math.sqrt(expenseVariance);
 
       // Calculate base runway
@@ -114,8 +119,9 @@ export const getRunwayTool = tool({
 
       if (includeScenarios) {
         // Best case (10% expense reduction)
-        const bestCaseBurn = (avgExpenses * 0.9) - avgIncome;
-        const bestCaseRunway = bestCaseBurn > 0 ? Math.floor(currentBalance / bestCaseBurn) : Infinity;
+        const bestCaseBurn = avgExpenses * 0.9 - avgIncome;
+        const bestCaseRunway =
+          bestCaseBurn > 0 ? Math.floor(currentBalance / bestCaseBurn) : Infinity;
         scenarios.push({
           name: "🟢 Best Case",
           months: bestCaseRunway,
@@ -130,7 +136,8 @@ export const getRunwayTool = tool({
         // Worst case (expenses + 1 std dev)
         const worstCaseExpenses = avgExpenses + expenseStdDev;
         const worstCaseBurn = worstCaseExpenses - avgIncome;
-        const worstCaseRunway = worstCaseBurn > 0 ? Math.floor(currentBalance / worstCaseBurn) : Infinity;
+        const worstCaseRunway =
+          worstCaseBurn > 0 ? Math.floor(currentBalance / worstCaseBurn) : Infinity;
         scenarios.push({
           name: "🔴 Worst Case",
           months: worstCaseRunway,
@@ -192,18 +199,24 @@ export const getRunwayTool = tool({
       response += `| 📊 Expense Volatility | ${formatCurrency(expenseStdDev)} |\n\n`;
 
       // Runway visualization
-      const runwayEmoji = baseRunway === Infinity ? '♾️' :
-        baseRunway > 12 ? '🟢' :
-          baseRunway > 6 ? '🟡' :
-            baseRunway > 3 ? '🟠' : '🔴';
+      const runwayEmoji =
+        baseRunway === Infinity
+          ? "♾️"
+          : baseRunway > 12
+            ? "🟢"
+            : baseRunway > 6
+              ? "🟡"
+              : baseRunway > 3
+                ? "🟠"
+                : "🔴";
 
       response += `### Runway Estimate\n`;
-      response += `**${runwayEmoji} ${baseRunway === Infinity ? 'Infinite (profitable!)' : `${baseRunway} months`}**\n\n`;
+      response += `**${runwayEmoji} ${baseRunway === Infinity ? "Infinite (profitable!)" : `${baseRunway} months`}**\n\n`;
 
       if (baseRunway !== Infinity && baseRunway <= 12) {
         const runoutDate = new Date();
         runoutDate.setMonth(runoutDate.getMonth() + baseRunway);
-        response += `⚠️ *Projected to run out: ${runoutDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}*\n\n`;
+        response += `⚠️ *Projected to run out: ${runoutDate.toLocaleDateString("en-US", { year: "numeric", month: "long" })}*\n\n`;
       }
 
       // Scenarios
@@ -213,7 +226,7 @@ export const getRunwayTool = tool({
         response += `|----------|--------|-------------|\n`;
 
         for (const scenario of scenarios) {
-          const months = scenario.months === Infinity ? '∞' : `${scenario.months}mo`;
+          const months = scenario.months === Infinity ? "∞" : `${scenario.months}mo`;
           response += `| ${scenario.name} | ${months} | ${scenario.description} |\n`;
         }
         response += `\n`;
@@ -255,15 +268,15 @@ export const getRunwayTool = tool({
       return response;
     } catch (error) {
       console.error("Error calculating runway:", error);
-      return `❌ Error calculating runway: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return `❌ Error calculating runway: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);

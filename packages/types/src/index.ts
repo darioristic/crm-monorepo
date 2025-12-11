@@ -312,9 +312,13 @@ export interface InvoiceItem {
 
 export interface Invoice extends BaseEntity {
   invoiceNumber: string;
+  /** Public access token for invoice viewing */
+  token?: string;
   quoteId?: UUID;
   companyId: UUID;
   contactId?: UUID;
+  /** Tenant/seller company ID */
+  tenantId?: UUID;
   status: InvoiceStatus;
   issueDate: Timestamp;
   dueDate: Timestamp;
@@ -341,6 +345,12 @@ export interface Invoice extends BaseEntity {
   logoUrl?: string;
   /** Template settings as JSON object */
   templateSettings?: unknown;
+  /** When the invoice was first viewed */
+  viewedAt?: Timestamp;
+  /** When the invoice was sent */
+  sentAt?: Timestamp;
+  /** When the invoice was paid */
+  paidAt?: Timestamp;
   createdBy: UUID;
 }
 

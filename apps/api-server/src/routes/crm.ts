@@ -1,8 +1,14 @@
 /**
- * CRM Routes - Leads, Contacts
+ * CRM Routes - Leads, Contacts, Deals
  */
 
-import type { CreateContactRequest, CreateLeadRequest, UpdateLeadRequest } from "@crm/types";
+import type {
+  CreateContactRequest,
+  CreateDealRequest,
+  CreateLeadRequest,
+  UpdateDealRequest,
+  UpdateLeadRequest,
+} from "@crm/types";
 import { errorResponse, paginatedResponse, successResponse } from "@crm/utils";
 import { cache } from "../cache/redis";
 import { contactQueries } from "../db/queries";
@@ -71,6 +77,70 @@ router.delete("/api/v1/leads/:id", async (request, _url, params) => {
 });
 
 // ============================================
+// DEALS
+// ============================================
+
+router.get("/api/v1/deals", async (request, url) => {
+  return withAuth(request, async () => {
+    const pagination = parsePagination(url);
+    const filters = parseFilters(url);
+    return crmService.getDeals(pagination, filters);
+  });
+});
+
+router.get("/api/v1/deals/pipeline", async (request) => {
+  return withAuth(request, async () => {
+    return crmService.getPipelineSummary();
+  });
+});
+
+router.get("/api/v1/deals/:id", async (request, _url, params) => {
+  return withAuth(request, async () => {
+    return crmService.getDealById(params.id);
+  });
+});
+
+router.post("/api/v1/deals", async (request) => {
+  return withAuth(
+    request,
+    async () => {
+      const body = await parseBody<CreateDealRequest>(request);
+      if (!body) {
+        return errorResponse("VALIDATION_ERROR", "Invalid request body");
+      }
+      return crmService.createDeal(body);
+    },
+    201
+  );
+});
+
+router.put("/api/v1/deals/:id", async (request, _url, params) => {
+  return withAuth(request, async () => {
+    const body = await parseBody<UpdateDealRequest>(request);
+    if (!body) {
+      return errorResponse("VALIDATION_ERROR", "Invalid request body");
+    }
+    return crmService.updateDeal(params.id, body);
+  });
+});
+
+router.patch("/api/v1/deals/:id", async (request, _url, params) => {
+  return withAuth(request, async () => {
+    const body = await parseBody<UpdateDealRequest>(request);
+    if (!body) {
+      return errorResponse("VALIDATION_ERROR", "Invalid request body");
+    }
+    return crmService.updateDeal(params.id, body);
+  });
+});
+
+router.delete("/api/v1/deals/:id", async (request, _url, params) => {
+  return withAuth(request, async () => {
+    return crmService.deleteDeal(params.id);
+  });
+});
+
+// ============================================
 // CONTACTS
 // ============================================
 
@@ -127,7 +197,11 @@ router.get("/api/v1/accounts/search", async (request, url) => {
           } as { search: string; tenantId: string | undefined } & typeof filters)
         : Promise.resolve({ data: [], total: 0 }),
       includeIndividuals
-        ? contactQueries.findAll(pagination, { ...filters, search: q, tenantId: auth.activeTenantId })
+        ? contactQueries.findAll(pagination, {
+            ...filters,
+            search: q,
+            tenantId: auth.activeTenantId,
+          })
         : Promise.resolve({ data: [], total: 0 }),
     ]);
 

@@ -89,12 +89,48 @@ export interface LineItem {
 }
 
 // ==============================================
-// TESSERACT OCR (Local)
+// PDF TEXT EXTRACTION (using pdf-parse)
+// ==============================================
+
+async function extractTextFromPdf(pdfBuffer: Buffer): Promise<OCRResult> {
+  const startTime = Date.now();
+
+  try {
+    const { PDFParse } = await import("pdf-parse");
+
+    const parser = new PDFParse({ data: pdfBuffer });
+    const textResult = await parser.getText();
+
+    const text = textResult.text || "";
+    const extractedData = extractDataFromText(text);
+
+    await parser.destroy();
+
+    serviceLogger.info(
+      { textLength: text.length },
+      "PDF text extraction completed"
+    );
+
+    return {
+      text,
+      confidence: 0.95, // PDF text extraction is usually high confidence
+      provider: "pdf-parse",
+      extractedData,
+      processingTimeMs: Date.now() - startTime,
+    };
+  } catch (error) {
+    serviceLogger.error({ error }, "PDF text extraction failed");
+    throw error;
+  }
+}
+
+// ==============================================
+// TESSERACT OCR (Local - for images only)
 // ==============================================
 
 let tesseractWorker: unknown = null;
 
-async function initTesseract() {
+async function _initTesseract() {
   if (tesseractWorker) return tesseractWorker;
 
   try {
@@ -117,7 +153,7 @@ async function initTesseract() {
   }
 }
 
-async function ocrWithTesseract(imageBuffer: Buffer, mimeType: string): Promise<OCRResult> {
+async function ocrWithTesseract(imageBuffer: Buffer, _mimeType: string): Promise<OCRResult> {
   const startTime = Date.now();
 
   try {
@@ -153,10 +189,7 @@ async function ocrWithTesseract(imageBuffer: Buffer, mimeType: string): Promise<
 // GOOGLE DOCUMENT AI (Cloud)
 // ==============================================
 
-async function ocrWithGoogleDocumentAI(
-  fileBuffer: Buffer,
-  mimeType: string
-): Promise<OCRResult> {
+async function ocrWithGoogleDocumentAI(fileBuffer: Buffer, mimeType: string): Promise<OCRResult> {
   const startTime = Date.now();
 
   const { googleProjectId, googleLocation, googleProcessorId } = OCR_CONFIG;
@@ -192,7 +225,7 @@ async function ocrWithGoogleDocumentAI(
       throw new Error(`Google Document AI error: ${error}`);
     }
 
-    const data = await response.json() as {
+    const data = (await response.json()) as {
       document?: {
         text?: string;
         pages?: Array<{
@@ -217,9 +250,10 @@ async function ocrWithGoogleDocumentAI(
     const entities = document.entities || [];
 
     // Calculate average confidence
-    const avgConfidence = pages.length > 0
-      ? pages.reduce((sum, p) => sum + (p.confidence || 0), 0) / pages.length
-      : 0.8;
+    const avgConfidence =
+      pages.length > 0
+        ? pages.reduce((sum, p) => sum + (p.confidence || 0), 0) / pages.length
+        : 0.8;
 
     // Convert entities to extracted data
     const extractedData = extractDataFromEntities(entities, text);
@@ -420,12 +454,20 @@ export async function processDocument(
   // Check file size
   const fileSizeMB = fileBuffer.length / (1024 * 1024);
   if (fileSizeMB > OCR_CONFIG.maxFileSizeMB) {
-    throw new Error(`File too large: ${fileSizeMB.toFixed(2)}MB (max: ${OCR_CONFIG.maxFileSizeMB}MB)`);
+    throw new Error(
+      `File too large: ${fileSizeMB.toFixed(2)}MB (max: ${OCR_CONFIG.maxFileSizeMB}MB)`
+    );
   }
 
   serviceLogger.info({ provider, mimeType, sizeMB: fileSizeMB.toFixed(2) }, "Processing document");
 
   try {
+    // For PDFs, use pdf-parse for text extraction (faster and more reliable than OCR)
+    if (mimeType === "application/pdf") {
+      return await extractTextFromPdf(fileBuffer);
+    }
+
+    // For images, use OCR
     if (provider === "google-document-ai") {
       return await ocrWithGoogleDocumentAI(fileBuffer, mimeType);
     } else {
@@ -446,8 +488,8 @@ export async function processDocumentFromPath(
     provider?: "tesseract" | "google-document-ai";
   }
 ): Promise<OCRResult> {
-  const fs = await import("fs/promises");
-  const path = await import("path");
+  const fs = await import("node:fs/promises");
+  const path = await import("node:path");
 
   const buffer = await fs.readFile(filePath);
   const ext = path.extname(filePath).toLowerCase();

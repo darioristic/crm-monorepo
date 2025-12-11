@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="sr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Račun INV-2024-0042 - NIS a.d. Novi Sad</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin: 20mm;
+    }
+
+    body {
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #1a1a1a;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .invoice {
+      max-width: 210mm;
+      margin: 0 auto;
+      background: white;
+      padding: 40px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .invoice {
+        box-shadow: none;
+        padding: 0;
+        max-width: none;
+      }
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      padding-bottom: 20px;
+      border-bottom: 2px solid #e5e5e5;
+    }
+
+    .invoice-title {
+      font-size: 32px;
+      font-weight: 700;
+      color: #1a1a1a;
+      letter-spacing: 1px;
+    }
+
+    .invoice-meta {
+      text-align: right;
+    }
+
+    .invoice-meta-item {
+      margin-bottom: 6px;
+    }
+
+    .invoice-meta-label {
+      color: #666;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .invoice-meta-value {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .invoice-number {
+      font-size: 18px;
+      font-weight: 700;
+      color: #2563eb;
+    }
+
+    /* Parties Section */
+    .parties {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      margin-bottom: 40px;
+    }
+
+    .party {
+      padding: 20px;
+      background: #fafafa;
+      border-radius: 8px;
+    }
+
+    .party-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .party-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #1a1a1a;
+    }
+
+    .party-details {
+      font-size: 13px;
+      color: #444;
+    }
+
+    .party-details p {
+      margin-bottom: 4px;
+    }
+
+    .party-details .label {
+      color: #666;
+      font-weight: 500;
+    }
+
+    /* Line Items */
+    .items {
+      margin-bottom: 30px;
+    }
+
+    .items-header {
+      display: grid;
+      grid-template-columns: 3fr 1fr 1fr 1fr;
+      gap: 16px;
+      padding: 12px 16px;
+      background: #1a1a1a;
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-radius: 6px 6px 0 0;
+    }
+
+    .items-header .text-right {
+      text-align: right;
+    }
+
+    .items-row {
+      display: grid;
+      grid-template-columns: 3fr 1fr 1fr 1fr;
+      gap: 16px;
+      padding: 16px;
+      border-bottom: 1px solid #e5e5e5;
+      align-items: start;
+    }
+
+    .items-row:last-child {
+      border-bottom: none;
+    }
+
+    .item-name {
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+
+    .item-description {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.6;
+    }
+
+    .item-price {
+      font-weight: 500;
+    }
+
+    .item-total {
+      text-align: right;
+      font-weight: 700;
+    }
+
+    /* Summary */
+    .summary {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 40px;
+    }
+
+    .summary-box {
+      width: 320px;
+      background: #fafafa;
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 14px;
+    }
+
+    .summary-row.subtotal {
+      border-bottom: 1px solid #e5e5e5;
+      margin-bottom: 8px;
+    }
+
+    .summary-row .label {
+      color: #666;
+    }
+
+    .summary-row .value {
+      font-weight: 500;
+    }
+
+    .summary-row.total {
+      padding-top: 16px;
+      border-top: 2px solid #1a1a1a;
+      margin-top: 8px;
+    }
+
+    .summary-row.total .label {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+
+    .summary-row.total .value {
+      font-size: 24px;
+      font-weight: 800;
+      color: #2563eb;
+    }
+
+    /* Footer sections */
+    .footer-sections {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+      padding-top: 30px;
+      border-top: 2px solid #e5e5e5;
+    }
+
+    .footer-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #888;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .footer-section p {
+      font-size: 13px;
+      color: #444;
+      margin-bottom: 6px;
+    }
+
+    .footer-section .bank-details {
+      background: #f0f9ff;
+      padding: 16px;
+      border-radius: 6px;
+      border-left: 4px solid #2563eb;
+    }
+
+    .footer-section .bank-details p {
+      margin-bottom: 4px;
+    }
+
+    .footer-section .bank-details .highlight {
+      font-weight: 700;
+      color: #1a1a1a;
+      font-family: 'Courier New', monospace;
+      font-size: 14px;
+    }
+
+    /* Status Badge */
+    .status-badge {
+      display: inline-block;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: #fef3c7;
+      color: #92400e;
+      margin-top: 8px;
+    }
+
+    /* Print Button */
+    .print-button {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      padding: 14px 28px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+      transition: all 0.2s;
+    }
+
+    .print-button:hover {
+      background: #1d4ed8;
+      transform: translateY(-2px);
+    }
+
+    @media print {
+      .print-button {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice">
+    <!-- Header -->
+    <div class="header">
+      <div>
+        <h1 class="invoice-title">RAČUN</h1>
+        <span class="status-badge">Neplaćeno</span>
+      </div>
+      <div class="invoice-meta">
+        <div class="invoice-meta-item">
+          <div class="invoice-meta-label">Broj računa</div>
+          <div class="invoice-number">INV-2024-0042</div>
+        </div>
+        <div class="invoice-meta-item">
+          <div class="invoice-meta-label">Datum izdavanja</div>
+          <div class="invoice-meta-value">11.12.2024</div>
+        </div>
+        <div class="invoice-meta-item">
+          <div class="invoice-meta-label">Rok plaćanja</div>
+          <div class="invoice-meta-value">31.01.2025</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Parties -->
+    <div class="parties">
+      <div class="party">
+        <div class="party-label">Od (Dobavljač)</div>
+        <div class="party-name">[Vaša Kompanija d.o.o.]</div>
+        <div class="party-details">
+          <p>[Adresa kompanije]</p>
+          <p>[Grad, Poštanski broj]</p>
+          <p><span class="label">PIB:</span> [Vaš PIB]</p>
+          <p><span class="label">Matični broj:</span> [Vaš MB]</p>
+          <p><span class="label">Tel:</span> [Broj telefona]</p>
+          <p><span class="label">Email:</span> [email@kompanija.rs]</p>
+        </div>
+      </div>
+
+      <div class="party">
+        <div class="party-label">Za (Kupac)</div>
+        <div class="party-name">NIS a.d. Novi Sad</div>
+        <div class="party-details">
+          <p>Narodnog fronta 12</p>
+          <p>21000 Novi Sad, Srbija</p>
+          <p><span class="label">PIB:</span> 104052135</p>
+          <p><span class="label">Kontakt:</span> Procurement Department</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Line Items -->
+    <div class="items">
+      <div class="items-header">
+        <div>Opis</div>
+        <div>Količina</div>
+        <div>Cena</div>
+        <div class="text-right">Ukupno</div>
+      </div>
+      <div class="items-row">
+        <div>
+          <div class="item-name">Konsalting i integracione usluge</div>
+          <div class="item-description">
+            Consulting and integration services for cloud-native platform development, including architecture review, implementation guidance, and performance optimization.
+          </div>
+        </div>
+        <div class="item-price">1</div>
+        <div class="item-price">1.500,00 EUR</div>
+        <div class="item-total">1.500,00 EUR</div>
+      </div>
+    </div>
+
+    <!-- Summary -->
+    <div class="summary">
+      <div class="summary-box">
+        <div class="summary-row subtotal">
+          <span class="label">Međuzbir</span>
+          <span class="value">1.500,00 EUR</span>
+        </div>
+        <div class="summary-row">
+          <span class="label">PDV (20%)</span>
+          <span class="value">300,00 EUR</span>
+        </div>
+        <div class="summary-row total">
+          <span class="label">Ukupno za plaćanje</span>
+          <span class="value">1.800,00 EUR</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer Sections -->
+    <div class="footer-sections">
+      <div class="footer-section">
+        <h3>Podaci za plaćanje</h3>
+        <div class="bank-details">
+          <p><span class="label">Banka:</span> [Naziv banke]</p>
+          <p><span class="label">Račun:</span> <span class="highlight">[Broj računa]</span></p>
+          <p><span class="label">SWIFT:</span> [SWIFT kod]</p>
+          <p><span class="label">IBAN:</span> <span class="highlight">[IBAN broj]</span></p>
+          <p><span class="label">Poziv na broj:</span> <span class="highlight">INV-2024-0042</span></p>
+        </div>
+      </div>
+
+      <div class="footer-section">
+        <h3>Napomena</h3>
+        <p>Molimo vas da plaćanje izvršite u roku od 51 dan od datuma izdavanja računa.</p>
+        <p>Za sva pitanja možete nas kontaktirati putem emaila ili telefona.</p>
+        <p style="margin-top: 16px; font-style: italic; color: #888;">
+          Hvala na saradnji!
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <button class="print-button" onclick="window.print()">
+    Štampaj / Sačuvaj PDF
+  </button>
+</body>
+</html>

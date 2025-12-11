@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpDown, Loader2, Pencil, Trash2 } from "lucide-react";
+import { AlertTriangle, ArrowUpDown, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { use, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -9,7 +9,6 @@ import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ComboboxDropdown } from "@/components/ui/combobox-dropdown";
 import {
   Dialog,
   DialogContent,
@@ -20,13 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import {
   Table,
@@ -37,6 +29,21 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type { TenantCompany } from "@/lib/api";
+
+type Organization = {
+  id: string;
+  name: string;
+  email: string | null;
+  phone: string | null;
+  pib: string | null;
+  companyNumber: string | null;
+  contactPerson: string | null;
+  isFavorite: boolean;
+  logoUrl: string | null;
+  tenantId?: string;
+  createdAt: string;
+  updatedAt: string;
+};
 
 function UserEditSheet(props: any) {
   const {
@@ -49,18 +56,12 @@ function UserEditSheet(props: any) {
     fetchUsers,
     creating,
     setCreating,
-    companies,
   } = props;
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | undefined>(undefined);
-  const [companyMemberRole, setCompanyMemberRole] = useState<"member" | "admin">("member");
-  const companyItems: { id: string; label: string }[] = (companies || [])
-    .filter((c: any) => (c as any).source !== "customer")
-    .map((c: any) => ({ id: String(c.id), label: String(c.name) }));
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
         <SheetHeader className="mb-6">
-          <h2 className="text-xl">{userToEdit ? "Edit User" : "Edit User"}</h2>
+          <h2 className="text-xl">Edit User</h2>
         </SheetHeader>
         <form
           onSubmit={async (e) => {
@@ -74,24 +75,6 @@ function UserEditSheet(props: any) {
                 body: JSON.stringify(editUserForm),
               });
               if (res.ok) {
-                if (selectedCompanyId) {
-                  try {
-                    const mRes = await fetch(`/api/v1/companies/${selectedCompanyId}/members`, {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        userId: userToEdit.id,
-                        role: companyMemberRole,
-                      }),
-                    });
-                    if (!mRes.ok) {
-                      const err = await mRes.json().catch(() => ({}));
-                      alert(err.error?.message || "Failed to add user to company");
-                    }
-                  } catch (_error) {
-                    alert("Failed to add user to company");
-                  }
-                }
                 await fetchUsers();
                 onOpenChange(false);
               } else {
@@ -141,37 +124,6 @@ function UserEditSheet(props: any) {
               onChange={(e) => setEditUserForm({ ...editUserForm, email: e.target.value })}
               required
             />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
-              <Label>Company</Label>
-              <ComboboxDropdown
-                placeholder="Select company"
-                searchPlaceholder="Search companies..."
-                items={companyItems}
-                selectedItem={
-                  selectedCompanyId
-                    ? companyItems.find((i) => i.id === selectedCompanyId)
-                    : undefined
-                }
-                onSelect={(item) => setSelectedCompanyId(item.id)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Company Role</Label>
-              <Select
-                value={companyMemberRole}
-                onValueChange={(v) => setCompanyMemberRole(v as "member" | "admin")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="member">CRM User</SelectItem>
-                  <SelectItem value="admin">Admin User</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-2">
@@ -251,10 +203,9 @@ export default function TenantDetailPage({ params }: Props) {
   const router = useRouter();
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [companies, setCompanies] = useState<TenantCompany[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [activeTab, setActiveTab] = useState<"companies" | "tenant-companies" | "users">(
-    "companies"
-  );
+  const [activeTab, setActiveTab] = useState<"organisations" | "tenant-users">("tenant-users");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", industry: "", address: "" });
@@ -267,8 +218,6 @@ export default function TenantDetailPage({ params }: Props) {
     role: "crm_user" as "crm_user" | "tenant_admin",
   });
   const [userPasswordError, setUserPasswordError] = useState<string | null>(null);
-  const [userCompanyError, setUserCompanyError] = useState<string | null>(null);
-  const [createUserCompanyId, setCreateUserCompanyId] = useState<string | undefined>(undefined);
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -284,8 +233,6 @@ export default function TenantDetailPage({ params }: Props) {
   const [userQuery, setUserQuery] = useState("");
   const [createCompanyOpen, setCreateCompanyOpen] = useState(false);
   const [createUserOpen, setCreateUserOpen] = useState(false);
-  const [createCompanySource, setCreateCompanySource] = useState<"account" | "customer">("account");
-  const [createCompanyType, setCreateCompanyType] = useState<"seller" | "customer">("seller");
   const [companySort, setCompanySort] = useState<{
     key: "name" | "industry" | "city";
     order: "asc" | "desc";
@@ -295,9 +242,7 @@ export default function TenantDetailPage({ params }: Props) {
     order: "asc" | "desc";
   }>({ key: "name", order: "asc" });
   const [editCompanyOpen, setEditCompanyOpen] = useState(false);
-  const [companyToEdit, setCompanyToEdit] = useState<TenantCompany | null>(null);
-  const [editCompanySource, setEditCompanySource] = useState<"account" | "customer">("account");
-  const [editCompanyType, setEditCompanyType] = useState<"seller" | "customer">("seller");
+  const [companyToEdit, _setCompanyToEdit] = useState<TenantCompany | null>(null);
   const [editUserOpen, setEditUserOpen] = useState(false);
   const [userToEdit, setUserToEdit] = useState<User | null>(null);
   const [editUserForm, setEditUserForm] = useState({
@@ -318,10 +263,13 @@ export default function TenantDetailPage({ params }: Props) {
     ids: string[];
     timer: number;
   } | null>(null);
+  const [permanentDeleteOpen, setPermanentDeleteOpen] = useState(false);
+  const [isPermanentDeleting, setIsPermanentDeleting] = useState(false);
   const UNDO_MS = 5000;
   useEffect(() => {
     void fetchTenant();
     void fetchCompanies();
+    void fetchOrganizations();
     void fetchUsers();
   }, [id]);
 
@@ -335,11 +283,19 @@ export default function TenantDetailPage({ params }: Props) {
   };
 
   const fetchCompanies = async () => {
-    setLoading(true);
     try {
       const res = await fetch(`/api/superadmin/tenants/${id}/companies`);
       const data = await res.json();
       setCompanies(data.data || []);
+    } catch {}
+  };
+
+  const fetchOrganizations = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${id}/organizations`);
+      const data = await res.json();
+      setOrganizations(data.data || []);
     } catch {}
     setLoading(false);
   };
@@ -642,6 +598,26 @@ export default function TenantDetailPage({ params }: Props) {
     });
   };
 
+  const handlePermanentDelete = async () => {
+    setIsPermanentDeleting(true);
+    try {
+      const res = await fetch(`/api/superadmin/tenants/${id}/permanent`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        toast.success("Tenant permanently deleted");
+        router.push("/superadmin");
+      } else {
+        const err = await res.json().catch(() => ({}));
+        toast.error(err?.error?.message || "Failed to permanently delete tenant");
+      }
+    } catch (_error) {
+      toast.error("Failed to permanently delete tenant");
+    }
+    setIsPermanentDeleting(false);
+    setPermanentDeleteOpen(false);
+  };
+
   if (!tenant) {
     return <div>Loading tenant...</div>;
   }
@@ -681,64 +657,57 @@ export default function TenantDetailPage({ params }: Props) {
           )}
           <p className="text-muted-foreground">Slug: {tenant.slug}</p>
         </div>
-        <Button variant="outline" onClick={() => router.push("/superadmin")}>
-          Back
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="destructive"
+            onClick={() => setPermanentDeleteOpen(true)}
+            className="gap-2"
+          >
+            <Trash2 className="h-4 w-4" />
+            Permanent Delete
+          </Button>
+          <Button variant="outline" onClick={() => router.push("/superadmin")}>
+            Back
+          </Button>
+        </div>
       </div>
 
       <div className="border-b">
         <div className="flex gap-4">
           <button
             className={`px-4 py-2 border-b-2 ${
-              activeTab === "companies"
+              activeTab === "tenant-users"
                 ? "border-primary font-semibold"
                 : "border-transparent text-muted-foreground"
             }`}
-            onClick={() => setActiveTab("companies")}
+            onClick={() => setActiveTab("tenant-users")}
           >
-            Customer Companies (
-            {companies.filter((c) => (c as any).companyType === "customer").length})
+            Tenant Users ({users.length})
           </button>
           <button
             className={`px-4 py-2 border-b-2 ${
-              activeTab === "tenant-companies"
+              activeTab === "organisations"
                 ? "border-primary font-semibold"
                 : "border-transparent text-muted-foreground"
             }`}
-            onClick={() => setActiveTab("tenant-companies")}
+            onClick={() => setActiveTab("organisations")}
           >
-            Tenant Companies ({companies.filter((c) => (c as any).companyType === "seller").length})
-          </button>
-          <button
-            className={`px-4 py-2 border-b-2 ${
-              activeTab === "users"
-                ? "border-primary font-semibold"
-                : "border-transparent text-muted-foreground"
-            }`}
-            onClick={() => setActiveTab("users")}
-          >
-            Users ({users.length})
+            Organisations ({organizations.length})
           </button>
         </div>
       </div>
 
-      {activeTab === "companies" && (
+      {activeTab === "organisations" && (
         <div className="grid grid-cols-1 gap-6">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Customer Companies</h3>
+              <h3 className="font-semibold">Organisations (CRM Customers)</h3>
               <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setCreateCompanyType("customer");
-                    setCreateCompanyOpen(true);
-                  }}
-                >
-                  Create Company
+                <Button size="sm" onClick={() => setCreateCompanyOpen(true)}>
+                  Create Organisation
                 </Button>
                 <Input
-                  placeholder="Search company..."
+                  placeholder="Search organisation..."
                   value={companyQuery}
                   onChange={(e) => setCompanyQuery(e.target.value)}
                   className="h-8 w-48"
@@ -765,18 +734,18 @@ export default function TenantDetailPage({ params }: Props) {
               </div>
             </div>
             {loading ? (
-              <div>Loading companies...</div>
-            ) : companies.length ? (
+              <div>Loading organisations...</div>
+            ) : organizations.length ? (
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead className="w-10">
                         {(() => {
-                          const items = companies;
-                          const some = items.some((c) => !!selectedCompanyIds[c.id]);
+                          const items = organizations;
+                          const some = items.some((o) => !!selectedCompanyIds[o.id]);
                           const all =
-                            items.length > 0 && items.every((c) => !!selectedCompanyIds[c.id]);
+                            items.length > 0 && items.every((o) => !!selectedCompanyIds[o.id]);
                           return (
                             <Checkbox
                               checked={all || (some && "indeterminate")}
@@ -784,13 +753,13 @@ export default function TenantDetailPage({ params }: Props) {
                                 const checked = !!v;
                                 setSelectedCompanyIds((prev) => {
                                   const next = { ...prev } as Record<string, boolean>;
-                                  for (const c of items) {
-                                    next[c.id] = checked;
+                                  for (const o of items) {
+                                    next[o.id] = checked;
                                   }
                                   return next;
                                 });
                               }}
-                              aria-label="Select all companies"
+                              aria-label="Select all organisations"
                             />
                           );
                         })()}
@@ -806,75 +775,40 @@ export default function TenantDetailPage({ params }: Props) {
                             }))
                           }
                         >
-                          Company
+                          Organisation
                           <ArrowUpDown className="ml-2 h-4 w-4" />
                         </Button>
                       </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          className="-ml-3"
-                          onClick={() =>
-                            setCompanySort((prev) => ({
-                              key: "industry",
-                              order:
-                                prev.key === "industry" && prev.order === "asc" ? "desc" : "asc",
-                            }))
-                          }
-                        >
-                          Industry
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          className="-ml-3"
-                          onClick={() =>
-                            setCompanySort((prev) => ({
-                              key: "city",
-                              order: prev.key === "city" && prev.order === "asc" ? "desc" : "asc",
-                            }))
-                          }
-                        >
-                          Location
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </Button>
-                      </TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>PIB</TableHead>
                       <TableHead className="text-right">Manage</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {companies
-                      .filter((c) => (c as any).companyType === "customer")
-                      .filter((c) => {
+                    {organizations
+                      .filter((o) => {
                         const q = companyQuery.toLowerCase();
                         return (
                           !q ||
-                          c.name.toLowerCase().includes(q) ||
-                          c.industry.toLowerCase().includes(q) ||
-                          (c.city || "").toLowerCase().includes(q)
+                          o.name.toLowerCase().includes(q) ||
+                          (o.email || "").toLowerCase().includes(q) ||
+                          (o.pib || "").toLowerCase().includes(q)
                         );
                       })
                       .sort((a, b) => {
                         const dir = companySort.order === "asc" ? 1 : -1;
-                        if (companySort.key === "name") {
-                          return a.name.localeCompare(b.name) * dir;
-                        }
-                        if (companySort.key === "industry") {
-                          return (a.industry || "").localeCompare(b.industry || "") * dir;
-                        }
-                        return (a.city || "").localeCompare(b.city || "") * dir;
+                        return a.name.localeCompare(b.name) * dir;
                       })
-                      .map((c) => (
-                        <TableRow key={c.id}>
+                      .map((o) => (
+                        <TableRow key={o.id}>
                           <TableCell>
                             <Checkbox
-                              checked={!!selectedCompanyIds[c.id]}
+                              checked={!!selectedCompanyIds[o.id]}
                               onCheckedChange={(v) =>
                                 setSelectedCompanyIds((prev) => ({
                                   ...prev,
-                                  [c.id]: Boolean(v),
+                                  [o.id]: Boolean(v),
                                 }))
                               }
                             />
@@ -889,279 +823,47 @@ export default function TenantDetailPage({ params }: Props) {
                                 }}
                               />
                               <div className="space-y-0.5">
-                                <div className="font-medium text-sm">{c.name}</div>
+                                <div className="font-medium text-sm">{o.name}</div>
+                                {o.contactPerson && (
+                                  <div className="text-xs text-muted-foreground">
+                                    {o.contactPerson}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </TableCell>
-                          <TableCell className="text-sm">
-                            <div className="flex flex-col gap-1">
-                              <span>{c.industry}</span>
-                              <Badge
-                                variant={
-                                  (c as any).companyType === "seller" ? "default" : "secondary"
-                                }
-                              >
-                                {(c as any).companyType === "seller" ? "Seller" : "Customer"}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {c.city} {c.country}
-                          </TableCell>
+                          <TableCell className="text-sm">{o.email || "-"}</TableCell>
+                          <TableCell className="text-sm">{o.phone || "-"}</TableCell>
+                          <TableCell className="text-sm">{o.pib || "-"}</TableCell>
                           <TableCell className="text-right">
                             <div className="flex justify-end gap-2">
                               <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setCompanyToEdit(c);
-                                  setEditCompanySource(
-                                    (c.source as "account" | "customer") || "account"
-                                  );
-                                  setEditCompanyType(
-                                    ((c as any).companyType as "seller" | "customer") || "seller"
-                                  );
-                                  setEditCompanyOpen(true);
-                                }}
-                              >
-                                Edit
-                              </Button>
-                              <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => {
-                                  setCompanyToDeleteId(c.id);
-                                  setDeleteCompanyOpen(true);
-                                }}
-                              >
-                                Delete
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-sm text-muted-foreground">No companies</div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {activeTab === "tenant-companies" && (
-        <div className="grid grid-cols-1 gap-6">
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">Tenant Companies</h3>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => {
-                    setCreateCompanyType("seller");
-                    setCreateCompanyOpen(true);
-                  }}
-                >
-                  Create Company
-                </Button>
-                <Input
-                  placeholder="Search company..."
-                  value={companyQuery}
-                  onChange={(e) => setCompanyQuery(e.target.value)}
-                  className="h-8 w-48"
-                />
-                {Object.values(selectedCompanyIds).some(Boolean) && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setDeleteCompaniesOpen(true)}
-                    className="gap-2"
-                    disabled={isBulkDeletingCompanies}
-                  >
-                    {isBulkDeletingCompanies ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="h-4 w-4" /> Delete
-                      </>
-                    )}
-                  </Button>
-                )}
-              </div>
-            </div>
-            {loading ? (
-              <div>Loading companies...</div>
-            ) : companies.length ? (
-              <div className="rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">
-                        {(() => {
-                          const items = companies.filter(
-                            (c) => (c as any).companyType === "seller"
-                          );
-                          const some = items.some((c) => !!selectedCompanyIds[c.id]);
-                          const all =
-                            items.length > 0 && items.every((c) => !!selectedCompanyIds[c.id]);
-                          return (
-                            <Checkbox
-                              checked={all || (some && "indeterminate")}
-                              onCheckedChange={(v) => {
-                                const checked = !!v;
-                                setSelectedCompanyIds((prev) => {
-                                  const next = { ...prev } as Record<string, boolean>;
-                                  for (const c of items) {
-                                    next[c.id] = checked;
+                                onClick={async () => {
+                                  if (
+                                    !confirm("Are you sure you want to delete this organisation?")
+                                  )
+                                    return;
+                                  try {
+                                    const res = await fetch(
+                                      `/api/superadmin/tenants/${id}/organizations/${o.id}`,
+                                      {
+                                        method: "DELETE",
+                                      }
+                                    );
+                                    if (res.ok) {
+                                      toast.success("Organisation deleted");
+                                      void fetchOrganizations();
+                                    } else {
+                                      const err = await res.json().catch(() => ({}));
+                                      toast.error(
+                                        err?.error?.message || "Failed to delete organisation"
+                                      );
+                                    }
+                                  } catch (_error) {
+                                    toast.error("Failed to delete organisation");
                                   }
-                                  return next;
-                                });
-                              }}
-                              aria-label="Select all companies"
-                            />
-                          );
-                        })()}
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          className="-ml-3"
-                          onClick={() =>
-                            setCompanySort((prev) => ({
-                              key: "name",
-                              order: prev.key === "name" && prev.order === "asc" ? "desc" : "asc",
-                            }))
-                          }
-                        >
-                          Company
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          className="-ml-3"
-                          onClick={() =>
-                            setCompanySort((prev) => ({
-                              key: "industry",
-                              order:
-                                prev.key === "industry" && prev.order === "asc" ? "desc" : "asc",
-                            }))
-                          }
-                        >
-                          Industry
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </Button>
-                      </TableHead>
-                      <TableHead>
-                        <Button
-                          variant="ghost"
-                          className="-ml-3"
-                          onClick={() =>
-                            setCompanySort((prev) => ({
-                              key: "city",
-                              order: prev.key === "city" && prev.order === "asc" ? "desc" : "asc",
-                            }))
-                          }
-                        >
-                          Location
-                          <ArrowUpDown className="ml-2 h-4 w-4" />
-                        </Button>
-                      </TableHead>
-                      <TableHead className="text-right">Manage</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {companies
-                      .filter((c) => (c as any).companyType === "seller")
-                      .filter((c) => {
-                        const q = companyQuery.toLowerCase();
-                        return (
-                          !q ||
-                          c.name.toLowerCase().includes(q) ||
-                          c.industry.toLowerCase().includes(q) ||
-                          (c.city || "").toLowerCase().includes(q)
-                        );
-                      })
-                      .sort((a, b) => {
-                        const dir = companySort.order === "asc" ? 1 : -1;
-                        if (companySort.key === "name") {
-                          return a.name.localeCompare(b.name) * dir;
-                        }
-                        if (companySort.key === "industry") {
-                          return (a.industry || "").localeCompare(b.industry || "") * dir;
-                        }
-                        return (a.city || "").localeCompare(b.city || "") * dir;
-                      })
-                      .map((c) => (
-                        <TableRow key={c.id}>
-                          <TableCell>
-                            <Checkbox
-                              checked={!!selectedCompanyIds[c.id]}
-                              onCheckedChange={(v) =>
-                                setSelectedCompanyIds((prev) => ({
-                                  ...prev,
-                                  [c.id]: Boolean(v),
-                                }))
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-3">
-                              <div
-                                className="h-6 w-6 rounded-full"
-                                style={{
-                                  background:
-                                    "radial-gradient(circle at 30% 30%, #ff80b5, #9089fc 55%, #7dd3fc)",
-                                }}
-                              />
-                              <div className="space-y-0.5">
-                                <div className="font-medium text-sm">{c.name}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            <div className="flex flex-col gap-1">
-                              <span>{c.industry}</span>
-                              <Badge
-                                variant={
-                                  (c as any).companyType === "seller" ? "default" : "secondary"
-                                }
-                              >
-                                {(c as any).companyType === "seller" ? "Seller" : "Customer"}
-                              </Badge>
-                            </div>
-                          </TableCell>
-                          <TableCell className="text-sm">
-                            {c.city} {c.country}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  setCompanyToEdit(c);
-                                  setEditCompanySource(
-                                    (c.source as "account" | "customer") || "account"
-                                  );
-                                  setEditCompanyType(
-                                    ((c as any).companyType as "seller" | "customer") || "seller"
-                                  );
-                                  setEditCompanyOpen(true);
-                                }}
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => {
-                                  setCompanyToDeleteId(c.id);
-                                  setDeleteCompanyOpen(true);
                                 }}
                               >
                                 Delete
@@ -1174,17 +876,17 @@ export default function TenantDetailPage({ params }: Props) {
                 </Table>
               </div>
             ) : (
-              <div className="text-sm text-muted-foreground">No tenant companies</div>
+              <div className="text-sm text-muted-foreground">No organisations</div>
             )}
           </div>
         </div>
       )}
 
-      {activeTab === "users" && (
+      {activeTab === "tenant-users" && (
         <div className="grid grid-cols-1 gap-6">
           <div>
             <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold">All Users</h3>
+              <h3 className="font-semibold">Tenant Users (Login Access)</h3>
               <div className="flex items-center gap-2">
                 <Button size="sm" onClick={() => setCreateUserOpen(true)}>
                   Create User
@@ -1423,77 +1125,90 @@ export default function TenantDetailPage({ params }: Props) {
       <Dialog open={createCompanyOpen} onOpenChange={setCreateCompanyOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Create Company</DialogTitle>
-            <DialogDescription>Enter company details to create a new record.</DialogDescription>
+            <DialogTitle>Create Organisation</DialogTitle>
+            <DialogDescription>
+              Enter organisation details to create a new customer record.
+            </DialogDescription>
           </DialogHeader>
           <form
             onSubmit={async (e) => {
               e.preventDefault();
               setCreating(true);
               try {
-                const res = await fetch(`/api/superadmin/tenants/${id}/companies`, {
+                const res = await fetch(`/api/superadmin/tenants/${id}/organizations`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
-                    ...form,
-                    source: createCompanySource,
-                    companyType: createCompanyType,
+                    name: form.name,
+                    email: (form as any).email || null,
+                    phone: (form as any).phone || null,
+                    pib: (form as any).pib || null,
+                    companyNumber: (form as any).companyNumber || null,
+                    contactPerson: (form as any).contactPerson || null,
                   }),
                 });
                 if (res.ok) {
                   setForm({ name: "", industry: "", address: "" });
-                  setCreateCompanySource("account");
-                  setCreateCompanyType("seller");
-                  await fetchCompanies();
+                  await fetchOrganizations();
                   setCreateCompanyOpen(false);
+                  toast.success("Organisation created");
                 } else {
                   const err = await res.json();
-                  alert(err.error?.message || "Failed to create company");
+                  toast.error(err.error?.message || "Failed to create organisation");
                 }
               } catch (_error) {
-                alert("Failed to create company");
+                toast.error("Failed to create organisation");
               }
               setCreating(false);
             }}
             className="space-y-3"
           >
             <div className="space-y-2">
-              <Label>Company Type (Seller/Customer)</Label>
-              <Select
-                value={createCompanyType}
-                onValueChange={(v) => setCreateCompanyType(v as "seller" | "customer")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="seller">Seller Company (Uses CRM)</SelectItem>
-                  <SelectItem value="customer">Customer Company (Client)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Name</Label>
+              <Label>Name *</Label>
               <Input
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
                 required
               />
             </div>
-            <div className="space-y-2">
-              <Label>Industry</Label>
-              <Input
-                value={form.industry}
-                onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                required
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={(form as any).email || ""}
+                  onChange={(e) => setForm({ ...form, email: e.target.value } as any)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Phone</Label>
+                <Input
+                  value={(form as any).phone || ""}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value } as any)}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>PIB</Label>
+                <Input
+                  value={(form as any).pib || ""}
+                  onChange={(e) => setForm({ ...form, pib: e.target.value } as any)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Company Number</Label>
+                <Input
+                  value={(form as any).companyNumber || ""}
+                  onChange={(e) => setForm({ ...form, companyNumber: e.target.value } as any)}
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Address</Label>
+              <Label>Contact Person</Label>
               <Input
-                value={form.address}
-                onChange={(e) => setForm({ ...form, address: e.target.value })}
-                required
+                value={(form as any).contactPerson || ""}
+                onChange={(e) => setForm({ ...form, contactPerson: e.target.value } as any)}
               />
             </div>
             <DialogFooter>
@@ -1555,42 +1270,13 @@ export default function TenantDetailPage({ params }: Props) {
                   setCreating(false);
                   return;
                 }
-                if (userForm.role === "tenant_admin" && !createUserCompanyId) {
-                  setUserCompanyError("Za Tenant Admin potrebno je izabrati kompaniju.");
-                  setCreating(false);
-                  return;
-                }
                 setUserPasswordError(null);
-                setUserCompanyError(null);
                 const res = await fetch(`/api/superadmin/tenants/${id}/users`, {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(userForm),
                 });
                 if (res.ok) {
-                  const created = await res.json();
-                  const createdUserId = created?.data?.id as string | undefined;
-                  if (userForm.role === "tenant_admin" && createUserCompanyId && createdUserId) {
-                    try {
-                      const addRes = await fetch(
-                        `/api/v1/companies/${createUserCompanyId}/members`,
-                        {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            userId: createdUserId,
-                            role: "admin",
-                          }),
-                        }
-                      );
-                      if (!addRes.ok) {
-                        const err = await addRes.json().catch(() => ({}));
-                        alert(err.error?.message || "Dodavanje u kompaniju nije uspelo");
-                      }
-                    } catch (_error) {
-                      alert("Dodavanje u kompaniju nije uspelo");
-                    }
-                  }
                   setUserForm({
                     firstName: "",
                     lastName: "",
@@ -1599,7 +1285,6 @@ export default function TenantDetailPage({ params }: Props) {
                     confirmPassword: "",
                     role: "crm_user",
                   });
-                  setCreateUserCompanyId(undefined);
                   await fetchUsers();
                   setCreateUserOpen(false);
                 } else {
@@ -1661,30 +1346,6 @@ export default function TenantDetailPage({ params }: Props) {
                 <p className="mt-1 text-xs text-destructive">{userPasswordError}</p>
               )}
             </div>
-            {userForm.role === "tenant_admin" && (
-              <div className="space-y-2">
-                <Label>Kompanija (obavezno za Tenant Admin)</Label>
-                <ComboboxDropdown
-                  placeholder="Izaberi kompaniju"
-                  searchPlaceholder="Pretraga kompanija..."
-                  items={companies
-                    .filter((c) => (c as any).source !== "customer")
-                    .map((c) => ({ id: c.id, label: c.name }))}
-                  selectedItem={
-                    createUserCompanyId
-                      ? companies
-                          .filter((c) => (c as any).source !== "customer")
-                          .map((c) => ({ id: c.id, label: c.name }))
-                          .find((i) => i.id === createUserCompanyId)
-                      : undefined
-                  }
-                  onSelect={(item) => setCreateUserCompanyId(item.id)}
-                />
-                {userCompanyError && (
-                  <p className="mt-1 text-xs text-destructive">{userCompanyError}</p>
-                )}
-              </div>
-            )}
             <div className="space-y-2">
               <Label>Role</Label>
               <select
@@ -1719,42 +1380,9 @@ export default function TenantDetailPage({ params }: Props) {
             <h2 className="text-xl">Edit Company</h2>
           </SheetHeader>
           {companyToEdit && (
-            <div className="mb-4 space-y-2">
-              <Label>Company Type (Seller/Customer)</Label>
-              <Select
-                value={editCompanyType}
-                onValueChange={(v) => setEditCompanyType(v as "seller" | "customer")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="seller">Seller Company (Uses CRM)</SelectItem>
-                  <SelectItem value="customer">Customer Company (Client)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          {companyToEdit && (
             <TenantCompanyForm
               company={companyToEdit}
               onSuccess={async () => {
-                try {
-                  if (
-                    companyToEdit &&
-                    (editCompanySource !== (companyToEdit.source as any) ||
-                      editCompanyType !== ((companyToEdit as any).companyType as any))
-                  ) {
-                    await fetch(`/api/superadmin/tenants/${id}/companies/${companyToEdit.id}`, {
-                      method: "PUT",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({
-                        source: editCompanySource,
-                        companyType: editCompanyType,
-                      }),
-                    });
-                  }
-                } catch {}
                 setEditCompanyOpen(false);
                 void fetchCompanies();
               }}
@@ -1773,8 +1401,55 @@ export default function TenantDetailPage({ params }: Props) {
         fetchUsers={fetchUsers}
         creating={creating}
         setCreating={setCreating}
-        companies={companies}
       />
+
+      <Dialog open={permanentDeleteOpen} onOpenChange={setPermanentDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Permanent Delete Tenant
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="text-sm text-muted-foreground">
+                This action is <strong>irreversible</strong>. This will permanently delete the
+                tenant &quot;{tenant.name}&quot; and all associated data including:
+                <ul className="list-disc list-inside mt-2 space-y-1">
+                  <li>All users and their credentials</li>
+                  <li>All companies</li>
+                  <li>All related data (invoices, contacts, etc.)</li>
+                </ul>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPermanentDeleteOpen(false)}
+              disabled={isPermanentDeleting}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handlePermanentDelete}
+              disabled={isPermanentDeleting}
+              className="gap-2"
+            >
+              {isPermanentDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" /> Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" /> Delete Permanently
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

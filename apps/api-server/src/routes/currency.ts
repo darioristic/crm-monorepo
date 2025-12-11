@@ -6,9 +6,9 @@
 import { errorResponse, successResponse } from "@crm/utils";
 import { serviceLogger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
+import * as currencyService from "../services/currency.service";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
-import * as currencyService from "../services/currency.service";
 
 // ==============================================
 // ROUTES
@@ -28,10 +28,12 @@ export const currencyRoutes: Route[] = [
       try {
         const currencies = currencyService.getSupportedCurrencies();
 
-        return json(successResponse({
-          currencies,
-          baseCurrency: currencyService.getBaseCurrency(),
-        }));
+        return json(
+          successResponse({
+            currencies,
+            baseCurrency: currencyService.getBaseCurrency(),
+          })
+        );
       } catch (error) {
         serviceLogger.error({ error }, "Failed to get currencies");
         return json(errorResponse("INTERNAL_ERROR", "Failed to get currencies"), 500);
@@ -82,7 +84,10 @@ export const currencyRoutes: Route[] = [
         const date = url.searchParams.get("date") || undefined;
 
         if (!from || !to) {
-          return json(errorResponse("VALIDATION_ERROR", "Both 'from' and 'to' currency codes are required"), 400);
+          return json(
+            errorResponse("VALIDATION_ERROR", "Both 'from' and 'to' currency codes are required"),
+            400
+          );
         }
 
         const rate = await currencyService.getExchangeRate(from, to, date);
@@ -119,7 +124,10 @@ export const currencyRoutes: Route[] = [
         };
 
         if (!body?.amount || !body?.from || !body?.to) {
-          return json(errorResponse("VALIDATION_ERROR", "Amount, from, and to currencies are required"), 400);
+          return json(
+            errorResponse("VALIDATION_ERROR", "Amount, from, and to currencies are required"),
+            400
+          );
         }
 
         const result = await currencyService.convertAmount(
@@ -155,19 +163,18 @@ export const currencyRoutes: Route[] = [
       const tenantId = auth.activeTenantId!;
 
       try {
-        const success = await currencyService.updatePaymentBaseCurrency(
-          params.paymentId,
-          tenantId
-        );
+        const success = await currencyService.updatePaymentBaseCurrency(params.paymentId, tenantId);
 
         if (!success) {
           return json(errorResponse("NOT_FOUND", "Could not update payment base currency"), 400);
         }
 
-        return json(successResponse({
-          success: true,
-          baseCurrency: currencyService.getBaseCurrency(),
-        }));
+        return json(
+          successResponse({
+            success: true,
+            baseCurrency: currencyService.getBaseCurrency(),
+          })
+        );
       } catch (error) {
         serviceLogger.error({ error }, "Failed to update payment base currency");
         return json(errorResponse("INTERNAL_ERROR", "Failed to update payment base currency"), 500);
@@ -232,11 +239,13 @@ export const currencyRoutes: Route[] = [
 
         const formatted = currencyService.formatCurrency(body.amount, body.currency);
 
-        return json(successResponse({
-          formatted,
-          amount: body.amount,
-          currency: body.currency,
-        }));
+        return json(
+          successResponse({
+            formatted,
+            amount: body.amount,
+            currency: body.currency,
+          })
+        );
       } catch (error) {
         serviceLogger.error({ error }, "Failed to format amount");
         return json(errorResponse("INTERNAL_ERROR", "Failed to format amount"), 500);

@@ -4,10 +4,20 @@
  * Uses pattern matching and AI embeddings for smart categorization
  */
 
-import { serviceLogger } from "../lib/logger";
 import { sql as db } from "../db/client";
-import { aiService } from "./ai.service";
 import * as transactionCategoryQueries from "../db/queries/transaction-categories";
+import { serviceLogger } from "../lib/logger";
+import { aiService } from "./ai.service";
+import {
+  enrichTransactionsBatchWithGemini,
+  processEnrichmentResults,
+  calculateEnrichmentStats,
+  isGeminiEnrichmentConfigured,
+  type EnrichmentProcessResult,
+  type BatchEnrichmentStats,
+} from "./gemini-enrichment.service";
+import { type TransactionForEnrichment, chunks } from "../ai/enrichment/enrichment-helpers";
+import { BATCH_CONFIG } from "../ai/enrichment/enrichment-schema";
 
 // ==============================================
 // TYPES
@@ -67,32 +77,188 @@ interface CategoryKeyword {
  */
 const MERCHANT_PATTERNS: MerchantPattern[] = [
   // Software & Subscriptions
-  { pattern: /github/i, merchantName: "GitHub", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /gitlab/i, merchantName: "GitLab", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /netlify/i, merchantName: "Netlify", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /vercel/i, merchantName: "Vercel", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /heroku/i, merchantName: "Heroku", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /aws|amazon\s*web/i, merchantName: "Amazon Web Services", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /google\s*cloud|gcp/i, merchantName: "Google Cloud Platform", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /azure|microsoft\s*azure/i, merchantName: "Microsoft Azure", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /digitalocean/i, merchantName: "DigitalOcean", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /slack/i, merchantName: "Slack", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /notion/i, merchantName: "Notion", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /figma/i, merchantName: "Figma", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /adobe|creative\s*cloud/i, merchantName: "Adobe", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /jetbrains/i, merchantName: "JetBrains", categorySlug: "software", isRecurring: true, frequency: "annually" },
-  { pattern: /zoom/i, merchantName: "Zoom", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /dropbox/i, merchantName: "Dropbox", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /1password/i, merchantName: "1Password", categorySlug: "software", isRecurring: true, frequency: "annually" },
-  { pattern: /lastpass/i, merchantName: "LastPass", categorySlug: "software", isRecurring: true, frequency: "annually" },
-  { pattern: /mailchimp/i, merchantName: "Mailchimp", categorySlug: "marketing", isRecurring: true, frequency: "monthly" },
-  { pattern: /sendgrid/i, merchantName: "SendGrid", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /stripe/i, merchantName: "Stripe", categorySlug: "bank-fees", isRecurring: true, frequency: "monthly" },
-  { pattern: /twilio/i, merchantName: "Twilio", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /intercom/i, merchantName: "Intercom", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /zendesk/i, merchantName: "Zendesk", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /hubspot/i, merchantName: "HubSpot", categorySlug: "software", isRecurring: true, frequency: "monthly" },
-  { pattern: /salesforce/i, merchantName: "Salesforce", categorySlug: "software", isRecurring: true, frequency: "monthly" },
+  {
+    pattern: /github/i,
+    merchantName: "GitHub",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /gitlab/i,
+    merchantName: "GitLab",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /netlify/i,
+    merchantName: "Netlify",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /vercel/i,
+    merchantName: "Vercel",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /heroku/i,
+    merchantName: "Heroku",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /aws|amazon\s*web/i,
+    merchantName: "Amazon Web Services",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /google\s*cloud|gcp/i,
+    merchantName: "Google Cloud Platform",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /azure|microsoft\s*azure/i,
+    merchantName: "Microsoft Azure",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /digitalocean/i,
+    merchantName: "DigitalOcean",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /slack/i,
+    merchantName: "Slack",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /notion/i,
+    merchantName: "Notion",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /figma/i,
+    merchantName: "Figma",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /adobe|creative\s*cloud/i,
+    merchantName: "Adobe",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /jetbrains/i,
+    merchantName: "JetBrains",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "annually",
+  },
+  {
+    pattern: /zoom/i,
+    merchantName: "Zoom",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /dropbox/i,
+    merchantName: "Dropbox",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /1password/i,
+    merchantName: "1Password",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "annually",
+  },
+  {
+    pattern: /lastpass/i,
+    merchantName: "LastPass",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "annually",
+  },
+  {
+    pattern: /mailchimp/i,
+    merchantName: "Mailchimp",
+    categorySlug: "marketing",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /sendgrid/i,
+    merchantName: "SendGrid",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /stripe/i,
+    merchantName: "Stripe",
+    categorySlug: "bank-fees",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /twilio/i,
+    merchantName: "Twilio",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /intercom/i,
+    merchantName: "Intercom",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /zendesk/i,
+    merchantName: "Zendesk",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /hubspot/i,
+    merchantName: "HubSpot",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
+  {
+    pattern: /salesforce/i,
+    merchantName: "Salesforce",
+    categorySlug: "software",
+    isRecurring: true,
+    frequency: "monthly",
+  },
 
   // Office Supplies
   { pattern: /amazon(?!\s*web)/i, merchantName: "Amazon", categorySlug: "office-supplies" },
@@ -124,18 +290,38 @@ const MERCHANT_PATTERNS: MerchantPattern[] = [
   { pattern: /twitter|x\.com\s*ads/i, merchantName: "X (Twitter) Ads", categorySlug: "marketing" },
 
   // Bank Fees
-  { pattern: /bank\s*fee|service\s*charge|monthly\s*fee/i, merchantName: null, categorySlug: "bank-fees" },
+  {
+    pattern: /bank\s*fee|service\s*charge|monthly\s*fee/i,
+    merchantName: null,
+    categorySlug: "bank-fees",
+  },
   { pattern: /atm\s*fee|withdrawal\s*fee/i, merchantName: null, categorySlug: "bank-fees" },
   { pattern: /wire\s*transfer|swift/i, merchantName: null, categorySlug: "bank-fees" },
   { pattern: /paypal\s*fee/i, merchantName: "PayPal", categorySlug: "bank-fees" },
 
   // Insurance
-  { pattern: /insurance|osiguranje|dunav|generali|ddor|triglav/i, merchantName: null, categorySlug: "insurance" },
+  {
+    pattern: /insurance|osiguranje|dunav|generali|ddor|triglav/i,
+    merchantName: null,
+    categorySlug: "insurance",
+  },
 
   // Professional Services
-  { pattern: /legal|law\s*firm|attorney|advokat/i, merchantName: null, categorySlug: "professional-services" },
-  { pattern: /accounting|bookkeeping|računovodstvo/i, merchantName: null, categorySlug: "professional-services" },
-  { pattern: /consulting|consultant|konsulting/i, merchantName: null, categorySlug: "professional-services" },
+  {
+    pattern: /legal|law\s*firm|attorney|advokat/i,
+    merchantName: null,
+    categorySlug: "professional-services",
+  },
+  {
+    pattern: /accounting|bookkeeping|računovodstvo/i,
+    merchantName: null,
+    categorySlug: "professional-services",
+  },
+  {
+    pattern: /consulting|consultant|konsulting/i,
+    merchantName: null,
+    categorySlug: "professional-services",
+  },
 
   // Taxes
   { pattern: /poreska|tax\s*payment|porez/i, merchantName: "Tax Authority", categorySlug: "taxes" },
@@ -225,7 +411,12 @@ const CATEGORY_KEYWORDS: CategoryKeyword[] = [
 /**
  * Detect merchant from transaction text
  */
-function detectMerchant(text: string): { merchantName: string | null; categorySlug: string | null; isRecurring: boolean; frequency: TransactionFrequency | null } {
+function detectMerchant(text: string): {
+  merchantName: string | null;
+  categorySlug: string | null;
+  isRecurring: boolean;
+  frequency: TransactionFrequency | null;
+} {
   for (const pattern of MERCHANT_PATTERNS) {
     if (pattern.pattern.test(text)) {
       return {
@@ -248,7 +439,10 @@ function detectMerchant(text: string): { merchantName: string | null; categorySl
 /**
  * Detect category from keywords
  */
-function detectCategoryFromKeywords(text: string): { categorySlug: string | null; confidence: number } {
+function detectCategoryFromKeywords(text: string): {
+  categorySlug: string | null;
+  confidence: number;
+} {
   const lowerText = text.toLowerCase();
   const scores: Record<string, number> = {};
 
@@ -292,7 +486,7 @@ function extractVendorName(text: string): string | null {
 
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    if (match && match[1]) {
+    if (match?.[1]) {
       const name = match[1].trim();
       // Filter out generic/too short names
       if (name.length > 2 && !["the", "and", "for"].includes(name.toLowerCase())) {
@@ -311,8 +505,9 @@ function extractTaxInfo(amount: number, text: string): TaxInfo | null {
   const lowerText = text.toLowerCase();
 
   // Check for VAT/PDV mentions
-  const vatMatch = lowerText.match(/(\d+)\s*%\s*(?:pdv|vat|tax)/i)
-    || lowerText.match(/(?:pdv|vat|tax)\s*(\d+)\s*%/i);
+  const vatMatch =
+    lowerText.match(/(\d+)\s*%\s*(?:pdv|vat|tax)/i) ||
+    lowerText.match(/(?:pdv|vat|tax)\s*(\d+)\s*%/i);
 
   if (vatMatch) {
     const taxRate = parseInt(vatMatch[1], 10);
@@ -354,11 +549,9 @@ export async function enrichTransaction(
   }
 ): Promise<EnrichmentResult> {
   const startTime = Date.now();
-  const text = [
-    transaction.description,
-    transaction.notes,
-    transaction.reference,
-  ].filter(Boolean).join(" ");
+  const text = [transaction.description, transaction.notes, transaction.reference]
+    .filter(Boolean)
+    .join(" ");
 
   serviceLogger.info({ transactionId: transaction.id }, "Enriching transaction");
 
@@ -369,9 +562,7 @@ export async function enrichTransaction(
   const keywordResult = detectCategoryFromKeywords(text);
 
   // Step 3: Extract vendor name if not from merchant
-  const vendorName = merchantResult.merchantName
-    ? null
-    : extractVendorName(text);
+  const vendorName = merchantResult.merchantName ? null : extractVendorName(text);
 
   // Step 4: Extract tax info
   const taxInfo = extractTaxInfo(transaction.amount, text);
@@ -441,7 +632,7 @@ async function categorizeWithAI(
 ): Promise<{ categorySlug: string; confidence: number } | null> {
   try {
     const categoryList = categories
-      .map(c => `${c.slug}: ${c.name}${c.description ? ` - ${c.description}` : ""}`)
+      .map((c) => `${c.slug}: ${c.name}${c.description ? ` - ${c.description}` : ""}`)
       .join("\n");
 
     const result = await aiService.generateText({
@@ -456,8 +647,11 @@ Category slug:`,
       maxTokens: 50,
     });
 
-    const suggestedSlug = result.trim().toLowerCase().replace(/[^a-z0-9-]/g, "");
-    const matchedCategory = categories.find(c => c.slug === suggestedSlug);
+    const suggestedSlug = result
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, "");
+    const matchedCategory = categories.find((c) => c.slug === suggestedSlug);
 
     if (matchedCategory) {
       return {
@@ -584,10 +778,7 @@ export async function batchEnrichPayments(
     processed++;
   }
 
-  serviceLogger.info(
-    { tenantId, processed, enriched, errors },
-    "Batch enrichment completed"
-  );
+  serviceLogger.info({ tenantId, processed, enriched, errors }, "Batch enrichment completed");
 
   return { processed, enriched, errors };
 }
@@ -613,22 +804,22 @@ export async function getEnrichmentSuggestions(
   const suggestions: Array<{ slug: string; name: string; confidence: number }> = [];
 
   if (merchantResult.categorySlug) {
-    const cat = allCategories.find(c => c.slug === merchantResult.categorySlug);
+    const cat = allCategories.find((c) => c.slug === merchantResult.categorySlug);
     if (cat) {
       suggestions.push({ slug: cat.slug, name: cat.name, confidence: 0.9 });
     }
   }
 
   if (keywordResult.categorySlug && keywordResult.confidence > 0.3) {
-    const cat = allCategories.find(c => c.slug === keywordResult.categorySlug);
-    if (cat && !suggestions.find(s => s.slug === cat.slug)) {
+    const cat = allCategories.find((c) => c.slug === keywordResult.categorySlug);
+    if (cat && !suggestions.find((s) => s.slug === cat.slug)) {
       suggestions.push({ slug: cat.slug, name: cat.name, confidence: keywordResult.confidence });
     }
   }
 
   // Add "other" as fallback
   if (suggestions.length === 0) {
-    const other = allCategories.find(c => c.slug === "other");
+    const other = allCategories.find((c) => c.slug === "other");
     if (other) {
       suggestions.push({ slug: other.slug, name: other.name, confidence: 0.3 });
     }
@@ -641,10 +832,293 @@ export async function getEnrichmentSuggestions(
   };
 }
 
+// ==============================================
+// AI-POWERED BATCH ENRICHMENT (GEMINI)
+// ==============================================
+
+export interface AIBatchEnrichmentOptions {
+  /** Maximum number of transactions to process (default: 50) */
+  limit?: number;
+  /** Only process transactions that haven't been enriched yet */
+  onlyUnenriched?: boolean;
+}
+
+export interface AIBatchEnrichmentResult {
+  success: boolean;
+  stats: BatchEnrichmentStats;
+  processedIds: string[];
+  errors: string[];
+}
+
+/**
+ * Fetch transactions that need enrichment from the database
+ */
+async function getTransactionsForAIEnrichment(
+  tenantId: string,
+  limit: number
+): Promise<TransactionForEnrichment[]> {
+  const result = await db`
+    SELECT
+      p.id,
+      p.notes as description,
+      p.notes,
+      p.transaction_reference as reference,
+      p.amount,
+      p.currency,
+      p.merchant_name as "merchantName",
+      p.vendor_name as "vendorName",
+      p.category_slug as "categorySlug"
+    FROM payments p
+    LEFT JOIN invoices i ON p.invoice_id = i.id
+    WHERE i.tenant_id = ${tenantId}
+    AND (p.enrichment_completed = false OR p.enrichment_completed IS NULL)
+    ORDER BY p.created_at DESC
+    LIMIT ${limit}
+  `;
+
+  return result.map((row) => ({
+    id: row.id as string,
+    description: row.description as string | null,
+    notes: row.notes as string | null,
+    reference: row.reference as string | null,
+    amount: parseFloat(row.amount as string) || 0,
+    currency: (row.currency as string) || "EUR",
+    merchantName: row.merchantName as string | null,
+    vendorName: row.vendorName as string | null,
+    categorySlug: row.categorySlug as string | null,
+  }));
+}
+
+/**
+ * Update transaction with enrichment data
+ */
+async function updateTransactionEnrichment(
+  transactionId: string,
+  data: { merchantName?: string | null; categorySlug?: string | null }
+): Promise<void> {
+  const updates: string[] = [];
+  const values: (string | null)[] = [];
+
+  if (data.merchantName !== undefined) {
+    updates.push("merchant_name = $1");
+    values.push(data.merchantName);
+  }
+
+  if (data.categorySlug !== undefined) {
+    updates.push(`category_slug = $${values.length + 1}`);
+    values.push(data.categorySlug);
+  }
+
+  if (updates.length === 0) {
+    return;
+  }
+
+  await db`
+    UPDATE payments SET
+      merchant_name = ${data.merchantName ?? null},
+      category_slug = ${data.categorySlug ?? null},
+      enrichment_completed = true,
+      updated_at = NOW()
+    WHERE id = ${transactionId}
+  `;
+}
+
+/**
+ * Mark transactions as enriched without updating content
+ */
+async function markTransactionsAsEnriched(transactionIds: string[]): Promise<void> {
+  if (transactionIds.length === 0) return;
+
+  await db`
+    UPDATE payments SET
+      enrichment_completed = true,
+      updated_at = NOW()
+    WHERE id = ANY(${transactionIds})
+  `;
+}
+
+/**
+ * Batch enrich transactions using Gemini AI.
+ * This is the primary AI-powered enrichment function.
+ *
+ * Features:
+ * - Uses Gemini gemini-2.5-flash-lite model
+ * - Batch processing (50 transactions at a time)
+ * - Confidence-based filtering (category >= 0.7, merchant >= 0.6)
+ * - Legal entity name extraction
+ * - Auto-categorization
+ */
+export async function batchEnrichWithAI(
+  tenantId: string,
+  options?: AIBatchEnrichmentOptions
+): Promise<AIBatchEnrichmentResult> {
+  const limit = options?.limit || BATCH_CONFIG.BATCH_SIZE;
+  const allProcessedIds: string[] = [];
+  const allErrors: string[] = [];
+  let aggregatedStats: BatchEnrichmentStats = {
+    totalProcessed: 0,
+    updatesApplied: 0,
+    merchantsUpdated: 0,
+    categoriesUpdated: 0,
+    noUpdateNeeded: 0,
+    errors: 0,
+  };
+
+  // Check if Gemini is configured
+  if (!isGeminiEnrichmentConfigured()) {
+    serviceLogger.warn("Gemini not configured, falling back to pattern-based enrichment");
+    const fallbackResult = await batchEnrichPayments(tenantId, {
+      useAI: false,
+      limit,
+      onlyUnenriched: options?.onlyUnenriched,
+    });
+    return {
+      success: true,
+      stats: {
+        totalProcessed: fallbackResult.processed,
+        updatesApplied: fallbackResult.enriched,
+        merchantsUpdated: 0,
+        categoriesUpdated: 0,
+        noUpdateNeeded: fallbackResult.processed - fallbackResult.enriched,
+        errors: fallbackResult.errors,
+      },
+      processedIds: [],
+      errors: [],
+    };
+  }
+
+  serviceLogger.info({ tenantId, limit }, "Starting AI batch enrichment");
+
+  try {
+    // Fetch transactions needing enrichment
+    const transactions = await getTransactionsForAIEnrichment(tenantId, limit);
+
+    if (transactions.length === 0) {
+      serviceLogger.info({ tenantId }, "No transactions need enrichment");
+      return {
+        success: true,
+        stats: aggregatedStats,
+        processedIds: [],
+        errors: [],
+      };
+    }
+
+    serviceLogger.info(
+      { tenantId, transactionCount: transactions.length },
+      "Fetched transactions for AI enrichment"
+    );
+
+    // Process in batches of BATCH_SIZE (50)
+    const batches = chunks(transactions, BATCH_CONFIG.BATCH_SIZE);
+
+    for (const batch of batches) {
+      try {
+        // Call Gemini API
+        const aiResults = await enrichTransactionsBatchWithGemini(batch);
+
+        // Process results
+        const processResults = processEnrichmentResults(batch, aiResults);
+        const batchStats = calculateEnrichmentStats(processResults);
+
+        // Apply updates to database
+        const updatedIds: string[] = [];
+        const noUpdateIds: string[] = [];
+
+        for (const result of processResults) {
+          if (result.updated) {
+            await updateTransactionEnrichment(result.transactionId, {
+              merchantName: result.merchantName,
+              categorySlug: result.categorySlug,
+            });
+            updatedIds.push(result.transactionId);
+          } else {
+            noUpdateIds.push(result.transactionId);
+          }
+
+          if (result.error) {
+            allErrors.push(`${result.transactionId}: ${result.error}`);
+          }
+        }
+
+        // Mark remaining transactions as enriched (process completed)
+        if (noUpdateIds.length > 0) {
+          await markTransactionsAsEnriched(noUpdateIds);
+        }
+
+        // Aggregate stats
+        aggregatedStats.totalProcessed += batchStats.totalProcessed;
+        aggregatedStats.updatesApplied += batchStats.updatesApplied;
+        aggregatedStats.merchantsUpdated += batchStats.merchantsUpdated;
+        aggregatedStats.categoriesUpdated += batchStats.categoriesUpdated;
+        aggregatedStats.noUpdateNeeded += batchStats.noUpdateNeeded;
+        aggregatedStats.errors += batchStats.errors;
+
+        allProcessedIds.push(...batch.map((t) => t.id));
+
+        serviceLogger.info(
+          {
+            batchSize: batch.length,
+            updatesApplied: batchStats.updatesApplied,
+            merchantsUpdated: batchStats.merchantsUpdated,
+            categoriesUpdated: batchStats.categoriesUpdated,
+          },
+          "Processed AI enrichment batch"
+        );
+      } catch (batchError) {
+        serviceLogger.error(
+          {
+            error: batchError instanceof Error ? batchError.message : "Unknown error",
+            batchSize: batch.length,
+          },
+          "Failed to process AI enrichment batch"
+        );
+
+        // Mark failed batch as enriched to prevent infinite retries
+        const failedIds = batch.map((t) => t.id);
+        await markTransactionsAsEnriched(failedIds);
+        allProcessedIds.push(...failedIds);
+        aggregatedStats.errors += batch.length;
+        allErrors.push(`Batch failed: ${batchError instanceof Error ? batchError.message : "Unknown error"}`);
+      }
+    }
+
+    serviceLogger.info(
+      {
+        tenantId,
+        ...aggregatedStats,
+      },
+      "AI batch enrichment completed"
+    );
+
+    return {
+      success: true,
+      stats: aggregatedStats,
+      processedIds: allProcessedIds,
+      errors: allErrors,
+    };
+  } catch (error) {
+    serviceLogger.error(
+      {
+        error: error instanceof Error ? error.message : "Unknown error",
+        tenantId,
+      },
+      "AI batch enrichment failed"
+    );
+
+    return {
+      success: false,
+      stats: aggregatedStats,
+      processedIds: allProcessedIds,
+      errors: [error instanceof Error ? error.message : "Unknown error"],
+    };
+  }
+}
+
 export default {
   enrichTransaction,
   enrichAndUpdatePayment,
   batchEnrichPayments,
+  batchEnrichWithAI,
   getEnrichmentSuggestions,
   detectMerchant,
   detectCategoryFromKeywords,

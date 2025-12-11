@@ -1,11 +1,11 @@
 "use client";
 
-import { useSliderWithInput } from "@/hooks/use-slider-with-input";
+import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { useEffect, useRef } from "react";
+import { useSliderWithInput } from "@/hooks/use-slider-with-input";
 
 type AmountRangeProps = {
   minValue?: number;
@@ -75,9 +75,7 @@ export function AmountRange({
       <div className="flex items-center justify-between">
         <Label className="text-xs text-muted-foreground">{label}</Label>
         {totalCount !== undefined && (
-          <span className="text-xs text-muted-foreground">
-            {totalCount} results
-          </span>
+          <span className="text-xs text-muted-foreground">{totalCount} results</span>
         )}
       </div>
 
@@ -151,12 +149,7 @@ export function AmountRange({
         <span>{formatCurrency(maxValue)}</span>
       </div>
 
-      <Button
-        className="w-full text-xs"
-        variant="outline"
-        size="sm"
-        onClick={handleApply}
-      >
+      <Button className="w-full text-xs" variant="outline" size="sm" onClick={handleApply}>
         Apply Filter
       </Button>
     </div>

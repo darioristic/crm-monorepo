@@ -11,12 +11,22 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
 
+type EditorDoc = {
+  type: "doc";
+  content: Array<{
+    type: string;
+    content?: Array<{ type: string; text?: string; marks?: Array<{ type: string }> }>;
+  }>;
+};
+
 type PublicDeliveryNote = Partial<DeliveryNoteWithRelations> & {
   id?: string;
   companyName?: string;
   terms?: string | null;
   notes?: string | null;
   status?: string;
+  fromDetails?: unknown;
+  logoUrl?: string | null;
 };
 
 type DeliveryNotePublicViewProps = {
@@ -53,6 +63,58 @@ import { getStoredFromDetails } from "@/hooks/use-stored-from-details";
 
 import { buildCustomerDetails } from "@/utils/customer-details";
 
+// Parse fromDetails from API response (may be string or object)
+function parseFromDetails(apiFromDetails: unknown): EditorDoc | null {
+  if (!apiFromDetails) return null;
+
+  let parsed = apiFromDetails;
+  if (typeof parsed === "string") {
+    try {
+      parsed = JSON.parse(parsed);
+    } catch {
+      return null;
+    }
+  }
+
+  if (parsed && typeof parsed === "object" && (parsed as EditorDoc).type === "doc") {
+    return parsed as EditorDoc;
+  }
+
+  return null;
+}
+
+// Build fromDetails with fallback chain: API -> localStorage -> default
+function buildFromDetails(
+  apiFromDetails: unknown,
+  storedFromDetails: EditorDoc | null
+): EditorDoc | null {
+  // First try API response
+  const fromApi = parseFromDetails(apiFromDetails);
+  if (fromApi) return fromApi;
+
+  // Then try localStorage
+  if (storedFromDetails) return storedFromDetails;
+
+  // Return default placeholder
+  return {
+    type: "doc",
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Your Company Name" }],
+      },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Your Address" }],
+      },
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "City, Country" }],
+      },
+    ],
+  };
+}
+
 export function DeliveryNotePublicView({
   deliveryNote,
   token: _token,
@@ -64,7 +126,8 @@ export function DeliveryNotePublicView({
   const customerName = deliveryNote.companyName || deliveryNote.company?.name || "Customer";
 
   const customerDetails = buildCustomerDetails(deliveryNote);
-  const fromDetails = getStoredFromDetails();
+  const storedFromDetails = getStoredFromDetails();
+  const fromDetails = buildFromDetails(deliveryNote.fromDetails, storedFromDetails);
 
   const width = 625;
   const height = 842;

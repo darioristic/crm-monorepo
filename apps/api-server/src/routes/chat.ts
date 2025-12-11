@@ -4,31 +4,61 @@
 
 import { openai } from "@ai-sdk/openai";
 import { errorResponse } from "@crm/utils";
-import { type CoreMessage, generateText, streamText } from "ai";
+import { type CoreMessage, generateText } from "ai";
 import { z } from "zod";
 // Import AI components
 import { AVAILABLE_AGENTS, mainAgent, routeToAgent } from "../ai/agents";
 import { buildAppContext, getChatHistory, saveChatMessage } from "../ai/agents/config/shared";
+import { createInvoiceTool } from "../ai/tools/create-invoice";
+// Financial Analysis Tools
+import { getBurnRateTool } from "../ai/tools/get-burn-rate";
+import { getCashFlowTool } from "../ai/tools/get-cash-flow";
 import {
   getCustomerByIdTool,
   getCustomersTool,
   getIndustriesSummaryTool,
 } from "../ai/tools/get-customers";
+import { getExpensesTool } from "../ai/tools/get-expenses";
+import { getFinancialHealthTool } from "../ai/tools/get-financial-health";
+import { getForecastTool } from "../ai/tools/get-forecast";
 // Import tools
 import { getInvoicesTool, getOverdueInvoicesTool } from "../ai/tools/get-invoices";
-import { createInvoiceTool } from "../ai/tools/create-invoice";
 import { getProductCategoriesSummaryTool, getProductsTool } from "../ai/tools/get-products";
-import { getQuoteConversionRateTool, getQuotesTool } from "../ai/tools/get-quotes";
-// Financial Analysis Tools
-import { getBurnRateTool } from "../ai/tools/get-burn-rate";
-import { getRunwayTool } from "../ai/tools/get-runway";
-import { getCashFlowTool } from "../ai/tools/get-cash-flow";
-import { getRevenueTool } from "../ai/tools/get-revenue";
-import { getExpensesTool } from "../ai/tools/get-expenses";
-import { getForecastTool } from "../ai/tools/get-forecast";
 import { getProfitLossTool } from "../ai/tools/get-profit-loss";
-import { getFinancialHealthTool } from "../ai/tools/get-financial-health";
+import { getQuoteConversionRateTool, getQuotesTool } from "../ai/tools/get-quotes";
+import { getRevenueTool } from "../ai/tools/get-revenue";
+import { getRunwayTool } from "../ai/tools/get-runway";
 import { getSpendingInsightsTool } from "../ai/tools/get-spending-insights";
+// Operations Tools
+import {
+  getAccountBalancesTool,
+  getDocumentsTool,
+  getInboxItemsTool,
+  getInboxStatsTool,
+  processInboxItemTool,
+} from "../ai/tools/operations-tools";
+// Research Tools
+import {
+  analyzeAffordabilityTool,
+  compareProductsTool,
+  marketResearchTool,
+  priceComparisonTool,
+} from "../ai/tools/research-tools";
+// Time Tracking Tools
+import {
+  getProjectTimeTool,
+  getTeamUtilizationTool,
+  getTimeEntriesTool,
+  getTimeStatsTool,
+} from "../ai/tools/timetracking-tools";
+// Transactions Tools
+import {
+  getRecurringTransactionsTool,
+  getTransactionsByVendorTool,
+  getTransactionStatsTool,
+  getTransactionsTool,
+  searchTransactionsTool,
+} from "../ai/tools/transactions-tools";
 import type { ChatUserContext, ToolSet } from "../ai/types";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
@@ -65,6 +95,28 @@ const tools = {
   getProfitLoss: getProfitLossTool,
   getFinancialHealth: getFinancialHealthTool,
   getSpendingInsights: getSpendingInsightsTool,
+  // Research Tools
+  compareProducts: compareProductsTool,
+  analyzeAffordability: analyzeAffordabilityTool,
+  marketResearch: marketResearchTool,
+  priceComparison: priceComparisonTool,
+  // Operations Tools
+  getDocuments: getDocumentsTool,
+  getInboxItems: getInboxItemsTool,
+  getAccountBalances: getAccountBalancesTool,
+  getInboxStats: getInboxStatsTool,
+  processInboxItem: processInboxItemTool,
+  // Time Tracking Tools
+  getTimeEntries: getTimeEntriesTool,
+  getProjectTime: getProjectTimeTool,
+  getTeamUtilization: getTeamUtilizationTool,
+  getTimeStats: getTimeStatsTool,
+  // Transactions Tools
+  getTransactions: getTransactionsTool,
+  searchTransactions: searchTransactionsTool,
+  getTransactionStats: getTransactionStatsTool,
+  getRecurringTransactions: getRecurringTransactionsTool,
+  getTransactionsByVendor: getTransactionsByVendorTool,
 };
 
 // Get tools for specific agent
@@ -102,6 +154,37 @@ function getAgentTools(agentName: string) {
         getProfitLoss: tools.getProfitLoss,
         getFinancialHealth: tools.getFinancialHealth,
         getSpendingInsights: tools.getSpendingInsights,
+      };
+    case "research":
+      return {
+        compareProducts: tools.compareProducts,
+        analyzeAffordability: tools.analyzeAffordability,
+        marketResearch: tools.marketResearch,
+        priceComparison: tools.priceComparison,
+        getProducts: tools.getProducts,
+      };
+    case "operations":
+      return {
+        getDocuments: tools.getDocuments,
+        getInboxItems: tools.getInboxItems,
+        getAccountBalances: tools.getAccountBalances,
+        getInboxStats: tools.getInboxStats,
+        processInboxItem: tools.processInboxItem,
+      };
+    case "timetracking":
+      return {
+        getTimeEntries: tools.getTimeEntries,
+        getProjectTime: tools.getProjectTime,
+        getTeamUtilization: tools.getTeamUtilization,
+        getTimeStats: tools.getTimeStats,
+      };
+    case "transactions":
+      return {
+        getTransactions: tools.getTransactions,
+        searchTransactions: tools.searchTransactions,
+        getTransactionStats: tools.getTransactionStats,
+        getRecurringTransactions: tools.getRecurringTransactions,
+        getTransactionsByVendor: tools.getTransactionsByVendor,
       };
     default:
       return tools; // General agent gets all tools
@@ -146,12 +229,15 @@ export const chatRoutes: Route[] = [
         };
 
         const appContext = buildAppContext(userContext, chatId);
-        logger.info({
-          teamId: userContext.teamId,
-          activeTenantId: auth.activeTenantId,
-          companyId: auth.companyId,
-          userId: auth.userId
-        }, "[Chat] User context built");
+        logger.info(
+          {
+            teamId: userContext.teamId,
+            activeTenantId: auth.activeTenantId,
+            companyId: auth.companyId,
+            userId: auth.userId,
+          },
+          "[Chat] User context built"
+        );
 
         // Get chat history
         const history = await getChatHistory(chatId, 10);
@@ -191,13 +277,46 @@ export const chatRoutes: Route[] = [
           maxSteps: 5,
         });
 
-        logger.info({
-          textLength: result.text?.length,
-          toolCalls: result.toolCalls?.length,
-          toolResults: result.toolResults?.length,
-        }, "[Chat] Generation complete");
+        logger.info(
+          {
+            textLength: result.text?.length,
+            toolCalls: result.toolCalls?.length,
+            toolResults: result.toolResults?.length,
+            steps: result.steps?.length,
+          },
+          "[Chat] Generation complete"
+        );
 
-        const responseText = result.text || "I couldn't generate a response. Please try again.";
+        // Build response from text or tool results
+        let responseText = result.text;
+
+        // If no text but we have tool results, use the last tool result as response
+        if (!responseText && result.toolResults && result.toolResults.length > 0) {
+          const lastToolResult = result.toolResults[result.toolResults.length - 1];
+          if (lastToolResult && typeof lastToolResult.result === "string") {
+            responseText = lastToolResult.result;
+            logger.info("[Chat] Using tool result as response");
+          }
+        }
+
+        // If still no response, check steps for tool results
+        if (!responseText && result.steps && result.steps.length > 0) {
+          for (const step of result.steps) {
+            if (step.toolResults && step.toolResults.length > 0) {
+              const toolResult = step.toolResults[step.toolResults.length - 1];
+              if (toolResult && typeof toolResult.result === "string") {
+                responseText = toolResult.result;
+                logger.info("[Chat] Using step tool result as response");
+                break;
+              }
+            }
+          }
+        }
+
+        if (!responseText) {
+          logger.warn({ result: JSON.stringify(result, null, 2).slice(0, 500) }, "[Chat] No response text generated");
+          responseText = "I couldn't generate a response. Please try again.";
+        }
 
         // Save assistant response to history
         await saveChatMessage(chatId, {
@@ -284,8 +403,13 @@ function getAgentDescription(name: string): string {
     invoices: "Invoice management, payments, and billing",
     customers: "Customer relationships and contact management",
     sales: "Sales pipeline, quotes, and revenue",
-    analytics: "Financial analysis, burn rate, runway, cash flow, forecasting, and business metrics",
+    analytics:
+      "Financial analysis, burn rate, runway, cash flow, forecasting, and business metrics",
     reports: "Generating reports, summaries, and dashboards",
+    research: "Market research, product comparison, affordability analysis, pricing intelligence",
+    operations: "Document management, inbox processing, account balances, OCR processing",
+    timetracking: "Time entries, timesheets, project hours, team utilization, productivity",
+    transactions: "Transaction history, payment search, spending analysis, recurring payments",
   };
   return descriptions[name] || "Specialized assistant";
 }

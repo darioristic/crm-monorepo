@@ -10,7 +10,10 @@ import { sql } from "../../db/client";
 const getForecastSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
   forecastMonths: z.number().min(1).max(12).default(6).describe("Number of months to forecast"),
-  scenario: z.enum(["conservative", "moderate", "optimistic"]).default("moderate").describe("Forecast scenario"),
+  scenario: z
+    .enum(["conservative", "moderate", "optimistic"])
+    .default("moderate")
+    .describe("Forecast scenario"),
   includeSeasonality: z.boolean().default(true).describe("Account for seasonal patterns"),
 });
 
@@ -26,7 +29,8 @@ interface MonthlyForecast {
 }
 
 export const getForecastTool = tool({
-  description: "Generate financial forecasts for revenue, expenses, and cash position. Uses historical data to project future performance under different scenarios.",
+  description:
+    "Generate financial forecasts for revenue, expenses, and cash position. Uses historical data to project future performance under different scenarios.",
   parameters: getForecastSchema,
   execute: async (params: GetForecastParams): Promise<string> => {
     const { tenantId, forecastMonths, scenario, includeSeasonality } = params;
@@ -65,7 +69,7 @@ export const getForecastTool = tool({
       const currentBalance = Number(balanceResult[0]?.balance) || 0;
 
       // Parse historical data
-      const history = historicalData.map(h => ({
+      const history = historicalData.map((h) => ({
         month: h.month as string,
         monthNum: Number(h.month_num),
         revenue: Number(h.revenue) || 0,
@@ -73,12 +77,10 @@ export const getForecastTool = tool({
       }));
 
       // Calculate base metrics
-      const avgRevenue = history.length > 0
-        ? history.reduce((sum, h) => sum + h.revenue, 0) / history.length
-        : 0;
-      const avgExpenses = history.length > 0
-        ? history.reduce((sum, h) => sum + h.expenses, 0) / history.length
-        : 0;
+      const avgRevenue =
+        history.length > 0 ? history.reduce((sum, h) => sum + h.revenue, 0) / history.length : 0;
+      const avgExpenses =
+        history.length > 0 ? history.reduce((sum, h) => sum + h.expenses, 0) / history.length : 0;
 
       // Calculate growth rates
       let revenueGrowth = 0;
@@ -97,10 +99,12 @@ export const getForecastTool = tool({
       const seasonalityFactors: Map<number, { revenue: number; expenses: number }> = new Map();
       if (includeSeasonality && history.length >= 6) {
         for (let month = 1; month <= 12; month++) {
-          const monthData = history.filter(h => h.monthNum === month);
+          const monthData = history.filter((h) => h.monthNum === month);
           if (monthData.length > 0) {
-            const avgMonthRevenue = monthData.reduce((sum, h) => sum + h.revenue, 0) / monthData.length;
-            const avgMonthExpenses = monthData.reduce((sum, h) => sum + h.expenses, 0) / monthData.length;
+            const avgMonthRevenue =
+              monthData.reduce((sum, h) => sum + h.revenue, 0) / monthData.length;
+            const avgMonthExpenses =
+              monthData.reduce((sum, h) => sum + h.expenses, 0) / monthData.length;
             seasonalityFactors.set(month, {
               revenue: avgRevenue > 0 ? avgMonthRevenue / avgRevenue : 1,
               expenses: avgExpenses > 0 ? avgMonthExpenses / avgExpenses : 1,
@@ -125,13 +129,14 @@ export const getForecastTool = tool({
       for (let i = 1; i <= forecastMonths; i++) {
         const forecastDate = new Date(currentDate);
         forecastDate.setMonth(currentDate.getMonth() + i);
-        const forecastMonth = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, '0')}`;
+        const forecastMonth = `${forecastDate.getFullYear()}-${String(forecastDate.getMonth() + 1).padStart(2, "0")}`;
         const monthNum = forecastDate.getMonth() + 1;
 
         // Base projections with growth
-        const growthFactor = 1 + (revenueGrowth * multiplier.growth * (i / 12));
+        const growthFactor = 1 + revenueGrowth * multiplier.growth * (i / 12);
         let projectedRevenue = avgRevenue * growthFactor * multiplier.revenue;
-        let projectedExpenses = avgExpenses * (1 + (expenseGrowth * multiplier.growth * (i / 12))) * multiplier.expenses;
+        let projectedExpenses =
+          avgExpenses * (1 + expenseGrowth * multiplier.growth * (i / 12)) * multiplier.expenses;
 
         // Apply seasonality
         if (includeSeasonality && seasonalityFactors.has(monthNum)) {
@@ -144,7 +149,7 @@ export const getForecastTool = tool({
         runningBalance += netCashFlow;
 
         // Confidence decreases with time
-        const confidence = Math.max(0.5, 1 - (i * 0.08));
+        const confidence = Math.max(0.5, 1 - i * 0.08);
 
         forecasts.push({
           month: forecastMonth,
@@ -160,8 +165,8 @@ export const getForecastTool = tool({
       const totalProjectedRevenue = forecasts.reduce((sum, f) => sum + f.projectedRevenue, 0);
       const totalProjectedExpenses = forecasts.reduce((sum, f) => sum + f.projectedExpenses, 0);
       const endingBalance = forecasts[forecasts.length - 1]?.projectedBalance || currentBalance;
-      const lowestBalance = Math.min(...forecasts.map(f => f.projectedBalance));
-      const monthsUntilZero = forecasts.findIndex(f => f.projectedBalance < 0);
+      const lowestBalance = Math.min(...forecasts.map((f) => f.projectedBalance));
+      const monthsUntilZero = forecasts.findIndex((f) => f.projectedBalance < 0);
 
       // Format response
       let response = `## 🔮 Financial Forecast\n\n`;
@@ -183,7 +188,7 @@ export const getForecastTool = tool({
       response += `|--------|----------|\n`;
       response += `| 💵 Total Revenue | ${formatCurrency(totalProjectedRevenue)} |\n`;
       response += `| 💸 Total Expenses | ${formatCurrency(totalProjectedExpenses)} |\n`;
-      response += `| ${endingBalance >= currentBalance ? '📈' : '📉'} Ending Balance | ${formatCurrency(endingBalance)} |\n`;
+      response += `| ${endingBalance >= currentBalance ? "📈" : "📉"} Ending Balance | ${formatCurrency(endingBalance)} |\n`;
       response += `| ⚠️ Lowest Point | ${formatCurrency(lowestBalance)} |\n`;
 
       if (monthsUntilZero > 0) {
@@ -197,8 +202,10 @@ export const getForecastTool = tool({
       response += `|-------|---------|----------|----------|---------|------|\n`;
 
       for (const forecast of forecasts) {
-        const flowEmoji = forecast.netCashFlow >= 0 ? '🟢' : '🔴';
-        const confBar = '●'.repeat(Math.round(forecast.confidence * 5)) + '○'.repeat(5 - Math.round(forecast.confidence * 5));
+        const flowEmoji = forecast.netCashFlow >= 0 ? "🟢" : "🔴";
+        const confBar =
+          "●".repeat(Math.round(forecast.confidence * 5)) +
+          "○".repeat(5 - Math.round(forecast.confidence * 5));
         response += `| ${forecast.month} | ${formatCurrency(forecast.projectedRevenue)} | ${formatCurrency(forecast.projectedExpenses)} | ${flowEmoji} ${formatCurrency(forecast.netCashFlow)} | ${formatCurrency(forecast.projectedBalance)} | ${confBar} |\n`;
       }
       response += `\n`;
@@ -211,13 +218,13 @@ export const getForecastTool = tool({
       for (const [scenarioName, mult] of Object.entries(scenarioMultipliers)) {
         let scenarioBalance = currentBalance;
         for (let i = 1; i <= forecastMonths; i++) {
-          const growthFactor = 1 + (revenueGrowth * mult.growth * (i / 12));
+          const growthFactor = 1 + revenueGrowth * mult.growth * (i / 12);
           const rev = avgRevenue * growthFactor * mult.revenue;
-          const exp = avgExpenses * (1 + (expenseGrowth * mult.growth * (i / 12))) * mult.expenses;
-          scenarioBalance += (rev - exp);
+          const exp = avgExpenses * (1 + expenseGrowth * mult.growth * (i / 12)) * mult.expenses;
+          scenarioBalance += rev - exp;
         }
         const totalFlow = scenarioBalance - currentBalance;
-        const indicator = scenarioName === scenario ? '→' : ' ';
+        const indicator = scenarioName === scenario ? "→" : " ";
         response += `| ${indicator} ${scenarioName.charAt(0).toUpperCase() + scenarioName.slice(1)} | ${formatCurrency(scenarioBalance)} | ${formatCurrency(totalFlow)} |\n`;
       }
       response += `\n`;
@@ -227,7 +234,7 @@ export const getForecastTool = tool({
       response += `- Historical data: ${history.length} months analyzed\n`;
       response += `- Revenue growth: ${(revenueGrowth * 100).toFixed(1)}% over period\n`;
       response += `- Expense growth: ${(expenseGrowth * 100).toFixed(1)}% over period\n`;
-      response += `- Seasonality: ${includeSeasonality ? 'Included' : 'Not included'}\n`;
+      response += `- Seasonality: ${includeSeasonality ? "Included" : "Not included"}\n`;
       response += `- Scenario adjustment: Revenue ${((multiplier.revenue - 1) * 100).toFixed(0)}%, Expenses ${((multiplier.expenses - 1) * 100).toFixed(0)}%\n\n`;
 
       // Insights and recommendations
@@ -248,9 +255,11 @@ export const getForecastTool = tool({
         response += `- ⚠️ **Low cash warning** at ${formatCurrency(lowestBalance)} - maintain buffer\n`;
       }
 
-      const avgMonthlyGrowth = forecasts.length > 1
-        ? (forecasts[forecasts.length - 1].projectedRevenue - forecasts[0].projectedRevenue) / (forecasts.length - 1)
-        : 0;
+      const avgMonthlyGrowth =
+        forecasts.length > 1
+          ? (forecasts[forecasts.length - 1].projectedRevenue - forecasts[0].projectedRevenue) /
+            (forecasts.length - 1)
+          : 0;
       if (avgMonthlyGrowth > 0) {
         response += `- 📊 Projected monthly revenue growth: ${formatCurrency(avgMonthlyGrowth)}\n`;
       }
@@ -258,15 +267,15 @@ export const getForecastTool = tool({
       return response;
     } catch (error) {
       console.error("Error generating forecast:", error);
-      return `❌ Error generating forecast: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return `❌ Error generating forecast: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);

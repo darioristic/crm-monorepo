@@ -8,7 +8,6 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import * as React from "react";
 import { toast } from "sonner";
@@ -258,7 +257,7 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
   const selectedInvoiceIds = React.useMemo(() => {
     return Object.entries(rowSelection)
       .filter(([_, isSelected]) => isSelected)
-      .map(([index]) => enrichedInvoices[Number.parseInt(index)]?.id)
+      .map(([index]) => enrichedInvoices[Number.parseInt(index, 10)]?.id)
       .filter(Boolean) as string[];
   }, [rowSelection, enrichedInvoices]);
 

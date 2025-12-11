@@ -2,11 +2,9 @@
 
 import type { DeliveryNoteWithRelations } from "@crm/types";
 import Link from "next/link";
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useApi } from "@/hooks/use-api";
-import { deliveryNotesApi } from "@/lib/api";
 import { DeliveryNotePublicView } from "../../[token]/delivery-note-public-view";
 
 type Props = {
@@ -15,12 +13,31 @@ type Props = {
 
 export default function DeliveryNoteByIdPage({ params }: Props) {
   const { id } = use(params);
+  const [deliveryNote, setDeliveryNote] = useState<DeliveryNoteWithRelations | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const {
-    data: deliveryNote,
-    isLoading,
-    error,
-  } = useApi<DeliveryNoteWithRelations>(() => deliveryNotesApi.getById(id), { autoFetch: true });
+  useEffect(() => {
+    async function fetchDeliveryNote() {
+      try {
+        // Use public API endpoint that doesn't require authentication
+        const response = await fetch(`/api/delivery-notes/public/${id}`);
+
+        if (!response.ok) {
+          throw new Error("Delivery note not found");
+        }
+
+        const data = await response.json();
+        setDeliveryNote(data.data);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error("Failed to load delivery note"));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchDeliveryNote();
+  }, [id]);
 
   if (isLoading) {
     return (

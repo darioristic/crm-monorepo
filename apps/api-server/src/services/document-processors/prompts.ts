@@ -28,18 +28,49 @@ NEVER set vendor_name = "${companyName}"`
 }
 
 EXTRACTION REQUIREMENTS:
-1. vendor_name: Legal business name of invoice issuer (with Inc., Ltd, d.o.o., LLC, etc.)
+1. vendor_name: LEGAL BUSINESS ENTITY NAME of invoice issuer with proper suffix
 2. total_amount: Final amount due (after all taxes/fees)
-3. currency: ISO code (USD, EUR, RSD, GBP) from symbols (€, $, £, din)
+3. currency: ISO code (USD, EUR, RSD, HRK, BAM, GBP) from symbols (€, $, £, din, kn, KM)
 4. invoice_date: Issue date in YYYY-MM-DD format
 5. due_date: Payment due date in YYYY-MM-DD format
 
+VENDOR NAME EXTRACTION (CRITICAL):
+ALWAYS include legal entity suffix. Transform to proper legal names:
+
+Global Tech Companies (use these exact names):
+- "Slack" / "SLACK*" → "Slack Technologies Inc"
+- "Google" / "GOOGLE*" → "Google LLC"
+- "Microsoft" / "MSFT*" → "Microsoft Corporation"
+- "Amazon" / "AWS" / "AMZN*" → "Amazon.com Inc" / "Amazon Web Services Inc"
+- "GitHub" → "GitHub Inc"
+- "Figma" → "Figma Inc"
+- "Notion" → "Notion Labs Inc"
+- "Stripe" → "Stripe Inc"
+- "Adobe" → "Adobe Inc"
+- "Atlassian" / "Jira" → "Atlassian Corporation"
+- "Zoom" → "Zoom Video Communications Inc"
+- "Dropbox" → "Dropbox Inc"
+- "OpenAI" → "OpenAI Inc"
+
+Balkan Region (Serbia, Croatia, Slovenia, Bosnia):
+- "d.o.o." for limited liability (društvo s ograničenom odgovornošću)
+- "d.d." for joint stock (dioničko društvo)
+- "a.d." for Serbian joint stock (akcionarsko društvo)
+- Clean up to proper format: "ABC D.O.O." → "ABC d.o.o."
+
+European Entity Types:
+- Germany: GmbH, AG
+- Austria: GmbH, AG
+- France: S.A., S.A.R.L.
+- Italy: S.r.l., S.p.A.
+- Netherlands: B.V., N.V.
+
 FIELD-SPECIFIC RULES:
-- AMOUNTS: Extract final total, not subtotals. Look for "Total", "Amount Due", "Balance", "Ukupno", "Za uplatu"
+- AMOUNTS: Extract final total, not subtotals. Look for "Total", "Amount Due", "Balance", "Ukupno", "Za uplatu", "Iznos"
 - DATES: Convert all formats (DD/MM/YYYY, MM-DD-YYYY, DD.MM.YYYY) to YYYY-MM-DD
-- VENDOR: Legal name from header/letterhead, not brand names or divisions
-- CURRENCY: From symbols or 3-letter codes (USD, EUR, GBP, RSD, etc.)
-- TAX: Extract tax amount and rate percentage if shown (PDV, VAT, etc.)
+- VENDOR: Look in header/letterhead. Extract FULL legal name with entity suffix. NEVER use brand names without suffix.
+- CURRENCY: From symbols or 3-letter codes (USD, EUR, GBP, RSD, HRK, BAM)
+- TAX: Extract tax amount and rate percentage if shown (PDV, VAT, DDV, etc.)
 
 ACCURACY GUIDELINES:
 - Process multilingual documents (English, Serbian, Croatian, German, etc.)
@@ -81,18 +112,46 @@ NEVER set store_name = "${companyName}"`
 }
 
 EXTRACTION REQUIREMENTS:
-1. store_name: Business name of merchant/retailer
+1. store_name: LEGAL BUSINESS ENTITY NAME of merchant/retailer with proper suffix
 2. total_amount: Final amount paid (including all taxes)
 3. date: Transaction date in YYYY-MM-DD format
 4. payment_method: How payment was made (cash, card, etc.)
-5. currency: ISO code (USD, EUR, RSD, GBP) from symbols
+5. currency: ISO code (USD, EUR, RSD, HRK, BAM, GBP) from symbols
+
+STORE NAME EXTRACTION (CRITICAL):
+ALWAYS include legal entity suffix. Transform to proper legal names:
+
+Global Brands (use these exact names):
+- "Starbucks" → "Starbucks Corporation"
+- "McDonald's" → "McDonald's Corporation"
+- "Uber" / "UBER*" → "Uber Technologies Inc"
+- "Bolt" / "BOLT" → "Bolt Technology OÜ"
+- "Glovo" → "Glovoapp Technology d.o.o."
+- "Wolt" → "Wolt d.o.o." (regional variant)
+
+Retail Chains (Balkan Region):
+- "KONZUM" → "Konzum d.d."
+- "LIDL" → "Lidl d.o.o." (add country: Hrvatska/Srbija)
+- "KAUFLAND" → "Kaufland d.o.o."
+- "SPAR" → "Spar Hrvatska d.o.o." / "Spar Slovenija d.o.o."
+- "DM" / "dm drogerie" → "dm-drogerie markt d.o.o."
+- "MÜLLER" → "Müller d.o.o."
+- "MAXI" → "Maxi d.o.o."
+- "IDEA" → "Idea d.o.o."
+
+Gas Stations:
+- "INA" → "INA d.d."
+- "PETROL" → "Petrol d.d."
+- "OMV" → "OMV Slovenija d.o.o."
+- "MOL" → "MOL d.o.o."
+- "NIS" → "NIS a.d."
 
 FIELD-SPECIFIC RULES:
-- AMOUNTS: Extract final total paid, not subtotals. Look for "TOTAL", "AMOUNT DUE", "UKUPNO"
-- DATES: Convert all formats (DD/MM/YYYY, MM-DD-YYYY) to YYYY-MM-DD
-- STORE: Business name from header/logo, not customer names
-- PAYMENT: Cash, credit card, debit card, contactless, mobile payment
-- TAX: Extract tax amount and rate if clearly shown (PDV, VAT)
+- AMOUNTS: Extract final total paid, not subtotals. Look for "TOTAL", "AMOUNT DUE", "UKUPNO", "SKUPAJ", "ZA UPLATU"
+- DATES: Convert all formats (DD/MM/YYYY, MM-DD-YYYY, DD.MM.YYYY) to YYYY-MM-DD
+- STORE: Look in header/logo. Extract FULL legal name with entity suffix. NEVER use brand names without suffix.
+- PAYMENT: Cash, credit card, debit card, contactless, mobile payment (gotovina, kartica)
+- TAX: Extract tax amount and rate if clearly shown (PDV, VAT, DDV)
 
 ACCURACY GUIDELINES:
 - Process multilingual receipts (English, Serbian, Croatian, German, etc.)
@@ -109,35 +168,99 @@ COMMON ERRORS TO AVOID:
 - Confusing item codes with product descriptions
 `;
 
-export const documentClassifierPrompt = `You are an expert multilingual document analyzer. Your task is to read the provided business document text (which could be an Invoice, Receipt, Contract, Agreement, Report, etc.) and generate:
-1.  **A Concise Summary:** A single sentence capturing the essence of the document (e.g., "Invoice from Supplier X for services rendered in May 2024", "Employment agreement between Company Y and John Doe", "Quarterly financial report for Q1 2024").
-2.  **The Most Relevant Date (\`date\`):** Identify the single most important date mentioned (e.g., issue date, signing date, effective date). Format it strictly as YYYY-MM-DD. If multiple dates exist, choose the primary one representing the document's core event. If no clear date is found, return null for this field.
-3.  **Relevant Tags (Up to 5):** Generate up to 5 highly relevant and distinct tags to help classify and find this document later. When creating these tags, **strongly prioritize including:**
-*   The inferred **document type** (e.g., "Invoice", "Contract", "Receipt", "Report").
-*   Key **company or individual names** explicitly mentioned.
-*   The core **subject** or 1-2 defining keywords from the summary or document content.
-*   If the document represents a purchase (like an invoice or receipt), include a tag for the **single most significant item or service** purchased (e.g., "Software License", "Consulting Services", "Office Desk").
+export const documentClassifierPrompt = `You are an expert multilingual document analyzer specializing in business documents from all regions (US, EU, Balkans).
 
-Make the tags concise and informative. Aim for tags that uniquely identify the document's key characteristics for searching. Avoid overly generic terms (like "document", "file", "text") or date-related tags (as the date is extracted separately). Base tags strictly on the content provided. Ensure all tags are in singular form (e.g., "item" instead of "items").
+TASK: Analyze the document and generate structured metadata with SPECIFIC, ACTIONABLE information.
+
+OUTPUT REQUIREMENTS:
+1. **Summary** (CRITICAL): A single, SPECIFIC sentence that MUST include:
+   - Document type (Invoice, Receipt, Contract, Report, etc.)
+   - Company/Merchant name with legal suffix (e.g., "Slack Technologies Inc", "ABC d.o.o.")
+   - Main subject/service/product
+   - Amount if it's a financial document
+
+   GOOD EXAMPLES:
+   ✓ "Invoice #12345 from Slack Technologies Inc for annual Pro subscription - $150 USD"
+   ✓ "Receipt from dm-drogerie markt d.o.o. for office supplies totaling €45.30"
+   ✓ "Service agreement between Acme Corp and John Doe for consulting services"
+
+   BAD EXAMPLES (NEVER USE):
+   ✗ "Business document identified by unique identifier"
+   ✗ "A document containing business information"
+   ✗ "Financial document from a company"
+
+2. **Date**: The most relevant date in YYYY-MM-DD format (issue date, signing date, transaction date). Return null if unclear.
+
+3. **Tags** (Up to 5): Highly relevant, SPECIFIC tags:
+   - Document type: "Invoice", "Receipt", "Contract", "Agreement", "Report"
+   - Company name with legal suffix: "Slack Technologies Inc", "Google LLC", "ABC d.o.o."
+   - Main service/product: "Software Subscription", "Consulting Services", "Office Supplies"
+   - Industry: "SaaS", "Professional Services", "Retail"
+
+MERCHANT NAME EXTRACTION:
+When you see these brands, use their FULL legal names:
+- Slack → "Slack Technologies Inc"
+- Google → "Google LLC"
+- Microsoft → "Microsoft Corporation"
+- GitHub → "GitHub Inc"
+- Amazon/AWS → "Amazon.com Inc" / "Amazon Web Services Inc"
+- Adobe → "Adobe Inc"
+- Zoom → "Zoom Video Communications Inc"
+
+For Balkan companies:
+- Use d.o.o., d.d., a.d. suffixes appropriately
+- Transform ALL CAPS: "ABC D.O.O." → "ABC d.o.o."
+
+CRITICAL RULES:
+- NEVER generate generic summaries
+- ALWAYS extract and include company names with legal suffixes
+- Be SPECIFIC - include invoice numbers, amounts, dates when visible
+- Tags should be unique identifiers, not generic terms
+- Avoid: "document", "file", "text", "business", "company" as tags
 `;
+
 
 export const imageClassifierPrompt = `
-Analyze the provided image and generate a list of 1-5 concise, relevant tags describing its most important aspects.
+You are an expert document analyzer specializing in business documents (invoices, receipts, contracts).
 
-**Instructions:**
+TASK: Analyze the image and extract structured metadata with SPECIFIC information.
 
-*   **If the image is a receipt or invoice:**
-    *   Extract the **merchant name** (e.g., "Slack", "Starbucks") as a tag.
-    *   Identify and tag the **most significant item(s) or service(s)** purchased (e.g., "Coffee", "Subscription", "Consulting Service"). Combine merchant and item if specific (e.g., "Slack Subscription").
-    *   Optionally, include relevant context tags like "Receipt", "Invoice", "Subscription", or "One-time Purchase".
-*   **If the image is NOT a receipt or invoice:**
-    *   Describe the key **objects, subjects, or brands** visible (e.g., "Logo", "Letterhead", "Product Photo", "Acme Corp Branding").
+OUTPUT REQUIREMENTS:
+1. **Summary**: A SPECIFIC one-sentence description:
+   - For invoices/receipts: Include merchant name with legal suffix, amount, and main item/service
+   - For other documents: Include document type and key parties/subjects
 
-**Rules:**
+   EXAMPLES:
+   ✓ "Invoice from Slack Technologies Inc for Pro subscription - $150"
+   ✓ "Receipt from Starbucks Corporation for coffee - $5.40"
+   ✓ "Contract between ABC d.o.o. and XYZ Corp"
 
-*   Each tag must be 1–2 words long.
-*   Ensure all tags are in singular form (e.g., "item" instead of "items").
-*   Avoid generic words like "paper", "text", "photo", "image", "document" unless absolutely essential for context.
-*   Prioritize concrete, specific tags. For purchases, combine merchant and item where possible (e.g., "Starbucks Coffee").
-*   If uncertain about a tag's relevance, it's better to omit it. Focus on accuracy.
+   NEVER USE GENERIC DESCRIPTIONS LIKE:
+   ✗ "Business document"
+   ✗ "Financial document from a company"
+
+2. **Tags** (1-5): Specific, searchable tags:
+   - Document type: "Invoice", "Receipt", "Contract"
+   - Merchant with legal suffix: "Slack Technologies Inc", "Google LLC", "ABC d.o.o."
+   - Main item/service: "Software Subscription", "Coffee", "Consulting"
+
+MERCHANT NAME EXTRACTION:
+Transform brand names to full legal names:
+- Slack → "Slack Technologies Inc"
+- Google → "Google LLC"
+- Microsoft → "Microsoft Corporation"
+- Starbucks → "Starbucks Corporation"
+- GitHub → "GitHub Inc"
+- Amazon → "Amazon.com Inc"
+
+For regional companies (Balkans, EU):
+- Add proper suffixes: d.o.o., d.d., GmbH, Ltd, etc.
+- Fix capitalization: "ABC D.O.O." → "ABC d.o.o."
+
+RULES:
+- Extract visible text for accurate merchant names
+- Include amounts and invoice/receipt numbers when visible
+- Use singular form for tags
+- Be SPECIFIC, never generic
 `;
+

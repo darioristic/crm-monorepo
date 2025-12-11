@@ -6,8 +6,12 @@ import { createAgent, formatContextForLLM } from "./config/shared";
 import { customersAgent } from "./customers";
 import { generalAgent } from "./general";
 import { invoicesAgent } from "./invoices";
+import { operationsAgent } from "./operations";
 import { reportsAgent } from "./reports";
+import { researchAgent } from "./research";
 import { salesAgent } from "./sales";
+import { timeTrackingAgent } from "./timetracking";
+import { transactionsAgent } from "./transactions";
 
 export const AVAILABLE_AGENTS = {
   general: generalAgent,
@@ -16,6 +20,10 @@ export const AVAILABLE_AGENTS = {
   sales: salesAgent,
   analytics: analyticsAgent,
   reports: reportsAgent,
+  research: researchAgent,
+  operations: operationsAgent,
+  timetracking: timeTrackingAgent,
+  transactions: transactionsAgent,
 } as const;
 
 export type AgentName = keyof typeof AVAILABLE_AGENTS;
@@ -45,6 +53,14 @@ sales: Sales pipeline, deals, opportunities, revenue forecasts, conversion rates
 analytics: Business metrics, KPIs, growth rates, trends, performance analysis, data insights, comparisons
 
 reports: Generating reports, summaries, dashboards, executive summaries, period comparisons, scorecards
+
+research: Market research, product comparisons, affordability analysis, pricing intelligence, vendor research, competitive analysis
+
+operations: Document management, inbox processing, account balances, OCR processing, file organization, email inbox sync
+
+timetracking: Time entries, timesheets, project hours, team utilization, billable hours, productivity tracking
+
+transactions: Transaction history, payment search, spending analysis, recurring payments, categorization, vendor transactions
 </agent-capabilities>
 
 <routing_rules>
@@ -66,10 +82,22 @@ Examples:
 - "Generate a monthly report" → reports
 - "Sales performance summary" → reports
 - "Compare this month to last month" → analytics
+- "Compare our products" → research
+- "Can we afford this purchase?" → research
+- "Market analysis" → research
+- "Show inbox items" → operations
+- "Process this receipt" → operations
+- "What are our account balances?" → operations
+- "How many hours logged this week?" → timetracking
+- "Team utilization report" → timetracking
+- "Project time breakdown" → timetracking
+- "Show recent transactions" → transactions
+- "Find recurring payments" → transactions
+- "Transactions with Microsoft" → transactions
 </routing_rules>
 
 Based on the user's message, respond with ONLY the agent name to route to.
-Valid responses: general, invoices, customers, sales, analytics, reports`,
+Valid responses: general, invoices, customers, sales, analytics, reports, research, operations, timetracking, transactions`,
 });
 
 export function routeToAgent(agentName: string): typeof generalAgent {

@@ -23,7 +23,8 @@ interface HealthMetric {
 }
 
 export const getFinancialHealthTool = tool({
-  description: "Generate a comprehensive financial health score with detailed breakdown. Analyzes profitability, liquidity, growth, and risk factors.",
+  description:
+    "Generate a comprehensive financial health score with detailed breakdown. Analyzes profitability, liquidity, growth, and risk factors.",
   parameters: getFinancialHealthSchema,
   execute: async (params: GetFinancialHealthParams): Promise<string> => {
     const { tenantId, detailed } = params;
@@ -61,19 +62,17 @@ export const getFinancialHealthTool = tool({
         ORDER BY month DESC
       `;
 
-      const monthly = monthlyData.map(m => ({
+      const monthly = monthlyData.map((m) => ({
         month: m.month as string,
         income: Number(m.income) || 0,
         expenses: Number(m.expenses) || 0,
         netFlow: (Number(m.income) || 0) - (Number(m.expenses) || 0),
       }));
 
-      const avgIncome = monthly.length > 0
-        ? monthly.reduce((sum, m) => sum + m.income, 0) / monthly.length
-        : 0;
-      const avgExpenses = monthly.length > 0
-        ? monthly.reduce((sum, m) => sum + m.expenses, 0) / monthly.length
-        : 0;
+      const avgIncome =
+        monthly.length > 0 ? monthly.reduce((sum, m) => sum + m.income, 0) / monthly.length : 0;
+      const avgExpenses =
+        monthly.length > 0 ? monthly.reduce((sum, m) => sum + m.expenses, 0) / monthly.length : 0;
       const avgNetFlow = avgIncome - avgExpenses;
 
       // 3. Revenue concentration
@@ -121,9 +120,10 @@ export const getFinancialHealthTool = tool({
       }
 
       // 6. Expense volatility
-      const expenseVariance = monthly.length > 1
-        ? monthly.reduce((sum, m) => sum + Math.pow(m.expenses - avgExpenses, 2), 0) / monthly.length
-        : 0;
+      const expenseVariance =
+        monthly.length > 1
+          ? monthly.reduce((sum, m) => sum + (m.expenses - avgExpenses) ** 2, 0) / monthly.length
+          : 0;
       const expenseVolatility = avgExpenses > 0 ? Math.sqrt(expenseVariance) / avgExpenses : 0;
 
       // Calculate health metrics
@@ -133,11 +133,22 @@ export const getFinancialHealthTool = tool({
       const profitMargin = avgIncome > 0 ? (avgNetFlow / avgIncome) * 100 : 0;
       let profitScore = 0;
       let profitStatus: HealthMetric["status"] = "critical";
-      if (profitMargin >= 20) { profitScore = 25; profitStatus = "excellent"; }
-      else if (profitMargin >= 10) { profitScore = 20; profitStatus = "good"; }
-      else if (profitMargin >= 0) { profitScore = 15; profitStatus = "fair"; }
-      else if (profitMargin >= -10) { profitScore = 8; profitStatus = "poor"; }
-      else { profitScore = 0; profitStatus = "critical"; }
+      if (profitMargin >= 20) {
+        profitScore = 25;
+        profitStatus = "excellent";
+      } else if (profitMargin >= 10) {
+        profitScore = 20;
+        profitStatus = "good";
+      } else if (profitMargin >= 0) {
+        profitScore = 15;
+        profitStatus = "fair";
+      } else if (profitMargin >= -10) {
+        profitScore = 8;
+        profitStatus = "poor";
+      } else {
+        profitScore = 0;
+        profitStatus = "critical";
+      }
 
       metrics.push({
         name: "Profitability",
@@ -151,11 +162,22 @@ export const getFinancialHealthTool = tool({
       const runway = avgNetFlow < 0 ? currentBalance / Math.abs(avgNetFlow) : Infinity;
       let liquidityScore = 0;
       let liquidityStatus: HealthMetric["status"] = "critical";
-      if (runway >= 12 || avgNetFlow >= 0) { liquidityScore = 25; liquidityStatus = "excellent"; }
-      else if (runway >= 6) { liquidityScore = 20; liquidityStatus = "good"; }
-      else if (runway >= 3) { liquidityScore = 12; liquidityStatus = "fair"; }
-      else if (runway >= 1) { liquidityScore = 5; liquidityStatus = "poor"; }
-      else { liquidityScore = 0; liquidityStatus = "critical"; }
+      if (runway >= 12 || avgNetFlow >= 0) {
+        liquidityScore = 25;
+        liquidityStatus = "excellent";
+      } else if (runway >= 6) {
+        liquidityScore = 20;
+        liquidityStatus = "good";
+      } else if (runway >= 3) {
+        liquidityScore = 12;
+        liquidityStatus = "fair";
+      } else if (runway >= 1) {
+        liquidityScore = 5;
+        liquidityStatus = "poor";
+      } else {
+        liquidityScore = 0;
+        liquidityStatus = "critical";
+      }
 
       metrics.push({
         name: "Liquidity",
@@ -168,11 +190,22 @@ export const getFinancialHealthTool = tool({
       // 3. Revenue Diversification Score (0-25 points)
       let diversificationScore = 0;
       let diversificationStatus: HealthMetric["status"] = "critical";
-      if (revenueConcentration <= 0.2) { diversificationScore = 25; diversificationStatus = "excellent"; }
-      else if (revenueConcentration <= 0.35) { diversificationScore = 20; diversificationStatus = "good"; }
-      else if (revenueConcentration <= 0.5) { diversificationScore = 15; diversificationStatus = "fair"; }
-      else if (revenueConcentration <= 0.7) { diversificationScore = 8; diversificationStatus = "poor"; }
-      else { diversificationScore = 0; diversificationStatus = "critical"; }
+      if (revenueConcentration <= 0.2) {
+        diversificationScore = 25;
+        diversificationStatus = "excellent";
+      } else if (revenueConcentration <= 0.35) {
+        diversificationScore = 20;
+        diversificationStatus = "good";
+      } else if (revenueConcentration <= 0.5) {
+        diversificationScore = 15;
+        diversificationStatus = "fair";
+      } else if (revenueConcentration <= 0.7) {
+        diversificationScore = 8;
+        diversificationStatus = "poor";
+      } else {
+        diversificationScore = 0;
+        diversificationStatus = "critical";
+      }
 
       metrics.push({
         name: "Revenue Diversification",
@@ -188,11 +221,22 @@ export const getFinancialHealthTool = tool({
 
       // Combine growth and stability
       const volatilityPenalty = expenseVolatility > 0.3 ? -5 : expenseVolatility > 0.15 ? -2 : 0;
-      if (revenueGrowth >= 20) { growthScore = 25 + volatilityPenalty; growthStatus = "excellent"; }
-      else if (revenueGrowth >= 10) { growthScore = 20 + volatilityPenalty; growthStatus = "good"; }
-      else if (revenueGrowth >= 0) { growthScore = 15 + volatilityPenalty; growthStatus = "fair"; }
-      else if (revenueGrowth >= -10) { growthScore = 10 + volatilityPenalty; growthStatus = "poor"; }
-      else { growthScore = 5 + volatilityPenalty; growthStatus = "critical"; }
+      if (revenueGrowth >= 20) {
+        growthScore = 25 + volatilityPenalty;
+        growthStatus = "excellent";
+      } else if (revenueGrowth >= 10) {
+        growthScore = 20 + volatilityPenalty;
+        growthStatus = "good";
+      } else if (revenueGrowth >= 0) {
+        growthScore = 15 + volatilityPenalty;
+        growthStatus = "fair";
+      } else if (revenueGrowth >= -10) {
+        growthScore = 10 + volatilityPenalty;
+        growthStatus = "poor";
+      } else {
+        growthScore = 5 + volatilityPenalty;
+        growthStatus = "critical";
+      }
       growthScore = Math.max(0, growthScore);
 
       metrics.push({
@@ -211,11 +255,22 @@ export const getFinancialHealthTool = tool({
       // Determine overall status
       let overallStatus: string;
       let statusEmoji: string;
-      if (scorePercentage >= 80) { overallStatus = "Excellent"; statusEmoji = "🌟"; }
-      else if (scorePercentage >= 65) { overallStatus = "Good"; statusEmoji = "✅"; }
-      else if (scorePercentage >= 50) { overallStatus = "Fair"; statusEmoji = "🟡"; }
-      else if (scorePercentage >= 35) { overallStatus = "Poor"; statusEmoji = "⚠️"; }
-      else { overallStatus = "Critical"; statusEmoji = "🚨"; }
+      if (scorePercentage >= 80) {
+        overallStatus = "Excellent";
+        statusEmoji = "🌟";
+      } else if (scorePercentage >= 65) {
+        overallStatus = "Good";
+        statusEmoji = "✅";
+      } else if (scorePercentage >= 50) {
+        overallStatus = "Fair";
+        statusEmoji = "🟡";
+      } else if (scorePercentage >= 35) {
+        overallStatus = "Poor";
+        statusEmoji = "⚠️";
+      } else {
+        overallStatus = "Critical";
+        statusEmoji = "🚨";
+      }
 
       // Format response
       let response = `## ${statusEmoji} Financial Health Report\n\n`;
@@ -233,7 +288,7 @@ export const getFinancialHealthTool = tool({
       response += `| 💰 Cash Balance | ${formatCurrency(currentBalance)} |\n`;
       response += `| 📈 Avg Monthly Revenue | ${formatCurrency(avgIncome)} |\n`;
       response += `| 📉 Avg Monthly Expenses | ${formatCurrency(avgExpenses)} |\n`;
-      response += `| ${avgNetFlow >= 0 ? '🟢' : '🔴'} Net Monthly Flow | ${formatCurrency(avgNetFlow)} |\n`;
+      response += `| ${avgNetFlow >= 0 ? "🟢" : "🔴"} Net Monthly Flow | ${formatCurrency(avgNetFlow)} |\n`;
       response += `| 🔄 Fixed Costs Ratio | ${(recurringRatio * 100).toFixed(0)}% |\n\n`;
 
       // Detailed breakdown
@@ -257,13 +312,19 @@ export const getFinancialHealthTool = tool({
         risks.push(`🔴 **Low Runway:** Only ${Math.floor(runway)} months of cash remaining`);
       }
       if (revenueConcentration > 0.5) {
-        risks.push(`🔴 **Revenue Concentration:** Top client represents ${(revenueConcentration * 100).toFixed(0)}% of revenue`);
+        risks.push(
+          `🔴 **Revenue Concentration:** Top client represents ${(revenueConcentration * 100).toFixed(0)}% of revenue`
+        );
       }
       if (recurringRatio > 0.7) {
-        risks.push(`🟡 **High Fixed Costs:** ${(recurringRatio * 100).toFixed(0)}% of expenses are recurring`);
+        risks.push(
+          `🟡 **High Fixed Costs:** ${(recurringRatio * 100).toFixed(0)}% of expenses are recurring`
+        );
       }
       if (revenueGrowth < -10) {
-        risks.push(`🔴 **Declining Revenue:** ${revenueGrowth.toFixed(0)}% decrease in recent months`);
+        risks.push(
+          `🔴 **Declining Revenue:** ${revenueGrowth.toFixed(0)}% decrease in recent months`
+        );
       }
       if (expenseVolatility > 0.3) {
         risks.push(`🟡 **High Expense Volatility:** Unpredictable spending patterns`);
@@ -331,15 +392,15 @@ export const getFinancialHealthTool = tool({
       return response;
     } catch (error) {
       console.error("Error generating health report:", error);
-      return `❌ Error generating health report: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return `❌ Error generating health report: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
@@ -348,16 +409,22 @@ function formatCurrency(amount: number): string {
 function progressBar(percentage: number): string {
   const width = 30;
   const filled = Math.round((percentage / 100) * width);
-  return '█'.repeat(filled) + '░'.repeat(width - filled);
+  return "█".repeat(filled) + "░".repeat(width - filled);
 }
 
 function getStatusIcon(status: HealthMetric["status"]): string {
   switch (status) {
-    case "excellent": return "🌟";
-    case "good": return "✅";
-    case "fair": return "🟡";
-    case "poor": return "⚠️";
-    case "critical": return "🚨";
-    default: return "❓";
+    case "excellent":
+      return "🌟";
+    case "good":
+      return "✅";
+    case "fair":
+      return "🟡";
+    case "poor":
+      return "⚠️";
+    case "critical":
+      return "🚨";
+    default:
+      return "❓";
   }
 }

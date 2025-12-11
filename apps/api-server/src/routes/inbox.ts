@@ -4,30 +4,57 @@
  */
 
 import { errorResponse, successResponse } from "@crm/utils";
+import {
+  confirmSuggestedMatch,
+  createInbox,
+  createInboxBlocklist,
+  declineSuggestedMatch,
+  deleteInbox,
+  deleteInboxAccount,
+  deleteInboxBlocklist,
+  getInbox,
+  getInboxAccountById,
+  getInboxAccounts,
+  getInboxBlocklist,
+  getInboxById,
+  getInboxStats,
+  getMatchSuggestionHistory,
+  type InboxBlocklistType,
+  type InboxStatus,
+  unmatchInboxItem,
+  updateInbox,
+  updateInboxAccount,
+  upsertInboxAccount,
+} from "../db/queries/inbox";
+import { updateCalibration } from "../services/calibration.service";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
+import * as fileStorage from "../services/file-storage.service";
+import { processInboxItem } from "../services/inbox-ai.service";
+import {
+  getInboxQueueStats,
+  initializeInboxQueue,
+  queueInboxProcessing,
+} from "../services/inbox-queue.service";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
-import {
-  getInbox,
-  getInboxById,
-  createInbox,
-  updateInbox,
-  deleteInbox,
-  getInboxStats,
-  getInboxAccounts,
-  getInboxAccountById,
-  upsertInboxAccount,
-  updateInboxAccount,
-  deleteInboxAccount,
-  getInboxBlocklist,
-  createInboxBlocklist,
-  deleteInboxBlocklist,
-  confirmSuggestedMatch,
-  declineSuggestedMatch,
-  type InboxStatus,
-  type InboxBlocklistType,
-} from "../db/queries/inbox";
+
+// Initialize inbox queue on module load
+initializeInboxQueue().catch((err) => {
+  logger.error({ error: err }, "Failed to initialize inbox queue");
+});
+
+// Supported MIME types for inbox uploads
+const SUPPORTED_MIME_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "image/heif",
+  "application/pdf",
+];
+
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 // ==============================================
 // INBOX ROUTES
@@ -92,6 +119,27 @@ export const inboxRoutes: Route[] = [
     params: [],
   },
 
+  // GET /api/v1/inbox/queue/stats - Get processing queue statistics
+  {
+    method: "GET",
+    pattern: /^\/api\/v1\/inbox\/queue\/stats$/,
+    handler: async (request) => {
+      const auth = await verifyAndGetUser(request);
+      if (!auth) {
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
+      }
+
+      try {
+        const queueStats = await getInboxQueueStats();
+        return json(successResponse(queueStats));
+      } catch (error) {
+        logger.error({ error }, "Error fetching queue stats");
+        return json(errorResponse("INTERNAL_ERROR", "Failed to fetch queue stats"), 500);
+      }
+    },
+    params: [],
+  },
+
   // GET /api/v1/inbox/:id - Get inbox item by ID
   {
     method: "GET",
@@ -117,7 +165,148 @@ export const inboxRoutes: Route[] = [
     params: ["id"],
   },
 
-  // POST /api/v1/inbox - Create inbox item (for manual upload)
+  // POST /api/v1/inbox/upload - Upload files to inbox
+  {
+    method: "POST",
+    pattern: /^\/api\/v1\/inbox\/upload$/,
+    handler: async (request) => {
+      const auth = await verifyAndGetUser(request);
+      if (!auth) {
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
+      }
+
+      try {
+        const formData = await request.formData();
+        const files = formData.getAll("files");
+
+        if (!files || files.length === 0) {
+          return json(errorResponse("VALIDATION_ERROR", "No files provided"), 400);
+        }
+
+        const results: Array<{
+          id: string;
+          fileName: string;
+          status: "success" | "error";
+          error?: string;
+        }> = [];
+
+        for (const fileValue of files) {
+          // Handle File objects
+          if (typeof fileValue !== "object" || !("arrayBuffer" in fileValue)) {
+            results.push({
+              id: "",
+              fileName: "unknown",
+              status: "error",
+              error: "Invalid file format",
+            });
+            continue;
+          }
+
+          const file = fileValue as File;
+          const originalName = file.name || "upload.bin";
+          const mimetype = file.type || "application/octet-stream";
+          const size = file.size;
+
+          // Validate file size
+          if (size > MAX_FILE_SIZE) {
+            results.push({
+              id: "",
+              fileName: originalName,
+              status: "error",
+              error: "File too large (max 5MB)",
+            });
+            continue;
+          }
+
+          // Validate MIME type
+          if (!SUPPORTED_MIME_TYPES.includes(mimetype)) {
+            results.push({
+              id: "",
+              fileName: originalName,
+              status: "error",
+              error: "Unsupported file type",
+            });
+            continue;
+          }
+
+          try {
+            // Upload file to storage using tenant ID as the storage folder
+            const uploadResult = await fileStorage.uploadFile(
+              `inbox-${auth.activeTenantId}`,
+              file,
+              originalName
+            );
+
+            // Create inbox item with the actual file path
+            // Set status to "pending" so items are immediately visible
+            // (background OCR processing not implemented yet)
+            const item = await createInbox({
+              tenantId: auth.activeTenantId!,
+              displayName: originalName,
+              filePath: uploadResult.path,
+              fileName: uploadResult.filename,
+              contentType: mimetype,
+              size: uploadResult.size,
+              status: "pending",
+            });
+
+            results.push({
+              id: item.id as string,
+              fileName: originalName,
+              status: "success",
+            });
+
+            // Queue AI processing (uses simple queue, no Redis required)
+            queueInboxProcessing(item.id as string, auth.activeTenantId!, {
+              generateEmbeddings: false,
+            }).catch((err) => {
+              logger.error({ error: err, inboxId: item.id }, "Failed to queue inbox processing");
+              // Fallback to direct processing if queue fails
+              processInboxItem(item.id as string, auth.activeTenantId!, {
+                generateEmbeddings: false,
+              }).catch((err2) => {
+                logger.error({ error: err2, inboxId: item.id }, "Direct AI processing also failed");
+              });
+            });
+          } catch (uploadError) {
+            logger.error(
+              { error: uploadError, fileName: originalName },
+              "Error uploading inbox file"
+            );
+            results.push({
+              id: "",
+              fileName: originalName,
+              status: "error",
+              error: "Upload failed",
+            });
+          }
+        }
+
+        const successCount = results.filter((r) => r.status === "success").length;
+        const failedCount = results.filter((r) => r.status === "error").length;
+
+        return json(
+          successResponse({
+            items: results.filter((r) => r.status === "success"),
+            report: {
+              uploadedCount: successCount,
+              failedCount,
+              failures: results
+                .filter((r) => r.status === "error")
+                .map((r) => ({ name: r.fileName, reason: r.error || "Unknown error" })),
+            },
+          }),
+          201
+        );
+      } catch (error) {
+        logger.error({ error }, "Error processing inbox upload");
+        return json(errorResponse("INTERNAL_ERROR", "Failed to process upload"), 500);
+      }
+    },
+    params: [],
+  },
+
+  // POST /api/v1/inbox - Create inbox item (for manual creation without file)
   {
     method: "POST",
     pattern: /^\/api\/v1\/inbox$/,
@@ -271,6 +460,124 @@ export const inboxRoutes: Route[] = [
       } catch (error) {
         logger.error({ error }, "Error declining match");
         return json(errorResponse("INTERNAL_ERROR", "Failed to decline match"), 500);
+      }
+    },
+    params: ["id"],
+  },
+
+  // POST /api/v1/inbox/:id/unmatch - Unmatch a previously confirmed match
+  {
+    method: "POST",
+    pattern: /^\/api\/v1\/inbox\/([^/]+)\/unmatch$/,
+    handler: async (request, _url, params) => {
+      const auth = await verifyAndGetUser(request);
+      if (!auth) {
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
+      }
+
+      try {
+        const result = await unmatchInboxItem({
+          tenantId: auth.activeTenantId!,
+          inboxId: params.id,
+          userId: auth.userId,
+        });
+
+        if (!result.success) {
+          return json(errorResponse("BAD_REQUEST", "Item is not matched or not found"), 400);
+        }
+
+        // Trigger calibration update in background (negative feedback recorded)
+        updateCalibration(auth.activeTenantId!).catch((err) => {
+          logger.error({ error: err }, "Failed to update calibration after unmatch");
+        });
+
+        return json(
+          successResponse({
+            message: "Match removed successfully",
+            transactionId: result.transactionId,
+          })
+        );
+      } catch (error) {
+        logger.error({ error }, "Error unmatching inbox item");
+        return json(errorResponse("INTERNAL_ERROR", "Failed to unmatch"), 500);
+      }
+    },
+    params: ["id"],
+  },
+
+  // GET /api/v1/inbox/:id/suggestions - Get match suggestion history
+  {
+    method: "GET",
+    pattern: /^\/api\/v1\/inbox\/([^/]+)\/suggestions$/,
+    handler: async (request, _url, params) => {
+      const auth = await verifyAndGetUser(request);
+      if (!auth) {
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
+      }
+
+      try {
+        const suggestions = await getMatchSuggestionHistory(auth.activeTenantId!, params.id);
+
+        return json(successResponse({ suggestions }));
+      } catch (error) {
+        logger.error({ error }, "Error getting suggestion history");
+        return json(errorResponse("INTERNAL_ERROR", "Failed to get suggestions"), 500);
+      }
+    },
+    params: ["id"],
+  },
+
+  // POST /api/v1/inbox/:id/process - Manually trigger AI processing
+  {
+    method: "POST",
+    pattern: /^\/api\/v1\/inbox\/([^/]+)\/process$/,
+    handler: async (request, _url, params) => {
+      const auth = await verifyAndGetUser(request);
+      if (!auth) {
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
+      }
+
+      try {
+        // Check if item exists
+        const item = await getInboxById(params.id, auth.activeTenantId!);
+        if (!item) {
+          return json(errorResponse("NOT_FOUND", "Inbox item not found"), 404);
+        }
+
+        // Parse optional body for embedding generation
+        let generateEmbeddings = false;
+        try {
+          const body = (await request.json()) as { generateEmbeddings?: boolean };
+          generateEmbeddings = body.generateEmbeddings || false;
+        } catch {
+          // Body is optional
+        }
+
+        // Process the item with AI
+        const result = await processInboxItem(params.id, auth.activeTenantId!, {
+          generateEmbeddings,
+        });
+
+        if (!result.success) {
+          return json(errorResponse("PROCESSING_ERROR", result.error || "Processing failed"), 500);
+        }
+
+        return json(
+          successResponse({
+            message: "Processing completed",
+            ocrResult: result.ocrResult
+              ? {
+                  confidence: result.ocrResult.confidence,
+                  provider: result.ocrResult.provider,
+                  extractedData: result.ocrResult.extractedData,
+                }
+              : null,
+            embeddingCreated: result.embeddingCreated,
+          })
+        );
+      } catch (error) {
+        logger.error({ error }, "Error processing inbox item");
+        return json(errorResponse("INTERNAL_ERROR", "Failed to process inbox item"), 500);
       }
     },
     params: ["id"],

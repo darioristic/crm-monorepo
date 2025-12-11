@@ -36,9 +36,7 @@ export const useTablesStore = create<TablesState>()((set) => ({
   setInvoiceRowSelection: (updater) =>
     set((state) => ({
       invoiceRowSelection:
-        typeof updater === "function"
-          ? updater(state.invoiceRowSelection)
-          : updater,
+        typeof updater === "function" ? updater(state.invoiceRowSelection) : updater,
     })),
   invoiceColumns: [],
   setInvoiceColumns: (columns) => set({ invoiceColumns: columns || [] }),
@@ -48,9 +46,7 @@ export const useTablesStore = create<TablesState>()((set) => ({
   setContactRowSelection: (updater) =>
     set((state) => ({
       contactRowSelection:
-        typeof updater === "function"
-          ? updater(state.contactRowSelection)
-          : updater,
+        typeof updater === "function" ? updater(state.contactRowSelection) : updater,
     })),
   contactColumns: [],
   setContactColumns: (columns) => set({ contactColumns: columns || [] }),
@@ -59,10 +55,7 @@ export const useTablesStore = create<TablesState>()((set) => ({
   quoteRowSelection: {},
   setQuoteRowSelection: (updater) =>
     set((state) => ({
-      quoteRowSelection:
-        typeof updater === "function"
-          ? updater(state.quoteRowSelection)
-          : updater,
+      quoteRowSelection: typeof updater === "function" ? updater(state.quoteRowSelection) : updater,
     })),
   quoteColumns: [],
   setQuoteColumns: (columns) => set({ quoteColumns: columns || [] }),
@@ -71,10 +64,7 @@ export const useTablesStore = create<TablesState>()((set) => ({
   orderRowSelection: {},
   setOrderRowSelection: (updater) =>
     set((state) => ({
-      orderRowSelection:
-        typeof updater === "function"
-          ? updater(state.orderRowSelection)
-          : updater,
+      orderRowSelection: typeof updater === "function" ? updater(state.orderRowSelection) : updater,
     })),
   orderColumns: [],
   setOrderColumns: (columns) => set({ orderColumns: columns || [] }),
@@ -90,12 +80,9 @@ export const useTablesStore = create<TablesState>()((set) => ({
 }));
 
 // Helper hook for getting selected IDs
-export function useSelectedIds(
-  rowSelection: RowSelectionState,
-  data: { id: string }[]
-): string[] {
+export function useSelectedIds(rowSelection: RowSelectionState, data: { id: string }[]): string[] {
   return Object.entries(rowSelection)
     .filter(([_, isSelected]) => isSelected)
-    .map(([index]) => data[Number.parseInt(index)]?.id)
+    .map(([index]) => data[Number.parseInt(index, 10)]?.id)
     .filter(Boolean) as string[];
 }

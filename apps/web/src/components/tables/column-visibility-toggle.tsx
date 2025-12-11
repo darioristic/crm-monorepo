@@ -1,5 +1,7 @@
 "use client";
 
+import type { Table } from "@tanstack/react-table";
+import { Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,8 +11,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Table } from "@tanstack/react-table";
-import { Settings2 } from "lucide-react";
 
 type ColumnVisibilityToggleProps<TData> = {
   table: Table<TData>;
@@ -21,9 +21,7 @@ export function ColumnVisibilityToggle<TData>({
   table,
   onVisibilityChange,
 }: ColumnVisibilityToggleProps<TData>) {
-  const columns = table
-    .getAllColumns()
-    .filter((column) => column.getCanHide());
+  const columns = table.getAllColumns().filter((column) => column.getCanHide());
 
   if (columns.length === 0) return null;
 
@@ -40,9 +38,7 @@ export function ColumnVisibilityToggle<TData>({
         <DropdownMenuSeparator />
         {columns.map((column) => {
           const columnName =
-            typeof column.columnDef.header === "string"
-              ? column.columnDef.header
-              : column.id;
+            typeof column.columnDef.header === "string" ? column.columnDef.header : column.id;
 
           return (
             <DropdownMenuCheckboxItem

@@ -4,21 +4,21 @@
  */
 
 import { errorResponse, successResponse } from "@crm/utils";
+import {
+  createAttachment,
+  deleteAttachment,
+  getAttachmentById,
+  getAttachmentsByPayment,
+  getUnlinkedAttachments,
+  linkAttachmentToPayment,
+  searchAttachments,
+  unlinkAttachmentFromPayment,
+  updateAttachment,
+} from "../db/queries/transaction-attachments";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
-import {
-  getAttachmentsByPayment,
-  getUnlinkedAttachments,
-  getAttachmentById,
-  createAttachment,
-  updateAttachment,
-  linkAttachmentToPayment,
-  unlinkAttachmentFromPayment,
-  deleteAttachment,
-  searchAttachments,
-} from "../db/queries/transaction-attachments";
 
 // ==============================================
 // TRANSACTION ATTACHMENTS ROUTES
@@ -210,7 +210,11 @@ export const transactionAttachmentRoutes: Route[] = [
           return json(errorResponse("VALIDATION_ERROR", "paymentId is required"), 400);
         }
 
-        const linked = await linkAttachmentToPayment(auth.activeTenantId!, params.id, body.paymentId);
+        const linked = await linkAttachmentToPayment(
+          auth.activeTenantId!,
+          params.id,
+          body.paymentId
+        );
         if (!linked) {
           return json(errorResponse("NOT_FOUND", "Attachment not found"), 404);
         }

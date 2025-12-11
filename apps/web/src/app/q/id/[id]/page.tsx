@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useApi } from "@/hooks/use-api";
-import { quotesApi } from "@/lib/api";
 import { QuotePublicView } from "../../[token]/quote-public-view";
 
 type Props = {
@@ -14,12 +12,32 @@ type Props = {
 
 export default function QuoteByIdPage({ params }: Props) {
   const { id } = use(params);
+  const [quote, setQuote] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const {
-    data: quote,
-    isLoading,
-    error,
-  } = useApi<any>(() => quotesApi.getById(id), { autoFetch: true });
+  useEffect(() => {
+    async function fetchQuote() {
+      try {
+        // Use public API endpoint that doesn't require authentication
+        // Uses Next.js proxy to avoid CORS issues
+        const response = await fetch(`/api/quotes/public/${id}`);
+
+        if (!response.ok) {
+          throw new Error("Quote not found");
+        }
+
+        const data = await response.json();
+        setQuote(data.data);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error("Failed to load quote"));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchQuote();
+  }, [id]);
 
   if (isLoading) {
     return (

@@ -1574,6 +1574,244 @@ class ReportsService {
       return errorResponse("DATABASE_ERROR", "Failed to fetch project duration stats");
     }
   }
+
+  // ============================================
+  // Finance Dashboard
+  // ============================================
+
+  async getFinanceDashboard(tenantId?: string): Promise<
+    ApiResponse<{
+      kpi: {
+        totalRevenue: number;
+        pendingInvoices: number;
+        totalExpenses: number;
+        netProfit: number;
+        currency: string;
+      };
+      revenueByCategory: Array<{
+        category: string;
+        amount: number;
+        percentage: number;
+        color: string;
+      }>;
+      transactions: Array<{
+        id: string;
+        description: string;
+        amount: number;
+        type: "income" | "expense";
+        date: string;
+        status: string;
+        companyName?: string;
+      }>;
+      monthlyTrend: Array<{
+        month: string;
+        revenue: number;
+        expenses: number;
+      }>;
+    }>
+  > {
+    try {
+      const cacheKey = `finance:dashboard:${tenantId || "all"}`;
+      const cached = await cache.get<{
+        kpi: {
+          totalRevenue: number;
+          pendingInvoices: number;
+          totalExpenses: number;
+          netProfit: number;
+          currency: string;
+        };
+        revenueByCategory: Array<{
+          category: string;
+          amount: number;
+          percentage: number;
+          color: string;
+        }>;
+        transactions: Array<{
+          id: string;
+          description: string;
+          amount: number;
+          type: "income" | "expense";
+          date: string;
+          status: string;
+          companyName?: string;
+        }>;
+        monthlyTrend: Array<{
+          month: string;
+          revenue: number;
+          expenses: number;
+        }>;
+      }>(cacheKey);
+      if (cached) {
+        return successResponse(cached);
+      }
+
+      // Build tenant filter - use parameterized queries for safety
+      const tenantFilter = tenantId ? `AND i.tenant_id = '${tenantId}'` : "";
+
+      // Initialize with defaults
+      let totalRevenue = 0;
+      let pendingAmount = 0;
+      let revenueByCategory: Array<{
+        category: string;
+        amount: number;
+        percentage: number;
+        color: string;
+      }> = [];
+      let transactions: Array<{
+        id: string;
+        description: string;
+        amount: number;
+        type: "income" | "expense";
+        date: string;
+        status: string;
+        companyName?: string;
+      }> = [];
+      let monthlyTrend: Array<{
+        month: string;
+        revenue: number;
+        expenses: number;
+      }> = [];
+
+      // KPI: Total revenue from completed payments; pending from invoices not fully paid
+      try {
+        const kpiResult = await db.unsafe(`
+          WITH revenue AS (
+            SELECT COALESCE(SUM(CAST(NULLIF(p.amount, '') AS DECIMAL)), 0) AS total_revenue
+            FROM payments p
+            JOIN invoices i ON p.invoice_id = i.id
+            WHERE p.status = 'completed' ${tenantFilter}
+          ), pending AS (
+            SELECT COALESCE(SUM(
+              CAST(NULLIF(i.total, '') AS DECIMAL) - COALESCE((
+                SELECT SUM(CAST(NULLIF(p2.amount, '') AS DECIMAL))
+                FROM payments p2
+                WHERE p2.invoice_id = i.id AND p2.status != 'cancelled'
+              ), 0)
+            ), 0) AS pending_amount
+            FROM invoices i
+            WHERE i.status IN ('sent', 'partial') ${tenantFilter}
+          )
+          SELECT revenue.total_revenue, pending.pending_amount FROM revenue, pending
+        `);
+        totalRevenue = parseFloat(kpiResult[0]?.total_revenue as string) || 0;
+        pendingAmount = parseFloat(kpiResult[0]?.pending_amount as string) || 0;
+      } catch (e) {
+        serviceLogger.warn({ error: e }, "Could not fetch KPIs");
+      }
+
+      // Revenue by company (from completed payments)
+      try {
+        const revenueByCompanyResult = await db.unsafe(`
+          SELECT
+            COALESCE(c.name, 'Unknown') AS category,
+            COALESCE(SUM(CAST(NULLIF(p.amount, '') AS DECIMAL)), 0) AS amount
+          FROM payments p
+          JOIN invoices i ON p.invoice_id = i.id
+          LEFT JOIN companies c ON i.company_id = c.id
+          WHERE p.status = 'completed' ${tenantFilter}
+          GROUP BY c.name
+          ORDER BY amount DESC
+          LIMIT 5
+        `);
+
+        const totalRevenueForCategories =
+          revenueByCompanyResult.reduce(
+            (sum: number, row: Record<string, unknown>) =>
+              sum + parseFloat((row.amount as string) || "0"),
+            0
+          ) || 1;
+
+        const categoryColors = ["#00C9A7", "#FFB547", "#FF6B6B", "#4C6EF5", "#845EF7"];
+        revenueByCategory = revenueByCompanyResult.map(
+          (row: Record<string, unknown>, index: number) => {
+            const amount = parseFloat((row.amount as string) || "0");
+            return {
+              category: (row.category as string) || "Other",
+              amount,
+              percentage: Math.round((amount / totalRevenueForCategories) * 100),
+              color: categoryColors[index % categoryColors.length],
+            };
+          }
+        );
+      } catch (e) {
+        serviceLogger.warn({ error: e }, "Could not fetch revenue by company");
+      }
+
+      // Recent transactions (completed payments)
+      try {
+        const transactionsResult = await db.unsafe(`
+          SELECT
+            p.id,
+            CONCAT('Payment for ', i.invoice_number) AS description,
+            p.amount,
+            CASE WHEN p.amount >= 0 THEN 'income' ELSE 'expense' END AS type,
+            p.payment_date AS date,
+            p.status,
+            c.name AS company_name
+          FROM payments p
+          JOIN invoices i ON p.invoice_id = i.id
+          LEFT JOIN companies c ON i.company_id = c.id
+          WHERE p.status = 'completed' ${tenantFilter}
+          ORDER BY p.payment_date DESC
+          LIMIT 10
+        `);
+
+        transactions = transactionsResult.map((row: Record<string, unknown>) => ({
+          id: row.id as string,
+          description: row.description as string,
+          amount: parseFloat((row.amount as string) || "0"),
+          type: (row.type as string) === "expense" ? "expense" : "income",
+          date: row.date ? (row.date as Date).toISOString() : new Date().toISOString(),
+          status: row.status as string,
+          companyName: row.company_name as string | undefined,
+        }));
+      } catch (e) {
+        serviceLogger.warn({ error: e }, "Could not fetch payments");
+      }
+
+      // Monthly trend (last 6 months from completed payments)
+      try {
+        const monthlyResult = await db.unsafe(`
+          SELECT
+            TO_CHAR(DATE_TRUNC('month', p.payment_date), 'Mon') AS month,
+            COALESCE(SUM(CAST(NULLIF(p.amount, '') AS DECIMAL)), 0) AS revenue
+          FROM payments p
+          JOIN invoices i ON p.invoice_id = i.id
+          WHERE p.payment_date >= NOW() - INTERVAL '6 months'
+            AND p.status = 'completed' ${tenantFilter}
+          GROUP BY DATE_TRUNC('month', p.payment_date)
+          ORDER BY DATE_TRUNC('month', p.payment_date) ASC
+        `);
+
+        monthlyTrend = monthlyResult.map((row: Record<string, unknown>) => ({
+          month: row.month as string,
+          revenue: parseFloat((row.revenue as string) || "0"),
+          expenses: 0,
+        }));
+      } catch (e) {
+        serviceLogger.warn({ error: e }, "Could not fetch monthly trend");
+      }
+
+      const result = {
+        kpi: {
+          totalRevenue,
+          pendingInvoices: pendingAmount,
+          totalExpenses: 0, // Not tracked yet
+          netProfit: totalRevenue, // Same as revenue since no expenses
+          currency: "EUR",
+        },
+        revenueByCategory,
+        transactions,
+        monthlyTrend,
+      };
+
+      await cache.set(cacheKey, result, 60); // 1 minute cache
+      return successResponse(result);
+    } catch (error) {
+      serviceLogger.error(error, "Error fetching finance dashboard:");
+      return errorResponse("DATABASE_ERROR", "Failed to fetch finance dashboard data");
+    }
+  }
 }
 
 export const reportsService = new ReportsService();

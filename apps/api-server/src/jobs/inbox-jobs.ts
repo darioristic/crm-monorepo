@@ -6,14 +6,14 @@
 import { type Job, Worker } from "bullmq";
 import { sql as db } from "../db/client";
 import { serviceLogger } from "../lib/logger";
-import { processDocument, type OCRResult } from "../services/document-ocr";
+import { type OCRResult, processDocument } from "../services/document-ocr";
 import { generateEmbedding } from "../services/embeddings";
 import { findMatchesForInbox } from "../services/inbox-matching";
 import type {
-  InboxOCRJobData,
   InboxEmbeddingJobData,
-  InboxMatchingJobData,
   InboxFullProcessJobData,
+  InboxMatchingJobData,
+  InboxOCRJobData,
 } from "./queue";
 
 // ==============================================
@@ -63,8 +63,8 @@ function createInboxOCRWorker(): Worker {
         `;
 
         // Read file from storage
-        const fs = await import("fs/promises");
-        const path = await import("path");
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
         const vaultPath = process.env.VAULT_PATH || "./vault";
         const fullPath = path.join(vaultPath, ...filePath);
 
@@ -193,7 +193,10 @@ function createInboxEmbeddingWorker(): Worker {
   });
 
   worker.on("failed", (job, err) => {
-    serviceLogger.error({ jobId: job?.id, queue: INBOX_QUEUES.EMBEDDING, error: err }, "Job failed");
+    serviceLogger.error(
+      { jobId: job?.id, queue: INBOX_QUEUES.EMBEDDING, error: err },
+      "Job failed"
+    );
   });
 
   return worker;
@@ -327,8 +330,8 @@ function createInboxFullProcessWorker(): Worker {
 
         // Step 1: OCR
         serviceLogger.info({ inboxId }, "Step 1: Running OCR");
-        const fs = await import("fs/promises");
-        const path = await import("path");
+        const fs = await import("node:fs/promises");
+        const path = await import("node:path");
         const vaultPath = process.env.VAULT_PATH || "./vault";
         const fullPath = path.join(vaultPath, ...filePath);
 
@@ -454,10 +457,7 @@ function createInboxFullProcessWorker(): Worker {
           WHERE id = ${inboxId} AND tenant_id = ${tenantId}
         `;
 
-        serviceLogger.info(
-          { jobId: job.id, inboxId, matchCount },
-          "Full inbox pipeline completed"
-        );
+        serviceLogger.info({ jobId: job.id, inboxId, matchCount }, "Full inbox pipeline completed");
 
         return {
           success: true,

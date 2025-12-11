@@ -3,8 +3,8 @@
  * CRUD operations for transaction category management
  */
 
-import { sql as db } from "../client";
 import { serviceLogger } from "../../lib/logger";
+import { sql as db } from "../client";
 
 // ==============================================
 // TYPES
@@ -381,7 +381,9 @@ export async function seedDefaultCategories(tenantId: string): Promise<void> {
 /**
  * Get category usage count (number of transactions)
  */
-export async function getCategoryUsage(tenantId: string): Promise<Array<{ slug: string; count: number }>> {
+export async function getCategoryUsage(
+  tenantId: string
+): Promise<Array<{ slug: string; count: number }>> {
   try {
     const result = await db`
       SELECT

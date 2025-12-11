@@ -3,11 +3,11 @@
  * Allows AI to create invoices for customers
  */
 
+import { generateUUID, now } from "@crm/utils";
 import { tool } from "ai";
 import { z } from "zod";
 import { sql } from "../../db/client";
 import { invoiceQueries } from "../../db/queries/invoices";
-import { generateUUID, now } from "@crm/utils";
 
 const invoiceItemSchema = z.object({
   productName: z.string().describe("Name of the product or service"),
@@ -100,7 +100,8 @@ export const createInvoiceTool = tool({
       const invoiceNumber = await invoiceQueries.generateNumber();
 
       // Calculate due date (default to 30 days from now)
-      const calculatedDueDate = dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+      const calculatedDueDate =
+        dueDate || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
 
       // Create the invoice
       const invoice = await invoiceQueries.create(
@@ -156,9 +157,9 @@ export const createInvoiceTool = tool({
 
       // Include links to view the invoice
       response += `\n### Links\n`;
-      response += `- **Dashboard**: /dashboard/sales/invoices/${invoice.id}\n`;
+      response += `- [📄 View Invoice in Dashboard](/dashboard/sales/invoices/${invoice.id})\n`;
       if (invoice.token) {
-        response += `- **Public Link**: /i/${invoice.token}\n`;
+        response += `- [🔗 Public Invoice Link](/i/${invoice.token})\n`;
       }
       response += `\n📝 The invoice has been created as a **draft**. You can review and send it from the invoices page.`;
 

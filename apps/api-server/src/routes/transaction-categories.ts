@@ -4,20 +4,20 @@
  */
 
 import { errorResponse, successResponse } from "@crm/utils";
+import {
+  createCategory,
+  deleteCategory,
+  getCategories,
+  getCategoryById,
+  getCategoryBySlug,
+  getCategoryUsage,
+  seedDefaultCategories,
+  updateCategory,
+} from "../db/queries/transaction-categories";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
-import {
-  getCategories,
-  getCategoryById,
-  getCategoryBySlug,
-  createCategory,
-  updateCategory,
-  deleteCategory,
-  seedDefaultCategories,
-  getCategoryUsage,
-} from "../db/queries/transaction-categories";
 
 // ==============================================
 // TRANSACTION CATEGORIES ROUTES
@@ -166,7 +166,13 @@ export const transactionCategoryRoutes: Route[] = [
 
         // Validate slug format
         if (!/^[a-z0-9-]+$/.test(body.slug)) {
-          return json(errorResponse("VALIDATION_ERROR", "Slug must only contain lowercase letters, numbers, and hyphens"), 400);
+          return json(
+            errorResponse(
+              "VALIDATION_ERROR",
+              "Slug must only contain lowercase letters, numbers, and hyphens"
+            ),
+            400
+          );
         }
 
         // Check if slug already exists
@@ -219,7 +225,10 @@ export const transactionCategoryRoutes: Route[] = [
 
         const category = await updateCategory(auth.activeTenantId!, params.id, body);
         if (!category) {
-          return json(errorResponse("NOT_FOUND", "Category not found or is a system category"), 404);
+          return json(
+            errorResponse("NOT_FOUND", "Category not found or is a system category"),
+            404
+          );
         }
 
         return json(successResponse({ category }));
@@ -244,7 +253,10 @@ export const transactionCategoryRoutes: Route[] = [
       try {
         const deleted = await deleteCategory(auth.activeTenantId!, params.id);
         if (!deleted) {
-          return json(errorResponse("NOT_FOUND", "Category not found or is a system category"), 404);
+          return json(
+            errorResponse("NOT_FOUND", "Category not found or is a system category"),
+            404
+          );
         }
 
         return json(successResponse({ message: "Category deleted" }));

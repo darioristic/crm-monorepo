@@ -74,11 +74,14 @@ function setAuthCookies(
   try {
     if (originHeader) {
       const originUrl = new URL(originHeader);
-      isCrossSite = originUrl.origin !== reqUrl.origin;
+      // Only consider truly cross-site (different hostnames), not just different ports
+      // localhost:3000 -> localhost:3001 is NOT cross-site
+      isCrossSite = originUrl.hostname !== reqUrl.hostname;
     }
   } catch {}
   const isHttps = reqUrl.protocol === "https:" || forwardedProto === "https";
-  const sameSite = isCrossSite ? "None" : "Lax";
+  // For local development (HTTP), always use Lax to avoid cookie issues in incognito
+  const sameSite = isCrossSite && isHttps ? "None" : "Lax";
   const secureAttr = isHttps ? "Secure; " : "";
   const cookieDomain = getCookieDomain();
   const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
@@ -100,11 +103,13 @@ function clearAuthCookies(request: Request): Record<string, string | string[]> {
   try {
     if (originHeader) {
       const originUrl = new URL(originHeader);
-      isCrossSite = originUrl.origin !== reqUrl.origin;
+      // Only consider truly cross-site (different hostnames), not just different ports
+      isCrossSite = originUrl.hostname !== reqUrl.hostname;
     }
   } catch {}
   const isHttps = reqUrl.protocol === "https:" || forwardedProto === "https";
-  const sameSite = isCrossSite ? "None" : "Lax";
+  // For local development (HTTP), always use Lax to avoid cookie issues in incognito
+  const sameSite = isCrossSite && isHttps ? "None" : "Lax";
   const secureAttr = isHttps ? "Secure; " : "";
   const cookieDomain = getCookieDomain();
   const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
@@ -272,7 +277,7 @@ export async function refreshHandler(request: Request, _url: URL): Promise<Respo
 
   if (!result.success) {
     // Clear cookies on failed refresh
-    return json(result, 401, clearAuthCookies());
+    return json(result, 401, clearAuthCookies(request));
   }
 
   // Log token refresh
@@ -527,5 +532,5 @@ export async function changePasswordHandler(request: Request, _url: URL): Promis
   });
 
   // Clear cookies to force re-login
-  return json(result, 200, clearAuthCookies());
+  return json(result, 200, clearAuthCookies(request));
 }

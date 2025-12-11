@@ -24,7 +24,8 @@ interface MonthlyBurn {
 }
 
 export const getBurnRateTool = tool({
-  description: "Calculate monthly burn rate, spending trends, and runway projections. Use this to understand how fast money is being spent.",
+  description:
+    "Calculate monthly burn rate, spending trends, and runway projections. Use this to understand how fast money is being spent.",
   parameters: getBurnRateSchema,
   execute: async (params: GetBurnRateParams): Promise<string> => {
     const { tenantId, months, includeProjections } = params;
@@ -71,27 +72,35 @@ export const getBurnRateTool = tool({
         }
       }
 
-      const sortedMonths = Array.from(monthlyBurn.values())
-        .sort((a, b) => b.month.localeCompare(a.month));
+      const sortedMonths = Array.from(monthlyBurn.values()).sort((a, b) =>
+        b.month.localeCompare(a.month)
+      );
 
       // Calculate averages
-      const avgBurn = sortedMonths.length > 0
-        ? sortedMonths.reduce((sum, m) => sum + m.netBurn, 0) / sortedMonths.length
-        : 0;
+      const avgBurn =
+        sortedMonths.length > 0
+          ? sortedMonths.reduce((sum, m) => sum + m.netBurn, 0) / sortedMonths.length
+          : 0;
 
-      const avgExpenses = sortedMonths.length > 0
-        ? sortedMonths.reduce((sum, m) => sum + m.totalExpenses, 0) / sortedMonths.length
-        : 0;
+      const avgExpenses =
+        sortedMonths.length > 0
+          ? sortedMonths.reduce((sum, m) => sum + m.totalExpenses, 0) / sortedMonths.length
+          : 0;
 
-      const avgIncome = sortedMonths.length > 0
-        ? sortedMonths.reduce((sum, m) => sum + m.totalIncome, 0) / sortedMonths.length
-        : 0;
+      const avgIncome =
+        sortedMonths.length > 0
+          ? sortedMonths.reduce((sum, m) => sum + m.totalIncome, 0) / sortedMonths.length
+          : 0;
 
       // Calculate trend (positive means increasing burn)
       let trend = 0;
       if (sortedMonths.length >= 2) {
-        const recentBurn = sortedMonths.slice(0, 3).reduce((sum, m) => sum + m.netBurn, 0) / Math.min(3, sortedMonths.length);
-        const olderBurn = sortedMonths.slice(-3).reduce((sum, m) => sum + m.netBurn, 0) / Math.min(3, sortedMonths.length);
+        const recentBurn =
+          sortedMonths.slice(0, 3).reduce((sum, m) => sum + m.netBurn, 0) /
+          Math.min(3, sortedMonths.length);
+        const olderBurn =
+          sortedMonths.slice(-3).reduce((sum, m) => sum + m.netBurn, 0) /
+          Math.min(3, sortedMonths.length);
         trend = olderBurn !== 0 ? ((recentBurn - olderBurn) / Math.abs(olderBurn)) * 100 : 0;
       }
 
@@ -116,11 +125,11 @@ export const getBurnRateTool = tool({
       response += `| Average Monthly Burn | ${formatCurrency(avgBurn)} |\n`;
       response += `| Average Monthly Expenses | ${formatCurrency(avgExpenses)} |\n`;
       response += `| Average Monthly Income | ${formatCurrency(avgIncome)} |\n`;
-      response += `| Burn Trend | ${trend > 0 ? '📈' : '📉'} ${trend.toFixed(1)}% |\n`;
+      response += `| Burn Trend | ${trend > 0 ? "📈" : "📉"} ${trend.toFixed(1)}% |\n`;
       response += `| Current Balance | ${formatCurrency(currentBalance)} |\n`;
 
       if (includeProjections) {
-        response += `| Runway | ${runway === Infinity ? '∞' : `${runway} months`} |\n`;
+        response += `| Runway | ${runway === Infinity ? "∞" : `${runway} months`} |\n`;
       }
 
       response += `\n### Monthly Breakdown\n`;
@@ -128,7 +137,7 @@ export const getBurnRateTool = tool({
       response += `|-------|----------|--------|----------|\n`;
 
       for (const month of sortedMonths.slice(0, 6)) {
-        const burnIndicator = month.netBurn > 0 ? '🔴' : '🟢';
+        const burnIndicator = month.netBurn > 0 ? "🔴" : "🟢";
         response += `| ${month.month} | ${formatCurrency(month.totalExpenses)} | ${formatCurrency(month.totalIncome)} | ${burnIndicator} ${formatCurrency(month.netBurn)} |\n`;
       }
 
@@ -151,7 +160,7 @@ export const getBurnRateTool = tool({
 
         const totalExpenses = Object.values(allCategories).reduce((sum, v) => sum + v, 0);
         for (const [category, amount] of topCategories) {
-          const percentage = totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : '0';
+          const percentage = totalExpenses > 0 ? ((amount / totalExpenses) * 100).toFixed(1) : "0";
           response += `| ${category} | ${formatCurrency(amount)} | ${percentage}% |\n`;
         }
       }
@@ -159,15 +168,15 @@ export const getBurnRateTool = tool({
       return response;
     } catch (error) {
       console.error("Error calculating burn rate:", error);
-      return `❌ Error calculating burn rate: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return `❌ Error calculating burn rate: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);

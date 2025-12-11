@@ -379,9 +379,7 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
               borderBottomColor: "#e5e5e5",
             }}
           >
-            <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>
-              {template.discountLabel}:
-            </Text>
+            <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>{template.discountLabel}:</Text>
             <Text style={{ fontSize: 9, textAlign: "right", color: "#000" }}>
               -{formatAmount(result.discountAmount)}
             </Text>
@@ -397,9 +395,7 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
               borderBottomColor: "#e5e5e5",
             }}
           >
-            <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>
-              {template.subtotalLabel}:
-            </Text>
+            <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>{template.subtotalLabel}:</Text>
             <Text style={{ fontSize: 9, textAlign: "right", color: "#000" }}>
               {formatAmount(result.subTotal)}
             </Text>

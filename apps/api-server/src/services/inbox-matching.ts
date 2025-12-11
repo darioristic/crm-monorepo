@@ -1,17 +1,16 @@
 /**
- * Advanced Inbox Matching Service
- * Multi-tier matching algorithm with confidence scoring
- * Adapted from Midday's matching system
+ * Inbox Matching Service
+ *
+ * Provides document-to-transaction matching with:
+ * - Multi-tier query strategy
+ * - Semantic embeddings
+ * - Per-tenant calibration
+ * - Merchant pattern learning
+ *
+ * Adapted from Midday's matching system.
  */
 
 import { sql as db } from "../db/client";
-import { serviceLogger } from "../lib/logger";
-import {
-  generateEmbedding,
-  cosineSimilarity,
-  prepareInboxText,
-  prepareTransactionText,
-} from "./embeddings";
 import {
   calculateAmountScore,
   calculateCurrencyScore,
@@ -19,6 +18,19 @@ import {
   createMatchSuggestion,
   type InboxType,
 } from "../db/queries/inbox";
+import { serviceLogger } from "../lib/logger";
+import {
+  cosineSimilarity,
+  generateEmbedding,
+  prepareInboxText,
+  prepareTransactionText,
+} from "./embeddings";
+import {
+  findMatchesTiered,
+  findInboxMatchesForTransaction,
+  type MatchResult,
+} from "./advanced-matching.service";
+import { getCalibration, updateCalibration } from "./calibration.service";
 
 // ==============================================
 // THRESHOLDS & WEIGHTS
@@ -154,21 +166,14 @@ async function calculateMatchScores(
   // Calculate individual scores
   const embeddingScore = cosineSimilarity(inboxEmbedding, paymentEmbedding);
 
-  const amountScore = calculateAmountScore(
-    { amount: inbox.amount },
-    { amount: payment.amount }
-  );
+  const amountScore = calculateAmountScore({ amount: inbox.amount }, { amount: payment.amount });
 
   const currencyScore = calculateCurrencyScore(
     inbox.currency || undefined,
     payment.currency || undefined
   );
 
-  const dateScore = calculateDateScore(
-    inbox.date,
-    payment.date,
-    inbox.type
-  );
+  const dateScore = calculateDateScore(inbox.date, payment.date, inbox.type);
 
   // Calculate weighted confidence score
   let confidenceScore =
@@ -214,10 +219,7 @@ async function calculateMatchScores(
 /**
  * Get potential payment candidates for matching
  */
-async function getPaymentCandidates(
-  tenantId: string,
-  inbox: InboxItem
-): Promise<PaymentItem[]> {
+async function getPaymentCandidates(tenantId: string, inbox: InboxItem): Promise<PaymentItem[]> {
   try {
     // Get payments from the last 90 days that aren't already matched
     const inboxDate = inbox.date ? new Date(inbox.date) : new Date();
@@ -260,7 +262,7 @@ async function getPaymentCandidates(
 }
 
 /**
- * Process matching for an inbox item and create suggestions
+ * Process matching for an inbox item using advanced tiered strategy
  */
 export async function processInboxMatching(
   tenantId: string,
@@ -268,35 +270,13 @@ export async function processInboxMatching(
 ): Promise<{
   matches: number;
   autoMatched: boolean;
+  matchResult?: MatchResult;
 }> {
   try {
-    // Get inbox item
-    const inboxResult = await db`
-      SELECT id, display_name, website, description, amount, currency, date, type
-      FROM inbox
-      WHERE id = ${inboxId} AND tenant_id = ${tenantId}
-      LIMIT 1
-    `;
+    // Use advanced tiered matching
+    const match = await findMatchesTiered(tenantId, inboxId);
 
-    if (inboxResult.length === 0) {
-      return { matches: 0, autoMatched: false };
-    }
-
-    const inbox: InboxItem = {
-      id: inboxResult[0].id as string,
-      displayName: inboxResult[0].display_name as string | null,
-      website: inboxResult[0].website as string | null,
-      description: inboxResult[0].description as string | null,
-      amount: inboxResult[0].amount ? Number(inboxResult[0].amount) : null,
-      currency: inboxResult[0].currency as string | null,
-      date: inboxResult[0].date as string | null,
-      type: inboxResult[0].type as InboxType | null,
-    };
-
-    // Find matches
-    const matches = await findMatchesForInbox(tenantId, inbox);
-
-    if (matches.length === 0) {
+    if (!match) {
       // Update inbox status to no_match
       await db`
         UPDATE inbox
@@ -306,39 +286,37 @@ export async function processInboxMatching(
       return { matches: 0, autoMatched: false };
     }
 
-    // Create match suggestions
+    // Create match suggestion
+    await createMatchSuggestion({
+      tenantId,
+      inboxId,
+      transactionId: match.paymentId,
+      confidenceScore: match.confidenceScore,
+      amountScore: match.amountScore,
+      currencyScore: match.currencyScore,
+      dateScore: match.dateScore,
+      embeddingScore: match.embeddingScore,
+      matchType: match.matchType,
+      matchDetails: {
+        tier: match.tier,
+        isPerfectFinancialMatch: match.isPerfectFinancialMatch,
+        merchantPatternEligible: match.merchantPatternEligible,
+        reason: match.reason,
+      },
+    });
+
     let autoMatched = false;
 
-    for (const match of matches) {
-      await createMatchSuggestion({
-        tenantId,
-        inboxId,
-        transactionId: match.paymentId,
-        confidenceScore: match.confidenceScore,
-        amountScore: match.amountScore,
-        currencyScore: match.currencyScore,
-        dateScore: match.dateScore,
-        embeddingScore: match.embeddingScore,
-        matchType: match.matchType,
-        matchDetails: {
-          weights: DEFAULT_WEIGHTS,
-          thresholds: CONFIDENCE_THRESHOLDS,
-        },
-      });
-
-      // Auto-match if confidence is high enough
-      if (match.matchType === "auto_matched" && !autoMatched) {
-        await db`
-          UPDATE inbox
-          SET status = 'done', transaction_id = ${match.paymentId}, updated_at = NOW()
-          WHERE id = ${inboxId} AND tenant_id = ${tenantId}
-        `;
-        autoMatched = true;
-      }
-    }
-
-    // Update inbox status if not auto-matched
-    if (!autoMatched) {
+    // Auto-match if confidence is high enough
+    if (match.matchType === "auto_matched") {
+      await db`
+        UPDATE inbox
+        SET status = 'done', transaction_id = ${match.paymentId}, updated_at = NOW()
+        WHERE id = ${inboxId} AND tenant_id = ${tenantId}
+      `;
+      autoMatched = true;
+    } else {
+      // Update inbox status to suggested_match
       await db`
         UPDATE inbox
         SET status = 'suggested_match', updated_at = NOW()
@@ -346,17 +324,97 @@ export async function processInboxMatching(
       `;
     }
 
-    serviceLogger.info({
-      inboxId,
-      matchCount: matches.length,
-      autoMatched,
-      topConfidence: matches[0]?.confidenceScore,
-    }, "Inbox matching completed");
+    serviceLogger.info(
+      {
+        inboxId,
+        paymentId: match.paymentId,
+        confidence: match.confidenceScore,
+        matchType: match.matchType,
+        tier: match.tier,
+        autoMatched,
+      },
+      "Inbox matching completed"
+    );
 
-    return { matches: matches.length, autoMatched };
+    return { matches: 1, autoMatched, matchResult: match };
   } catch (error) {
     serviceLogger.error({ error, inboxId }, "Error processing inbox matching");
     return { matches: 0, autoMatched: false };
+  }
+}
+
+/**
+ * Process matching for a transaction (reverse direction)
+ * Finds inbox items that match a given transaction
+ */
+export async function processTransactionMatching(
+  tenantId: string,
+  transactionId: string
+): Promise<{
+  matched: boolean;
+  inboxId?: string;
+  matchResult?: MatchResult;
+}> {
+  try {
+    const match = await findInboxMatchesForTransaction(tenantId, transactionId);
+
+    if (!match) {
+      return { matched: false };
+    }
+
+    // In reverse matching, paymentId is actually the inboxId
+    const inboxId = match.paymentId;
+
+    // Create match suggestion
+    await createMatchSuggestion({
+      tenantId,
+      inboxId,
+      transactionId,
+      confidenceScore: match.confidenceScore,
+      amountScore: match.amountScore,
+      currencyScore: match.currencyScore,
+      dateScore: match.dateScore,
+      embeddingScore: match.embeddingScore,
+      matchType: match.matchType,
+      matchDetails: {
+        direction: "transaction_to_inbox",
+        tier: match.tier,
+        isPerfectFinancialMatch: match.isPerfectFinancialMatch,
+      },
+    });
+
+    let autoMatched = false;
+
+    if (match.matchType === "auto_matched") {
+      await db`
+        UPDATE inbox
+        SET status = 'done', transaction_id = ${transactionId}, updated_at = NOW()
+        WHERE id = ${inboxId} AND tenant_id = ${tenantId}
+      `;
+      autoMatched = true;
+    } else {
+      await db`
+        UPDATE inbox
+        SET status = 'suggested_match', updated_at = NOW()
+        WHERE id = ${inboxId} AND tenant_id = ${tenantId}
+      `;
+    }
+
+    serviceLogger.info(
+      {
+        transactionId,
+        inboxId,
+        confidence: match.confidenceScore,
+        matchType: match.matchType,
+        autoMatched,
+      },
+      "Transaction matching completed"
+    );
+
+    return { matched: true, inboxId, matchResult: match };
+  } catch (error) {
+    serviceLogger.error({ error, transactionId }, "Error processing transaction matching");
+    return { matched: false };
   }
 }
 

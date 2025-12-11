@@ -5,8 +5,8 @@ import { useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { LabelInput } from "@/components/invoice/label-input";
 import { Editor } from "@/components/quote/editor";
-import { logger } from "@/lib/logger";
 import { useTenant } from "@/contexts/tenant-context";
+import { logger } from "@/lib/logger";
 
 const STORAGE_KEY = "quote_from_details";
 const STORAGE_LABEL_KEY = "quote_from_label";
@@ -46,9 +46,7 @@ export function FromDetails() {
         const lines: string[] = [];
         if (account?.name) lines.push(account.name);
         if (account?.address) lines.push(account.address);
-        const cityLine = [account?.city, account?.zip, account?.country]
-          .filter(Boolean)
-          .join(", ");
+        const cityLine = [account?.city, account?.zip, account?.country].filter(Boolean).join(", ");
         if (cityLine) lines.push(cityLine);
         if (account?.email) lines.push(account.email);
         if (account?.phone) lines.push(account.phone);

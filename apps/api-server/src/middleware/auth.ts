@@ -90,7 +90,10 @@ export async function verifyAndGetUser(request: Request): Promise<AuthContext | 
     }
 
     if (!session) {
-      logger.warn({ userId: payload.userId, sessionId: payload.sessionId }, "Auth proceeding without cached session");
+      logger.warn(
+        { userId: payload.userId, sessionId: payload.sessionId },
+        "Auth proceeding without cached session"
+      );
     }
 
     // Load user's tenant roles and company from database

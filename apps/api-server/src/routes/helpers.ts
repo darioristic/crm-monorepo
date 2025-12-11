@@ -254,17 +254,17 @@ export async function getCompanyIdForFilter(
             return {
               companyId: null,
               error: json(
-                errorResponse(
-                  "FORBIDDEN",
-                  "User is not a member of any company in active tenant"
-                ),
+                errorResponse("FORBIDDEN", "User is not a member of any company in active tenant"),
                 403
               ),
             };
           }
         }
       } catch (error) {
-        logger.error({ error, userId: auth.userId, tenantId: userTenantId }, "Failed to derive companyId from tenant");
+        logger.error(
+          { error, userId: auth.userId, tenantId: userTenantId },
+          "Failed to derive companyId from tenant"
+        );
         return {
           companyId: null,
           error: json(errorResponse("INTERNAL_ERROR", "Failed to resolve company"), 500),

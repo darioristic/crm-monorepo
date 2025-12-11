@@ -1,20 +1,24 @@
 "use client";
 
-import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { format } from "date-fns";
 import {
-  FileText,
   Calendar,
-  DollarSign,
-  Globe,
-  Mail,
   CheckCircle2,
-  XCircle,
-  AlertCircle,
-  Loader2,
+  DollarSign,
   ExternalLink,
+  FileText,
+  Globe,
+  Loader2,
+  Mail,
+  XCircle,
 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import {
   Sheet,
   SheetContent,
@@ -22,12 +26,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "sonner";
-import { inboxApi, type InboxItem } from "@/lib/api/inbox";
+import { type InboxItem, inboxApi } from "@/lib/api/inbox";
 import { formatCurrency } from "@/lib/utils";
 
 interface InboxItemSheetProps {
@@ -37,23 +36,14 @@ interface InboxItemSheetProps {
   onUpdate: () => void;
 }
 
-export function InboxItemSheet({
-  item,
-  open,
-  onOpenChange,
-  onUpdate,
-}: InboxItemSheetProps) {
-  const [isProcessing, setIsProcessing] = useState(false);
+export function InboxItemSheet({ item, open, onOpenChange, onUpdate }: InboxItemSheetProps) {
+  const [_isProcessing, _setIsProcessing] = useState(false);
 
   // Confirm match mutation
   const confirmMutation = useMutation({
     mutationFn: async () => {
       if (!item?.suggestion) return;
-      return inboxApi.confirmMatch(
-        item.id,
-        item.suggestion.transactionId,
-        item.suggestion.id
-      );
+      return inboxApi.confirmMatch(item.id, item.suggestion.transactionId, item.suggestion.id);
     },
     onSuccess: () => {
       toast.success("Match confirmed");
@@ -84,18 +74,14 @@ export function InboxItemSheet({
   if (!item) return null;
 
   const hasMatch = item.suggestion && item.status === "suggested_match";
-  const confidencePercent = item.suggestion
-    ? Math.round(item.suggestion.confidenceScore * 100)
-    : 0;
+  const confidencePercent = item.suggestion ? Math.round(item.suggestion.confidenceScore * 100) : 0;
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>{item.displayName || item.fileName || "Document"}</SheetTitle>
-          <SheetDescription>
-            {item.senderEmail && `From: ${item.senderEmail}`}
-          </SheetDescription>
+          <SheetDescription>{item.senderEmail && `From: ${item.senderEmail}`}</SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-6">
@@ -194,9 +180,7 @@ export function InboxItemSheet({
                 <div className="flex items-center gap-3">
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">Date</span>
-                  <span className="ml-auto">
-                    {format(new Date(item.date), "PP")}
-                  </span>
+                  <span className="ml-auto">{format(new Date(item.date), "PP")}</span>
                 </div>
               )}
 
@@ -220,9 +204,7 @@ export function InboxItemSheet({
                 <div className="flex items-center gap-3">
                   <Mail className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">From</span>
-                  <span className="ml-auto truncate max-w-[200px]">
-                    {item.senderEmail}
-                  </span>
+                  <span className="ml-auto truncate max-w-[200px]">{item.senderEmail}</span>
                 </div>
               )}
 
@@ -230,9 +212,7 @@ export function InboxItemSheet({
                 <div className="flex items-center gap-3">
                   <FileText className="h-4 w-4 text-muted-foreground" />
                   <span className="text-sm text-muted-foreground">File</span>
-                  <span className="ml-auto truncate max-w-[200px]">
-                    {item.fileName}
-                  </span>
+                  <span className="ml-auto truncate max-w-[200px]">{item.fileName}</span>
                 </div>
               )}
             </div>

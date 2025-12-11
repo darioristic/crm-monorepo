@@ -6,8 +6,10 @@ import type {
   ConversionFunnel,
   CreateCompanyRequest,
   CreateContactRequest,
+  CreateDealRequest,
   CreateDeliveryNoteRequest,
   CreateInvoiceRequest,
+  CreateLeadRequest,
   CreateMilestoneRequest,
   CreateNotificationRequest,
   CreateOrderRequest,
@@ -19,11 +21,14 @@ import type {
   CreateTaskRequest,
   CreateUserRequest,
   CustomerOrganization,
+  Deal,
+  DealStage,
   DeliveryNote,
   DeliveryNoteReport,
   Invoice,
   InvoiceReport,
   InvoiceStatusBreakdown,
+  Lead,
   Milestone,
   MilestoneBreakdown,
   MilestoneReport,
@@ -51,8 +56,10 @@ import type {
   TopCustomer,
   UpdateCompanyRequest,
   UpdateContactRequest,
+  UpdateDealRequest,
   UpdateDeliveryNoteRequest,
   UpdateInvoiceRequest,
+  UpdateLeadRequest,
   UpdateMilestoneRequest,
   UpdateOrderRequest,
   UpdatePaymentRequest,
@@ -462,6 +469,64 @@ export const contactsApi = {
       method: "POST",
       body: JSON.stringify({ favorite }),
     }),
+};
+
+// Leads API
+export const leadsApi = {
+  getAll: (params: FilterParams & PaginationParams = {}) =>
+    request<Lead[]>(`/api/v1/leads${buildQueryString(params)}`),
+
+  getById: (id: string) => request<Lead>(`/api/v1/leads/${id}`),
+
+  create: (data: CreateLeadRequest) =>
+    request<Lead>("/api/v1/leads", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: UpdateLeadRequest) =>
+    request<Lead>(`/api/v1/leads/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/v1/leads/${id}`, {
+      method: "DELETE",
+    }),
+};
+
+// Deals API
+export const dealsApi = {
+  getAll: (params: FilterParams & PaginationParams = {}) =>
+    request<Deal[]>(`/api/v1/deals${buildQueryString(params)}`),
+
+  getById: (id: string) => request<Deal>(`/api/v1/deals/${id}`),
+
+  create: (data: CreateDealRequest) =>
+    request<Deal>("/api/v1/deals", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: UpdateDealRequest) =>
+    request<Deal>(`/api/v1/deals/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/v1/deals/${id}`, {
+      method: "DELETE",
+    }),
+
+  getPipelineSummary: () =>
+    request<{
+      stages: { stage: DealStage; count: number; totalValue: number }[];
+      totalDeals: number;
+      totalValue: number;
+      avgDealValue: number;
+    }>("/api/v1/deals/pipeline"),
 };
 
 // Companies API
@@ -962,6 +1027,36 @@ export const reportsApi = {
 
   getProjectSummary: (params: FilterParams = {}) =>
     request<ProjectSummary>(`/api/v1/reports/projects/summary${buildQueryString(params)}`),
+  getFinanceDashboard: (params: { tenantId?: string } = {}) =>
+    request<{
+      kpi: {
+        totalRevenue: number;
+        pendingInvoices: number;
+        totalExpenses: number;
+        netProfit: number;
+        currency: string;
+      };
+      revenueByCategory: Array<{
+        category: string;
+        amount: number;
+        percentage: number;
+        color: string;
+      }>;
+      transactions: Array<{
+        id: string;
+        description: string;
+        amount: number;
+        type: "income" | "expense";
+        date: string;
+        status: string;
+        companyName?: string;
+      }>;
+      monthlyTrend: Array<{
+        month: string;
+        revenue: number;
+        expenses: number;
+      }>;
+    }>(`/api/v1/reports/finance-dashboard${buildQueryString(params)}`),
 };
 
 // Analytics API

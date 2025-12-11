@@ -8,6 +8,7 @@ import { notificationQueries } from "../db/queries/notifications";
 import { emailService } from "../integrations/email.service";
 import { logger } from "../lib/logger";
 import { aiService } from "../services/ai.service";
+import { startInboxWorkers, stopInboxWorkers } from "./inbox-jobs";
 import {
   type DocumentProcessingJobData,
   type EmailJobData,
@@ -15,7 +16,6 @@ import {
   QUEUES,
   type WebhookDeliveryJobData,
 } from "./queue";
-import { startInboxWorkers, stopInboxWorkers } from "./inbox-jobs";
 
 // ============================================
 // Worker Configuration

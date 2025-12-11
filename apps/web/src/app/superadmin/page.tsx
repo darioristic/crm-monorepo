@@ -143,7 +143,12 @@ export default function SuperadminPage() {
                       </div>
                     ) : (
                       <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-sm sm:text-base">{tenant.name}</h3>
+                        <Link
+                          href={`/superadmin/tenants/${tenant.id}`}
+                          className="font-semibold text-sm sm:text-base hover:underline"
+                        >
+                          {tenant.name}
+                        </Link>
                         <Badge
                           variant={
                             tenant.status === "active"

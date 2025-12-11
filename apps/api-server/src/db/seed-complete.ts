@@ -824,11 +824,7 @@ async function seedDeals(
       stage,
       priority: randomElement(priorities),
       probability:
-        stage === "closed_won"
-          ? 100
-          : stage === "closed_lost"
-            ? 0
-            : randomNumber(10, 90),
+        stage === "closed_won" ? 100 : stage === "closed_lost" ? 0 : randomNumber(10, 90),
       expectedCloseDate: futureDate(randomNumber(30, 180)),
       actualCloseDate:
         stage === "closed_won" || stage === "closed_lost"

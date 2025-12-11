@@ -109,7 +109,7 @@ export const userQueries = {
         c.name as company_name
       FROM users u
       LEFT JOIN companies c ON u.company_id = c.id
-      WHERE u.email = ${email}
+      WHERE LOWER(u.email) = LOWER(${email})
     `;
     return result.length > 0 ? mapUserWithCompany(result[0]) : null;
   },
@@ -293,12 +293,12 @@ export const userQueries = {
   async emailExists(email: string, excludeId?: string): Promise<boolean> {
     if (excludeId) {
       const result = await db`
-        SELECT COUNT(*) FROM users WHERE email = ${email} AND id != ${excludeId}
+        SELECT COUNT(*) FROM users WHERE LOWER(email) = LOWER(${email}) AND id != ${excludeId}
       `;
       return parseInt(result[0].count, 10) > 0;
     }
     const result = await db`
-      SELECT COUNT(*) FROM users WHERE email = ${email}
+      SELECT COUNT(*) FROM users WHERE LOWER(email) = LOWER(${email})
     `;
     return parseInt(result[0].count, 10) > 0;
   },

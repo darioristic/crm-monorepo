@@ -6,9 +6,9 @@
 import { errorResponse, successResponse } from "@crm/utils";
 import { serviceLogger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
+import * as enrichmentService from "../services/transaction-enrichment.service";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
-import * as enrichmentService from "../services/transaction-enrichment.service";
 
 // ==============================================
 // ROUTES
@@ -37,11 +37,9 @@ export const transactionEnrichmentRoutes: Route[] = [
           // No body or invalid JSON, use defaults
         }
 
-        const result = await enrichmentService.enrichAndUpdatePayment(
-          paymentId,
-          tenantId,
-          { useAI }
-        );
+        const result = await enrichmentService.enrichAndUpdatePayment(paymentId, tenantId, {
+          useAI,
+        });
 
         if (!result) {
           return json(errorResponse("NOT_FOUND", "Transaction not found"), 404);
@@ -57,6 +55,8 @@ export const transactionEnrichmentRoutes: Route[] = [
   },
 
   // POST /api/v1/transactions/batch-enrich - Batch enrich multiple transactions
+  // Set useAI: true (default) to use Gemini AI enrichment
+  // Set useAI: false to use pattern-based enrichment only
   {
     method: "POST",
     pattern: /^\/api\/v1\/transactions\/batch-enrich$/,
@@ -69,7 +69,7 @@ export const transactionEnrichmentRoutes: Route[] = [
       const tenantId = auth.activeTenantId!;
 
       try {
-        let options = { useAI: false, limit: 100, onlyUnenriched: true };
+        let options = { useAI: true, limit: 50, onlyUnenriched: true };
         try {
           const body = (await request.json()) as {
             useAI?: boolean;
@@ -77,14 +77,32 @@ export const transactionEnrichmentRoutes: Route[] = [
             onlyUnenriched?: boolean;
           };
           options = {
-            useAI: body?.useAI ?? false,
-            limit: body?.limit ?? 100,
+            useAI: body?.useAI ?? true, // Default to AI enrichment
+            limit: body?.limit ?? 50, // Default batch size
             onlyUnenriched: body?.onlyUnenriched ?? true,
           };
         } catch {
           // Use defaults
         }
 
+        // Use Gemini AI enrichment when useAI is true
+        if (options.useAI) {
+          const result = await enrichmentService.batchEnrichWithAI(tenantId, {
+            limit: options.limit,
+            onlyUnenriched: options.onlyUnenriched,
+          });
+
+          return json(
+            successResponse({
+              ...result.stats,
+              success: result.success,
+              processedIds: result.processedIds,
+              errors: result.errors.length > 0 ? result.errors : undefined,
+            })
+          );
+        }
+
+        // Fallback to pattern-based enrichment
         const result = await enrichmentService.batchEnrichPayments(tenantId, options);
 
         return json(successResponse(result));
@@ -115,10 +133,7 @@ export const transactionEnrichmentRoutes: Route[] = [
           return json(errorResponse("VALIDATION_ERROR", "Text is required"), 400);
         }
 
-        const suggestions = await enrichmentService.getEnrichmentSuggestions(
-          body.text,
-          tenantId
-        );
+        const suggestions = await enrichmentService.getEnrichmentSuggestions(body.text, tenantId);
 
         return json(successResponse(suggestions));
       } catch (error) {

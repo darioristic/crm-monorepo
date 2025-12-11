@@ -2,10 +2,14 @@ import type {
   ApiResponse,
   Contact,
   CreateContactRequest,
+  CreateDealRequest,
   CreateLeadRequest,
+  Deal,
+  DealStage,
   FilterParams,
   Lead,
   PaginationParams,
+  UpdateDealRequest,
   UpdateLeadRequest,
 } from "@crm/types";
 import {
@@ -18,7 +22,7 @@ import {
   successResponse,
 } from "@crm/utils";
 import { cache } from "../cache/redis";
-import { contactQueries, leadQueries } from "../db/queries";
+import { contactQueries, dealQueries, leadQueries } from "../db/queries";
 import { serviceLogger } from "../lib/logger";
 
 const CACHE_TTL = 300; // 5 minutes
@@ -189,7 +193,9 @@ class CRMService {
     }
   }
 
-  async createContact(data: CreateContactRequest & { tenantId?: string }): Promise<ApiResponse<Contact>> {
+  async createContact(
+    data: CreateContactRequest & { tenantId?: string }
+  ): Promise<ApiResponse<Contact>> {
     try {
       if (!isValidEmail(data.email)) {
         return errorResponse("VALIDATION_ERROR", "Invalid email address");
@@ -209,6 +215,150 @@ class CRMService {
     } catch (error) {
       serviceLogger.error(error, "Error creating contact:");
       return errorResponse("DATABASE_ERROR", "Failed to create contact");
+    }
+  }
+
+  // ============================================
+  // Deal Operations
+  // ============================================
+
+  async getDeals(
+    pagination: PaginationParams,
+    filters: FilterParams
+  ): Promise<ApiResponse<Deal[]>> {
+    try {
+      const cacheKey = `deals:list:${JSON.stringify({ pagination, filters })}`;
+      const cached = await cache.get<Deal[]>(cacheKey);
+      if (cached) {
+        return paginatedResponse(cached, cached.length, pagination);
+      }
+
+      const { data, total } = await dealQueries.findAll(pagination, filters);
+      await cache.set(cacheKey, data, CACHE_TTL);
+
+      return paginatedResponse(data, total, pagination);
+    } catch (error) {
+      serviceLogger.error(error, "Error fetching deals:");
+      return errorResponse("DATABASE_ERROR", "Failed to fetch deals");
+    }
+  }
+
+  async getDealById(id: string): Promise<ApiResponse<Deal>> {
+    try {
+      const cacheKey = `deals:${id}`;
+      const cached = await cache.get<Deal>(cacheKey);
+      if (cached) {
+        return successResponse(cached);
+      }
+
+      const deal = await dealQueries.findById(id);
+      if (!deal) {
+        return Errors.NotFound("Deal").toResponse();
+      }
+
+      await cache.set(cacheKey, deal, CACHE_TTL);
+      return successResponse(deal);
+    } catch (error) {
+      serviceLogger.error(error, "Error fetching deal:");
+      return errorResponse("DATABASE_ERROR", "Failed to fetch deal");
+    }
+  }
+
+  async createDeal(data: CreateDealRequest): Promise<ApiResponse<Deal>> {
+    try {
+      const deal: Deal = {
+        id: generateUUID(),
+        createdAt: now(),
+        updatedAt: now(),
+        ...data,
+        stage: data.stage || "discovery",
+        priority: data.priority || "medium",
+        probability: data.probability ?? 20,
+      };
+
+      const created = await dealQueries.create(deal);
+      await cache.invalidatePattern("deals:list:*");
+      await cache.invalidatePattern("deals:pipeline:*");
+
+      return successResponse(created);
+    } catch (error) {
+      serviceLogger.error(error, "Error creating deal:");
+      return errorResponse("DATABASE_ERROR", "Failed to create deal");
+    }
+  }
+
+  async updateDeal(id: string, data: UpdateDealRequest): Promise<ApiResponse<Deal>> {
+    try {
+      const existing = await dealQueries.findById(id);
+      if (!existing) {
+        return Errors.NotFound("Deal").toResponse();
+      }
+
+      const updated = await dealQueries.update(id, {
+        ...data,
+        updatedAt: now(),
+      });
+
+      // Invalidate cache
+      await cache.del(`deals:${id}`);
+      await cache.invalidatePattern("deals:list:*");
+      await cache.invalidatePattern("deals:pipeline:*");
+
+      return successResponse(updated);
+    } catch (error) {
+      serviceLogger.error(error, "Error updating deal:");
+      return errorResponse("DATABASE_ERROR", "Failed to update deal");
+    }
+  }
+
+  async deleteDeal(id: string): Promise<ApiResponse<{ deleted: boolean }>> {
+    try {
+      const existing = await dealQueries.findById(id);
+      if (!existing) {
+        return Errors.NotFound("Deal").toResponse();
+      }
+
+      await dealQueries.delete(id);
+
+      // Invalidate cache
+      await cache.del(`deals:${id}`);
+      await cache.invalidatePattern("deals:list:*");
+      await cache.invalidatePattern("deals:pipeline:*");
+
+      return successResponse({ deleted: true });
+    } catch (error) {
+      serviceLogger.error(error, "Error deleting deal:");
+      return errorResponse("DATABASE_ERROR", "Failed to delete deal");
+    }
+  }
+
+  async getPipelineSummary(): Promise<
+    ApiResponse<{
+      stages: { stage: DealStage; count: number; totalValue: number }[];
+      totalDeals: number;
+      totalValue: number;
+      avgDealValue: number;
+    }>
+  > {
+    try {
+      const cacheKey = "deals:pipeline:summary";
+      const cached = await cache.get<{
+        stages: { stage: DealStage; count: number; totalValue: number }[];
+        totalDeals: number;
+        totalValue: number;
+        avgDealValue: number;
+      }>(cacheKey);
+      if (cached) {
+        return successResponse(cached);
+      }
+
+      const summary = await dealQueries.getPipelineSummary();
+      await cache.set(cacheKey, summary, CACHE_TTL);
+
+      return successResponse(summary);
+    } catch (error) {
+      serviceLogger.error(error, "Error fetching pipeline summary:");
+      return errorResponse("DATABASE_ERROR", "Failed to fetch pipeline summary");
     }
   }
 }

@@ -3,8 +3,8 @@
  * CRUD operations for transaction attachment management
  */
 
-import { sql as db } from "../client";
 import { serviceLogger } from "../../lib/logger";
+import { sql as db } from "../client";
 
 // ==============================================
 // TYPES
@@ -176,7 +176,9 @@ export async function getAttachmentById(
 /**
  * Create a new attachment
  */
-export async function createAttachment(params: CreateAttachmentParams): Promise<TransactionAttachment> {
+export async function createAttachment(
+  params: CreateAttachmentParams
+): Promise<TransactionAttachment> {
   try {
     const result = await db`
       INSERT INTO transaction_attachments (
@@ -279,7 +281,10 @@ export async function linkAttachmentToPayment(
 
     return result.length > 0;
   } catch (error) {
-    serviceLogger.error({ error, tenantId, attachmentId, paymentId }, "Error linking attachment to payment");
+    serviceLogger.error(
+      { error, tenantId, attachmentId, paymentId },
+      "Error linking attachment to payment"
+    );
     throw error;
   }
 }
@@ -301,7 +306,10 @@ export async function unlinkAttachmentFromPayment(
 
     return result.length > 0;
   } catch (error) {
-    serviceLogger.error({ error, tenantId, attachmentId }, "Error unlinking attachment from payment");
+    serviceLogger.error(
+      { error, tenantId, attachmentId },
+      "Error unlinking attachment from payment"
+    );
     throw error;
   }
 }

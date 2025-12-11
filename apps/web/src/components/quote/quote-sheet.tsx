@@ -117,42 +117,20 @@ export function QuoteSheet({ defaultSettings, onQuoteCreated }: QuoteSheetProps)
       params.set("quoteId", id);
       router.push(`${pathname}?${params.toString()}`);
 
-      // Store the quote PDF in vault (fire and forget)
+      // Store the quote PDF in vault (server-side for reliability)
       try {
-        // Fetch the quote data to get quote number
-        const quoteResponse = await quotesApi.getById(id);
-        if (!quoteResponse.success || !quoteResponse.data) return;
-
-        const quote = quoteResponse.data;
-        const quoteNumber = quote.quoteNumber || id;
-
-        // Fetch the PDF
-        const pdfResponse = await fetch(`/api/download/quote?id=${id}`);
-        if (!pdfResponse.ok) return;
-
-        const pdfBlob = await pdfResponse.blob();
-        const pdfBuffer = await pdfBlob.arrayBuffer();
-        const pdfBase64 = btoa(
-          new Uint8Array(pdfBuffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
-        );
-
-        // Store in vault
-        await documentsApi.storeGenerated({
-          pdfBase64,
-          documentType: "quote",
-          entityId: id,
-          title: `Quote ${quoteNumber}`,
-          documentNumber: quoteNumber,
-          metadata: {
-            customerName: quote.companyName || quote.company?.name,
-            total: quote.total,
-            currency: quote.currency,
-            validUntil: quote.validUntil,
-          },
+        const response = await fetch("/api/vault/store-quote", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ quoteId: id }),
         });
-      } catch {
-        // Silent fail - vault storage is optional
-        console.warn("Failed to store quote PDF in vault");
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          console.warn("Failed to store quote PDF in vault:", errorData);
+        }
+      } catch (error) {
+        console.warn("Failed to store quote PDF in vault:", error);
       }
     },
     [router, pathname, searchParams, type, onQuoteCreated]

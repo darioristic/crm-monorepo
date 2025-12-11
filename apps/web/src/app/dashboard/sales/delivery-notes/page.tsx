@@ -45,7 +45,10 @@ export default function DeliveryNotesPage() {
         </Button>
       </div>
       <DeliveryNotesDataTable refreshSignal={refreshKey} />
-      <DeliveryNoteSheet defaultSettings={defaultSettings} onDeliveryNoteCreated={handleDeliveryNoteCreated} />
+      <DeliveryNoteSheet
+        defaultSettings={defaultSettings}
+        onDeliveryNoteCreated={handleDeliveryNoteCreated}
+      />
     </div>
   );
 }

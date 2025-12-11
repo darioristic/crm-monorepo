@@ -41,15 +41,12 @@ export function useColumnVisibility({
     }
   }, [columnVisibility, storageKey]);
 
-  const updateColumnVisibility = useCallback(
-    (columnId: string, isVisible: boolean) => {
-      setColumnVisibility((prev) => ({
-        ...prev,
-        [columnId]: isVisible,
-      }));
-    },
-    []
-  );
+  const updateColumnVisibility = useCallback((columnId: string, isVisible: boolean) => {
+    setColumnVisibility((prev) => ({
+      ...prev,
+      [columnId]: isVisible,
+    }));
+  }, []);
 
   const resetVisibility = useCallback(() => {
     setColumnVisibility(defaultVisibility);

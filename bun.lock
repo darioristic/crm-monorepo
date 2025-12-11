@@ -30,7 +30,6 @@
         "ai": "4.0.30",
         "bcryptjs": "3.0.3",
         "bullmq": "^5.30.0",
-        "canvas": "3.2.0",
         "drizzle-orm": "0.44.7",
         "ioredis": "^5.4.1",
         "nanoid": "^5.0.6",
@@ -47,6 +46,9 @@
         "@types/bun": "^1.1.0",
         "drizzle-kit": "0.31.7",
         "typescript": "^5.7.0",
+      },
+      "optionalDependencies": {
+        "canvas": "3.2.0",
       },
     },
     "apps/web": {

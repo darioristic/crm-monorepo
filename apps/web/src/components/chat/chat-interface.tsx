@@ -58,77 +58,79 @@ export function ChatInterface({
   } = useChatStore();
 
   // Simple chat function without streaming
-  const sendChatMessage = useCallback(async (userMessage: string) => {
-    setIsLoading(true);
-    setError(null);
-    setAgentState({ status: "routing", message: "Analyzing request..." });
+  const sendChatMessage = useCallback(
+    async (userMessage: string) => {
+      setIsLoading(true);
+      setError(null);
+      setAgentState({ status: "routing", message: "Analyzing request..." });
 
-    // Add user message to UI
-    const userMsg: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: userMessage,
-    };
-    setMessages((prev) => [...prev, userMsg]);
-    addMessageToSession(chatId, { role: "user", content: userMessage });
+      // Add user message to UI
+      const userMsg: Message = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: userMessage,
+      };
+      setMessages((prev) => [...prev, userMsg]);
+      addMessageToSession(chatId, { role: "user", content: userMessage });
 
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: chatId,
-          messages: [{ role: "user", content: userMessage }],
-        }),
-      });
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            id: chatId,
+            messages: [{ role: "user", content: userMessage }],
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Chat request failed: ${response.status}`);
-      }
+        if (!response.ok) {
+          throw new Error(`Chat request failed: ${response.status}`);
+        }
 
-      // Read the response - it's in AI SDK data stream format
-      const text = await response.text();
-      console.log("[Chat] Raw response:", text.slice(0, 200));
+        // Read the response - it's in AI SDK data stream format
+        const text = await response.text();
 
-      // Parse AI SDK data stream format: 0:"text"\n
-      let assistantContent = "";
-      const lines = text.split("\n");
-      for (const line of lines) {
-        if (line.startsWith("0:")) {
-          try {
-            assistantContent += JSON.parse(line.slice(2));
-          } catch {
-            // ignore parse errors
+        // Parse AI SDK data stream format: 0:"text"\n
+        let assistantContent = "";
+        const lines = text.split("\n");
+        for (const line of lines) {
+          if (line.startsWith("0:")) {
+            try {
+              assistantContent += JSON.parse(line.slice(2));
+            } catch {
+              // ignore parse errors
+            }
           }
         }
-      }
 
-      if (assistantContent) {
-        const assistantMsg: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: assistantContent,
-        };
-        setMessages((prev) => [...prev, assistantMsg]);
-        addMessageToSession(chatId, { role: "assistant", content: assistantContent });
+        if (assistantContent) {
+          const assistantMsg: Message = {
+            id: crypto.randomUUID(),
+            role: "assistant",
+            content: assistantContent,
+          };
+          setMessages((prev) => [...prev, assistantMsg]);
+          addMessageToSession(chatId, { role: "assistant", content: assistantContent });
 
-        // Auto-generate title
-        const session = sessions.find((s) => s.id === chatId);
-        if (session && session.title === "New Chat" && session.messages.length <= 2) {
-          const title = userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : "");
-          updateSessionTitle(chatId, title);
+          // Auto-generate title
+          const session = sessions.find((s) => s.id === chatId);
+          if (session && session.title === "New Chat" && session.messages.length <= 2) {
+            const title = userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : "");
+            updateSessionTitle(chatId, title);
+          }
         }
-      }
 
-      setAgentState({ status: "complete" });
-    } catch (err) {
-      console.error("[Chat] Error:", err);
-      setError(err instanceof Error ? err : new Error("Unknown error"));
-      setAgentState({ status: "idle" });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [chatId, addMessageToSession, sessions, updateSessionTitle, setAgentState]);
+        setAgentState({ status: "complete" });
+      } catch (err) {
+        console.error("[Chat] Error:", err);
+        setError(err instanceof Error ? err : new Error("Unknown error"));
+        setAgentState({ status: "idle" });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [chatId, addMessageToSession, sessions, updateSessionTitle, setAgentState]
+  );
 
   const regenerate = useCallback(() => {
     // Find last user message and resend

@@ -176,4 +176,15 @@ router.get("/api/v1/reports/project-duration", async (request) => {
   });
 });
 
+// ============================================
+// Finance Dashboard
+// ============================================
+
+router.get("/api/v1/reports/finance-dashboard", async (request, url) => {
+  return withAuth(request, async (auth) => {
+    const tenantId = url.searchParams.get("tenantId") || auth.activeTenantId || undefined;
+    return reportsService.getFinanceDashboard(tenantId);
+  });
+});
+
 export const reportRoutes = router.getRoutes();

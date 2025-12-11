@@ -10,14 +10,18 @@ import { sql } from "../../db/client";
 const getExpensesSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
   months: z.number().min(1).max(24).default(6).describe("Number of months to analyze"),
-  groupBy: z.enum(["category", "vendor", "month"]).default("category").describe("How to group expense data"),
+  groupBy: z
+    .enum(["category", "vendor", "month"])
+    .default("category")
+    .describe("How to group expense data"),
   includeRecurring: z.boolean().default(true).describe("Highlight recurring expenses"),
 });
 
 type GetExpensesParams = z.infer<typeof getExpensesSchema>;
 
 export const getExpensesTool = tool({
-  description: "Analyze expense breakdown by category, vendor, or month. Identifies spending patterns, recurring costs, and optimization opportunities.",
+  description:
+    "Analyze expense breakdown by category, vendor, or month. Identifies spending patterns, recurring costs, and optimization opportunities.",
   parameters: getExpensesSchema,
   execute: async (params: GetExpensesParams): Promise<string> => {
     const { tenantId, months, groupBy, includeRecurring } = params;
@@ -76,7 +80,8 @@ export const getExpensesTool = tool({
       `;
 
       // Get recurring expenses
-      const recurringExpenses = includeRecurring ? await sql`
+      const recurringExpenses = includeRecurring
+        ? await sql`
         SELECT
           COALESCE(p.merchant_name, p.description) as name,
           AVG(ABS(p.amount_in_base_currency)) as avg_amount,
@@ -94,7 +99,8 @@ export const getExpensesTool = tool({
         HAVING COUNT(*) >= 2
         ORDER BY avg_amount DESC
         LIMIT 10
-      ` : [];
+      `
+        : [];
 
       // Get largest single expenses
       const largestExpenses = await sql`
@@ -116,14 +122,15 @@ export const getExpensesTool = tool({
 
       // Calculate totals
       const totalExpenses = expensesByCategory.reduce((sum, c) => sum + (Number(c.amount) || 0), 0);
-      const monthlyData = monthlyExpenses.map(m => ({
+      const monthlyData = monthlyExpenses.map((m) => ({
         month: m.month as string,
         amount: Number(m.amount) || 0,
         count: Number(m.transaction_count) || 0,
       }));
-      const avgMonthlyExpenses = monthlyData.length > 0
-        ? monthlyData.reduce((sum, m) => sum + m.amount, 0) / monthlyData.length
-        : 0;
+      const avgMonthlyExpenses =
+        monthlyData.length > 0
+          ? monthlyData.reduce((sum, m) => sum + m.amount, 0) / monthlyData.length
+          : 0;
 
       // Calculate MoM change
       let momChange = 0;
@@ -136,17 +143,22 @@ export const getExpensesTool = tool({
       // Recurring total (monthly equivalent)
       const recurringMonthly = recurringExpenses.reduce((sum, r) => {
         const amount = Number(r.avg_amount) || 0;
-        const freq = r.recurring_frequency || 'monthly';
+        const freq = r.recurring_frequency || "monthly";
         // Convert to monthly
         switch (freq) {
-          case 'weekly': return sum + (amount * 4.33);
-          case 'biweekly': return sum + (amount * 2.17);
-          case 'annually': return sum + (amount / 12);
-          default: return sum + amount;
+          case "weekly":
+            return sum + amount * 4.33;
+          case "biweekly":
+            return sum + amount * 2.17;
+          case "annually":
+            return sum + amount / 12;
+          default:
+            return sum + amount;
         }
       }, 0);
 
-      const recurringPercent = avgMonthlyExpenses > 0 ? (recurringMonthly / avgMonthlyExpenses) * 100 : 0;
+      const recurringPercent =
+        avgMonthlyExpenses > 0 ? (recurringMonthly / avgMonthlyExpenses) * 100 : 0;
 
       // Format response
       let response = `## 📊 Expense Analysis\n\n`;
@@ -158,7 +170,7 @@ export const getExpensesTool = tool({
       response += `|--------|-------|\n`;
       response += `| 💸 Total Expenses | ${formatCurrency(totalExpenses)} |\n`;
       response += `| 📅 Monthly Average | ${formatCurrency(avgMonthlyExpenses)} |\n`;
-      response += `| ${momChange <= 0 ? '✅' : '⚠️'} MoM Change | ${momChange.toFixed(1)}% |\n`;
+      response += `| ${momChange <= 0 ? "✅" : "⚠️"} MoM Change | ${momChange.toFixed(1)}% |\n`;
       response += `| 🔄 Recurring (est.) | ${formatCurrency(recurringMonthly)}/mo (${recurringPercent.toFixed(0)}%) |\n\n`;
 
       // Expenses by category
@@ -168,7 +180,8 @@ export const getExpensesTool = tool({
         response += `|----------|--------|-------|--------|\n`;
 
         for (const cat of expensesByCategory.slice(0, 10)) {
-          const share = totalExpenses > 0 ? ((Number(cat.amount) / totalExpenses) * 100).toFixed(0) : '0';
+          const share =
+            totalExpenses > 0 ? ((Number(cat.amount) / totalExpenses) * 100).toFixed(0) : "0";
           response += `| ${truncate(String(cat.category), 20)} | ${formatCurrency(Number(cat.amount))} | ${share}% | ${formatCurrency(Number(cat.avg_amount))} |\n`;
         }
         response += `\n`;
@@ -182,8 +195,11 @@ export const getExpensesTool = tool({
 
         for (const vendor of expensesByVendor.slice(0, 10)) {
           const lastDate = vendor.last_payment
-            ? new Date(vendor.last_payment as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-            : '-';
+            ? new Date(vendor.last_payment as string).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+              })
+            : "-";
           response += `| ${truncate(String(vendor.vendor), 22)} | ${formatCurrency(Number(vendor.amount))} | ${vendor.transaction_count} | ${lastDate} |\n`;
         }
         response += `\n`;
@@ -196,10 +212,11 @@ export const getExpensesTool = tool({
         response += `|-------|----------|------|--------|\n`;
 
         for (const month of monthlyData.slice(0, 12)) {
-          const vsAvg = avgMonthlyExpenses > 0
-            ? ((month.amount - avgMonthlyExpenses) / avgMonthlyExpenses) * 100
-            : 0;
-          const indicator = vsAvg > 10 ? '🔴' : vsAvg < -10 ? '🟢' : '⚪';
+          const vsAvg =
+            avgMonthlyExpenses > 0
+              ? ((month.amount - avgMonthlyExpenses) / avgMonthlyExpenses) * 100
+              : 0;
+          const indicator = vsAvg > 10 ? "🔴" : vsAvg < -10 ? "🟢" : "⚪";
           response += `| ${month.month} | ${formatCurrency(month.amount)} | ${month.count} | ${indicator} ${vsAvg.toFixed(0)}% |\n`;
         }
         response += `\n`;
@@ -212,7 +229,7 @@ export const getExpensesTool = tool({
         response += `|------|--------|-----------|----------|\n`;
 
         for (const exp of recurringExpenses) {
-          const freq = formatFrequency(exp.recurring_frequency || 'monthly');
+          const freq = formatFrequency(exp.recurring_frequency || "monthly");
           response += `| ${truncate(String(exp.name), 20)} | ${formatCurrency(Number(exp.avg_amount))} | ${freq} | ${truncate(String(exp.category), 12)} |\n`;
         }
         response += `\n`;
@@ -225,7 +242,10 @@ export const getExpensesTool = tool({
         response += `|-------------|--------|------|----------|\n`;
 
         for (const exp of largestExpenses) {
-          const date = new Date(exp.date as string).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+          const date = new Date(exp.date as string).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+          });
           const desc = exp.merchant_name || exp.description;
           response += `| ${truncate(String(desc), 25)} | ${formatCurrency(Number(exp.amount))} | ${date} | ${truncate(String(exp.category), 12)} |\n`;
         }
@@ -267,31 +287,37 @@ export const getExpensesTool = tool({
       return response;
     } catch (error) {
       console.error("Error analyzing expenses:", error);
-      return `❌ Error analyzing expenses: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      return `❌ Error analyzing expenses: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'EUR',
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "EUR",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(amount);
 }
 
 function truncate(str: string, maxLen: number): string {
-  return str.length > maxLen ? str.slice(0, maxLen - 1) + '…' : str;
+  return str.length > maxLen ? `${str.slice(0, maxLen - 1)}…` : str;
 }
 
 function formatFrequency(freq: string): string {
   switch (freq) {
-    case 'weekly': return '📅 Weekly';
-    case 'biweekly': return '📅 Bi-weekly';
-    case 'monthly': return '📅 Monthly';
-    case 'quarterly': return '📅 Quarterly';
-    case 'annually': return '📅 Annually';
-    default: return freq;
+    case "weekly":
+      return "📅 Weekly";
+    case "biweekly":
+      return "📅 Bi-weekly";
+    case "monthly":
+      return "📅 Monthly";
+    case "quarterly":
+      return "📅 Quarterly";
+    case "annually":
+      return "📅 Annually";
+    default:
+      return freq;
   }
 }

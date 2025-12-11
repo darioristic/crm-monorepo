@@ -1,5 +1,7 @@
 "use client";
 
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Archive, ChevronDown, FileCheck, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,18 +15,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
-import { invoicesApi, quotesApi, ordersApi, companiesApi } from "@/lib/api";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import {
-  ChevronDown,
-  Tag,
-  UserCircle,
-  FileCheck,
-  Trash2,
-  Archive,
-  Send,
-  Ban,
-} from "lucide-react";
+import { companiesApi, invoicesApi, ordersApi, quotesApi } from "@/lib/api";
 
 type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled";
 type QuoteStatus = "draft" | "sent" | "accepted" | "rejected" | "expired";
@@ -60,9 +51,7 @@ export function BulkActions({ ids, type, onSuccess }: BulkActionsProps) {
   const updateInvoicesMutation = useMutation({
     mutationFn: async (data: { ids: string[]; status?: InvoiceStatus }) => {
       const results = await Promise.all(
-        data.ids.map((id) =>
-          invoicesApi.update(id, { status: data.status })
-        )
+        data.ids.map((id) => invoicesApi.update(id, { status: data.status }))
       );
       return results;
     },
@@ -83,9 +72,7 @@ export function BulkActions({ ids, type, onSuccess }: BulkActionsProps) {
   const updateQuotesMutation = useMutation({
     mutationFn: async (data: { ids: string[]; status?: QuoteStatus }) => {
       const results = await Promise.all(
-        data.ids.map((id) =>
-          quotesApi.update(id, { status: data.status })
-        )
+        data.ids.map((id) => quotesApi.update(id, { status: data.status }))
       );
       return results;
     },
@@ -97,9 +84,7 @@ export function BulkActions({ ids, type, onSuccess }: BulkActionsProps) {
   const updateOrdersMutation = useMutation({
     mutationFn: async (data: { ids: string[]; status?: OrderStatus }) => {
       const results = await Promise.all(
-        data.ids.map((id) =>
-          ordersApi.update(id, { status: data.status })
-        )
+        data.ids.map((id) => ordersApi.update(id, { status: data.status }))
       );
       return results;
     },
@@ -121,9 +106,7 @@ export function BulkActions({ ids, type, onSuccess }: BulkActionsProps) {
 
   return (
     <div className="flex items-center gap-2 bg-muted/50 rounded-md px-3 py-2">
-      <span className="text-sm text-muted-foreground">
-        {ids.length} selected
-      </span>
+      <span className="text-sm text-muted-foreground">{ids.length} selected</span>
 
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -215,79 +198,75 @@ export function BulkActions({ ids, type, onSuccess }: BulkActionsProps) {
           )}
 
           {type === "quote" && (
-            <>
-              <DropdownMenuGroup>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <FileCheck className="mr-2 size-4" />
-                    <span>Status</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent sideOffset={14}>
-                      {(
-                        [
-                          { label: "Draft", value: "draft" },
-                          { label: "Sent", value: "sent" },
-                          { label: "Accepted", value: "accepted" },
-                          { label: "Rejected", value: "rejected" },
-                          { label: "Expired", value: "expired" },
-                        ] as const
-                      ).map((item) => (
-                        <DropdownMenuCheckboxItem
-                          key={item.value}
-                          onCheckedChange={() => {
-                            updateQuotesMutation.mutate({
-                              ids,
-                              status: item.value,
-                            });
-                          }}
-                        >
-                          {item.label}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-              </DropdownMenuGroup>
-            </>
+            <DropdownMenuGroup>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <FileCheck className="mr-2 size-4" />
+                  <span>Status</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent sideOffset={14}>
+                    {(
+                      [
+                        { label: "Draft", value: "draft" },
+                        { label: "Sent", value: "sent" },
+                        { label: "Accepted", value: "accepted" },
+                        { label: "Rejected", value: "rejected" },
+                        { label: "Expired", value: "expired" },
+                      ] as const
+                    ).map((item) => (
+                      <DropdownMenuCheckboxItem
+                        key={item.value}
+                        onCheckedChange={() => {
+                          updateQuotesMutation.mutate({
+                            ids,
+                            status: item.value,
+                          });
+                        }}
+                      >
+                        {item.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+            </DropdownMenuGroup>
           )}
 
           {type === "order" && (
-            <>
-              <DropdownMenuGroup>
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <FileCheck className="mr-2 size-4" />
-                    <span>Status</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                    <DropdownMenuSubContent sideOffset={14}>
-                      {(
-                        [
-                          { label: "Pending", value: "pending" },
-                          { label: "Processing", value: "processing" },
-                          { label: "Completed", value: "completed" },
-                          { label: "Cancelled", value: "cancelled" },
-                          { label: "Refunded", value: "refunded" },
-                        ] as const
-                      ).map((item) => (
-                        <DropdownMenuCheckboxItem
-                          key={item.value}
-                          onCheckedChange={() => {
-                            updateOrdersMutation.mutate({
-                              ids,
-                              status: item.value,
-                            });
-                          }}
-                        >
-                          {item.label}
-                        </DropdownMenuCheckboxItem>
-                      ))}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-                </DropdownMenuSub>
-              </DropdownMenuGroup>
-            </>
+            <DropdownMenuGroup>
+              <DropdownMenuSub>
+                <DropdownMenuSubTrigger>
+                  <FileCheck className="mr-2 size-4" />
+                  <span>Status</span>
+                </DropdownMenuSubTrigger>
+                <DropdownMenuPortal>
+                  <DropdownMenuSubContent sideOffset={14}>
+                    {(
+                      [
+                        { label: "Pending", value: "pending" },
+                        { label: "Processing", value: "processing" },
+                        { label: "Completed", value: "completed" },
+                        { label: "Cancelled", value: "cancelled" },
+                        { label: "Refunded", value: "refunded" },
+                      ] as const
+                    ).map((item) => (
+                      <DropdownMenuCheckboxItem
+                        key={item.value}
+                        onCheckedChange={() => {
+                          updateOrdersMutation.mutate({
+                            ids,
+                            status: item.value,
+                          });
+                        }}
+                      >
+                        {item.label}
+                      </DropdownMenuCheckboxItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuPortal>
+              </DropdownMenuSub>
+            </DropdownMenuGroup>
           )}
 
           {type === "contact" && (
@@ -332,12 +311,7 @@ export function BulkActions({ ids, type, onSuccess }: BulkActionsProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <Button
-        variant="ghost"
-        size="sm"
-        onClick={onSuccess}
-        className="text-muted-foreground"
-      >
+      <Button variant="ghost" size="sm" onClick={onSuccess} className="text-muted-foreground">
         Clear
       </Button>
     </div>

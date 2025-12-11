@@ -6,9 +6,9 @@
 import { errorResponse, successResponse } from "@crm/utils";
 import { serviceLogger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
+import * as recurringService from "../services/recurring-detection.service";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
-import * as recurringService from "../services/recurring-detection.service";
 
 // ==============================================
 // ROUTES
@@ -73,7 +73,10 @@ export const recurringTransactionRoutes: Route[] = [
         return json(successResponse(result));
       } catch (error) {
         serviceLogger.error({ error }, "Failed to detect recurring transactions");
-        return json(errorResponse("INTERNAL_ERROR", "Failed to detect recurring transactions"), 500);
+        return json(
+          errorResponse("INTERNAL_ERROR", "Failed to detect recurring transactions"),
+          500
+        );
       }
     },
     params: [],
@@ -99,7 +102,10 @@ export const recurringTransactionRoutes: Route[] = [
         return json(successResponse(upcoming));
       } catch (error) {
         serviceLogger.error({ error }, "Failed to get upcoming recurring");
-        return json(errorResponse("INTERNAL_ERROR", "Failed to get upcoming recurring transactions"), 500);
+        return json(
+          errorResponse("INTERNAL_ERROR", "Failed to get upcoming recurring transactions"),
+          500
+        );
       }
     },
     params: [],
@@ -131,10 +137,12 @@ export const recurringTransactionRoutes: Route[] = [
 
         const match = await recurringService.matchToRecurringPattern(tenantId, body);
 
-        return json(successResponse({
-          isRecurring: match !== null,
-          pattern: match,
-        }));
+        return json(
+          successResponse({
+            isRecurring: match !== null,
+            pattern: match,
+          })
+        );
       } catch (error) {
         serviceLogger.error({ error }, "Failed to match recurring pattern");
         return json(errorResponse("INTERNAL_ERROR", "Failed to match recurring pattern"), 500);

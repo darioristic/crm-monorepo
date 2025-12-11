@@ -4,9 +4,9 @@
  * Supports multiple bank formats and automatic column detection
  */
 
-import { serviceLogger } from "../lib/logger";
-import { sql as db } from "../db/client";
 import { generateUUID } from "@crm/utils";
+import { sql as db } from "../db/client";
+import { serviceLogger } from "../lib/logger";
 
 // ==============================================
 // TYPES
@@ -251,7 +251,8 @@ function detectDelimiter(content: string): string {
   let maxCount = 0;
 
   for (const delimiter of delimiters) {
-    const count = (firstLine.match(new RegExp(delimiter === "\t" ? "\\t" : delimiter, "g")) || []).length;
+    const count = (firstLine.match(new RegExp(delimiter === "\t" ? "\\t" : delimiter, "g")) || [])
+      .length;
     if (count > maxCount) {
       maxCount = count;
       bestDelimiter = delimiter;
@@ -272,7 +273,7 @@ function parseDate(dateStr: string, format: string): Date | null {
   // Try ISO format first
   if (/^\d{4}-\d{2}-\d{2}/.test(cleanDate)) {
     const parsed = new Date(cleanDate);
-    if (!isNaN(parsed.getTime())) return parsed;
+    if (!Number.isNaN(parsed.getTime())) return parsed;
   }
 
   // Parse according to format
@@ -299,8 +300,6 @@ function parseDate(dateStr: string, format: string): Date | null {
       } else return null;
       break;
     }
-
-    case "YYYY-MM-DD":
     default: {
       const parts = cleanDate.split("-");
       if (parts.length >= 3) {
@@ -325,7 +324,7 @@ function parseDate(dateStr: string, format: string): Date | null {
   if (year < 100) year += 2000;
 
   const date = new Date(year, month, day);
-  return isNaN(date.getTime()) ? null : date;
+  return Number.isNaN(date.getTime()) ? null : date;
 }
 
 /**
@@ -345,7 +344,7 @@ function parseAmount(
 
   // Handle thousand separator
   if (thousandSeparator) {
-    const thousandRegex = new RegExp("\\" + thousandSeparator, "g");
+    const thousandRegex = new RegExp(`\\${thousandSeparator}`, "g");
     cleanAmount = cleanAmount.replace(thousandRegex, "");
   }
 
@@ -356,11 +355,11 @@ function parseAmount(
 
   // Handle negative in parentheses
   if (cleanAmount.startsWith("(") && cleanAmount.endsWith(")")) {
-    cleanAmount = "-" + cleanAmount.slice(1, -1);
+    cleanAmount = `-${cleanAmount.slice(1, -1)}`;
   }
 
   const amount = parseFloat(cleanAmount);
-  return isNaN(amount) ? null : amount;
+  return Number.isNaN(amount) ? null : amount;
 }
 
 // ==============================================
@@ -370,10 +369,7 @@ function parseAmount(
 /**
  * Parse bank statement CSV
  */
-export function parseBankStatement(
-  csvContent: string,
-  config: BankImportConfig
-): ImportResult {
+export function parseBankStatement(csvContent: string, config: BankImportConfig): ImportResult {
   const result: ImportResult = {
     totalRows: 0,
     imported: 0,
@@ -439,11 +435,7 @@ export function parseBankStatement(
         }
 
         const date = parseDate(dateStr, config.dateFormat);
-        const amount = parseAmount(
-          amountStr,
-          config.decimalSeparator,
-          config.thousandSeparator
-        );
+        const amount = parseAmount(amountStr, config.decimalSeparator, config.thousandSeparator);
 
         if (!date) {
           result.errors++;
@@ -615,10 +607,7 @@ export async function importTransactions(
     }
   }
 
-  serviceLogger.info(
-    { tenantId, imported, duplicates, errors },
-    "Bank transactions imported"
-  );
+  serviceLogger.info({ tenantId, imported, duplicates, errors }, "Bank transactions imported");
 
   return { imported, duplicates, errors };
 }

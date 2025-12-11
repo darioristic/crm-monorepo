@@ -1,7 +1,7 @@
 "use client";
 
-import { useExportStore, type ExportFormat } from "@/store/export-store";
 import { useCallback } from "react";
+import { type ExportFormat, useExportStore } from "@/store/export-store";
 
 type ExportOptions<T> = {
   data: T[];
@@ -12,16 +12,10 @@ type ExportOptions<T> = {
 };
 
 export function useExport<T extends Record<string, unknown>>() {
-  const { startExport, updateProgress, completeExport, failExport, status } =
-    useExportStore();
+  const { startExport, updateProgress, completeExport, failExport, status } = useExportStore();
 
   const exportToCSV = useCallback(
-    async ({
-      data,
-      fileName,
-      columns,
-      batchSize = 100,
-    }: ExportOptions<T>) => {
+    async ({ data, fileName, columns, batchSize = 100 }: ExportOptions<T>) => {
       if (data.length === 0) {
         failExport("No data to export");
         return;
@@ -31,9 +25,7 @@ export function useExport<T extends Record<string, unknown>>() {
         startExport(data.length, `${fileName}.csv`);
 
         // Build CSV header
-        const headers = columns
-          ? columns.map((col) => col.label)
-          : Object.keys(data[0] || {});
+        const headers = columns ? columns.map((col) => col.label) : Object.keys(data[0] || {});
 
         const keys = columns
           ? columns.map((col) => col.key)

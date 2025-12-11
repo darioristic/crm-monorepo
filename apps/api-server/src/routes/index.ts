@@ -30,34 +30,34 @@ import {
   refreshHandler,
   switchTenantHandler,
 } from "./auth";
+import { bankImportRoutes } from "./bank-import";
 import { chatRoutes } from "./chat";
 import { companyRoutes } from "./companies";
-import { inboxRoutes } from "./inbox";
 import { connectedAccountRoutes } from "./connected-accounts";
-import { transactionCategoryRoutes } from "./transaction-categories";
-import { transactionAttachmentRoutes } from "./transaction-attachments";
-import { transactionEnrichmentRoutes } from "./transaction-enrichment";
-import { recurringTransactionRoutes } from "./recurring-transactions";
-import { bankImportRoutes } from "./bank-import";
-import { currencyRoutes } from "./currency";
 import { crmRoutes } from "./crm";
 import { crmApiRoutes } from "./crm-api";
+import { currencyRoutes } from "./currency";
 import { documentRoutes } from "./documents";
 import { fileRoutes } from "./files";
 // Import route modules
 import { healthRoutes } from "./health";
 import type { Route } from "./helpers";
 import { json } from "./helpers";
+import { inboxRoutes } from "./inbox";
 import { inviteRoutes } from "./invites";
 import { notificationRoutes } from "./notifications-routes";
 import { orderRoutes } from "./orders";
 import { paymentRoutes } from "./payments-routes";
 import { productRoutes } from "./products-routes";
 import { projectRoutes } from "./projects";
+import { recurringTransactionRoutes } from "./recurring-transactions";
 import { reportRoutes } from "./reports";
 import { salesRoutes } from "./sales";
 import { superadminRoutes } from "./superadmin";
 import { tenantAdminRoutes } from "./tenant-admin";
+import { transactionAttachmentRoutes } from "./transaction-attachments";
+import { transactionCategoryRoutes } from "./transaction-categories";
+import { transactionEnrichmentRoutes } from "./transaction-enrichment";
 import { userRoutes } from "./users";
 
 // ============================================

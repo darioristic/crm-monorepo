@@ -299,7 +299,10 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
     // Use update API if editing existing invoice, otherwise create
     const result = invoiceId
-      ? await invoicesApi.update(invoiceId, transformedWithCompany as unknown as UpdateInvoiceRequest)
+      ? await invoicesApi.update(
+          invoiceId,
+          transformedWithCompany as unknown as UpdateInvoiceRequest
+        )
       : await createMutation.mutate(transformedWithCompany as unknown as CreateInvoiceRequest);
 
     if (result.success && result.data) {
