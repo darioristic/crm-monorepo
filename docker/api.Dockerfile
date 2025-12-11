@@ -8,7 +8,7 @@
 # ============================================
 # Stage 1: Dependencies
 # ============================================
-FROM node:20-alpine AS deps
+FROM oven/bun:1-alpine AS deps
 
 WORKDIR /app
 
@@ -33,8 +33,8 @@ COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
 COPY packages/schemas/package.json ./packages/schemas/
 
-# Install production dependencies with npm (workspaces)
-RUN npm install --omit=dev
+# Install production dependencies with bun (ignore scripts to skip native builds)
+RUN bun install --production --ignore-scripts
 
 # ============================================
 # Stage 2: Builder (copy sources only)
