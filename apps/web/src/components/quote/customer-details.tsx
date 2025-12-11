@@ -29,7 +29,6 @@ export function CustomerDetails() {
 
   const content = watch("customerDetails");
   const id = watch("id");
-  const currentCustomerId = watch("customerId");
 
   const {
     data: companiesData,
@@ -170,33 +169,20 @@ export function CustomerDetails() {
     <div>
       <LabelInput name="template.customerLabel" className="mb-2 block" />
       {contentHasText ? (
-        <>
-          <Controller
-            name="customerDetails"
-            control={control}
-            render={({ field }) => (
-              <Editor
-                key={id}
-                initialContent={field.value}
-                onChange={handleOnChange}
-                placeholder="Customer details..."
-                className="min-h-[90px]"
-              />
-            )}
-          />
-          {!isLoading && !error && (!currentCustomerId || !String(currentCustomerId).trim()) && (
-            <div className="mt-2">
-              <SelectCustomer
-                companies={companies}
-                onSelect={(type, id) => {
-                  setSelectedType(type);
-                  setSelectedCustomerId(id);
-                }}
-                onCompanyCreated={handleCompanyCreated}
-              />
-            </div>
+        // If we have customer content, show the editor (no need to show dropdown again)
+        <Controller
+          name="customerDetails"
+          control={control}
+          render={({ field }) => (
+            <Editor
+              key={id}
+              initialContent={field.value}
+              onChange={handleOnChange}
+              placeholder="Customer details..."
+              className="min-h-[90px]"
+            />
           )}
-        </>
+        />
       ) : (
         <>
           {isLoading && <div className="text-xs text-muted-foreground">Loading companies...</div>}

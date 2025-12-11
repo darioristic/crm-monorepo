@@ -11,7 +11,7 @@ export function DocumentSheet() {
 
   return (
     <Sheet open={isOpen} onOpenChange={() => setParams({ documentId: null, filePath: null })}>
-      <SheetContent style={{ maxWidth: 647 }}>
+      <SheetContent style={{ maxWidth: 647 }} title="Document Details">
         <DocumentDetails />
       </SheetContent>
     </Sheet>

@@ -30,12 +30,12 @@ export function DocumentDetails() {
     queryFn: async () => {
       if (!params.documentId) return null;
       const response = await documentsApi.getById(params.documentId);
-      return response.data;
+      return response.data ?? null;
     },
     enabled: isOpen && !!params.documentId,
     staleTime: 0,
-    initialData: () => {
-      // Try to get initial data from the documents list cache
+    placeholderData: () => {
+      // Try to get placeholder data from the documents list cache
       const documentsData = queryClient.getQueryData<{
         pages: Array<{ data: DocumentWithTags[] }>;
       }>(["documents"]);
@@ -57,11 +57,15 @@ export function DocumentDetails() {
   return (
     <div className="flex flex-col flex-grow min-h-0 relative h-full w-full">
       <SheetHeader className="mb-4 flex justify-between items-center flex-row">
-        <div className="min-w-0 flex-1 max-w-[70%] flex flex-row gap-2 items-end">
-          <h2 className="text-lg truncate flex-0">
-            {data?.title ?? data?.pathTokens?.at(-1) ?? data?.name}
+        <div className="min-w-0 flex-1 max-w-[70%] flex flex-row gap-2 items-baseline">
+          <h2 className="text-lg font-semibold truncate">
+            {data?.title ||
+              (data?.metadata?.originalName as string) ||
+              data?.pathTokens?.at(-1) ||
+              data?.name ||
+              "Untitled Document"}
           </h2>
-          <span className="text-sm text-muted-foreground whitespace-nowrap">
+          <span className="text-sm text-muted-foreground whitespace-nowrap flex-shrink-0">
             {data?.metadata?.size && formatSize(data.metadata.size as number)}
           </span>
         </div>

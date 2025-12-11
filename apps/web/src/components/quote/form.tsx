@@ -73,7 +73,6 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
       "noteDetails",
       "paymentDetails",
       "fromDetails",
-      "quoteNumber",
       "topBlock",
       "bottomBlock",
       "scheduledAt",
@@ -81,7 +80,6 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
   });
 
   const isDirty = form.formState.isDirty;
-  const quoteNumberValid = !form.getFieldState("quoteNumber").error;
   const [debouncedValue] = useDebounceValue(formValues, 500);
 
   // Transform form values to API format
@@ -96,7 +94,6 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
       return {
         customerCompanyId: selectedCompanyId ? selectedCompanyId : undefined,
         sellerCompanyId: user?.companyId,
-        quoteNumber: values.quoteNumber,
         issueDate: values.issueDate,
         validUntil: values.validUntil,
         status: values.status as "draft" | "sent" | "accepted" | "rejected" | "expired",
@@ -110,16 +107,16 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
         total: values.amount,
         notes: values.noteDetails
           ? extractTextFromContent(
-              typeof values.noteDetails === "string"
-                ? createContentFromText(values.noteDetails)
-                : (values.noteDetails as JSONContent | null | undefined)
+            typeof values.noteDetails === "string"
+              ? createContentFromText(values.noteDetails)
+              : (values.noteDetails as JSONContent | null | undefined)
             )
           : undefined,
         terms: values.paymentDetails
           ? extractTextFromContent(
-              typeof values.paymentDetails === "string"
-                ? createContentFromText(values.paymentDetails)
-                : (values.paymentDetails as JSONContent | null | undefined)
+            typeof values.paymentDetails === "string"
+              ? createContentFromText(values.paymentDetails)
+              : (values.paymentDetails as JSONContent | null | undefined)
             )
           : undefined,
         // Store fromDetails, customerDetails and logo for PDF generation
@@ -164,7 +161,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
             const total = baseAmount - discountAmount;
             return {
               productName: item.name,
-              description: "",
+              description: item.description || "",
               quantity: item.quantity || 1,
               unit: item.unit || "pcs",
               unitPrice: item.price || 0,
@@ -187,7 +184,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
     }
 
     // Skip if already saving or form is not dirty or basic validation fails
-    if (isSavingDraftRef.current || !isDirty || !quoteNumberValid) {
+    if (isSavingDraftRef.current || !isDirty) {
       return;
     }
 
@@ -242,7 +239,6 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
     quoteId,
     debouncedValue,
     isDirty,
-    quoteNumberValid,
     form,
     onDraftSaved,
     transformFormValuesToDraft,

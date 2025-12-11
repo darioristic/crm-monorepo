@@ -154,7 +154,7 @@ export function Form({ orderId, onSuccess, onDraftSaved }: FormProps) {
             const total = baseAmount - discountAmount;
             return {
               productName: item.name,
-              description: "",
+              description: item.description || "",
               quantity: item.quantity || 1,
               unit: item.unit || "pcs",
               unitPrice: item.price || 0,
@@ -316,7 +316,10 @@ export function Form({ orderId, onSuccess, onDraftSaved }: FormProps) {
       return;
     }
 
-    const result = await createMutation.mutate(transformedData as CreateOrderRequest);
+    // Use update API if editing existing order, otherwise create
+    const result = orderId
+      ? await ordersApi.update(orderId, transformedData as UpdateOrderRequest)
+      : await createMutation.mutate(transformedData as CreateOrderRequest);
 
     if (result.success && result.data) {
       const isUpdate = !!orderId;

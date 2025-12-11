@@ -169,6 +169,7 @@ export interface CustomerOrganization extends BaseEntity {
   companyNumber?: string | null;
   contactPerson?: string | null;
   isFavorite?: boolean;
+  logoUrl?: string | null;
   /** Multi-tenant isolation */
   tenantId?: UUID;
   /** Roles of the organization in the CRM/ERP */

@@ -1,6 +1,5 @@
 "use client";
 
-import { ImageOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -14,12 +13,16 @@ interface FilePreviewProps {
   className?: string;
 }
 
-function ErrorPreview() {
+interface ErrorPreviewProps {
+  mimetype?: string;
+  small?: boolean;
+}
+
+function ErrorPreview({ mimetype, small }: ErrorPreviewProps) {
+  // Show file type icon as fallback instead of broken image
   return (
-    <div className="w-full h-full flex items-center justify-center bg-primary/10">
-      <div className="flex flex-col items-center justify-center">
-        <ImageOff className="size-4 text-muted-foreground" />
-      </div>
+    <div className="w-full h-full flex items-center justify-center">
+      <FilePreviewIcon mimetype={mimetype} size={small ? "sm" : "md"} />
     </div>
   );
 }
@@ -73,9 +76,9 @@ export function FilePreview({ mimetype, name, filePath, small, className }: File
     );
   }
 
-  // Error loading preview
+  // Error loading preview - show file type icon as fallback
   if (isError) {
-    return <ErrorPreview />;
+    return <ErrorPreview mimetype={mimetype} small={small} />;
   }
 
   // Show image/PDF thumbnail with loading state

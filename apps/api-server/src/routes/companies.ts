@@ -48,27 +48,50 @@ async function storeLogoFromInput(companyId: string, input: string): Promise<str
       return `/api/v1/files/vault/${uploaded.path.join("/")}`;
     }
     if (input.startsWith("http://") || input.startsWith("https://")) {
-      const res = await fetch(input);
-      if (!res.ok) return null;
-      const contentType = res.headers.get("content-type") || "application/octet-stream";
-      const arrayBuffer = await res.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      if (buffer.length > 5 * 1024 * 1024) return null;
-      let ext = "bin";
-      if (contentType.includes("png")) ext = "png";
-      else if (contentType.includes("jpeg") || contentType.includes("jpg")) ext = "jpg";
-      else if (contentType.includes("gif")) ext = "gif";
-      else if (contentType.includes("webp")) ext = "webp";
-      else if (contentType.includes("svg")) ext = "svg";
-      let originalName = `logo.${ext}`;
+      // Try the provided URL first
+      const tryFetch = async (url: string) => {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const contentType = res.headers.get("content-type") || "application/octet-stream";
+        const arrayBuffer = await res.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        if (buffer.length > 5 * 1024 * 1024) return null;
+        let ext = "bin";
+        if (contentType.includes("png")) ext = "png";
+        else if (contentType.includes("jpeg") || contentType.includes("jpg")) ext = "jpg";
+        else if (contentType.includes("gif")) ext = "gif";
+        else if (contentType.includes("webp")) ext = "webp";
+        else if (contentType.includes("svg")) ext = "svg";
+        let originalName = `logo.${ext}`;
+        try {
+          const u = new URL(url);
+          const path = u.pathname.split("/").pop() || "";
+          const m = path.match(/\.([a-zA-Z0-9]+)$/);
+          if (m) originalName = path;
+        } catch {}
+        const uploaded = await uploadFileFromBuffer(companyId, buffer, originalName, contentType);
+        return `/api/v1/files/vault/${uploaded.path.join("/")}`;
+      };
+
+      // Attempt original URL
+      const primary = await tryFetch(input);
+      if (primary) return primary;
+
+      // If input is Clearbit and failed, fallback to Google S2 favicons or /favicon.ico
       try {
         const u = new URL(input);
-        const path = u.pathname.split("/").pop() || "";
-        const m = path.match(/\.([a-zA-Z0-9]+)$/);
-        if (m) originalName = path;
+        const domain = u.hostname.replace(/^www\./, "");
+        const candidates = [
+          `https://www.google.com/s2/favicons?domain=${domain}&sz=128`,
+          `https://${domain}/favicon.ico`,
+          `http://${domain}/favicon.ico`,
+        ];
+        for (const candidate of candidates) {
+          const result = await tryFetch(candidate);
+          if (result) return result;
+        }
       } catch {}
-      const uploaded = await uploadFileFromBuffer(companyId, buffer, originalName, contentType);
-      return `/api/v1/files/vault/${uploaded.path.join("/")}`;
+      return null;
     }
     if (input.startsWith("/api/v1/files/vault/")) return input;
     return null;

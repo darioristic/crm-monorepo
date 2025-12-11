@@ -60,41 +60,57 @@ function getCookieDomain(): string {
 }
 
 function setAuthCookies(
+  request: Request,
   accessToken: string,
   refreshToken: string,
   sessionId: string
 ): Record<string, string | string[]> {
   const isProduction = getNodeEnv() === "production";
-  // Use SameSite=None for cross-origin requests (frontend/backend on different subdomains)
-  const sameSite = isProduction ? "None" : "Lax";
-  const secure = isProduction ? "Secure; " : "";
+  const forwardedProto = (request.headers.get("X-Forwarded-Proto") || "").toLowerCase();
+  const reqUrl = new URL(request.url);
+  const originHeader = request.headers.get("Origin") || "";
+  let isCrossSite = false;
+  try {
+    if (originHeader) {
+      const originUrl = new URL(originHeader);
+      isCrossSite = originUrl.origin !== reqUrl.origin;
+    }
+  } catch {}
+  const isHttps = reqUrl.protocol === "https:" || forwardedProto === "https";
+  const sameSite = isCrossSite ? "None" : "Lax";
+  const secureAttr = isHttps ? "Secure; " : "";
   const cookieDomain = getCookieDomain();
   const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
 
-  // Access token - 15 minutes
-  const accessCookie = `access_token=${accessToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=900`;
-
-  // Refresh token - 7 days (Path includes /auth for switch-tenant endpoint)
-  const refreshCookie = `refresh_token=${refreshToken}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth; Max-Age=604800`;
-
-  // Session ID - 7 days
-  const sessionCookie = `session_id=${sessionId}; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=604800`;
+  const accessCookie = `access_token=${accessToken}; HttpOnly; ${secureAttr}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=900`;
+  const refreshCookie = `refresh_token=${refreshToken}; HttpOnly; ${secureAttr}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth; Max-Age=604800`;
+  const sessionCookie = `session_id=${sessionId}; HttpOnly; ${secureAttr}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=604800`;
 
   return {
     "Set-Cookie": [accessCookie, refreshCookie, sessionCookie],
   };
 }
 
-function clearAuthCookies(): Record<string, string | string[]> {
-  const isProduction = getNodeEnv() === "production";
-  const sameSite = isProduction ? "None" : "Lax";
-  const secure = isProduction ? "Secure; " : "";
+function clearAuthCookies(request: Request): Record<string, string | string[]> {
+  const forwardedProto = (request.headers.get("X-Forwarded-Proto") || "").toLowerCase();
+  const reqUrl = new URL(request.url);
+  const originHeader = request.headers.get("Origin") || "";
+  let isCrossSite = false;
+  try {
+    if (originHeader) {
+      const originUrl = new URL(originHeader);
+      isCrossSite = originUrl.origin !== reqUrl.origin;
+    }
+  } catch {}
+  const isHttps = reqUrl.protocol === "https:" || forwardedProto === "https";
+  const sameSite = isCrossSite ? "None" : "Lax";
+  const secureAttr = isHttps ? "Secure; " : "";
   const cookieDomain = getCookieDomain();
   const domainAttr = cookieDomain ? `Domain=${cookieDomain}; ` : "";
 
-  const clearAccess = `access_token=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=0`;
-  const clearRefresh = `refresh_token=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth; Max-Age=0`;
-  const clearSession = `session_id=; HttpOnly; ${secure}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=0`;
+  const clearAccess = `access_token=; HttpOnly; ${secureAttr}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=0`;
+  const clearRefresh = `refresh_token=; HttpOnly; ${secureAttr}${domainAttr}SameSite=${sameSite}; Path=/api/v1/auth; Max-Age=0`;
+  const clearSession = `session_id=; HttpOnly; ${secureAttr}${domainAttr}SameSite=${sameSite}; Path=/; Max-Age=0`;
 
   return {
     "Set-Cookie": [clearAccess, clearRefresh, clearSession],
@@ -185,6 +201,7 @@ export async function loginHandler(request: Request, _url: URL): Promise<Respons
 
   // Set cookies and return response
   const cookies = setAuthCookies(
+    request,
     result.data!.tokens.accessToken,
     result.data!.tokens.refreshToken,
     result.data!.sessionId
@@ -222,7 +239,7 @@ export async function logoutHandler(request: Request, _url: URL): Promise<Respon
   }
 
   // Clear cookies regardless of auth status
-  return json(successResponse({ success: true }), 200, clearAuthCookies());
+  return json(successResponse({ success: true }), 200, clearAuthCookies(request));
 }
 
 /**
@@ -268,6 +285,7 @@ export async function refreshHandler(request: Request, _url: URL): Promise<Respo
 
   // Set new cookies
   const cookies = setAuthCookies(
+    request,
     result.data!.accessToken,
     result.data!.refreshToken,
     result.data!.sessionId
@@ -431,6 +449,7 @@ export async function switchTenantHandler(request: Request, _url: URL): Promise<
 
     // Set new cookies with updated tokens
     const cookies = setAuthCookies(
+      request,
       result.data!.accessToken,
       result.data!.refreshToken,
       result.data!.sessionId

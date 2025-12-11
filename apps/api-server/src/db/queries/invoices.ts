@@ -123,11 +123,22 @@ export const invoiceQueries = {
   },
 
   async findById(id: string): Promise<InvoiceWithRelations | null> {
-    // Keep implementation robust: fetch base invoice and items only
-    const base = await db`SELECT * FROM invoices WHERE id = ${id}`;
-    if (base.length === 0) return null;
+    // Fetch invoice with company data for customer details
+    const result = await db`
+      SELECT i.*,
+        c.id as company_id_join, c.name as company_name, c.industry as company_industry, c.address as company_address,
+        c.city as company_city, c.zip as company_zip, c.state as company_state, c.country as company_country,
+        c.phone as company_phone, c.email as company_email, c.billing_email as company_billing_email,
+        c.vat_number as company_vat_number, c.website as company_website,
+        c.address_line_1 as company_address_line1, c.zip as company_postal_code,
+        c.company_number as company_company_number
+      FROM invoices i
+      LEFT JOIN companies c ON i.company_id = c.id
+      WHERE i.id = ${id}
+    `;
+    if (result.length === 0) return null;
     const items = await db`SELECT * FROM invoice_items WHERE invoice_id = ${id}`;
-    return mapInvoice(base[0], items);
+    return mapInvoiceWithRelations(result[0], items);
   },
 
   async findByNumber(invoiceNumber: string): Promise<Invoice | null> {
@@ -566,12 +577,17 @@ function mapInvoiceWithRelations(
           name: row.company_name as string,
           industry: row.company_industry as string,
           address: row.company_address as string,
+          addressLine1: row.company_address_line1 as string | undefined,
           city: row.company_city as string | undefined,
           zip: row.company_zip as string | undefined,
+          postalCode: row.company_postal_code as string | undefined,
           country: row.company_country as string | undefined,
           phone: row.company_phone as string | undefined,
-          email: (row.company_email || row.company_billing_email) as string | undefined,
+          email: row.company_email as string | undefined,
+          billingEmail: row.company_billing_email as string | undefined,
           vatNumber: row.company_vat_number as string | undefined,
+          companyNumber: row.company_company_number as string | undefined,
+          registrationNumber: row.company_registration_number as string | undefined,
           website: row.company_website as string | undefined,
         }
       : undefined,

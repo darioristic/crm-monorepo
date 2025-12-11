@@ -32,7 +32,14 @@ import {
 } from "./auth";
 import { chatRoutes } from "./chat";
 import { companyRoutes } from "./companies";
+import { inboxRoutes } from "./inbox";
 import { connectedAccountRoutes } from "./connected-accounts";
+import { transactionCategoryRoutes } from "./transaction-categories";
+import { transactionAttachmentRoutes } from "./transaction-attachments";
+import { transactionEnrichmentRoutes } from "./transaction-enrichment";
+import { recurringTransactionRoutes } from "./recurring-transactions";
+import { bankImportRoutes } from "./bank-import";
+import { currencyRoutes } from "./currency";
 import { crmRoutes } from "./crm";
 import { crmApiRoutes } from "./crm-api";
 import { documentRoutes } from "./documents";
@@ -115,6 +122,27 @@ const routes: Route[] = [
 
   // AI Chat
   ...chatRoutes,
+
+  // Magic Inbox (document matching)
+  ...inboxRoutes,
+
+  // Transaction Categories
+  ...transactionCategoryRoutes,
+
+  // Transaction Attachments
+  ...transactionAttachmentRoutes,
+
+  // Transaction Enrichment
+  ...transactionEnrichmentRoutes,
+
+  // Recurring Transactions
+  ...recurringTransactionRoutes,
+
+  // Bank Import
+  ...bankImportRoutes,
+
+  // Currency & Exchange Rates
+  ...currencyRoutes,
 ];
 
 // ============================================

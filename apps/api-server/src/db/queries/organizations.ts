@@ -43,7 +43,7 @@ export const organizationQueries = {
     const sortOrder = sanitizeSortOrder(pagination.sortOrder);
 
     const selectQuery = `
-      SELECT co.*
+      SELECT co.*, c.logo_url AS logo_url, c.tenant_id AS tenant_id
       FROM customer_organizations co
       ${joinClause}
       ${whereClause}
@@ -54,8 +54,22 @@ export const organizationQueries = {
     return { data: rows.map(mapOrganization), total };
   },
 
-  async getById(id: string) {
-    const rows = await db`SELECT * FROM customer_organizations WHERE id = ${id}`;
+  async getById(id: string, tenantId?: string) {
+    if (tenantId) {
+      const rows = await db`
+        SELECT co.*, c.logo_url AS logo_url, c.tenant_id AS tenant_id
+        FROM customer_organizations co
+        INNER JOIN companies c ON c.id = co.id
+        WHERE co.id = ${id} AND c.tenant_id = ${tenantId}
+      `;
+      return rows.length ? mapOrganization(rows[0]) : null;
+    }
+    const rows = await db`
+      SELECT co.*, c.logo_url AS logo_url, c.tenant_id AS tenant_id
+      FROM customer_organizations co
+      LEFT JOIN companies c ON c.id = co.id
+      WHERE co.id = ${id}
+    `;
     return rows.length ? mapOrganization(rows[0]) : null;
   },
 
@@ -73,7 +87,20 @@ export const organizationQueries = {
     return mapOrganization(result[0]);
   },
 
-  async update(id: string, data: Partial<CustomerOrganization>): Promise<CustomerOrganization> {
+  async update(
+    id: string,
+    data: Partial<CustomerOrganization>,
+    tenantId?: string
+  ): Promise<CustomerOrganization | null> {
+    // Verify tenant ownership before update
+    if (tenantId) {
+      const exists = await db`
+        SELECT 1 FROM customer_organizations co
+        INNER JOIN companies c ON c.id = co.id
+        WHERE co.id = ${id} AND c.tenant_id = ${tenantId}
+      `;
+      if (exists.length === 0) return null;
+    }
     const result = await db`
       UPDATE customer_organizations SET
         name = COALESCE(${data.name ?? null}, name),
@@ -87,11 +114,21 @@ export const organizationQueries = {
       WHERE id = ${id}
       RETURNING *
     `;
-    return mapOrganization(result[0]);
+    return result.length ? mapOrganization(result[0]) : null;
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, tenantId?: string): Promise<boolean> {
+    // Verify tenant ownership before delete
+    if (tenantId) {
+      const exists = await db`
+        SELECT 1 FROM customer_organizations co
+        INNER JOIN companies c ON c.id = co.id
+        WHERE co.id = ${id} AND c.tenant_id = ${tenantId}
+      `;
+      if (exists.length === 0) return false;
+    }
     await db`DELETE FROM customer_organizations WHERE id = ${id}`;
+    return true;
   },
 };
 
@@ -105,6 +142,7 @@ function mapOrganization(row: Record<string, unknown>): CustomerOrganization {
     companyNumber: (row.company_number as string) || null,
     contactPerson: (row.contact_person as string) || null,
     isFavorite: (row.is_favorite as boolean | null) ?? null,
+    logoUrl: (row.logo_url as string) || null,
     tenantId: (row.tenant_id as string) || undefined,
     roles: (row.roles as string[] | null) || undefined,
     status: (row.status as string | null) || undefined,

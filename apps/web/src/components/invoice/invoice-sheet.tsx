@@ -556,7 +556,8 @@ function transformInvoiceToFormValues(invoice: InvoiceApiResponse): Partial<Invo
     ...(invoice.items && invoice.items.length > 0
       ? {
           lineItems: invoice.items.map((item) => ({
-            name: item.productName || item.description || "",
+            name: item.productName || "",
+            description: item.description || "",
             quantity: item.quantity || 1,
             price: item.unitPrice || 0,
             unit: item.unit || "pcs",

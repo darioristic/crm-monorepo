@@ -106,18 +106,7 @@ export const userQueries = {
       SELECT
         u.*,
         c.id as company_id_join,
-        c.name as company_name,
-        c.industry as company_industry,
-        c.address as company_address,
-        c.city as company_city,
-        c.zip as company_zip,
-        c.country as company_country,
-        c.email as company_email,
-        c.phone as company_phone,
-        c.vat_number as company_vat_number,
-        c.company_number as company_company_number,
-        c.created_at as company_created_at,
-        c.updated_at as company_updated_at
+        c.name as company_name
       FROM users u
       LEFT JOIN companies c ON u.company_id = c.id
       WHERE u.email = ${email}

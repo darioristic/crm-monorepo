@@ -1,9 +1,9 @@
 version: '3.8'
 
 services:
-  # Test PostgreSQL database
+  # Test PostgreSQL database (with pgvector for AI similarity search)
   postgres-test:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
     container_name: crm-postgres-test
     environment:
       POSTGRES_USER: test_user

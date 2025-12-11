@@ -214,17 +214,25 @@ function LineItemRow({
       {/* # Row number */}
       <span className="text-[#878787] text-xs">{index + 1}</span>
 
-      {/* Description */}
-      <ProductAutocomplete
-        index={index}
-        value={lineItemName || ""}
-        onChange={(value: string) => {
-          setValue(`lineItems.${index}.name`, value, {
-            shouldValidate: true,
-            shouldDirty: true,
-          });
-        }}
-      />
+      {/* Description - Name and optional description below */}
+      <div className="flex flex-col gap-0.5">
+        <ProductAutocomplete
+          index={index}
+          value={lineItemName || ""}
+          onChange={(value: string) => {
+            setValue(`lineItems.${index}.name`, value, {
+              shouldValidate: true,
+              shouldDirty: true,
+            });
+          }}
+        />
+        <input
+          type="text"
+          {...register(`lineItems.${index}.description`)}
+          placeholder="Description (optional)"
+          className="p-0 border-0 h-5 bg-transparent border-b border-transparent focus:border-border outline-none w-full text-[10px] text-muted-foreground italic placeholder:text-muted-foreground/50"
+        />
+      </div>
 
       {/* Qty */}
       <Controller

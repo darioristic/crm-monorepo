@@ -320,6 +320,25 @@ Return only a JSON array of tag strings.`;
       return [];
     }
   },
+
+  /**
+   * Generate text completion with a simple prompt
+   */
+  async generateText(options: {
+    prompt: string;
+    systemPrompt?: string;
+    maxTokens?: number;
+    temperature?: number;
+  }): Promise<string> {
+    const systemPrompt = options.systemPrompt || "You are a helpful assistant. Be concise and direct.";
+
+    const response = await callAI(systemPrompt, options.prompt, {
+      maxTokens: options.maxTokens || 500,
+      temperature: options.temperature || 0.3,
+    });
+
+    return response || "";
+  },
 };
 
 export default aiService;

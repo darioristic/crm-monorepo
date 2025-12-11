@@ -156,7 +156,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
             const total = baseAmount - discountAmount;
             return {
               productName: item.name,
-              description: "",
+              description: item.description || "",
               quantity: item.quantity || 1,
               unit: item.unit || "pcs",
               unitPrice: item.price || 0,
@@ -296,9 +296,11 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       ...transformedData,
       companyId: (user?.companyId as string) || "",
     };
-    const result = await createMutation.mutate(
-      transformedWithCompany as unknown as CreateInvoiceRequest
-    );
+
+    // Use update API if editing existing invoice, otherwise create
+    const result = invoiceId
+      ? await invoicesApi.update(invoiceId, transformedWithCompany as unknown as UpdateInvoiceRequest)
+      : await createMutation.mutate(transformedWithCompany as unknown as CreateInvoiceRequest);
 
     if (result.success && result.data) {
       const isUpdate = !!invoiceId;

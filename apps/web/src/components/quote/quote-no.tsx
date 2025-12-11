@@ -21,7 +21,8 @@ export function QuoteNo() {
             className={`text-[11px] border-0 p-0 h-auto w-fit min-w-[100px] focus-visible:ring-0 focus-visible:ring-offset-0 font-mono bg-transparent ${
               error ? "text-red-500" : ""
             }`}
-            placeholder="QUO-001"
+            placeholder="Auto"
+            readOnly
           />
         )}
       />

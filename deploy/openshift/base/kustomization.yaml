@@ -20,8 +20,7 @@ commonLabels:
   app.kubernetes.io/part-of: crm
 
 images:
-  - name: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-frontend
+  - name: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-web
     newTag: latest
-  - name: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-backend
+  - name: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-api
     newTag: latest
-

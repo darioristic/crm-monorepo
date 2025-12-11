@@ -5,7 +5,7 @@ import { useEffect } from "react";
 import { FormProvider } from "react-hook-form";
 import type { z } from "zod";
 import type { LineItem, QuoteDefaultSettings, QuoteTemplate } from "@/types/quote";
-import { DEFAULT_QUOTE_TEMPLATE, generateQuoteNumber, generateQuoteToken } from "@/types/quote";
+import { DEFAULT_QUOTE_TEMPLATE, generateQuoteToken } from "@/types/quote";
 
 export type FormValues = z.infer<typeof quoteFormSchema>;
 export type LineItemFormValues = LineItem;
@@ -29,7 +29,7 @@ const getDefaultValues = (): FormValues => {
     noteDetails: null,
     validUntil: validUntil.toISOString(),
     issueDate: today.toISOString(),
-    quoteNumber: generateQuoteNumber(),
+    quoteNumber: "",
     logoUrl: null,
     vat: 0,
     tax: 0,

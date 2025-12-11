@@ -31,11 +31,9 @@ spec:
       serviceAccountName: default
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1001
-        fsGroup: 1001
       containers:
         - name: frontend
-          image: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-frontend:latest
+          image: image-registry.openshift-image-registry.svc:5000/crm-dev/crm-web:latest
           imagePullPolicy: Always
           ports:
             - name: http
@@ -83,4 +81,3 @@ spec:
             readOnlyRootFilesystem: false
       restartPolicy: Always
       terminationGracePeriodSeconds: 30
-

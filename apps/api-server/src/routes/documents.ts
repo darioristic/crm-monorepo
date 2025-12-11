@@ -5,7 +5,9 @@
  */
 
 import { errorResponse, successResponse } from "@crm/utils";
+import { addDocumentProcessingJob } from "../jobs/queue";
 import { logger } from "../lib/logger";
+import { canAccessCompany } from "../middleware/auth";
 import {
   documentsService,
   documentTagAssignmentsService,
@@ -33,13 +35,11 @@ const router = new RouteBuilder();
 router.get("/api/v1/documents", async (request, url) => {
   return withAuth(request, async (auth) => {
     try {
-      // For documents, use auth.companyId directly (FK references companies.id, not tenants.id)
-      const companyId = auth.companyId || null;
+      const effectiveUrl = applyCompanyIdFromHeader(request, url);
+      const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+      if (error) return error;
       if (!companyId) {
-        return errorResponse(
-          "VALIDATION_ERROR",
-          "Company ID required - user must be assigned to a company"
-        );
+        return errorResponse("VALIDATION_ERROR", "Company ID required");
       }
 
       const pagination = {
@@ -103,13 +103,53 @@ router.get("/api/v1/documents/count", async (request, url) => {
  */
 router.get("/api/v1/documents/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    // Use auth.companyId directly - documents.company_id references companies.id
-    const companyId = auth.companyId || null;
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
     if (!companyId) {
       return errorResponse("VALIDATION_ERROR", "Company ID required");
     }
 
     return documentsService.getDocumentById(params.id, companyId);
+  });
+});
+
+/**
+ * POST /api/v1/documents/:id/reprocess - Reprocess document with AI
+ */
+router.post("/api/v1/documents/:id/reprocess", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    // Get the document first
+    const docResult = await documentsService.getDocumentById(params.id, companyId);
+    if (!docResult.success || !docResult.data) {
+      return errorResponse("NOT_FOUND", "Document not found");
+    }
+
+    const doc = docResult.data;
+    const mimetype = (doc.metadata?.mimetype as string) || "application/octet-stream";
+
+    // Queue the document for AI processing
+    try {
+      await addDocumentProcessingJob({
+        documentId: doc.id,
+        companyId,
+        filePath: doc.pathTokens,
+        mimetype,
+        processingType: "full",
+      });
+
+      return successResponse({ message: "Document queued for reprocessing", documentId: doc.id });
+    } catch (err) {
+      logger.error({ error: err, documentId: doc.id }, "Failed to queue document for reprocessing");
+      return errorResponse("INTERNAL_ERROR", "Failed to queue document for reprocessing");
+    }
   });
 });
 
@@ -158,14 +198,15 @@ router.post("/api/v1/documents/upload", async (request) => {
         });
       }
       try {
-        // For document upload, use auth.companyId directly
-        // The documents.company_id FK references companies.id (not tenants.id)
-        const resolvedCompanyId = auth.companyId || null;
+        const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+        const { companyId: resolvedCompanyId, error } = await getCompanyIdForFilter(
+          effectiveUrl,
+          auth,
+          false
+        );
+        if (error) return error;
         if (!resolvedCompanyId) {
-          return errorResponse(
-            "VALIDATION_ERROR",
-            "Company ID required - user must be assigned to a company"
-          );
+          return errorResponse("VALIDATION_ERROR", "Company ID required");
         }
 
         const formData = await request.formData();
@@ -285,7 +326,7 @@ router.post("/api/v1/documents/upload-json", async (request) => {
  */
 router.patch("/api/v1/documents/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const effectiveUrl = applyCompanyIdFromHeader(request, url);
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
     const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
     if (error) return error;
     if (!companyId) {
@@ -306,7 +347,7 @@ router.patch("/api/v1/documents/:id", async (request, _url, params) => {
  */
 router.delete("/api/v1/documents/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const effectiveUrl = applyCompanyIdFromHeader(request, url);
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
     const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
     if (error) return error;
     if (!companyId) {
@@ -323,12 +364,8 @@ router.delete("/api/v1/documents/:id", async (request, _url, params) => {
  */
 router.get("/api/v1/documents/view/:companyId/:filename", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const companyId = auth.companyId || null;
-    if (!companyId) {
-      return json(errorResponse("VALIDATION_ERROR", "Company ID required"), 400);
-    }
-
-    if (params.companyId !== companyId) {
+    const hasAccess = await canAccessCompany(auth, params.companyId);
+    if (!hasAccess) {
       return json(errorResponse("FORBIDDEN", "Access denied"), 403);
     }
 
@@ -372,14 +409,8 @@ router.get("/api/v1/documents/view/:companyId/:filename", async (request, _url, 
  */
 router.get("/api/v1/documents/download/:companyId/:filename", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    // Use auth.companyId directly - documents.company_id references companies.id
-    const companyId = auth.companyId || null;
-    if (!companyId) {
-      return json(errorResponse("VALIDATION_ERROR", "Company ID required"), 400);
-    }
-
-    // Ensure user can only download from their company
-    if (params.companyId !== companyId) {
+    const hasAccess = await canAccessCompany(auth, params.companyId);
+    if (!hasAccess) {
       return json(errorResponse("FORBIDDEN", "Access denied"), 403);
     }
 
@@ -425,7 +456,7 @@ router.get("/api/v1/documents/download/:companyId/:filename", async (request, _u
         }
       } else {
         const { documentQueries } = await import("../db/queries/documents");
-        const doc = await documentQueries.findByPath(pathTokens, companyId);
+        const doc = await documentQueries.findByPath(pathTokens, params.companyId);
         if (doc?.metadata?.originalName) {
           downloadName = String(doc.metadata.originalName);
         }
@@ -449,13 +480,8 @@ router.get("/api/v1/documents/download/:companyId/:filename", async (request, _u
  */
 router.get("/api/v1/documents/preview/:companyId/:filename", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const companyId = auth.companyId || null;
-    if (!companyId) {
-      return json(errorResponse("VALIDATION_ERROR", "Company ID required"), 400);
-    }
-
-    // Ensure user can only preview from their company
-    if (params.companyId !== companyId) {
+    const hasAccess = await canAccessCompany(auth, params.companyId);
+    if (!hasAccess) {
       return json(errorResponse("FORBIDDEN", "Access denied"), 403);
     }
 
@@ -586,7 +612,9 @@ router.post("/api/v1/document-tags", async (request) => {
  */
 router.delete("/api/v1/document-tags/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const companyId = auth.companyId;
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
     if (!companyId) {
       return errorResponse("VALIDATION_ERROR", "Company ID required");
     }
@@ -657,11 +685,6 @@ router.post("/api/v1/documents/store-generated", async (request) => {
   return withAuth(
     request,
     async (auth) => {
-      const companyId = auth.companyId || null;
-      if (!companyId) {
-        return errorResponse("VALIDATION_ERROR", "Company ID required");
-      }
-
       const body = await parseBody<{
         pdfBase64: string;
         documentType: "invoice" | "quote" | "delivery-note" | "order";
@@ -676,6 +699,25 @@ router.post("/api/v1/documents/store-generated", async (request) => {
           "VALIDATION_ERROR",
           "pdfBase64, documentType, entityId, and title are required"
         );
+      }
+
+      // Prefer seller company in active tenant for storing generated docs
+      let companyId: string | null = null;
+      try {
+        if (auth.activeTenantId) {
+          const { findSellerByTenantId } = await import("../db/queries/companies");
+          const seller = await findSellerByTenantId(auth.activeTenantId);
+          companyId = (seller as { id?: string } | null)?.id ?? null;
+        }
+      } catch {}
+      if (!companyId) {
+        const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+        const resolved = await getCompanyIdForFilter(effectiveUrl, auth, false);
+        if (resolved.error) return resolved.error;
+        companyId = resolved.companyId;
+      }
+      if (!companyId) {
+        return errorResponse("VALIDATION_ERROR", "Company ID required");
       }
 
       // Convert base64 to buffer
@@ -699,7 +741,9 @@ router.post("/api/v1/documents/store-generated", async (request) => {
  */
 router.get("/api/v1/documents/by-entity/:type/:id", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const companyId = auth.companyId || null;
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
     if (!companyId) {
       return errorResponse("VALIDATION_ERROR", "Company ID required");
     }

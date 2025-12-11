@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { sql as db } from "../../db/client";
-import type { ToolResponse } from "../types";
 
 const getQuotesSchema = z.object({
   pageSize: z.number().min(1).max(50).default(10).describe("Number of quotes to return"),
@@ -14,11 +13,10 @@ const getQuotesSchema = z.object({
 
 type GetQuotesParams = z.infer<typeof getQuotesSchema>;
 
-export const getQuotesTool = (tool as unknown as typeof tool)({
-  name: "getQuotes",
+export const getQuotesTool = tool({
   description: "Retrieve and filter sales quotes with pagination and status filtering",
   parameters: getQuotesSchema,
-  execute: async (params: GetQuotesParams): Promise<ToolResponse> => {
+  execute: async (params: GetQuotesParams): Promise<string> => {
     const { pageSize = 10, status, search } = params;
     try {
       let query = `
@@ -45,7 +43,7 @@ export const getQuotesTool = (tool as unknown as typeof tool)({
       const result = await db.unsafe(query, queryParams as (string | number)[]);
 
       if (result.length === 0) {
-        return { text: "No quotes found matching your criteria." };
+        return "No quotes found matching your criteria.";
       }
 
       const formatCurrency = (amount: number) => {
@@ -79,23 +77,13 @@ export const getQuotesTool = (tool as unknown as typeof tool)({
         (q: Record<string, unknown>) => q.status === "sent" || q.status === "draft"
       ).length;
 
-      const response = `| Quote # | Customer | Status | Value | Valid Until |
+      return `| Quote # | Customer | Status | Value | Valid Until |
 |---------|----------|--------|-------|-------------|
 ${tableRows}
 
 **Summary**: ${result.length} quotes | Total Value: ${formatCurrency(totalValue)} | Accepted: ${acceptedCount} | Pending: ${pendingCount}`;
-
-      return {
-        text: response,
-        link: {
-          text: "View all quotes",
-          url: "/dashboard/sales/quotes",
-        },
-      };
     } catch (error) {
-      return {
-        text: `Failed to retrieve quotes: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to retrieve quotes: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
@@ -109,11 +97,10 @@ const getQuoteConversionSchema = z.object({
 
 type GetQuoteConversionParams = z.infer<typeof getQuoteConversionSchema>;
 
-export const getQuoteConversionRateTool = (tool as unknown as typeof tool)({
-  name: "getQuoteConversion",
+export const getQuoteConversionRateTool = tool({
   description: "Get quote to invoice conversion rate and statistics",
   parameters: getQuoteConversionSchema,
-  execute: async (params: GetQuoteConversionParams): Promise<ToolResponse> => {
+  execute: async (params: GetQuoteConversionParams): Promise<string> => {
     const { period } = params;
     try {
       const periodDaysMap: Record<string, number> = {
@@ -125,7 +112,7 @@ export const getQuoteConversionRateTool = (tool as unknown as typeof tool)({
       const periodDays = periodDaysMap[period] || 30;
 
       const result = await db`
-        SELECT 
+        SELECT
           COUNT(*) as total_quotes,
           COUNT(CASE WHEN status = 'accepted' THEN 1 END) as accepted,
           COUNT(CASE WHEN status = 'rejected' THEN 1 END) as rejected,
@@ -155,7 +142,7 @@ export const getQuoteConversionRateTool = (tool as unknown as typeof tool)({
         }).format(amount);
       };
 
-      const response = `**Quote Conversion Analysis (Last ${period})**
+      return `**Quote Conversion Analysis (Last ${period})**
 
 📊 **Conversion Rate**: ${conversionRate}%
 💰 **Value Conversion**: ${valueConversionRate}%
@@ -166,18 +153,8 @@ export const getQuoteConversionRateTool = (tool as unknown as typeof tool)({
 | Accepted | ${accepted} | ${formatCurrency(acceptedValue)} |
 | Rejected | ${rejected} | - |
 | Expired | ${expired} | - |`;
-
-      return {
-        text: response,
-        link: {
-          text: "View quote analytics",
-          url: "/dashboard/sales/quotes",
-        },
-      };
     } catch (error) {
-      return {
-        text: `Failed to calculate conversion rate: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to calculate conversion rate: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });

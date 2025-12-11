@@ -175,6 +175,14 @@ export function ProductAutocomplete({
         });
       }
 
+      // Set description from product
+      if (product.description) {
+        setValue(`lineItems.${index}.description`, product.description, {
+          shouldValidate: true,
+          shouldDirty: true,
+        });
+      }
+
       setValue(`lineItems.${index}.productId`, product.id, {
         shouldValidate: true,
         shouldDirty: true,

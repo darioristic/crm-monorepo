@@ -15,6 +15,7 @@ import {
   QUEUES,
   type WebhookDeliveryJobData,
 } from "./queue";
+import { startInboxWorkers, stopInboxWorkers } from "./inbox-jobs";
 
 // ============================================
 // Worker Configuration
@@ -309,6 +310,9 @@ export function startWorkers(): void {
     createDocumentProcessingWorker()
   );
 
+  // Start inbox workers (OCR, embedding, matching)
+  startInboxWorkers();
+
   logger.info({ workerCount: workers.length }, "Background workers started");
 }
 
@@ -320,6 +324,9 @@ export async function stopWorkers(): Promise<void> {
 
   await Promise.all(workers.map((worker) => worker.close()));
   workers.length = 0;
+
+  // Stop inbox workers
+  await stopInboxWorkers();
 
   logger.info("Background workers stopped");
 }

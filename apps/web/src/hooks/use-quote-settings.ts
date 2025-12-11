@@ -1,30 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/contexts/auth-context";
-import { companiesApi } from "@/lib/api";
+import { useTenant } from "@/contexts/tenant-context";
 import type { EditorDoc, QuoteDefaultSettings } from "@/types/quote";
 import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
 
-// Hook for quote settings - simplified version without store
+// Hook for quote settings - fetches fromDetails and logo from current tenant
 export function useQuoteSettings() {
-  const { user } = useAuth();
+  const { currentTenant } = useTenant();
   const [fromDetails, setFromDetails] = useState<EditorDoc | null>(null);
   const [paymentDetails, setPaymentDetails] = useState<EditorDoc | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
-  // Fetch fromDetails from current user's company instead of localStorage
+  // Fetch fromDetails and logoUrl from current tenant's company via /api/v1/companies/current
   useEffect(() => {
     const fetchCompanyDetails = async () => {
-      if (!user?.companyId) {
-        setFromDetails(null);
-        return;
-      }
-
       try {
-        const response = await companiesApi.getById(user.companyId);
+        const response = await fetch("/api/v1/companies/current", {
+          credentials: "include",
+        });
+        const data = await response.json();
 
-        if (response.success && response.data) {
-          const company = response.data;
+        if (data.success && data.data) {
+          const company = data.data;
+
+          // Set logo URL from tenant
+          setLogoUrl(company.logoUrl || null);
 
           // Build fromDetails from company data
           const lines: string[] = [];
@@ -38,6 +39,7 @@ export function useQuoteSettings() {
           if (company.phone) lines.push(company.phone);
           if (company.website) lines.push(company.website);
           if (company.vatNumber) lines.push(`PIB: ${company.vatNumber}`);
+          if (company.companyNumber) lines.push(`MB: ${company.companyNumber}`);
 
           const builtFromDetails: EditorDoc | null =
             lines.length > 0
@@ -50,10 +52,14 @@ export function useQuoteSettings() {
                 }
               : null;
           setFromDetails(builtFromDetails);
+        } else {
+          setFromDetails(null);
+          setLogoUrl(null);
         }
       } catch (error) {
-        console.error("[useQuoteSettings] Failed to fetch company details:", error);
+        console.error("[useQuoteSettings] Failed to fetch tenant company details:", error);
         setFromDetails(null);
+        setLogoUrl(null);
       }
     };
 
@@ -68,16 +74,19 @@ export function useQuoteSettings() {
     }
 
     fetchCompanyDetails();
-  }, [user?.companyId]);
+  }, [currentTenant?.id]);
 
-  // Load default settings
+  // Load default settings with logo from tenant
   const loadDefaultSettings = useMemo((): Partial<QuoteDefaultSettings> => {
     return {
-      template: DEFAULT_QUOTE_TEMPLATE,
+      template: {
+        ...DEFAULT_QUOTE_TEMPLATE,
+        logoUrl: logoUrl || DEFAULT_QUOTE_TEMPLATE.logoUrl,
+      },
       fromDetails,
       paymentDetails,
     };
-  }, [fromDetails, paymentDetails]);
+  }, [fromDetails, paymentDetails, logoUrl]);
 
   return {
     defaultSettings: loadDefaultSettings,

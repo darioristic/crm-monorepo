@@ -82,8 +82,7 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
   if (password.length === 0) {
     return false;
   }
-  // Use Bun's native password verification (supports both bcrypt and argon2)
-  return await Bun.password.verify(password, hash);
+  return await bcrypt.compare(password, hash);
 }
 
 // ============================================

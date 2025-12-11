@@ -1,30 +1,33 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useAuth } from "@/contexts/auth-context";
-import { companiesApi } from "@/lib/api";
+import { useTenant } from "@/contexts/tenant-context";
 import type { InvoiceDefaultSettings } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
-// Hook for invoice settings - fetches fromDetails from current company
+// Hook for invoice settings - fetches fromDetails and logo from current tenant
 export function useInvoiceSettings() {
-  const { user } = useAuth();
+  const { currentTenant } = useTenant();
   const [fromDetails, setFromDetails] = useState<any>(null);
   const [paymentDetails, setPaymentDetails] = useState<any>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch fromDetails from current user's company instead of localStorage
+  // Fetch fromDetails and logoUrl from current tenant's company via /api/v1/companies/current
   useEffect(() => {
     const fetchCompanyDetails = async () => {
-      if (!user?.companyId) {
-        setFromDetails(null);
-        return;
-      }
-
+      setIsLoading(true);
       try {
-        const response = await companiesApi.getById(user.companyId);
+        const response = await fetch("/api/v1/companies/current", {
+          credentials: "include",
+        });
+        const data = await response.json();
 
-        if (response.success && response.data) {
-          const company = response.data;
+        if (data.success && data.data) {
+          const company = data.data;
+
+          // Set logo URL from tenant
+          setLogoUrl(company.logoUrl || null);
 
           // Build fromDetails from company data
           const lines: string[] = [];
@@ -38,6 +41,7 @@ export function useInvoiceSettings() {
           if (company.phone) lines.push(company.phone);
           if (company.website) lines.push(company.website);
           if (company.vatNumber) lines.push(`PIB: ${company.vatNumber}`);
+          if (company.companyNumber) lines.push(`MB: ${company.companyNumber}`);
 
           const builtFromDetails =
             lines.length > 0
@@ -50,10 +54,16 @@ export function useInvoiceSettings() {
                 }
               : null;
           setFromDetails(builtFromDetails);
+        } else {
+          setFromDetails(null);
+          setLogoUrl(null);
         }
       } catch (error) {
-        console.error("[useInvoiceSettings] Failed to fetch company details:", error);
+        console.error("[useInvoiceSettings] Failed to fetch tenant company details:", error);
         setFromDetails(null);
+        setLogoUrl(null);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -68,18 +78,22 @@ export function useInvoiceSettings() {
     }
 
     fetchCompanyDetails();
-  }, [user?.companyId]);
+  }, [currentTenant?.id]);
 
-  // Load default settings
+  // Load default settings with logo from tenant
   const defaultSettings = useMemo((): InvoiceDefaultSettings => {
     return {
-      template: DEFAULT_INVOICE_TEMPLATE,
+      template: {
+        ...DEFAULT_INVOICE_TEMPLATE,
+        logoUrl: logoUrl || DEFAULT_INVOICE_TEMPLATE.logoUrl,
+      },
       fromDetails,
       paymentDetails,
     };
-  }, [fromDetails, paymentDetails]);
+  }, [fromDetails, paymentDetails, logoUrl]);
 
   return {
     defaultSettings,
+    isLoading,
   };
 }

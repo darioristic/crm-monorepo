@@ -148,6 +148,21 @@ export const documentQueries = {
     const values: QueryParam[] = [companyId];
     let paramIndex = 2;
 
+    // Enforce tenant scoping for safety (derive tenant_id from company)
+    try {
+      const tenantRow = await db`
+        SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+      `;
+      const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+      if (tenantId) {
+        conditions.push(`tenant_id = $${paramIndex}`);
+        values.push(tenantId);
+        paramIndex++;
+      }
+    } catch (error) {
+      logger.warn({ error, companyId }, "Failed to resolve tenant_id for document list");
+    }
+
     // Exclude folder placeholders
     conditions.push(`(name IS NULL OR name NOT LIKE '%.folderPlaceholder')`);
 
@@ -331,23 +346,30 @@ export const documentQueries = {
     const metadataJson = JSON.stringify(data.metadata);
     // Default to 'completed' since most uploads don't need processing
     const status = data.processingStatus || "completed";
+    // Resolve tenant_id from company
+    const tenantRow = await db`
+      SELECT tenant_id FROM companies WHERE id = ${data.companyId} LIMIT 1
+    `;
+    const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
     const result = await db`
-			INSERT INTO documents (
-				name, path_tokens, metadata, company_id, owner_id, title, summary, processing_status, created_at, updated_at
-			) VALUES (
-				${data.name},
-				${data.pathTokens},
-				${metadataJson}::jsonb,
-				${data.companyId},
-				${data.ownerId || null},
-				${data.title || null},
-				${data.summary || null},
-				${status},
-				NOW(),
-				NOW()
-			)
-			RETURNING *
-		`;
+            INSERT INTO documents (
+                name, path_tokens, metadata, tenant_id, company_id, owner_id, title, summary, processing_status, created_at, updated_at
+            ) VALUES (
+                ${data.name},
+                ${data.pathTokens},
+                ${metadataJson}::jsonb,
+                ${tenantId},
+                ${data.companyId},
+                ${data.ownerId || null},
+                ${data.title || null},
+                ${data.summary || null},
+                ${status},
+                NOW(),
+                NOW()
+            )
+            RETURNING *
+        `;
 
     return mapDocument(result[0]);
   },

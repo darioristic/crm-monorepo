@@ -1,11 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useApi } from "@/hooks/use-api";
-import { invoicesApi } from "@/lib/api";
 import { InvoicePublicView } from "../../[token]/invoice-public-view";
 
 type Props = {
@@ -14,12 +12,32 @@ type Props = {
 
 export default function InvoiceByIdPage({ params }: Props) {
   const { id } = use(params);
+  const [invoice, setInvoice] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
-  const {
-    data: invoice,
-    isLoading,
-    error,
-  } = useApi<any>(() => invoicesApi.getById(id), { autoFetch: true });
+  useEffect(() => {
+    async function fetchInvoice() {
+      try {
+        // Use public API endpoint that doesn't require authentication
+        // Uses Next.js proxy to avoid CORS issues
+        const response = await fetch(`/api/invoices/public/${id}`);
+
+        if (!response.ok) {
+          throw new Error("Invoice not found");
+        }
+
+        const data = await response.json();
+        setInvoice(data.data);
+      } catch (err) {
+        setError(err instanceof Error ? err : new Error("Failed to load invoice"));
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchInvoice();
+  }, [id]);
 
   if (isLoading) {
     return (

@@ -149,7 +149,7 @@ class CRMService {
 
   async getContacts(
     pagination: PaginationParams,
-    filters: FilterParams
+    filters: FilterParams & { tenantId?: string }
   ): Promise<ApiResponse<Contact[]>> {
     try {
       const cacheKey = `contacts:list:${JSON.stringify({ pagination, filters })}`;
@@ -168,15 +168,15 @@ class CRMService {
     }
   }
 
-  async getContactById(id: string): Promise<ApiResponse<Contact>> {
+  async getContactById(id: string, tenantId?: string): Promise<ApiResponse<Contact>> {
     try {
-      const cacheKey = `contacts:${id}`;
+      const cacheKey = `contacts:${id}:${tenantId || "all"}`;
       const cached = await cache.get<Contact>(cacheKey);
       if (cached) {
         return successResponse(cached);
       }
 
-      const contact = await contactQueries.findById(id);
+      const contact = await contactQueries.findById(id, tenantId);
       if (!contact) {
         return Errors.NotFound("Contact").toResponse();
       }
@@ -189,13 +189,13 @@ class CRMService {
     }
   }
 
-  async createContact(data: CreateContactRequest): Promise<ApiResponse<Contact>> {
+  async createContact(data: CreateContactRequest & { tenantId?: string }): Promise<ApiResponse<Contact>> {
     try {
       if (!isValidEmail(data.email)) {
         return errorResponse("VALIDATION_ERROR", "Invalid email address");
       }
 
-      const contact: Contact = {
+      const contact = {
         id: generateUUID(),
         createdAt: now(),
         updatedAt: now(),

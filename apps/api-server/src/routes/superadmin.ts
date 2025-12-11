@@ -7,7 +7,9 @@ import { errorResponse, successResponse } from "@crm/utils";
 import { eq, isNull } from "drizzle-orm";
 import { cache } from "../cache/redis";
 import { db } from "../db/client";
+import { authQueries } from "../db/queries/auth";
 import { companies, tenants, users } from "../db/schema/index";
+import { userTenantRoles } from "../db/schema/user-tenant-roles";
 import { logger } from "../lib/logger";
 import { requireAdmin } from "../middleware/auth";
 import { provisioningService } from "../system/provisioning/provisioning.service";
@@ -436,7 +438,7 @@ router.post(
       }
 
       // Hash password
-      const _hashedPassword = await Bun.password.hash(body.password);
+      const hashedPassword = await Bun.password.hash(body.password);
 
       const [created] = await db
         .insert(users)
@@ -463,6 +465,19 @@ router.post(
           avatarUrl: users.avatarUrl,
           createdAt: users.createdAt,
         });
+
+      // Create auth credentials so user can log in
+      await authQueries.createCredentials(created.id, hashedPassword);
+
+      // Create user_tenant_roles entry for multi-tenant access
+      const tenantRole = body.role === "tenant_admin" ? "admin" : "user";
+      await db.insert(userTenantRoles).values({
+        userId: created.id,
+        tenantId: params.id,
+        role: tenantRole as "admin" | "manager" | "user",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      });
 
       // Invalidate cache
       await cache.invalidatePattern("users:*");

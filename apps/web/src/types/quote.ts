@@ -2,6 +2,8 @@
 
 export interface LineItem {
   name: string;
+  /** Product description - shown below name in gray */
+  description?: string;
   quantity: number;
   price: number;
   unit: string;
@@ -199,7 +201,7 @@ export const DEFAULT_QUOTE_TEMPLATE: QuoteTemplate = {
   includeTax: false,
   includeDiscount: true,
   includeDecimals: true,
-  includeUnits: false,
+  includeUnits: true,
   includeQr: false,
   includePdf: true,
   taxRate: 0,

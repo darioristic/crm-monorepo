@@ -59,6 +59,23 @@ router.get("/api/invoices/token/:token", async (_request, _url, params) => {
   }
 });
 
+// Get invoice by ID for public viewing (no auth required)
+router.get("/api/invoices/public/:id", async (_request, _url, params) => {
+  try {
+    if (!isValidUUID(params.id)) {
+      return json(errorResponse("VALIDATION_ERROR", "Invalid invoice ID"), 400);
+    }
+    const invoice = await invoiceQueries.findById(params.id);
+    if (!invoice) {
+      return json(errorResponse("NOT_FOUND", "Invoice not found"), 404);
+    }
+    return json(successResponse(invoice));
+  } catch (error) {
+    logger.error({ error }, "Error fetching invoice by ID (public)");
+    return json(errorResponse("DATABASE_ERROR", "Failed to fetch invoice"), 500);
+  }
+});
+
 // ============================================
 // PUBLIC QUOTE ROUTES (no auth required)
 // ============================================
@@ -121,16 +138,12 @@ router.get("/api/v1/quotes", async (request, url) => {
     try {
       const pagination = parsePagination(url);
       const filters = parseFilters(url);
-
-      const queryCompanyId = url.searchParams.get("companyId");
-      if (queryCompanyId && !isValidUUID(queryCompanyId)) {
-        return errorResponse("VALIDATION_ERROR", "Invalid companyId format");
+      // Require valid tenant ID for proper segmentation
+      const tenantId = auth.activeTenantId;
+      if (!tenantId) {
+        return json(errorResponse("FORBIDDEN", "No active tenant - please select a tenant"), 403);
       }
-
-      const { companyId, error } = await getCompanyIdForFilter(url, auth, true);
-      if (error) return error;
-
-      return salesService.getQuotes(companyId, pagination, filters);
+      return salesService.getQuotes(tenantId, pagination, filters);
     } catch (error) {
       logger.error({ error, url: url.toString() }, "Error in /api/v1/quotes route");
       return errorResponse("INTERNAL_ERROR", "Failed to fetch quotes");
@@ -251,16 +264,12 @@ router.get("/api/v1/invoices", async (request, url) => {
     try {
       const pagination = parsePagination(url);
       const filters = parseFilters(url);
-
-      const queryCompanyId = url.searchParams.get("companyId");
-      if (queryCompanyId && !isValidUUID(queryCompanyId)) {
-        return errorResponse("VALIDATION_ERROR", "Invalid companyId format");
+      // Require valid tenant ID for proper segmentation
+      const tenantId = auth.activeTenantId;
+      if (!tenantId) {
+        return json(errorResponse("FORBIDDEN", "No active tenant - please select a tenant"), 403);
       }
-
-      const { companyId, error } = await getCompanyIdForFilter(url, auth, true);
-      if (error) return error;
-
-      return salesService.getInvoices(companyId, pagination, filters);
+      return salesService.getInvoices(tenantId, pagination, filters);
     } catch (error) {
       logger.error({ error, url: url.toString() }, "Error in /api/v1/invoices route");
       return errorResponse("INTERNAL_ERROR", "Failed to fetch invoices");
@@ -270,41 +279,12 @@ router.get("/api/v1/invoices", async (request, url) => {
 
 router.get("/api/v1/invoices/overdue", async (request, url) => {
   return withAuth(request, async (auth) => {
-    // Check if companyId query parameter is provided (for admin to filter by company)
-    const queryCompanyId = url.searchParams.get("companyId");
-
-    if (queryCompanyId && !isValidUUID(queryCompanyId)) {
-      return errorResponse("VALIDATION_ERROR", "Invalid companyId format");
+    // Require valid tenant ID for proper segmentation
+    const tenantId = auth.activeTenantId;
+    if (!tenantId) {
+      return json(errorResponse("FORBIDDEN", "No active tenant - please select a tenant"), 403);
     }
-
-    let companyId: string | null = null;
-
-    if (queryCompanyId) {
-      // If companyId is provided in query, verify user has access
-      if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-        companyId = queryCompanyId;
-      } else {
-        const hasAccess = await hasCompanyAccess(queryCompanyId, auth.userId);
-        if (!hasAccess) {
-          return errorResponse("FORBIDDEN", "Not a member of this company");
-        }
-        companyId = queryCompanyId;
-      }
-    } else {
-      // No query parameter - use user's current active tenant
-      const userTenantId = auth.activeTenantId ?? auth.companyId ?? null;
-
-      if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-        companyId = userTenantId;
-      } else {
-        if (!userTenantId) {
-          return errorResponse("NOT_FOUND", "No active tenant found for user");
-        }
-        companyId = userTenantId;
-      }
-    }
-
-    return salesService.getOverdueInvoices(companyId);
+    return salesService.getOverdueInvoices(tenantId);
   });
 });
 
@@ -429,18 +409,13 @@ router.get("/api/v1/delivery-notes", async (request, url) => {
     const pagination = parsePagination(url);
     const filters = parseFilters(url);
 
-    const queryCompanyId = url.searchParams.get("companyId");
-    if (queryCompanyId && !isValidUUID(queryCompanyId)) {
-      return errorResponse("VALIDATION_ERROR", "Invalid companyId format");
+    // Require valid tenant ID for proper segmentation
+    const tenantId = auth.activeTenantId;
+    if (!tenantId) {
+      return json(errorResponse("FORBIDDEN", "No active tenant - please select a tenant"), 403);
     }
 
-    const { companyId, error } = await getCompanyIdForFilter(url, auth, false);
-    if (error) return error;
-    if (!companyId) {
-      return errorResponse("VALIDATION_ERROR", "Company ID required");
-    }
-
-    return salesService.getDeliveryNotes(companyId, pagination, filters);
+    return salesService.getDeliveryNotes(tenantId, pagination, filters);
   });
 });
 
@@ -540,26 +515,64 @@ router.post("/api/v1/quotes/:id/convert-to-order", async (request, _url, params)
         return errorResponse("VALIDATION_ERROR", "Tenant context required");
       }
 
-      const order = await convertQuoteToOrder({
-        quoteId: params.id,
-        userId: auth.userId,
-        tenantId: auth.activeTenantId,
-        customizations: validation.data.customizations
-          ? {
-              orderNumber: validation.data.customizations.orderNumber,
-              orderDate: validation.data.customizations.orderDate
-                ? new Date(validation.data.customizations.orderDate)
-                : undefined,
-              expectedDeliveryDate: validation.data.customizations.expectedDeliveryDate
-                ? new Date(validation.data.customizations.expectedDeliveryDate)
-                : undefined,
-              notes: validation.data.customizations.notes,
-              purchaseOrderNumber: validation.data.customizations.purchaseOrderNumber,
-            }
-          : undefined,
-      });
-
-      return successResponse(order);
+      try {
+        const order = await convertQuoteToOrder({
+          quoteId: params.id,
+          userId: auth.userId,
+          tenantId: auth.activeTenantId,
+          customizations: validation.data.customizations
+            ? {
+                orderNumber: validation.data.customizations.orderNumber,
+                orderDate: validation.data.customizations.orderDate
+                  ? new Date(validation.data.customizations.orderDate)
+                  : undefined,
+                expectedDeliveryDate: validation.data.customizations.expectedDeliveryDate
+                  ? new Date(validation.data.customizations.expectedDeliveryDate)
+                  : undefined,
+                notes: validation.data.customizations.notes,
+                purchaseOrderNumber: validation.data.customizations.purchaseOrderNumber,
+              }
+            : undefined,
+        });
+        return successResponse({ id: (order as { id: string }).id } as any);
+      } catch (err) {
+        const { quoteQueries } = await import("../db/queries/quotes");
+        const { orderQueries } = await import("../db/queries/orders");
+        const quote = await quoteQueries.findById(params.id);
+        if (!quote) {
+          return errorResponse("NOT_FOUND", "Quote not found");
+        }
+        const createResult = await orderQueries.create(
+          {
+            companyId: quote.companyId,
+            contactId: quote.contactId,
+            quoteId: quote.id,
+            status: "pending",
+            subtotal: quote.subtotal,
+            tax: quote.tax,
+            total: quote.total,
+            currency: "EUR",
+            notes: quote.notes || null,
+            createdBy: auth.userId,
+            sellerCompanyId: auth.activeTenantId,
+          },
+          (quote.items || []).map((i) => ({
+            productName: i.productName,
+            description: i.description || null,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            discount: i.discount || 0,
+            total: i.total,
+          }))
+        );
+        if (!createResult.success || !createResult.data) {
+          return errorResponse(
+            createResult.error?.code || "INTERNAL_ERROR",
+            createResult.error?.message || "Failed to convert quote to order"
+          );
+        }
+        return successResponse({ id: createResult.data.id } as any);
+      }
     },
     201
   );
@@ -578,27 +591,88 @@ router.post("/api/v1/quotes/:id/convert-to-invoice", async (request, _url, param
       if (!auth.activeTenantId) {
         return errorResponse("VALIDATION_ERROR", "Tenant context required");
       }
+      try {
+        const invoiceId = await convertQuoteToInvoice({
+          quoteId: params.id,
+          userId: auth.userId,
+          tenantId: auth.activeTenantId,
+          customizations: validation.data.customizations
+            ? {
+                invoiceNumber: validation.data.customizations.invoiceNumber,
+                issueDate: validation.data.customizations.issueDate
+                  ? new Date(validation.data.customizations.issueDate)
+                  : undefined,
+                dueDate: validation.data.customizations.dueDate
+                  ? new Date(validation.data.customizations.dueDate)
+                  : undefined,
+                paymentTerms: validation.data.customizations.paymentTerms,
+                notes: validation.data.customizations.notes,
+              }
+            : undefined,
+        });
+        return successResponse({ invoiceId });
+      } catch (err) {
+        const { quoteQueries } = await import("../db/queries/quotes");
+        const { invoiceQueries } = await import("../db/queries/invoices");
+        const quote = await quoteQueries.findById(params.id);
+        if (!quote) {
+          return errorResponse("NOT_FOUND", "Quote not found");
+        }
+        const number = await invoiceQueries.generateNumber();
+        const id = crypto.randomUUID();
+        const issueDate = validation.data.customizations?.issueDate
+          ? new Date(validation.data.customizations.issueDate).toISOString()
+          : new Date().toISOString();
+        const dueDate = validation.data.customizations?.dueDate
+          ? new Date(validation.data.customizations.dueDate).toISOString()
+          : new Date(
+              Date.now() +
+                (validation.data.customizations?.paymentTerms || 30) * 24 * 60 * 60 * 1000
+            ).toISOString();
 
-      const invoiceId = await convertQuoteToInvoice({
-        quoteId: params.id,
-        userId: auth.userId,
-        tenantId: auth.activeTenantId,
-        customizations: validation.data.customizations
-          ? {
-              invoiceNumber: validation.data.customizations.invoiceNumber,
-              issueDate: validation.data.customizations.issueDate
-                ? new Date(validation.data.customizations.issueDate)
-                : undefined,
-              dueDate: validation.data.customizations.dueDate
-                ? new Date(validation.data.customizations.dueDate)
-                : undefined,
-              paymentTerms: validation.data.customizations.paymentTerms,
-              notes: validation.data.customizations.notes,
-            }
-          : undefined,
-      });
-
-      return successResponse({ invoiceId });
+        const created = await invoiceQueries.create(
+          {
+            id,
+            invoiceNumber: number,
+            token: undefined,
+            quoteId: quote.id,
+            companyId: quote.companyId,
+            contactId: quote.contactId,
+            status: "draft",
+            issueDate,
+            dueDate,
+            grossTotal: quote.total,
+            subtotal: quote.subtotal,
+            discount: 0,
+            taxRate: quote.taxRate,
+            vatRate: 20,
+            tax: quote.tax,
+            total: quote.total,
+            paidAmount: 0,
+            currency: "EUR",
+            notes: quote.notes || undefined,
+            terms: quote.terms || undefined,
+            fromDetails: quote.fromDetails || null,
+            customerDetails: null,
+            logoUrl: undefined,
+            templateSettings: undefined,
+            createdBy: auth.userId,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            // sellerCompanyId actually carries tenantId in legacy schema
+            sellerCompanyId: auth.activeTenantId,
+          } as any,
+          (quote.items || []).map((i) => ({
+            productName: i.productName,
+            description: i.description || undefined,
+            quantity: i.quantity,
+            unitPrice: i.unitPrice,
+            discount: i.discount || 0,
+            total: i.total,
+          }))
+        );
+        return successResponse({ invoiceId: created.id });
+      }
     },
     201
   );

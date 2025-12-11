@@ -16,17 +16,18 @@ WORKDIR /app
 RUN apk add --no-cache libc6-compat
 
 # Copy workspace configuration for caching
-COPY package.json bun.lock ./
+COPY package.json ./
 COPY apps/web/package.json ./apps/web/
 COPY packages/types/package.json ./packages/types/
 COPY packages/utils/package.json ./packages/utils/
+COPY packages/schemas/package.json ./packages/schemas/
 
-# Install bun and dependencies
-RUN npm install -g bun && bun install --no-frozen-lockfile
+# Install bun and workspace dependencies (include dev for build tools)
+RUN npm install -g bun && bun install
 
-# Ensure web app node_modules are properly linked
+# Ensure web app node_modules are properly linked for the web app
 WORKDIR /app/apps/web
-RUN bun install --no-frozen-lockfile
+RUN bun install
 WORKDIR /app
 
 # ============================================
@@ -36,8 +37,9 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy dependencies from deps stage (bun hoists to root node_modules)
+# Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages ./packages
 
 # Copy source code
@@ -96,8 +98,8 @@ EXPOSE 3000
 
 # Labels for container metadata
 LABEL org.opencontainers.image.title="CRM Web Application" \
-      org.opencontainers.image.description="Frontend for CRM Monorepo" \
-      org.opencontainers.image.vendor="CRM Team"
+    org.opencontainers.image.description="Frontend for CRM Monorepo" \
+    org.opencontainers.image.vendor="CRM Team"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
@@ -105,5 +107,3 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 
 # Start the application - server.js is at apps/web/ in monorepo standalone output
 CMD ["node", "apps/web/server.js"]
-
-

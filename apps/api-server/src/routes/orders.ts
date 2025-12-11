@@ -11,6 +11,12 @@ const router = new RouteBuilder();
 
 router.get("/api/v1/orders", async (request, url) => {
   return withAuth(request, async (auth) => {
+    // Require valid tenant ID for proper segmentation
+    const tenantId = auth.activeTenantId;
+    if (!tenantId) {
+      return errorResponse("FORBIDDEN", "No active tenant - please select a tenant");
+    }
+
     // Get pagination params
     const page = parseInt(url.searchParams.get("page") || "1", 10);
     const pageSize = parseInt(url.searchParams.get("pageSize") || "20", 10);
@@ -24,7 +30,7 @@ router.get("/api/v1/orders", async (request, url) => {
 
     // Use activeTenantId to filter by tenant
     return orderQueries.findAll(
-      auth.activeTenantId ?? null,
+      tenantId,
       { page, pageSize, sortBy, sortOrder },
       { search, status }
     );

@@ -215,22 +215,61 @@ export async function getCompanyIdForFilter(
       companyId = queryCompanyId;
     }
   } else {
-    // No query parameter - use user's current active tenant
-    // Note: This function's name uses "company" but it actually refers to tenant (seller org)
-    // In the new architecture, activeTenantId is the seller organization
-    const userTenantId = auth.activeTenantId ?? auth.companyId ?? null;
+    // No query parameter - derive companyId from user's active tenant
+    const userTenantId = auth.activeTenantId ?? null;
 
-    if (auth.role === "tenant_admin" || auth.role === "superadmin") {
-      companyId = allowAllForAdmin ? null : userTenantId;
-    } else {
-      // Regular users need an active tenant
-      if (!userTenantId) {
+    if (!userTenantId) {
+      // Fallback to legacy companyId if present
+      if (auth.companyId) {
+        companyId = auth.companyId;
+      } else {
         return {
           companyId: null,
           error: json(errorResponse("NOT_FOUND", "No active tenant found for user"), 404),
         };
       }
-      companyId = userTenantId;
+    } else {
+      try {
+        const { sql } = await import("../db/client");
+        // Prefer companies the user is a member of within the active tenant
+        const memberRows = await sql`
+          SELECT c.id
+          FROM companies c
+          JOIN users_on_company uoc ON uoc.company_id = c.id
+          WHERE uoc.user_id = ${auth.userId} AND c.tenant_id = ${userTenantId}
+          ORDER BY c.name ASC
+          LIMIT 1
+        `;
+
+        if (memberRows.length > 0) {
+          companyId = memberRows[0].id as string;
+        } else {
+          // If user is admin, allow selecting any company in tenant; regular users must be members
+          if (auth.role === "tenant_admin" || auth.role === "superadmin") {
+            const anyRows = await sql`
+              SELECT id FROM companies WHERE tenant_id = ${userTenantId} ORDER BY name ASC LIMIT 1
+            `;
+            companyId = (anyRows[0]?.id as string) || null;
+          } else {
+            return {
+              companyId: null,
+              error: json(
+                errorResponse(
+                  "FORBIDDEN",
+                  "User is not a member of any company in active tenant"
+                ),
+                403
+              ),
+            };
+          }
+        }
+      } catch (error) {
+        logger.error({ error, userId: auth.userId, tenantId: userTenantId }, "Failed to derive companyId from tenant");
+        return {
+          companyId: null,
+          error: json(errorResponse("INTERNAL_ERROR", "Failed to resolve company"), 500),
+        };
+      }
     }
   }
 

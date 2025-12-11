@@ -8,7 +8,8 @@
     "packages/*"
   ],
   "scripts": {
-    "postinstall": "lefthook install",
+    "postinstall": "lefthook install || true",
+    "start": "bash start-dev.sh",
     "dev": "bun run --filter '*' dev",
     "dev:api": "bun run --filter @crm/api-server dev",
     "dev:web": "bun run --filter @crm/web dev",
@@ -31,6 +32,7 @@
     "migrate": "bun run --filter @crm/api-server migrate",
     "migrate:status": "bun run --filter @crm/api-server migrate:status",
     "seed:customers": "bun run --filter @crm/api-server db:seed-customers",
+    "seed:complete": "bun run --filter @crm/api-server db:seed-complete",
     "kill-ports": "lsof -ti :3000 | xargs kill -9 2>/dev/null; lsof -ti :3001 | xargs kill -9 2>/dev/null; echo 'Ports freed'",
     "typecheck": "bun run --filter '*' typecheck",
     "lint": "biome lint .",

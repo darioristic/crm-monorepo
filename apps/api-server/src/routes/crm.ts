@@ -75,28 +75,28 @@ router.delete("/api/v1/leads/:id", async (request, _url, params) => {
 // ============================================
 
 router.get("/api/v1/contacts", async (request, url) => {
-  return withAuth(request, async () => {
+  return withAuth(request, async (auth) => {
     const pagination = parsePagination(url);
     const filters = parseFilters(url);
-    return crmService.getContacts(pagination, filters);
+    return crmService.getContacts(pagination, { ...filters, tenantId: auth.activeTenantId });
   });
 });
 
 router.get("/api/v1/contacts/:id", async (request, _url, params) => {
-  return withAuth(request, async () => {
-    return crmService.getContactById(params.id);
+  return withAuth(request, async (auth) => {
+    return crmService.getContactById(params.id, auth.activeTenantId);
   });
 });
 
 router.post("/api/v1/contacts", async (request) => {
   return withAuth(
     request,
-    async () => {
+    async (auth) => {
       const body = await parseBody<CreateContactRequest>(request);
       if (!body) {
         return errorResponse("VALIDATION_ERROR", "Invalid request body");
       }
-      return crmService.createContact(body);
+      return crmService.createContact({ ...body, tenantId: auth.activeTenantId });
     },
     201
   );
@@ -127,7 +127,7 @@ router.get("/api/v1/accounts/search", async (request, url) => {
           } as { search: string; tenantId: string | undefined } & typeof filters)
         : Promise.resolve({ data: [], total: 0 }),
       includeIndividuals
-        ? contactQueries.findAll(pagination, { ...filters, search: q })
+        ? contactQueries.findAll(pagination, { ...filters, search: q, tenantId: auth.activeTenantId })
         : Promise.resolve({ data: [], total: 0 }),
     ]);
 
@@ -281,21 +281,22 @@ router.post("/api/v1/companies/:id/favorite", async (request, _url, params) => {
 
 // Organizations CRUD (Accounts specific)
 router.get("/api/v1/organizations", async (request, url) => {
-  return withAuth(request, async () => {
+  return withAuth(request, async (auth) => {
     const pagination = parsePagination(url);
     const filters = parseFilters(url);
     const search = url.searchParams.get("search") || undefined;
     const { data, total } = await organizationQueries.findAll(pagination, {
       ...filters,
       search,
+      tenantId: auth.activeTenantId,
     });
     return paginatedResponse(data, total, pagination);
   });
 });
 
 router.get("/api/v1/organizations/:id", async (request, _url, params) => {
-  return withAuth(request, async () => {
-    const org = await organizationQueries.getById(params.id);
+  return withAuth(request, async (auth) => {
+    const org = await organizationQueries.getById(params.id, auth.activeTenantId);
     if (!org) return errorResponse("NOT_FOUND", "Organization not found");
     return successResponse(org);
   });
@@ -332,7 +333,7 @@ router.post("/api/v1/organizations", async (request) => {
 });
 
 router.put("/api/v1/organizations/:id", async (request, _url, params) => {
-  return withAuth(request, async () => {
+  return withAuth(request, async (auth) => {
     const body = await parseBody<{
       name?: string;
       email?: string | null;
@@ -345,40 +346,46 @@ router.put("/api/v1/organizations/:id", async (request, _url, params) => {
     if (!body) {
       return errorResponse("VALIDATION_ERROR", "Invalid request body");
     }
-    const org = await organizationQueries.update(params.id, {
-      name: body.name,
-      email: body.email,
-      phone: body.phone,
-      pib: body.pib,
-      companyNumber: body.companyNumber,
-      contactPerson: body.contactPerson,
-      isFavorite: body.isFavorite,
-      updatedAt: new Date().toISOString(),
-    });
+    const org = await organizationQueries.update(
+      params.id,
+      {
+        name: body.name,
+        email: body.email,
+        phone: body.phone,
+        pib: body.pib,
+        companyNumber: body.companyNumber,
+        contactPerson: body.contactPerson,
+        isFavorite: body.isFavorite,
+        updatedAt: new Date().toISOString(),
+      },
+      auth.activeTenantId
+    );
+    if (!org) return errorResponse("NOT_FOUND", "Organization not found");
     return successResponse(org);
   });
 });
 
 router.delete("/api/v1/organizations/:id", async (request, _url, params) => {
-  return withAuth(request, async () => {
-    await organizationQueries.delete(params.id);
+  return withAuth(request, async (auth) => {
+    const deleted = await organizationQueries.delete(params.id, auth.activeTenantId);
+    if (!deleted) return errorResponse("NOT_FOUND", "Organization not found");
     return successResponse({ id: params.id });
   });
 });
 
 router.post("/api/v1/organizations/:id/favorite", async (request, _url, params) => {
-  return withAuth(request, async () => {
+  return withAuth(request, async (auth) => {
     const body = await parseBody<{ favorite: boolean }>(request);
     if (!body) {
       return errorResponse("VALIDATION_ERROR", "Invalid request body");
     }
-    const { sql: db } = await import("../db/client");
-    const result = await db`
-      UPDATE customer_organizations SET is_favorite = ${body.favorite}
-      WHERE id = ${params.id}
-      RETURNING *
-    `;
-    return successResponse(result[0]);
+    const org = await organizationQueries.update(
+      params.id,
+      { isFavorite: body.favorite, updatedAt: new Date().toISOString() },
+      auth.activeTenantId
+    );
+    if (!org) return errorResponse("NOT_FOUND", "Organization not found");
+    return successResponse(org);
   });
 });
 

@@ -1,5 +1,9 @@
+import path from "node:path";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
 import { NodeCanvasFactory } from "./canvas-factory";
+import "pdfjs-dist/legacy/build/pdf.worker.mjs";
+
+const pdfjsPath = path.join(process.cwd(), "node_modules/pdfjs-dist");
 
 /**
  * Converts the first page of a PDF to a PNG image buffer.
@@ -12,7 +16,8 @@ export async function getPdfImage(data: ArrayBuffer): Promise<Buffer | null> {
     data,
     cMapPacked: true,
     isEvalSupported: false,
-    useSystemFonts: true,
+    cMapUrl: path.join(pdfjsPath, `cmaps${path.sep}`),
+    standardFontDataUrl: path.join(pdfjsPath, `standard_fonts${path.sep}`),
   });
 
   try {

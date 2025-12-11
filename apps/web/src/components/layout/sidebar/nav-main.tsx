@@ -281,6 +281,7 @@ export function NavMain() {
                             <SidebarMenuButton
                               className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10"
                               tooltip={item.title}
+                              aria-controls={contentId}
                             >
                               {item.icon && <item.icon className="h-4 w-4" />}
                               <span>{item.title}</span>

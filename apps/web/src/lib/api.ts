@@ -643,6 +643,7 @@ function truncateString(s: string | undefined | null, max: number): string | und
 }
 
 interface SanitizedItem {
+  id?: string;
   productName: string;
   description?: string;
   quantity: number;
@@ -656,7 +657,11 @@ interface SanitizedItem {
 function sanitizeItems(items: unknown[]): SanitizedItem[] {
   return (items || []).map((item: unknown) => {
     const i = item as Record<string, unknown>;
+    // Keep existing id or generate new one
+    const existingId = cleanString(i.id as string);
+    const id = existingId && existingId.length === 36 ? existingId : crypto.randomUUID();
     return {
+      id,
       productName: truncateString(cleanString(i.productName as string), 255) || "",
       description: cleanString(i.description as string),
       quantity: typeof i.quantity === "number" ? i.quantity : Number(i.quantity) || 1,
@@ -1394,6 +1399,14 @@ export const documentsApi = {
    */
   findByEntity: (documentType: string, entityId: string) =>
     request<Document | null>(`/api/v1/documents/by-entity/${documentType}/${entityId}`),
+
+  /**
+   * Reprocess a document with AI to extract title, summary, and tags
+   */
+  reprocess: (id: string) =>
+    request<{ message: string; documentId: string }>(`/api/v1/documents/${id}/reprocess`, {
+      method: "POST",
+    }),
 };
 
 // Document Tags API

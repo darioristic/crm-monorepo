@@ -344,8 +344,6 @@ export function CreateCompanyInlineForm({
                             alt="Company logo"
                             onError={() => {
                               setLogoError(true);
-                              // Clear logoUrl if it fails to load
-                              form.setValue("logoUrl", "");
                             }}
                           />
                           <AvatarFallback className="rounded-lg text-lg">

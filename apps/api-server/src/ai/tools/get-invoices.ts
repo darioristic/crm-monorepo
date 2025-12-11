@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { invoiceQueries } from "../../db/queries/invoices";
-import type { ToolResponse } from "../types";
 
 const getInvoicesSchema = z.object({
   pageSize: z.number().min(1).max(50).default(10).describe("Number of invoices to return"),
@@ -14,17 +13,16 @@ const getInvoicesSchema = z.object({
 
 type GetInvoicesParams = z.infer<typeof getInvoicesSchema>;
 
-export const getInvoicesTool = (tool as unknown as typeof tool)({
-  name: "getInvoices",
+export const getInvoicesTool = tool({
   description: "Retrieve and filter invoices with pagination and status filtering",
   parameters: getInvoicesSchema,
-  execute: async (params: GetInvoicesParams): Promise<ToolResponse> => {
+  execute: async (params: GetInvoicesParams): Promise<string> => {
     const { pageSize = 10, status, search } = params;
     try {
       const result = await invoiceQueries.findAll(null, { page: 1, pageSize }, { status, search });
 
       if (result.data.length === 0) {
-        return { text: "No invoices found matching your criteria." };
+        return "No invoices found matching your criteria.";
       }
 
       const formatCurrency = (amount: number, currency: string) => {
@@ -62,40 +60,28 @@ export const getInvoicesTool = (tool as unknown as typeof tool)({
         )
         .join("\n");
 
-      const response = `| Invoice # | Status | Amount | Due Date | Created |
+      return `| Invoice # | Status | Amount | Due Date | Created |
 |-----------|--------|--------|----------|---------|
 ${tableRows}
 
 **Summary**: ${result.total} total invoices | Total: ${formatCurrency(totalAmount, currency)} | Paid: ${paidCount} | Pending: ${pendingCount} | Overdue: ${overdueCount}`;
-
-      return {
-        text: response,
-        link: {
-          text: "View all invoices",
-          url: "/dashboard/sales/invoices",
-        },
-      };
     } catch (error) {
-      return {
-        text: `Failed to retrieve invoices: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to retrieve invoices: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 const emptySchema = z.object({});
-type EmptyParams = z.infer<typeof emptySchema>;
 
-export const getOverdueInvoicesTool = (tool as unknown as typeof tool)({
-  name: "getOverdueInvoices",
+export const getOverdueInvoicesTool = tool({
   description: "Get all overdue invoices that need attention",
   parameters: emptySchema,
-  execute: async (_params: EmptyParams): Promise<ToolResponse> => {
+  execute: async (): Promise<string> => {
     try {
       const overdueInvoices = await invoiceQueries.getOverdue(null);
 
       if (overdueInvoices.length === 0) {
-        return { text: "Great news! No overdue invoices found." };
+        return "Great news! No overdue invoices found.";
       }
 
       const formatCurrency = (amount: number, currency: string) => {
@@ -129,25 +115,15 @@ export const getOverdueInvoicesTool = (tool as unknown as typeof tool)({
         })
         .join("\n");
 
-      const response = `⚠️ **Overdue Invoices**
+      return `⚠️ **Overdue Invoices**
 
 | Invoice # | Outstanding | Due Date | Days Overdue |
 |-----------|-------------|----------|--------------|
 ${tableRows}
 
 **Total Outstanding**: ${formatCurrency(totalOverdue, currency)} across ${overdueInvoices.length} invoices`;
-
-      return {
-        text: response,
-        link: {
-          text: "View overdue invoices",
-          url: "/dashboard/sales/invoices?status=overdue",
-        },
-      };
     } catch (error) {
-      return {
-        text: `Failed to retrieve overdue invoices: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to retrieve overdue invoices: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });

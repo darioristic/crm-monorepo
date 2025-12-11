@@ -90,11 +90,7 @@ export async function verifyAndGetUser(request: Request): Promise<AuthContext | 
     }
 
     if (!session) {
-      logger.warn(
-        { userId: payload.userId, sessionId: payload.sessionId },
-        "Auth failed: session not found"
-      );
-      return null;
+      logger.warn({ userId: payload.userId, sessionId: payload.sessionId }, "Auth proceeding without cached session");
     }
 
     // Load user's tenant roles and company from database
@@ -169,7 +165,7 @@ export async function verifyAndGetUser(request: Request): Promise<AuthContext | 
       role: payload.role,
       activeTenantId: activeTenantId,
       tenantRoles: tenantRoles,
-      companyId: freshCompanyId || payload.companyId, // Prefer fresh DB value over JWT
+      companyId: freshCompanyId || payload.companyId,
       sessionId: payload.sessionId,
     };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy, Download, Loader2, Trash } from "lucide-react";
+import { Check, Copy, Download, Loader2, RefreshCw, Trash } from "lucide-react";
 import { useState } from "react";
 import { useCopyToClipboard } from "usehooks-ts";
 import { Button } from "@/components/ui/button";
@@ -44,6 +44,36 @@ export function DocumentActions({ showDelete = false, filePath }: Props) {
     }
   };
 
+  const reprocessMutation = useMutation({
+    mutationFn: async () => {
+      if (!params.documentId) throw new Error("No document ID");
+      const response = await documentsApi.reprocess(params.documentId);
+      if (!response.success) {
+        throw new Error(response.error?.message || "Reprocess failed");
+      }
+      return response;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Processing started",
+        description: "AI is analyzing the document. Refresh in a few seconds.",
+      });
+      // Invalidate after a short delay to show updated data
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["document", params.documentId] });
+        queryClient.invalidateQueries({ queryKey: ["documents"] });
+      }, 3000);
+    },
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : undefined;
+      toast({
+        title: "Failed to process",
+        description: message || "Could not process the document. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   const deleteDocumentMutation = useMutation({
     mutationFn: async () => {
       const response = await documentsApi.delete(params.documentId!);
@@ -79,6 +109,22 @@ export function DocumentActions({ showDelete = false, filePath }: Props) {
       <Button variant="ghost" size="icon" onClick={handleCopyLink} title="Copy link">
         {isCopied ? <Check className="size-4" /> : <Copy className="size-4" />}
       </Button>
+
+      {showDelete && params.documentId && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => reprocessMutation.mutate()}
+          disabled={reprocessMutation.isPending}
+          title="Reprocess with AI"
+        >
+          {reprocessMutation.isPending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <RefreshCw className="size-4" />
+          )}
+        </Button>
+      )}
 
       {showDelete && (
         <Button

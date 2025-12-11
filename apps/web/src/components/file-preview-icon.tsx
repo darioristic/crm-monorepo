@@ -1,14 +1,14 @@
 "use client";
 
 import {
-  File,
-  FileArchive,
-  FileCode,
-  FileImage,
-  FileSpreadsheet,
-  FileText,
-  Presentation,
-} from "lucide-react";
+  MdDescription,
+  MdFolderZip,
+  MdInsertDriveFile,
+  MdOutlineImage,
+  MdOutlineTableChart,
+  MdPictureAsPdf,
+  MdSlideshow,
+} from "react-icons/md";
 import { cn } from "@/lib/utils";
 
 type FileType =
@@ -67,21 +67,21 @@ export function getFileIcon(mimetype?: string | null) {
 
   switch (type) {
     case "image":
-      return FileImage;
+      return MdOutlineImage;
     case "pdf":
-      return FileText;
+      return MdPictureAsPdf;
     case "spreadsheet":
-      return FileSpreadsheet;
+      return MdOutlineTableChart;
     case "presentation":
-      return Presentation;
+      return MdSlideshow;
     case "document":
-      return FileText;
+      return MdDescription;
     case "archive":
-      return FileArchive;
+      return MdFolderZip;
     case "code":
-      return FileCode;
+      return MdDescription;
     default:
-      return File;
+      return MdInsertDriveFile;
   }
 }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { useChat } from "@ai-sdk/react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
@@ -11,6 +10,12 @@ import { ChatInput } from "./chat-input";
 import { ChatMessages } from "./chat-messages";
 import { ChatStatusIndicators } from "./chat-status-indicators";
 import { SuggestedPrompts } from "./suggested-prompts";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
 
 interface ChatInterfaceProps {
   className?: string;
@@ -28,6 +33,9 @@ export function ChatInterface({
   const router = useRouter();
   const [chatId, setChatId] = useState(() => initialChatId || crypto.randomUUID());
   const [showHistory, setShowHistory] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const {
@@ -49,44 +57,93 @@ export function ChatInterface({
     updateSessionTitle,
   } = useChatStore();
 
-  const { messages, sendMessage, status, error, regenerate, stop } = useChat({
-    id: chatId,
-    onFinish: (result) => {
-      // Save message to session - access message from result object
-      const msg = (result as any)?.message;
-      if (msg?.role === "assistant") {
-        const content = typeof msg.content === "string" ? msg.content : "";
-        addMessageToSession(chatId, {
-          role: "assistant",
-          content,
-        });
-        // Auto-generate title from first exchange
-        const session = sessions.find((s) => s.id === chatId);
-        if (session && session.title === "New Chat" && session.messages.length <= 2) {
-          const firstUserMessage = session.messages.find((m) => m.role === "user");
-          if (firstUserMessage) {
-            const title =
-              firstUserMessage.content.slice(0, 50) +
-              (firstUserMessage.content.length > 50 ? "..." : "");
-            updateSessionTitle(chatId, title);
+  // Simple chat function without streaming
+  const sendChatMessage = useCallback(async (userMessage: string) => {
+    setIsLoading(true);
+    setError(null);
+    setAgentState({ status: "routing", message: "Analyzing request..." });
+
+    // Add user message to UI
+    const userMsg: Message = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: userMessage,
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    addMessageToSession(chatId, { role: "user", content: userMessage });
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: chatId,
+          messages: [{ role: "user", content: userMessage }],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Chat request failed: ${response.status}`);
+      }
+
+      // Read the response - it's in AI SDK data stream format
+      const text = await response.text();
+      console.log("[Chat] Raw response:", text.slice(0, 200));
+
+      // Parse AI SDK data stream format: 0:"text"\n
+      let assistantContent = "";
+      const lines = text.split("\n");
+      for (const line of lines) {
+        if (line.startsWith("0:")) {
+          try {
+            assistantContent += JSON.parse(line.slice(2));
+          } catch {
+            // ignore parse errors
           }
         }
       }
+
+      if (assistantContent) {
+        const assistantMsg: Message = {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: assistantContent,
+        };
+        setMessages((prev) => [...prev, assistantMsg]);
+        addMessageToSession(chatId, { role: "assistant", content: assistantContent });
+
+        // Auto-generate title
+        const session = sessions.find((s) => s.id === chatId);
+        if (session && session.title === "New Chat" && session.messages.length <= 2) {
+          const title = userMessage.slice(0, 50) + (userMessage.length > 50 ? "..." : "");
+          updateSessionTitle(chatId, title);
+        }
+      }
+
       setAgentState({ status: "complete" });
-    },
-    onError: () => {
+    } catch (err) {
+      console.error("[Chat] Error:", err);
+      setError(err instanceof Error ? err : new Error("Unknown error"));
       setAgentState({ status: "idle" });
-    },
-  });
-
-  const isLoading = status !== "ready" && status !== "error";
-
-  // Update agent status based on streaming state
-  useEffect(() => {
-    if (isLoading && agentState.status === "idle") {
-      setAgentState({ status: "routing", message: "Routing to specialist..." });
+    } finally {
+      setIsLoading(false);
     }
-  }, [isLoading, agentState.status, setAgentState]);
+  }, [chatId, addMessageToSession, sessions, updateSessionTitle, setAgentState]);
+
+  const regenerate = useCallback(() => {
+    // Find last user message and resend
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    if (lastUserMsg) {
+      // Remove last assistant message
+      setMessages((prev) => prev.filter((m) => m.id !== messages[messages.length - 1]?.id));
+      sendChatMessage(lastUserMsg.content);
+    }
+  }, [messages, sendChatMessage]);
+
+  const stop = useCallback(() => {
+    // Not applicable for non-streaming
+    setIsLoading(false);
+  }, []);
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -100,24 +157,11 @@ export function ChatInterface({
       e.preventDefault();
       if (!input.trim() || isLoading) return;
 
-      // Save user message to session
-      addMessageToSession(chatId, { role: "user", content: input });
-
-      setAgentState({ status: "routing", message: "Analyzing request..." });
-      sendMessage({ text: input });
+      sendChatMessage(input);
       handleInputChange("");
       resetCommandState();
     },
-    [
-      input,
-      isLoading,
-      chatId,
-      addMessageToSession,
-      setAgentState,
-      sendMessage,
-      handleInputChange,
-      resetCommandState,
-    ]
+    [input, isLoading, sendChatMessage, handleInputChange, resetCommandState]
   );
 
   const handlePromptSelect = useCallback(

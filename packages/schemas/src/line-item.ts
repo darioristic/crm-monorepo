@@ -6,6 +6,8 @@ import { z } from "zod";
  */
 export const lineItemSchema = z.object({
   name: z.string().default(""),
+  /** Product description - shown below name in gray */
+  description: z.string().optional(),
   quantity: z.number().min(0, "Quantity must be at least 0").default(1),
   unit: z.string().optional().default("pcs"),
   price: z.number().default(0),

@@ -102,11 +102,12 @@ export const useInvoiceSettingsStore = create<InvoiceSettingsState>()(
     }),
     {
       name: "invoice-settings",
-      // Only persist template, fromDetails, and paymentDetails - NOT line items, customer, etc.
+      // Only persist template and paymentDetails - NOT fromDetails (fetched from tenant)
+      // fromDetails should always come fresh from the current tenant's company data
       partialize: (state) => ({
         defaultSettings: {
           template: state.defaultSettings.template,
-          fromDetails: state.defaultSettings.fromDetails,
+          // fromDetails is NOT persisted - it's fetched from tenant via useInvoiceSettings hook
           paymentDetails: state.defaultSettings.paymentDetails,
         },
         recentCustomers: state.recentCustomers,

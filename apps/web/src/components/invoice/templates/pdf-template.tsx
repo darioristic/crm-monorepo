@@ -303,40 +303,55 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
               <View
                 key={`${item.name}-${item.price}-${item.quantity}`}
                 style={{
-                  flexDirection: "row",
                   paddingVertical: 5,
-                  alignItems: "flex-start",
                   borderBottomWidth: 0.5,
                   borderBottomColor: "#e5e5e5",
                 }}
                 wrap={false}
               >
-                <Text style={{ width: 25, fontSize: 9, textAlign: "center" }}>{index + 1}</Text>
-                <Text style={{ flex: 3, fontSize: 9 }}>{item.name}</Text>
-                <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
-                  {item.quantity ?? 0}
-                </Text>
-                {template.includeUnits && (
+                {/* Main row with item data */}
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "flex-start",
+                  }}
+                >
+                  <Text style={{ width: 25, fontSize: 9, textAlign: "center" }}>{index + 1}</Text>
+                  <Text style={{ flex: 3, fontSize: 9 }}>{item.name}</Text>
                   <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
-                    {item.unit || ""}
+                    {item.quantity ?? 0}
                   </Text>
-                )}
-                <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
-                  {formatAmount(item.price ?? 0)}
-                </Text>
-                {template.includeDiscount && (
-                  <Text style={{ flex: 0.7, fontSize: 9, textAlign: "center" }}>
-                    {item.discount ?? 0}%
+                  {template.includeUnits && (
+                    <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
+                      {item.unit || ""}
+                    </Text>
+                  )}
+                  <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
+                    {formatAmount(item.price ?? 0)}
                   </Text>
-                )}
-                {template.includeVat && (
-                  <Text style={{ flex: 0.7, fontSize: 9, textAlign: "center" }}>
-                    {item.vat ?? template.vatRate ?? 20}%
+                  {template.includeDiscount && (
+                    <Text style={{ flex: 0.7, fontSize: 9, textAlign: "center" }}>
+                      {item.discount ?? 0}%
+                    </Text>
+                  )}
+                  {template.includeVat && (
+                    <Text style={{ flex: 0.7, fontSize: 9, textAlign: "center" }}>
+                      {item.vat ?? template.vatRate ?? 20}%
+                    </Text>
+                  )}
+                  <Text style={{ flex: 1, fontSize: 9, textAlign: "right" }}>
+                    {formatAmount(itemTotal)}
                   </Text>
+                </View>
+                {/* Description row - shown below name in gray */}
+                {item.description && (
+                  <View style={{ flexDirection: "row", marginTop: 2 }}>
+                    <View style={{ width: 25 }} />
+                    <Text style={{ flex: 3, fontSize: 8, color: "#666666", fontStyle: "italic" }}>
+                      {item.description}
+                    </Text>
+                  </View>
                 )}
-                <Text style={{ flex: 1, fontSize: 9, textAlign: "right" }}>
-                  {formatAmount(itemTotal)}
-                </Text>
               </View>
             );
           })}

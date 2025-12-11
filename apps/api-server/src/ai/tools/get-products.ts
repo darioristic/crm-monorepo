@@ -1,7 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { sql as db } from "../../db/client";
-import type { ToolResponse } from "../types";
 
 const getProductsSchema = z.object({
   pageSize: z.number().min(1).max(50).default(10).describe("Number of products to return"),
@@ -11,15 +10,14 @@ const getProductsSchema = z.object({
 
 type GetProductsParams = z.infer<typeof getProductsSchema>;
 
-export const getProductsTool = (tool as unknown as typeof tool)({
-  name: "getProducts",
+export const getProductsTool = tool({
   description: "Search and retrieve products with filtering options",
   parameters: getProductsSchema,
-  execute: async (params: GetProductsParams): Promise<ToolResponse> => {
+  execute: async (params: GetProductsParams): Promise<string> => {
     const { pageSize = 10, search, category } = params;
     try {
       let query = `
-        SELECT p.*, c.name as category_name 
+        SELECT p.*, c.name as category_name
         FROM products p
         LEFT JOIN product_categories c ON p.category_id = c.id
         WHERE 1=1
@@ -42,7 +40,7 @@ export const getProductsTool = (tool as unknown as typeof tool)({
       const result = await db.unsafe(query, queryParams as (string | number)[]);
 
       if (result.length === 0) {
-        return { text: "No products found matching your criteria." };
+        return "No products found matching your criteria.";
       }
 
       const formatCurrency = (amount: number) => {
@@ -59,38 +57,26 @@ export const getProductsTool = (tool as unknown as typeof tool)({
         })
         .join("\n");
 
-      const response = `| Product Name | SKU | Category | Price |
+      return `| Product Name | SKU | Category | Price |
 |--------------|-----|----------|-------|
 ${tableRows}
 
 **Found ${result.length} products**`;
-
-      return {
-        text: response,
-        link: {
-          text: "View all products",
-          url: "/dashboard/products",
-        },
-      };
     } catch (error) {
-      return {
-        text: `Failed to retrieve products: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to retrieve products: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 const emptySchema = z.object({});
-type EmptyParams = z.infer<typeof emptySchema>;
 
-export const getProductCategoriesSummaryTool = (tool as unknown as typeof tool)({
-  name: "getProductCategories",
+export const getProductCategoriesSummaryTool = tool({
   description: "Get a summary of products grouped by category",
   parameters: emptySchema,
-  execute: async (_params: EmptyParams): Promise<ToolResponse> => {
+  execute: async (): Promise<string> => {
     try {
       const result = await db`
-        SELECT 
+        SELECT
           COALESCE(c.name, 'Uncategorized') as category,
           COUNT(p.id) as product_count,
           AVG(p.price) as avg_price
@@ -101,7 +87,7 @@ export const getProductCategoriesSummaryTool = (tool as unknown as typeof tool)(
       `;
 
       if (result.length === 0) {
-        return { text: "No product categories found." };
+        return "No product categories found.";
       }
 
       const formatCurrency = (amount: number) => {
@@ -124,25 +110,15 @@ export const getProductCategoriesSummaryTool = (tool as unknown as typeof tool)(
         0
       );
 
-      const response = `**Product Categories Overview**
+      return `**Product Categories Overview**
 
 | Category | Products | Avg. Price |
 |----------|----------|------------|
 ${tableRows}
 
 **Total Products**: ${totalProducts}`;
-
-      return {
-        text: response,
-        link: {
-          text: "View products",
-          url: "/dashboard/products",
-        },
-      };
     } catch (error) {
-      return {
-        text: `Failed to retrieve categories: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to retrieve categories: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });

@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import { OrdersDataTable } from "@/components/sales/orders-data-table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useOrderSettings } from "@/hooks/use-order-settings";
 
 // Dynamic import for OrderSheet to reduce initial bundle size
 // This component includes Tiptap editor which is heavy
@@ -17,6 +18,7 @@ export default function OrdersPage() {
   const router = useRouter();
   const pathname = usePathname();
   const [refreshKey, setRefreshKey] = useState(0);
+  const { defaultSettings } = useOrderSettings();
 
   const _handleCreateOrder = () => {
     router.push(`${pathname}?type=create`);
@@ -35,7 +37,7 @@ export default function OrdersPage() {
         </div>
       </div>
       <OrdersDataTable refreshTrigger={refreshKey} />
-      <OrderSheet onOrderCreated={handleOrderCreated} />
+      <OrderSheet defaultSettings={defaultSettings} onOrderCreated={handleOrderCreated} />
     </div>
   );
 }

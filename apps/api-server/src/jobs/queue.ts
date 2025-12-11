@@ -57,13 +57,43 @@ export interface DocumentProcessingJobData {
   processingType: "classify" | "extract" | "full";
 }
 
+// Inbox job types
+export interface InboxOCRJobData {
+  inboxId: string;
+  tenantId: string;
+  filePath: string[];
+  mimeType: string;
+}
+
+export interface InboxEmbeddingJobData {
+  inboxId: string;
+  tenantId: string;
+  text: string;
+}
+
+export interface InboxMatchingJobData {
+  inboxId: string;
+  tenantId: string;
+}
+
+export interface InboxFullProcessJobData {
+  inboxId: string;
+  tenantId: string;
+  filePath: string[];
+  mimeType: string;
+}
+
 export type JobData =
   | EmailJobData
   | NotificationCleanupJobData
   | InvoiceReminderJobData
   | ReportGenerationJobData
   | WebhookDeliveryJobData
-  | DocumentProcessingJobData;
+  | DocumentProcessingJobData
+  | InboxOCRJobData
+  | InboxEmbeddingJobData
+  | InboxMatchingJobData
+  | InboxFullProcessJobData;
 
 // ============================================
 // Queue Definitions
@@ -76,6 +106,11 @@ export const QUEUES = {
   REPORT_GENERATION: "report-generation",
   WEBHOOK_DELIVERY: "webhook-delivery",
   DOCUMENT_PROCESSING: "document-processing",
+  // Inbox processing queues
+  INBOX_OCR: "inbox-ocr",
+  INBOX_EMBEDDING: "inbox-embedding",
+  INBOX_MATCHING: "inbox-matching",
+  INBOX_FULL_PROCESS: "inbox-full-process",
 } as const;
 
 export type QueueName = (typeof QUEUES)[keyof typeof QUEUES];
@@ -168,6 +203,62 @@ export async function addDocumentProcessingJob(
   return addJob(QUEUES.DOCUMENT_PROCESSING, data, {
     ...options,
     jobId: `doc-${data.documentId}`,
+  });
+}
+
+// ============================================
+// Inbox Job Helpers
+// ============================================
+
+/**
+ * Add inbox OCR job
+ */
+export async function addInboxOCRJob(
+  data: InboxOCRJobData,
+  options?: { delay?: number; priority?: number }
+): Promise<Job<InboxOCRJobData>> {
+  return addJob(QUEUES.INBOX_OCR, data, {
+    ...options,
+    jobId: `inbox-ocr-${data.inboxId}`,
+  });
+}
+
+/**
+ * Add inbox embedding job
+ */
+export async function addInboxEmbeddingJob(
+  data: InboxEmbeddingJobData,
+  options?: { delay?: number; priority?: number }
+): Promise<Job<InboxEmbeddingJobData>> {
+  return addJob(QUEUES.INBOX_EMBEDDING, data, {
+    ...options,
+    jobId: `inbox-emb-${data.inboxId}`,
+  });
+}
+
+/**
+ * Add inbox matching job
+ */
+export async function addInboxMatchingJob(
+  data: InboxMatchingJobData,
+  options?: { delay?: number; priority?: number }
+): Promise<Job<InboxMatchingJobData>> {
+  return addJob(QUEUES.INBOX_MATCHING, data, {
+    ...options,
+    jobId: `inbox-match-${data.inboxId}`,
+  });
+}
+
+/**
+ * Add inbox full process job (OCR -> Embedding -> Matching pipeline)
+ */
+export async function addInboxFullProcessJob(
+  data: InboxFullProcessJobData,
+  options?: { delay?: number; priority?: number }
+): Promise<Job<InboxFullProcessJobData>> {
+  return addJob(QUEUES.INBOX_FULL_PROCESS, data, {
+    ...options,
+    jobId: `inbox-full-${data.inboxId}`,
   });
 }
 
@@ -292,6 +383,10 @@ export default {
   addJob,
   addEmailJob,
   addDocumentProcessingJob,
+  addInboxOCRJob,
+  addInboxEmbeddingJob,
+  addInboxMatchingJob,
+  addInboxFullProcessJob,
   scheduleNotificationCleanup,
   scheduleInvoiceReminderCheck,
   getQueuesStatus,

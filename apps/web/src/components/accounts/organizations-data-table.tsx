@@ -2,6 +2,7 @@
 
 import type { CustomerOrganization } from "@crm/types";
 import { ArrowUpDown, Pencil, Star, StarOff, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -98,7 +99,15 @@ export function OrganizationsDataTable({
                     onCheckedChange={(v) => setSelected({ ...selected, [c.id]: !!v })}
                   />
                 </TableCell>
-                <TableCell>{c.name}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={c.logoUrl || ""} alt={c.name} />
+                      <AvatarFallback>{c.name?.[0]?.toUpperCase() || "?"}</AvatarFallback>
+                    </Avatar>
+                    <span>{c.name}</span>
+                  </div>
+                </TableCell>
                 <TableCell className="text-xs">
                   {[c.pib, c.companyNumber].filter(Boolean).join(" · ") || "-"}
                 </TableCell>

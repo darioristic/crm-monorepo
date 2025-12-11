@@ -6,6 +6,7 @@ import { Controller, useFormContext } from "react-hook-form";
 import { LabelInput } from "@/components/invoice/label-input";
 import { Editor } from "@/components/quote/editor";
 import { logger } from "@/lib/logger";
+import { useTenant } from "@/contexts/tenant-context";
 
 const STORAGE_KEY = "quote_from_details";
 const STORAGE_LABEL_KEY = "quote_from_label";
@@ -15,18 +16,70 @@ export function FromDetails() {
   const id = watch("id");
   const fromDetails = watch("fromDetails");
   const fromLabel = watch("template.fromLabel");
+  const { currentTenant } = useTenant();
 
-  // Load from localStorage on mount (only if form doesn't have data)
+  // Initialize From details from tenant account or localStorage
   useEffect(() => {
-    if (!fromDetails) {
+    const loadFromLocalStorage = () => {
       try {
         const saved = localStorage.getItem(STORAGE_KEY);
         if (saved) {
           const parsed = JSON.parse(saved);
           setValue("fromDetails", parsed, { shouldDirty: false });
+          return true;
         }
       } catch (e) {
         logger.error("Failed to load from details from localStorage:", e);
+      }
+      return false;
+    };
+
+    const loadFromTenantAccount = async () => {
+      if (!currentTenant?.id) return;
+      try {
+        const res = await fetch(`/api/v1/tenant-accounts/${currentTenant.id}`, {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const account = data?.data;
+        const lines: string[] = [];
+        if (account?.name) lines.push(account.name);
+        if (account?.address) lines.push(account.address);
+        const cityLine = [account?.city, account?.zip, account?.country]
+          .filter(Boolean)
+          .join(", ");
+        if (cityLine) lines.push(cityLine);
+        if (account?.email) lines.push(account.email);
+        if (account?.phone) lines.push(account.phone);
+        if (account?.website) lines.push(account.website);
+        if (account?.vatNumber) lines.push(`PIB: ${account.vatNumber}`);
+        if (account?.companyNumber) lines.push(`MB: ${account.companyNumber}`);
+        const built =
+          lines.length > 0
+            ? {
+                type: "doc",
+                content: lines.map((line) => ({
+                  type: "paragraph",
+                  content: [{ type: "text", text: line }],
+                })),
+              }
+            : null;
+        if (built) {
+          setValue("fromDetails", built, { shouldDirty: false });
+          try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(built));
+          } catch (_) {}
+        }
+      } catch (error) {
+        logger.error("Failed to fetch tenant account details:", error);
+      }
+    };
+
+    if (!fromDetails) {
+      const hasLocal = loadFromLocalStorage();
+      if (!hasLocal) {
+        loadFromTenantAccount();
       }
     }
 
@@ -36,11 +89,9 @@ export function FromDetails() {
         if (savedLabel) {
           setValue("template.fromLabel", savedLabel, { shouldDirty: false });
         }
-      } catch (_e) {
-        // Ignore
-      }
+      } catch (_) {}
     }
-  }, []);
+  }, [currentTenant?.id]);
 
   // Save to localStorage when content changes
   const handleSave = (content: JSONContent | null) => {

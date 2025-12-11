@@ -72,7 +72,7 @@ spec:
         
         FULL_IMAGE="$(params.registry)/$(params.namespace)/$(params.image-name):$(params.image-tag)"
         CONTEXT_DIR="."
-        DOCKERFILE="apps/api-server/Dockerfile"
+        DOCKERFILE="docker/api.Dockerfile"
         
         echo "Building image: ${FULL_IMAGE}"
         echo "Using Dockerfile: ${DOCKERFILE}"
@@ -114,4 +114,3 @@ spec:
   volumes:
     - name: varlibcontainers
       emptyDir: {}
-

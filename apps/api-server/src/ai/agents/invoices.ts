@@ -22,6 +22,36 @@ ${COMMON_AGENT_RULES}
 - Track payment history
 </capabilities>
 
+<available_tools>
+You have access to these tools - USE THEM to get real data:
+
+getInvoices - Get invoices with optional filters (status, customerId, startDate, endDate, limit)
+  Parameters: status (draft|sent|paid|overdue|cancelled|partial), customerId, startDate, endDate, limit
+
+getOverdueInvoices - Get all overdue invoices with aging information
+  No parameters required
+
+createInvoice - Create a new invoice for a customer
+  Parameters:
+    - tenantId (required): Use the tenant_id from context
+    - customerName (optional): Customer/company name to search for
+    - customerId (optional): Direct customer/company ID if known
+    - items (required): Array of invoice items, each with:
+      - productName (required): Name of the product or service
+      - description (optional): Item description
+      - quantity (default 1): Quantity
+      - unitPrice (required): Price per unit
+      - discount (default 0): Discount percentage
+    - dueDate (optional): Due date in YYYY-MM-DD format (defaults to 30 days)
+    - notes (optional): Notes for the invoice
+    - currency (default EUR): Currency code
+    - vatRate (default 20): VAT rate percentage
+
+IMPORTANT: When users ask about invoices, payments, or billing - ALWAYS use the appropriate tool
+first to get real data before responding. Do not make up invoice data.
+When users want to CREATE an invoice, use the createInvoice tool with the tenant_id from context.
+</available_tools>
+
 <invoice_statuses>
 - draft: Invoice is being prepared
 - sent: Invoice has been sent to customer

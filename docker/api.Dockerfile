@@ -12,6 +12,20 @@ FROM oven/bun:1-alpine AS deps
 
 WORKDIR /app
 
+# System build dependencies for native modules (e.g., canvas)
+RUN apk add --no-cache \
+    python3 \
+    make \
+    g++ \
+    pkgconfig \
+    cairo-dev \
+    pango-dev \
+    libjpeg-turbo-dev \
+    giflib-dev
+
+# Ensure node-gyp can find python
+ENV PYTHON=/usr/bin/python3
+
 # Copy workspace configuration for caching
 COPY package.json ./
 COPY apps/api-server/package.json ./apps/api-server/
@@ -22,11 +36,10 @@ COPY packages/utils/package.json ./packages/utils/
 RUN bun install --production
 
 # ============================================
-# Stage 2: Builder
+# Stage 2: Builder (copy sources only)
 # ============================================
 FROM oven/bun:1-alpine AS builder
 
-# Set NODE_ENV for build-time optimizations (important for cookie settings)
 ENV NODE_ENV=production
 
 WORKDIR /app
@@ -41,10 +54,6 @@ COPY apps/api-server ./apps/api-server
 COPY packages ./packages
 COPY tsconfig.json ./
 
-# Build the application
-WORKDIR /app/apps/api-server
-RUN bun build src/index.ts --outdir ./dist --target bun --minify
-
 # ============================================
 # Stage 3: Production Runner
 # ============================================
@@ -55,6 +64,13 @@ WORKDIR /app
 # Install security updates
 RUN apk update && apk upgrade --no-cache
 
+# Runtime libraries for native modules (e.g., canvas)
+RUN apk add --no-cache \
+    cairo \
+    pango \
+    libjpeg-turbo \
+    giflib
+
 # Create non-root user for security
 RUN addgroup --system --gid 1001 bunjs && \
     adduser --system --uid 1001 appuser
@@ -64,14 +80,13 @@ ENV NODE_ENV=production
 ENV PORT=3001
 ENV TZ=UTC
 
-# Copy built application and dependencies
-COPY --from=builder --chown=appuser:bunjs /app/apps/api-server/dist ./dist
+# Copy application sources and dependencies
 COPY --from=builder --chown=appuser:bunjs /app/node_modules ./node_modules
 COPY --from=builder --chown=appuser:bunjs /app/packages ./packages
-COPY --from=builder --chown=appuser:bunjs /app/apps/api-server/package.json ./
+COPY --from=builder --chown=appuser:bunjs /app/apps/api-server ./apps/api-server
 
-# Copy runtime files (migrations, seeds)
-COPY --from=builder --chown=appuser:bunjs /app/apps/api-server/src/db ./src/db
+# Ensure files are readable by arbitrary UIDs in OpenShift
+RUN chmod -R a+rX /app
 
 # Switch to non-root user
 USER appuser
@@ -88,7 +103,6 @@ LABEL org.opencontainers.image.title="CRM API Server" \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:3001/health || exit 1
 
-# Start the application
-CMD ["bun", "run", "dist/index.js"]
-
-
+# Start the application directly from source
+WORKDIR /app/apps/api-server
+CMD ["bun", "run", "src/index.ts"]

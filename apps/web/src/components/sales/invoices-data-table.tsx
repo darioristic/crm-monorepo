@@ -19,6 +19,7 @@ import {
 import { InvoicesToolbar } from "@/components/sales/invoices/InvoicesToolbar";
 import { PaymentDialog } from "@/components/sales/invoices/PaymentDialog";
 import { DeleteDialog } from "@/components/shared/delete-dialog";
+import { BulkActions } from "@/components/tables/bulk-actions";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -31,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/auth-context";
 import { useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { useStickyColumns } from "@/hooks/use-sticky-columns";
 import { companiesApi, invoicesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -241,6 +243,25 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
     onSortingChange: setSorting,
   });
 
+  // Sticky columns for better UX on wide tables
+  const { getStickyStyle, getStickyClassName } = useStickyColumns({
+    table,
+    loading: isLoading,
+    stickyColumns: ["select", "invoiceNumber"],
+    columnWidths: {
+      select: 50,
+      invoiceNumber: 130,
+    },
+  });
+
+  // Get selected invoice IDs for bulk actions
+  const selectedInvoiceIds = React.useMemo(() => {
+    return Object.entries(rowSelection)
+      .filter(([_, isSelected]) => isSelected)
+      .map(([index]) => enrichedInvoices[Number.parseInt(index)]?.id)
+      .filter(Boolean) as string[];
+  }, [rowSelection, enrichedInvoices]);
+
   if (isLoading && !invoices?.length) {
     return (
       <div className="space-y-4">
@@ -273,21 +294,29 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
             onNewInvoice={() => router.push(`${pathname}?type=create`)}
           />
         </div>
-        {selectedCount > 0 && (
-          <Button variant="destructive" size="sm" onClick={() => setBulkDeleteDialogOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            Delete ({selectedCount})
-          </Button>
+        {selectedInvoiceIds.length > 0 && (
+          <BulkActions
+            ids={selectedInvoiceIds}
+            type="invoice"
+            onSuccess={() => {
+              setRowSelection({});
+              refetch();
+            }}
+          />
         )}
       </div>
 
-      <div className="rounded-md border">
+      <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
+                  <TableHead
+                    key={header.id}
+                    className={getStickyClassName(header.id)}
+                    style={getStickyStyle(header.id)}
+                  >
                     {header.isPlaceholder
                       ? null
                       : flexRender(header.column.columnDef.header, header.getContext())}
@@ -301,7 +330,11 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
+                    <TableCell
+                      key={cell.id}
+                      className={getStickyClassName(cell.column.id)}
+                      style={getStickyStyle(cell.column.id)}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>
                   ))}

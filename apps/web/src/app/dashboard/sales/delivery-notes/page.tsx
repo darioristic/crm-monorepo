@@ -7,6 +7,7 @@ import { useCallback, useState } from "react";
 import { DeliveryNotesDataTable } from "@/components/sales/delivery-notes-data-table";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useDeliveryNoteSettings } from "@/hooks/use-delivery-note-settings";
 
 // Dynamic import for DeliveryNoteSheet to reduce initial bundle size
 const DeliveryNoteSheet = dynamic(
@@ -21,6 +22,7 @@ export default function DeliveryNotesPage() {
   const router = useRouter();
   const pathname = usePathname();
   const [refreshKey, setRefreshKey] = useState(0);
+  const { defaultSettings } = useDeliveryNoteSettings();
 
   const handleCreateDeliveryNote = () => {
     router.push(`${pathname}?type=create`);
@@ -43,7 +45,7 @@ export default function DeliveryNotesPage() {
         </Button>
       </div>
       <DeliveryNotesDataTable refreshSignal={refreshKey} />
-      <DeliveryNoteSheet onDeliveryNoteCreated={handleDeliveryNoteCreated} />
+      <DeliveryNoteSheet defaultSettings={defaultSettings} onDeliveryNoteCreated={handleDeliveryNoteCreated} />
     </div>
   );
 }

@@ -2,6 +2,8 @@
 
 export interface LineItem {
   name: string;
+  /** Product description - shown below name in gray */
+  description?: string;
   quantity?: number;
   price?: number;
   unit?: string;

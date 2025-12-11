@@ -119,7 +119,7 @@ export const leadQueries = {
 export const contactQueries = {
   async findAll(
     pagination: PaginationParams,
-    filters: FilterParams
+    filters: FilterParams & { tenantId?: string }
   ): Promise<{ data: Contact[]; total: number }> {
     const { page = 1, pageSize = 20 } = pagination;
 
@@ -129,6 +129,11 @@ export const contactQueries = {
 
     const qb = createQueryBuilder("contacts");
     qb.addSearchCondition(["first_name", "last_name", "email"], filters.search);
+
+    // Add tenant filtering
+    if (filters.tenantId) {
+      qb.addEqualCondition("tenant_id", filters.tenantId);
+    }
 
     const { clause: whereClause, values: whereValues } = qb.buildWhereClause();
 
@@ -155,17 +160,21 @@ export const contactQueries = {
     return { data: data.map(mapContact), total };
   },
 
-  async findById(id: string): Promise<Contact | null> {
+  async findById(id: string, tenantId?: string): Promise<Contact | null> {
+    if (tenantId) {
+      const result = await db`SELECT * FROM contacts WHERE id = ${id} AND tenant_id = ${tenantId}`;
+      return result.length > 0 ? mapContact(result[0]) : null;
+    }
     const result = await db`SELECT * FROM contacts WHERE id = ${id}`;
     return result.length > 0 ? mapContact(result[0]) : null;
   },
 
-  async create(contact: Contact): Promise<Contact> {
+  async create(contact: Contact & { tenantId?: string }): Promise<Contact> {
     const result = await db`
       INSERT INTO contacts (
         id, first_name, last_name, email, phone, company, position,
         street, city, state, postal_code, country, notes, lead_id,
-        jmbg, is_favorite,
+        jmbg, is_favorite, tenant_id,
         created_at, updated_at
       ) VALUES (
         ${contact.id}, ${contact.firstName}, ${contact.lastName}, ${contact.email},
@@ -174,6 +183,7 @@ export const contactQueries = {
         ${contact.address?.state || null}, ${contact.address?.postalCode || null},
         ${contact.address?.country || null}, ${contact.notes || null},
         ${contact.leadId || null}, ${contact.jmbg || null}, ${contact.isFavorite ?? false},
+        ${contact.tenantId || null},
         ${contact.createdAt}, ${contact.updatedAt}
       )
       RETURNING *
@@ -181,7 +191,12 @@ export const contactQueries = {
     return mapContact(result[0]);
   },
 
-  async update(id: string, data: Partial<Contact>): Promise<Contact> {
+  async update(id: string, data: Partial<Contact>, tenantId?: string): Promise<Contact | null> {
+    // Verify tenant ownership before update
+    if (tenantId) {
+      const exists = await db`SELECT 1 FROM contacts WHERE id = ${id} AND tenant_id = ${tenantId}`;
+      if (exists.length === 0) return null;
+    }
     const result = await db`
       UPDATE contacts SET
         first_name = COALESCE(${data.firstName ?? null}, first_name),
@@ -197,11 +212,17 @@ export const contactQueries = {
       WHERE id = ${id}
       RETURNING *
     `;
-    return mapContact(result[0]);
+    return result.length > 0 ? mapContact(result[0]) : null;
   },
 
-  async delete(id: string): Promise<void> {
+  async delete(id: string, tenantId?: string): Promise<boolean> {
+    // Verify tenant ownership before delete
+    if (tenantId) {
+      const exists = await db`SELECT 1 FROM contacts WHERE id = ${id} AND tenant_id = ${tenantId}`;
+      if (exists.length === 0) return false;
+    }
     await db`DELETE FROM contacts WHERE id = ${id}`;
+    return true;
   },
 };
 

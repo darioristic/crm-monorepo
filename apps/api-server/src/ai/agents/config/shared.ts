@@ -26,6 +26,7 @@ export interface Agent {
 
 export function formatContextForLLM(context: AppContext): string {
   return `<company_info>
+<tenant_id>${context.teamId}</tenant_id>
 <current_date>${context.currentDateTime}</current_date>
 <timezone>${context.timezone}</timezone>
 <company_name>${context.companyName}</company_name>
@@ -33,7 +34,7 @@ export function formatContextForLLM(context: AppContext): string {
 <locale>${context.locale}</locale>
 </company_info>
 
-Important: Use the current date/time above for time-sensitive operations. User-specific information is maintained in your working memory.`;
+IMPORTANT: When calling tools that require a tenantId parameter, use the tenant_id value above: "${context.teamId}"`;
 }
 
 export const COMMON_AGENT_RULES = `<behavior_rules>

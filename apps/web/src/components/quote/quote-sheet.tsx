@@ -467,7 +467,8 @@ function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormV
     fromDetails: quote.fromDetails || null,
     customerDetails: quote.customerDetails || null,
     lineItems: (quote.items || []).map((item) => ({
-      name: item.productName || item.description || "",
+      name: item.productName || "",
+      description: item.description || "",
       quantity: item.quantity ?? 1,
       price: item.unitPrice ?? 0,
       unit: item.unit ?? "pcs",

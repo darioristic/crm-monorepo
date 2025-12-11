@@ -6,7 +6,6 @@
  */
 
 import { parseOfficeAsync } from "officeparser";
-import { PDFParse } from "pdf-parse";
 import { logger } from "../lib/logger";
 
 // ============================================
@@ -249,6 +248,7 @@ export async function loadDocument(params: {
     switch (mimetype) {
       case "application/pdf":
       case "application/x-pdf": {
+        const { PDFParse } = await import("pdf-parse");
         const pdfParser = new PDFParse(content);
         const pdfData = await pdfParser.getText();
         document = pdfData.text.split("\u0000").join("");

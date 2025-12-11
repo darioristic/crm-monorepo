@@ -2,7 +2,6 @@ import type { Company } from "@crm/types";
 import { tool } from "ai";
 import { z } from "zod";
 import { companyQueries } from "../../db/queries/companies";
-import type { ToolResponse } from "../types";
 
 const getCustomersSchema = z.object({
   pageSize: z.number().min(1).max(50).default(10).describe("Number of customers to return"),
@@ -13,11 +12,10 @@ const getCustomersSchema = z.object({
 
 type GetCustomersParams = z.infer<typeof getCustomersSchema>;
 
-export const getCustomersTool = (tool as unknown as typeof tool)({
-  name: "getCustomers",
+export const getCustomersTool = tool({
   description: "Search and retrieve customers (companies) with filtering options",
   parameters: getCustomersSchema,
-  execute: async (params: GetCustomersParams): Promise<ToolResponse> => {
+  execute: async (params: GetCustomersParams): Promise<string> => {
     const { pageSize = 10, search, industry, country } = params;
     try {
       let result: { data: Company[]; total: number };
@@ -33,7 +31,7 @@ export const getCustomersTool = (tool as unknown as typeof tool)({
       }
 
       if (result.data.length === 0) {
-        return { text: "No customers found matching your criteria." };
+        return "No customers found matching your criteria.";
       }
 
       const tableRows = result.data
@@ -43,23 +41,13 @@ export const getCustomersTool = (tool as unknown as typeof tool)({
         })
         .join("\n");
 
-      const response = `| Company Name | Industry | Location | Email |
+      return `| Company Name | Industry | Location | Email |
 |--------------|----------|----------|-------|
 ${tableRows}
 
 **Found ${result.total} customers**`;
-
-      return {
-        text: response,
-        link: {
-          text: "View all customers",
-          url: "/dashboard/crm/companies",
-        },
-      };
     } catch (error) {
-      return {
-        text: `Failed to retrieve customers: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to retrieve customers: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
@@ -70,17 +58,16 @@ const getCustomerByIdSchema = z.object({
 
 type GetCustomerByIdParams = z.infer<typeof getCustomerByIdSchema>;
 
-export const getCustomerByIdTool = (tool as unknown as typeof tool)({
-  name: "getCustomerById",
+export const getCustomerByIdTool = tool({
   description: "Get detailed information about a specific customer by ID",
   parameters: getCustomerByIdSchema,
-  execute: async (params: GetCustomerByIdParams): Promise<ToolResponse> => {
+  execute: async (params: GetCustomerByIdParams): Promise<string> => {
     const { customerId } = params;
     try {
       const company = await companyQueries.findById(customerId);
 
       if (!company) {
-        return { text: `Customer with ID ${customerId} not found.` };
+        return `Customer with ID ${customerId} not found.`;
       }
 
       const details = [
@@ -99,57 +86,37 @@ export const getCustomerByIdTool = (tool as unknown as typeof tool)({
         .filter(Boolean)
         .join("\n");
 
-      return {
-        text: details,
-        link: {
-          text: "View customer details",
-          url: `/dashboard/crm/companies/${customerId}`,
-        },
-      };
+      return details;
     } catch (error) {
-      return {
-        text: `Failed to retrieve customer: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to retrieve customer: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });
 
 const emptySchema = z.object({});
-type EmptyParams = z.infer<typeof emptySchema>;
 
-export const getIndustriesSummaryTool = (tool as unknown as typeof tool)({
-  name: "getIndustriesSummary",
+export const getIndustriesSummaryTool = tool({
   description: "Get a summary of customers grouped by industry",
   parameters: emptySchema,
-  execute: async (_params: EmptyParams): Promise<ToolResponse> => {
+  execute: async (): Promise<string> => {
     try {
       const industries = await companyQueries.getIndustries();
       const totalCustomers = await companyQueries.count();
 
       if (industries.length === 0) {
-        return { text: "No industry data available." };
+        return "No industry data available.";
       }
 
       const industryList = industries.map((ind) => `- ${ind}`).join("\n");
 
-      const response = `**Customer Industries Overview**
+      return `**Customer Industries Overview**
 
 Total Customers: ${totalCustomers}
 Industries: ${industries.length}
 
 ${industryList}`;
-
-      return {
-        text: response,
-        link: {
-          text: "View customers by industry",
-          url: "/dashboard/crm/companies",
-        },
-      };
     } catch (error) {
-      return {
-        text: `Failed to retrieve industries: ${error instanceof Error ? error.message : "Unknown error"}`,
-      };
+      return `Failed to retrieve industries: ${error instanceof Error ? error.message : "Unknown error"}`;
     }
   },
 });

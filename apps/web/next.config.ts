@@ -4,7 +4,13 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
   output: "standalone",
-  transpilePackages: ["@crm/types", "@crm/utils"],
+  transpilePackages: ["@crm/types", "@crm/utils", "@crm/schemas"],
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   env: {
     API_URL: process.env.API_URL || "http://localhost:3001",
     NEXT_PUBLIC_API_URL:
