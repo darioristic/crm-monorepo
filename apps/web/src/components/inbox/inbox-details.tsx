@@ -287,7 +287,7 @@ export function InboxDetails() {
           {data?.filePath && (
             <FileViewer
               mimeType={data.contentType}
-              url={`/api/proxy?filePath=${data.filePath}`}
+              url={`/api/proxy?filePath=${encodeURIComponent(data.filePath.join("/"))}`}
               key={data.id}
             />
           )}
