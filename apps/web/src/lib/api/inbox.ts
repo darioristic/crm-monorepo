@@ -199,6 +199,16 @@ export const inboxApi = {
   },
 
   /**
+   * Delete multiple inbox items
+   */
+  async deleteMany(ids: string[]): Promise<void> {
+    const response = await apiClient.post(`/inbox/delete-many`, { ids });
+    if (!response.success) {
+      throw new Error(response.error?.message || "Failed to delete inbox items");
+    }
+  },
+
+  /**
    * Confirm a match suggestion
    */
   async confirmMatch(
@@ -262,6 +272,31 @@ export const inboxApi = {
         extractedData: Record<string, unknown>;
       } | null;
       embeddingCreated: boolean;
+    };
+  },
+
+  /**
+   * Retry matching for an inbox item (without reprocessing the file)
+   */
+  async retryMatching(
+    id: string
+  ): Promise<{
+    matches: number;
+    autoMatched: boolean;
+    matchResult?: Record<string, unknown> | null;
+  }> {
+    const response = await apiClient.post<{
+      matches: number;
+      autoMatched: boolean;
+      matchResult?: Record<string, unknown> | null;
+    }>(`/matching/inbox/${id}`);
+    if (!response.success) {
+      throw new Error(response.error?.message || "Failed to retry matching");
+    }
+    return response.data as {
+      matches: number;
+      autoMatched: boolean;
+      matchResult?: Record<string, unknown> | null;
     };
   },
 

@@ -62,14 +62,21 @@ export function InboxDetails() {
   });
 
   const retryMatchingMutation = useMutation({
-    mutationFn: (id: string) => inboxApi.process(id),
-    onSuccess: () => {
+    mutationFn: (id: string) => inboxApi.retryMatching(id),
+    onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["inbox"] });
       queryClient.invalidateQueries({ queryKey: ["inbox-stats"] });
-      toast.success("Processing completed");
+      if (result.autoMatched) {
+        toast.success("Matched automatically");
+      } else if (result.matches > 0) {
+        toast.success(`Found ${result.matches} suggestion${result.matches > 1 ? "s" : ""}`);
+      } else {
+        toast.info("No matches found");
+      }
     },
-    onError: () => {
-      toast.error("Failed to process item");
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Failed to retry matching";
+      toast.error(message);
     },
   });
 
