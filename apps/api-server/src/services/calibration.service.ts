@@ -374,8 +374,7 @@ function calculateCalibratedThresholds(feedback: FeedbackData): CalibratedThresh
   }
 
   // High confidence threshold is between suggested and auto
-  const highConfidenceThreshold =
-    suggestedThreshold + (autoThreshold - suggestedThreshold) * 0.4;
+  const highConfidenceThreshold = suggestedThreshold + (autoThreshold - suggestedThreshold) * 0.4;
 
   return {
     suggestedThreshold: Math.round(suggestedThreshold * 1000) / 1000,

@@ -71,7 +71,7 @@ export function ContactFormSheet({ open, onOpenChange, contactId, onSaved }: Pro
                   email: data.email || "",
                   phone: data.phone,
                   jmbg: data.jmbg,
-                } as any);
+                });
                 if (res.success) {
                   onSaved?.();
                   onOpenChange(false);
@@ -86,7 +86,7 @@ export function ContactFormSheet({ open, onOpenChange, contactId, onSaved }: Pro
                   jmbg: data.jmbg,
                   createdAt: new Date().toISOString(),
                   updatedAt: new Date().toISOString(),
-                } as any);
+                });
                 if (res.success) {
                   onSaved?.();
                   onOpenChange(false);

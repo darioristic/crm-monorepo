@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useApi } from "@/hooks/use-api";
-import { documentsApi, quotesApi } from "@/lib/api";
+import { quotesApi } from "@/lib/api";
 import type { QuoteDefaultSettings } from "@/types/quote";
 import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
 import { Form } from "./form";

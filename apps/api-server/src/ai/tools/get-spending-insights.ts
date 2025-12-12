@@ -7,6 +7,16 @@ import { tool } from "ai";
 import { z } from "zod";
 import { sql } from "../../db/client";
 
+type Expense = {
+  id: string;
+  description: string | null;
+  amount: number;
+  date: string;
+  category: string;
+  merchant_name: string | null;
+  is_recurring: boolean;
+};
+
 const getSpendingInsightsSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
   months: z.number().min(1).max(12).default(3).describe("Number of months to analyze"),
@@ -23,7 +33,7 @@ export const getSpendingInsightsTool = tool({
 
     try {
       // Get all expenses with details
-      const expenses = await sql`
+      const expenses: Expense[] = await sql`
         SELECT
           p.id,
           p.description,
@@ -42,7 +52,7 @@ export const getSpendingInsightsTool = tool({
       `;
 
       // Calculate spending by category
-      const categorySpend: Map<string, { total: number; count: number; transactions: any[] }> =
+      const categorySpend: Map<string, { total: number; count: number; transactions: Expense[] }> =
         new Map();
       for (const exp of expenses) {
         const cat = exp.category as string;
@@ -62,7 +72,15 @@ export const getSpendingInsightsTool = tool({
       });
 
       // Find spending anomalies (transactions > 2x category average)
-      const anomalies: any[] = [];
+      const anomalies: Array<{
+        id: string;
+        description: string | null;
+        amount: number;
+        date: string;
+        merchant_name: string | null;
+        expectedAmount: number;
+        variance: number;
+      }> = [];
       for (const exp of expenses) {
         const cat = exp.category as string;
         const categoryData = categorySpend.get(cat);
@@ -79,8 +97,8 @@ export const getSpendingInsightsTool = tool({
       }
 
       // Find potential duplicate charges
-      const duplicates: any[] = [];
-      const transactionsByDay: Map<string, any[]> = new Map();
+      const duplicates: Array<{ transaction1: Expense; transaction2: Expense }> = [];
+      const transactionsByDay: Map<string, Expense[]> = new Map();
       for (const exp of expenses) {
         const dateKey = new Date(exp.date as string).toISOString().split("T")[0];
         if (!transactionsByDay.has(dateKey)) {

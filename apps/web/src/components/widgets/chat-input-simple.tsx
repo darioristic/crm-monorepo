@@ -1,20 +1,12 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { useChatStore } from "@/store/chat";
-import {
-  ArrowUpRight,
-  History,
-  Loader2,
-  MessageSquare,
-  Send,
-  Sparkles,
-  X,
-} from "lucide-react";
+import { ArrowUpRight, History, Loader2, MessageSquare, Send, Sparkles, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 import Markdown from "react-markdown";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { useChatStore } from "@/store/chat";
 
 interface Message {
   id: string;
@@ -131,12 +123,7 @@ export function ChatInputSimple() {
             </div>
             <div className="flex items-center gap-1">
               <Link href="/dashboard/chat" onClick={handleOpenFullChat}>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs gap-1"
-                >
+                <Button type="button" variant="ghost" size="sm" className="h-7 text-xs gap-1">
                   <ArrowUpRight className="size-3" />
                   Open in chat
                 </Button>
@@ -158,17 +145,12 @@ export function ChatInputSimple() {
             {messages.map((msg) => (
               <div
                 key={msg.id}
-                className={cn(
-                  "flex",
-                  msg.role === "user" ? "justify-end" : "justify-start"
-                )}
+                className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}
               >
                 <div
                   className={cn(
                     "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                    msg.role === "user"
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted"
+                    msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-muted"
                   )}
                 >
                   {msg.role === "assistant" ? (

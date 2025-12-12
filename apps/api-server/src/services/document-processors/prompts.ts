@@ -219,7 +219,6 @@ CRITICAL RULES:
 - Avoid: "document", "file", "text", "business", "company" as tags
 `;
 
-
 export const imageClassifierPrompt = `
 You are an expert document analyzer specializing in business documents (invoices, receipts, contracts).
 
@@ -263,4 +262,3 @@ RULES:
 - Use singular form for tags
 - Be SPECIFIC, never generic
 `;
-

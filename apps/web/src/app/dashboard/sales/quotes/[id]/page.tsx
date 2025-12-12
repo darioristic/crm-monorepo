@@ -10,11 +10,51 @@ import { HtmlTemplate } from "@/components/quote/templates/html";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useApi } from "@/hooks/use-api";
 import { useQuoteWorkflows } from "@/hooks/use-quote";
 import { quotesApi } from "@/lib/api";
 import type { QuoteTemplate, Quote as QuoteType } from "@/types/quote";
+
+// API Quote Response Type
+interface QuoteApiResponse {
+  id: string;
+  quoteNumber: string | null;
+  issueDate: string | null;
+  validUntil: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  total: number;
+  currency?: string | null;
+  items?: Array<{
+    productName?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    discount?: number;
+    vat?: number;
+    vatRate?: number;
+  }>;
+  terms?: string;
+  notes?: string;
+  companyId: string;
+  companyName?: string;
+  token?: string;
+  subtotal?: number | null;
+  tax?: number | null;
+  vat?: number | null;
+  taxRate?: number;
+  sentAt?: string | null;
+  acceptedAt?: string | null;
+  rejectedAt?: string | null;
+  status?: string;
+}
 
 interface PageProps {
   params: Promise<{ id: string }>;
@@ -58,7 +98,9 @@ export default function QuoteDetailPage({ params }: PageProps) {
     data: quote,
     isLoading,
     error,
-  } = useApi<any>(() => quotesApi.getById(id), { autoFetch: true });
+  } = useApi<QuoteApiResponse>(() => quotesApi.getById(id), {
+    autoFetch: true,
+  });
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -84,10 +126,14 @@ export default function QuoteDetailPage({ params }: PageProps) {
   const handleConvertToOrder = async () => {
     try {
       const result = await convertToOrder.mutate({ id });
-      if (result && (result as any).success) {
-        const order = (result as any).data;
+      if (result?.success) {
+        const order = result.data;
         toast.success("Quote converted to order");
-        router.push(`/dashboard/sales/orders/${order.id}`);
+        if (order?.id) {
+          router.push(`/dashboard/sales/orders/${order.id}`);
+        } else {
+          toast.error("Conversion succeeded but order ID missing");
+        }
       } else {
         toast.error("Failed to convert quote to order");
       }
@@ -99,8 +145,8 @@ export default function QuoteDetailPage({ params }: PageProps) {
   const handleConvertToInvoice = async () => {
     try {
       const result = await convertToInvoice.mutate({ id });
-      if (result && (result as any).success) {
-        const { invoiceId } = (result as any).data || {};
+      if (result?.success) {
+        const invoiceId = result.data?.invoiceId;
         if (invoiceId) {
           toast.success("Quote converted to invoice");
           router.push(`/dashboard/sales/invoices/${invoiceId}`);
@@ -153,7 +199,10 @@ export default function QuoteDetailPage({ params }: PageProps) {
 
   return (
     <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4 sm:p-6 md:p-0">
-      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
+      <div
+        className="flex flex-col w-full max-w-full py-6"
+        style={{ maxWidth: width }}
+      >
         {/* Customer Header */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -167,7 +216,9 @@ export default function QuoteDetailPage({ params }: PageProps) {
                 {quote.companyName?.[0] || "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="truncate text-sm">{quote.companyName || "Unknown"}</span>
+            <span className="truncate text-sm">
+              {quote.companyName || "Unknown"}
+            </span>
           </div>
 
           <QuoteStatus status={quote.status} />
@@ -263,7 +314,10 @@ export default function QuoteDetailPage({ params }: PageProps) {
             size="sm"
             className="h-8 text-xs"
             onClick={handleConvertToOrder}
-            disabled={convertToOrder.isLoading || (quote.status === "accepted" ? false : false)}
+            disabled={
+              convertToOrder.isLoading ||
+              (quote.status === "accepted" ? false : false)
+            }
           >
             Convert to Order
           </Button>
@@ -283,7 +337,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
 }
 
 // Transform API quote to Quote type
-function transformQuoteToTemplateData(quote: any): QuoteType {
+function transformQuoteToTemplateData(quote: QuoteApiResponse): QuoteType {
   // Default template
   const defaultTemplate: QuoteTemplate = {
     title: "Quote",
@@ -363,7 +417,7 @@ function transformQuoteToTemplateData(quote: any): QuoteType {
       : null,
     team: null,
     scheduledAt: null,
-    lineItems: (quote.items || []).map((item: any) => ({
+    lineItems: (quote.items || []).map((item) => ({
       name: item.productName || item.description || "",
       quantity: Number(item.quantity) || 1,
       price: Number(item.unitPrice) || 0,

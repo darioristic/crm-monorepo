@@ -1,7 +1,7 @@
 "use client";
 
-import { cn } from "@/lib/utils";
 import { Settings } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface BaseWidgetProps {
   title: string;

@@ -29,8 +29,8 @@ type Props = {
 
 export function IndividualsDataTable({
   data,
-  isLoading,
-  error,
+  isLoading: _isLoading,
+  error: _error,
   page,
   totalPages,
   onPageChange,

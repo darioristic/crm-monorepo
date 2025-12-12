@@ -2,17 +2,10 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import {
-  Check,
-  Copy,
-  Download,
-  FileText,
-  MoreVertical,
-  RefreshCw,
-  Trash2,
-} from "lucide-react";
+import { Check, Copy, Download, MoreVertical, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { FileViewer } from "@/components/file-viewer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,12 +16,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useInboxParams } from "@/hooks/use-inbox-params";
 import { type InboxItem, inboxApi } from "@/lib/api/inbox";
 import { getWebsiteLogo } from "@/lib/logos";
@@ -38,7 +25,7 @@ import { InboxActions } from "./inbox-actions";
 export function InboxDetails() {
   const queryClient = useQueryClient();
   const { params, setParams } = useInboxParams();
-  const [isCopied, setIsCopied] = useState(false);
+  const [_isCopied, setIsCopied] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
 
   const id = params.inboxId;
@@ -166,12 +153,7 @@ export function InboxDetails() {
     <div className="h-[calc(100vh-125px)] overflow-hidden flex-col border w-[614px] hidden md:flex shrink-0 -mt-[54px]">
       <div className="flex items-center p-2">
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            disabled={!data}
-            onClick={handleDelete}
-          >
+          <Button variant="ghost" size="icon" disabled={!data} onClick={handleDelete}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -187,7 +169,8 @@ export function InboxDetails() {
             <DropdownMenuContent align="end" className="w-48">
               <DropdownMenuItem
                 onClick={() =>
-                  data && updateMutation.mutate({
+                  data &&
+                  updateMutation.mutate({
                     id: data.id,
                     status: data.status === "done" ? "pending" : "done",
                   })
@@ -223,9 +206,7 @@ export function InboxDetails() {
                 )}
               </DropdownMenuItem>
 
-              <DropdownMenuItem
-                onClick={() => toast.info("Download coming soon")}
-              >
+              <DropdownMenuItem onClick={() => toast.info("Download coming soon")}>
                 <Download className="mr-2 size-4" />
                 <span className="text-xs">Download</span>
               </DropdownMenuItem>
@@ -261,10 +242,7 @@ export function InboxDetails() {
                     {data.website && (
                       <AvatarImage
                         alt={data.website}
-                        className={cn(
-                          "rounded-full overflow-hidden",
-                          showFallback && "hidden",
-                        )}
+                        className={cn("rounded-full overflow-hidden", showFallback && "hidden")}
                         src={getWebsiteLogo(data.website)}
                         onError={() => {
                           setShowFallback(true);
@@ -273,9 +251,7 @@ export function InboxDetails() {
                     )}
 
                     {fallback && (
-                      <AvatarFallback>
-                        {getInitials(data?.displayName ?? "")}
-                      </AvatarFallback>
+                      <AvatarFallback>{getInitials(data?.displayName ?? "")}</AvatarFallback>
                     )}
                   </Avatar>
                 </div>
@@ -283,28 +259,20 @@ export function InboxDetails() {
 
               <div className="grid gap-1 select-text">
                 <div className="font-semibold">
-                  {isProcessing ? (
-                    <Skeleton className="h-3 w-[120px] mb-1" />
-                  ) : (
-                    data.displayName
-                  )}
+                  {isProcessing ? <Skeleton className="h-3 w-[120px] mb-1" /> : data.displayName}
                 </div>
                 <div className="line-clamp-1 text-xs">
-                  {isProcessing && !data.currency && (
-                    <Skeleton className="h-3 w-[50px]" />
-                  )}
-                  {data.currency && data.amount != null && (
-                    formatCurrency(data.amount, data.currency)
-                  )}
+                  {isProcessing && !data.currency && <Skeleton className="h-3 w-[50px]" />}
+                  {data.currency &&
+                    data.amount != null &&
+                    formatCurrency(data.amount, data.currency)}
                 </div>
               </div>
             </div>
 
             <div className="grid gap-1 ml-auto text-right">
               <div className="text-xs text-muted-foreground select-text">
-                {isProcessing && !data.date && (
-                  <Skeleton className="h-3 w-[50px]" />
-                )}
+                {isProcessing && !data.date && <Skeleton className="h-3 w-[50px]" />}
                 {data.date && format(new Date(data.date), "MMM d, yyyy")}
               </div>
             </div>
@@ -317,41 +285,15 @@ export function InboxDetails() {
           </div>
 
           {data?.filePath && (
-            <div className="flex-1 relative min-h-0 overflow-hidden">
-              <div className="h-full w-full bg-white dark:bg-[#0d0d0d] overflow-auto">
-                <div className="p-4 h-full flex items-center justify-center">
-                  <div className="max-w-full max-h-full">
-                    {data.contentType?.includes("pdf") ? (
-                      <iframe
-                        src={`/api/files/${data.filePath}`}
-                        className="w-full h-[500px] border-0"
-                        title="Document Preview"
-                      />
-                    ) : data.contentType?.includes("image") ? (
-                      <img
-                        src={`/api/files/${data.filePath}`}
-                        alt={data.fileName || "Document"}
-                        className="max-w-full max-h-[500px] object-contain"
-                      />
-                    ) : (
-                      <div className="text-center text-muted-foreground">
-                        <FileText className="h-16 w-16 mx-auto mb-4 opacity-30" />
-                        <p className="text-sm">{data.fileName}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {data.contentType}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
+            <FileViewer
+              mimeType={data.contentType}
+              url={`/api/proxy?filePath=${data.filePath}`}
+              key={data.id}
+            />
           )}
         </div>
       ) : (
-        <div className="p-8 text-center text-muted-foreground">
-          No attachment selected
-        </div>
+        <div className="p-8 text-center text-muted-foreground">No attachment selected</div>
       )}
     </div>
   );

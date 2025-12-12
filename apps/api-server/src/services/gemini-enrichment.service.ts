@@ -7,20 +7,19 @@
 
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { generateObject } from "ai";
-import { serviceLogger } from "../lib/logger";
 import {
-  type EnrichmentResult,
-  type BatchEnrichmentResult,
-  BATCH_CONFIG,
-  enrichmentSchema,
-} from "../ai/enrichment/enrichment-schema";
-import {
-  type TransactionForEnrichment,
   generateEnrichmentPrompt,
   prepareTransactionData,
   prepareUpdateData,
-  processBatch,
+  type TransactionForEnrichment,
 } from "../ai/enrichment/enrichment-helpers";
+import {
+  BATCH_CONFIG,
+  type BatchEnrichmentResult,
+  type EnrichmentResult,
+  enrichmentSchema,
+} from "../ai/enrichment/enrichment-schema";
+import { serviceLogger } from "../lib/logger";
 
 // Initialize Google Generative AI client
 const google = createGoogleGenerativeAI({
@@ -175,9 +174,7 @@ export interface BatchEnrichmentStats {
 /**
  * Calculate statistics from enrichment process results
  */
-export function calculateEnrichmentStats(
-  results: EnrichmentProcessResult[]
-): BatchEnrichmentStats {
+export function calculateEnrichmentStats(results: EnrichmentProcessResult[]): BatchEnrichmentStats {
   return {
     totalProcessed: results.length,
     updatesApplied: results.filter((r) => r.updated).length,

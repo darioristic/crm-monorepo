@@ -1,6 +1,7 @@
 import type { DeliveryNote } from "@crm/types";
 import { format, parseISO } from "date-fns";
 import { EditorContent } from "@/components/invoice/templates/html/components/editor-content";
+import type { EditorDoc as QuoteEditorDoc } from "@/types/quote";
 import { LineItems } from "@/components/invoice/templates/html/components/line-items";
 import { Logo } from "@/components/invoice/templates/html/components/logo";
 import { Summary } from "@/components/invoice/templates/html/components/summary";
@@ -30,12 +31,12 @@ type DeliveryNoteTemplate = {
 type DeliveryNoteData = {
   deliveryNote: DeliveryNote;
   template?: DeliveryNoteTemplate;
-  customerDetails?: any;
-  fromDetails?: any;
-  paymentDetails?: any;
-  noteDetails?: any;
-  topBlock?: any;
-  bottomBlock?: any;
+  customerDetails?: QuoteEditorDoc | null;
+  fromDetails?: QuoteEditorDoc | null;
+  paymentDetails?: QuoteEditorDoc | null;
+  noteDetails?: QuoteEditorDoc | null;
+  topBlock?: QuoteEditorDoc | null;
+  bottomBlock?: QuoteEditorDoc | null;
 };
 
 type Props = {

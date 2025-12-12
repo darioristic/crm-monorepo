@@ -14,8 +14,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import type { Invoice } from "@/types/invoice";
-import type { Quote } from "@/types/quote";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
+import type { Quote } from "@/types/quote";
 import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
 
 export const runtime = "nodejs";

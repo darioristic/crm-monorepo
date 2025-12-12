@@ -2,19 +2,14 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { Check, Filter, Search, X } from "lucide-react";
+import { Filter, Search } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { type InboxItem, inboxApi } from "@/lib/api/inbox";
-import { cn, formatCurrency } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 type Props = {
   data: InboxItem;
@@ -37,11 +32,7 @@ function SuggestedMatch({ data }: Props) {
 
   const confirmMatchMutation = useMutation({
     mutationFn: () =>
-      inboxApi.confirmMatch(
-        data.id,
-        data.suggestion!.transactionId,
-        data.suggestion!.id
-      ),
+      inboxApi.confirmMatch(data.id, data.suggestion!.transactionId, data.suggestion!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbox"] });
       queryClient.invalidateQueries({ queryKey: ["inbox-stats"] });
@@ -53,8 +44,7 @@ function SuggestedMatch({ data }: Props) {
   });
 
   const declineMatchMutation = useMutation({
-    mutationFn: () =>
-      inboxApi.declineMatch(data.id, data.suggestion!.id),
+    mutationFn: () => inboxApi.declineMatch(data.id, data.suggestion!.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbox"] });
       queryClient.invalidateQueries({ queryKey: ["inbox-stats"] });
@@ -79,12 +69,8 @@ function SuggestedMatch({ data }: Props) {
       <div className="flex items-center justify-between gap-2 text-sm">
         <div className="flex flex-col gap-2">
           <div className="flex gap-2 items-center">
-            <span className="truncate font-medium">
-              {data.displayName || "Suggested Match"}
-            </span>
-            <span className="text-muted-foreground text-xs">
-              {suggestion?.matchType}
-            </span>
+            <span className="truncate font-medium">{data.displayName || "Suggested Match"}</span>
+            <span className="text-muted-foreground text-xs">{suggestion?.matchType}</span>
           </div>
 
           <div className="text-xs text-muted-foreground">
@@ -93,9 +79,7 @@ function SuggestedMatch({ data }: Props) {
         </div>
 
         {data.amount && (
-          <span className="font-medium">
-            {formatCurrency(data.amount, data.currency || "EUR")}
-          </span>
+          <span className="font-medium">{formatCurrency(data.amount, data.currency || "EUR")}</span>
         )}
       </div>
 
@@ -153,9 +137,7 @@ function MatchTransaction({ data }: Props) {
               <Filter className="h-4 w-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent className="text-xs px-3 py-1.5">
-            Filter transactions
-          </TooltipContent>
+          <TooltipContent className="text-xs px-3 py-1.5">Filter transactions</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </motion.div>

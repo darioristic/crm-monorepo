@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useApi } from "@/hooks/use-api";
-import { documentsApi, invoicesApi } from "@/lib/api";
+import { invoicesApi } from "@/lib/api";
 import type { InvoiceDefaultSettings } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE, extractTextFromEditorDoc } from "@/types/invoice";
 import { buildCustomerDetails } from "@/utils/customer-details";

@@ -8,25 +8,17 @@
  */
 
 import { sql as db } from "../db/client";
-import { serviceLogger } from "../lib/logger";
 import {
   calculateAmountScore,
   calculateCurrencyScore,
   calculateDateScore,
-  wasPreviouslyDismissed,
   type InboxType,
+  wasPreviouslyDismissed,
 } from "../db/queries/inbox";
-import {
-  checkMerchantPatternEligibility,
-  MERCHANT_PATTERN_CONSTANTS,
-} from "../db/queries/merchant-patterns";
-import { getCalibration, CALIBRATION_CONSTANTS } from "./calibration.service";
-import {
-  cosineSimilarity,
-  generateEmbedding,
-  prepareInboxText,
-  prepareTransactionText,
-} from "./embeddings";
+import { checkMerchantPatternEligibility } from "../db/queries/merchant-patterns";
+import { serviceLogger } from "../lib/logger";
+import { getCalibration } from "./calibration.service";
+import { cosineSimilarity } from "./embeddings";
 
 // ==============================================
 // TYPES
@@ -868,10 +860,7 @@ async function calculateScores(
   };
 }
 
-function getDateRange(
-  type: InboxType | null,
-  inboxDate: string
-): { start: Date; end: Date } {
+function getDateRange(type: InboxType | null, inboxDate: string): { start: Date; end: Date } {
   const config = type ? DATE_RANGES[type] || DATE_RANGES.default : DATE_RANGES.default;
   const baseDate = new Date(inboxDate);
 
@@ -906,10 +895,7 @@ function parseEmbedding(embedding: unknown): number[] {
       return JSON.parse(embedding);
     } catch {
       // Handle pgvector format: [1,2,3,...]
-      return embedding
-        .replace(/[\[\]]/g, "")
-        .split(",")
-        .map(Number);
+      return embedding.replace(/[[\]]/g, "").split(",").map(Number);
     }
   }
   return [];

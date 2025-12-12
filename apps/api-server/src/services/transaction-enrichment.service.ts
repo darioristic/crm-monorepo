@@ -4,20 +4,19 @@
  * Uses pattern matching and AI embeddings for smart categorization
  */
 
+import { chunks, type TransactionForEnrichment } from "../ai/enrichment/enrichment-helpers";
+import { BATCH_CONFIG } from "../ai/enrichment/enrichment-schema";
 import { sql as db } from "../db/client";
 import * as transactionCategoryQueries from "../db/queries/transaction-categories";
 import { serviceLogger } from "../lib/logger";
 import { aiService } from "./ai.service";
 import {
-  enrichTransactionsBatchWithGemini,
-  processEnrichmentResults,
-  calculateEnrichmentStats,
-  isGeminiEnrichmentConfigured,
-  type EnrichmentProcessResult,
   type BatchEnrichmentStats,
+  calculateEnrichmentStats,
+  enrichTransactionsBatchWithGemini,
+  isGeminiEnrichmentConfigured,
+  processEnrichmentResults,
 } from "./gemini-enrichment.service";
-import { type TransactionForEnrichment, chunks } from "../ai/enrichment/enrichment-helpers";
-import { BATCH_CONFIG } from "../ai/enrichment/enrichment-schema";
 
 // ==============================================
 // TYPES
@@ -955,7 +954,7 @@ export async function batchEnrichWithAI(
   const limit = options?.limit || BATCH_CONFIG.BATCH_SIZE;
   const allProcessedIds: string[] = [];
   const allErrors: string[] = [];
-  let aggregatedStats: BatchEnrichmentStats = {
+  const aggregatedStats: BatchEnrichmentStats = {
     totalProcessed: 0,
     updatesApplied: 0,
     merchantsUpdated: 0,
@@ -1078,7 +1077,9 @@ export async function batchEnrichWithAI(
         await markTransactionsAsEnriched(failedIds);
         allProcessedIds.push(...failedIds);
         aggregatedStats.errors += batch.length;
-        allErrors.push(`Batch failed: ${batchError instanceof Error ? batchError.message : "Unknown error"}`);
+        allErrors.push(
+          `Batch failed: ${batchError instanceof Error ? batchError.message : "Unknown error"}`
+        );
       }
     }
 

@@ -1,4 +1,5 @@
 import { generateUUID, now } from "@crm/utils";
+import type { Contact } from "@crm/types";
 import { logger } from "../lib/logger";
 import { sql as db } from "./client";
 import { companyQueries } from "./queries/companies";
@@ -489,7 +490,7 @@ export async function addAdminToAllCompanies(): Promise<void> {
     const baseEmails = ["sales", "accounting", "office", "it", "support"];
     for (let ci = 0; ci < 5; ci++) {
       const email = `${baseEmails[ci]}@${company.name.replace(/\s+/g, "").toLowerCase()}.customers.rs`;
-      const c = await contactQueries.create({
+      const newContact: Contact = {
         id: generateUUID(),
         firstName: "Kupac",
         lastName: `${ci + 1}`,
@@ -508,7 +509,8 @@ export async function addAdminToAllCompanies(): Promise<void> {
         leadId: null,
         createdAt: now(),
         updatedAt: now(),
-      } as any);
+      };
+      const c = await contactQueries.create(newContact);
       contacts.push(c.id);
     }
 

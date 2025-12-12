@@ -44,7 +44,7 @@ export const getDocumentsTool = tool({
         LEFT JOIN companies c ON d.company_id = c.id
         WHERE d.tenant_id = ${tenantId}
           ${companyId ? sql`AND d.company_id = ${companyId}::uuid` : sql``}
-          ${search ? sql`AND (d.title ILIKE ${"%" + search + "%"} OR d.summary ILIKE ${"%" + search + "%"})` : sql``}
+          ${search ? sql`AND (d.title ILIKE ${`%${search}%`} OR d.summary ILIKE ${`%${search}%`})` : sql``}
           ${tags && tags.length > 0 ? sql`AND d.tags && ${tags}::text[]` : sql``}
         ORDER BY d.created_at DESC
         LIMIT ${limit}

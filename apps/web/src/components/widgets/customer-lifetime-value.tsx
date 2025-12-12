@@ -5,7 +5,7 @@ import { BaseWidget } from "./base";
 
 export function CustomerLifetimeValueWidget() {
   // TODO: Integrate with real data
-  const averageCLV = 127109303.20;
+  const averageCLV = 127109303.2;
   const totalCustomers = 1;
   const activeCustomers = 1;
   const averageLifespanDays = 1;
@@ -34,8 +34,7 @@ export function CustomerLifetimeValueWidget() {
             <div className="flex justify-between">
               <span className="text-[#878787] text-xs">Active (30d)</span>
               <span className="font-medium">
-                {activeCustomers}{" "}
-                <span className="text-[#878787]">({activePercentage}%)</span>
+                {activeCustomers} <span className="text-[#878787]">({activePercentage}%)</span>
               </span>
             </div>
             <div className="flex justify-between">

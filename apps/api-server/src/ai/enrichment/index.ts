@@ -5,5 +5,5 @@
  * Provides merchant name extraction and auto-categorization with confidence scoring.
  */
 
-export * from "./enrichment-schema";
 export * from "./enrichment-helpers";
+export * from "./enrichment-schema";

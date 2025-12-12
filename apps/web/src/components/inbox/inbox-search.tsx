@@ -15,8 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { useInboxParams } from "@/hooks/use-inbox-params";
+import { cn } from "@/lib/utils";
 
 const statusFilters = [
   { id: "all", name: "All" },
@@ -67,7 +67,7 @@ export function InboxSearch() {
               className={cn(
                 "absolute z-10 right-3 top-[10px] opacity-50 transition-opacity duration-300 hover:opacity-100",
                 hasFilter && "opacity-100",
-                isOpen && "opacity-100",
+                isOpen && "opacity-100"
               )}
             >
               <Filter className="size-4" />
@@ -89,11 +89,7 @@ export function InboxSearch() {
               <span>Status</span>
             </DropdownMenuSubTrigger>
             <DropdownMenuPortal>
-              <DropdownMenuSubContent
-                sideOffset={14}
-                alignOffset={-4}
-                className="p-0"
-              >
+              <DropdownMenuSubContent sideOffset={14} alignOffset={-4} className="p-0">
                 <DropdownMenuRadioGroup
                   value={params.status ?? "all"}
                   onValueChange={(value) =>
@@ -101,11 +97,7 @@ export function InboxSearch() {
                       status:
                         value === "all"
                           ? null
-                          : (value as
-                              | "done"
-                              | "pending"
-                              | "suggested_match"
-                              | "no_match"),
+                          : (value as "done" | "pending" | "suggested_match" | "no_match"),
                     })
                   }
                 >

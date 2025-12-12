@@ -29,30 +29,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { tenantAdminApi } from "@/lib/api";
+import type { TenantUser, CreateTenantUserRequest } from "@/lib/api";
 
-type TenantUser = {
-  id: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  role: string;
-  status?: string;
-};
+// Use workspace TenantUser type from API client
 
 export default function MembersSettingsPage() {
   const [users, setUsers] = useState<TenantUser[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<string>("crm_user");
+  const [inviteRole, setInviteRole] = useState<CreateTenantUserRequest["role"]>("crm_user");
   const [successMessage, setSuccessMessage] = useState<string>("");
 
   useEffect(() => {
     const run = async () => {
       setIsLoading(true);
       const result = await tenantAdminApi.users.getAll();
-      if (result.success && result.data) {
-        setUsers(result.data as any);
+      if (result.success) {
+        setUsers(result.data ?? []);
       }
       setIsLoading(false);
     };
@@ -64,15 +58,15 @@ export default function MembersSettingsPage() {
       firstName: "",
       lastName: "",
       email: inviteEmail,
-      role: inviteRole as any,
+      role: inviteRole,
     });
     if (result.success && result.data) {
       setSuccessMessage("Invitation sent");
       setInviteOpen(false);
       setInviteEmail("");
       const refresh = await tenantAdminApi.users.getAll();
-      if (refresh.success && refresh.data) {
-        setUsers(refresh.data as any);
+      if (refresh.success) {
+        setUsers(refresh.data ?? []);
       }
     }
   };

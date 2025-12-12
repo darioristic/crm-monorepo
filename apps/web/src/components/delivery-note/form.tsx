@@ -1,6 +1,6 @@
 "use client";
 
-import type { CreateDeliveryNoteRequest, UpdateDeliveryNoteRequest } from "@crm/types";
+import type { CreateDeliveryNoteRequest, UpdateDeliveryNoteRequest, DeliveryNote } from "@crm/types";
 import { useCallback, useEffect, useRef } from "react";
 import { type FieldErrors, useFormContext, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -8,6 +8,7 @@ import { useDebounceValue } from "usehooks-ts";
 import { CustomerDetails } from "@/components/order/customer-details";
 import { EditBlock } from "@/components/order/edit-block";
 import { createContentFromText, extractTextFromContent } from "@/components/order/editor";
+import type { JSONContent } from "@tiptap/react";
 import { FromDetails } from "@/components/order/from-details";
 import { LineItems } from "@/components/order/line-items";
 import { Logo } from "@/components/order/logo";
@@ -36,10 +37,10 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
   const { user } = useAuth();
 
   // Mutations
-  const draftMutation = useMutation((data: UpdateDeliveryNoteRequest) =>
+  const draftMutation = useMutation<DeliveryNote, UpdateDeliveryNoteRequest>((data: UpdateDeliveryNoteRequest) =>
     deliveryNotesApi.update(deliveryNoteId || "", data)
   );
-  const createMutation = useMutation((data: CreateDeliveryNoteRequest) =>
+  const createMutation = useMutation<DeliveryNote, CreateDeliveryNoteRequest>((data: CreateDeliveryNoteRequest) =>
     deliveryNotesApi.create(data)
   );
 
@@ -80,51 +81,42 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
 
   // Transform form values to API format
   const transformFormValuesToDraft = useCallback(
-    (values: FormValues) => {
-      // Calculate gross total from line items (before discount)
-      const _grossTotal = values.lineItems
-        .filter((item) => item.name && item.name.trim().length > 0)
-        .reduce((sum, item) => sum + (item.price || 0) * (item.quantity || 1), 0);
-
-      return {
-        createdBy: (user?.id as string) || "",
-        customerCompanyId: values.customerId?.trim() ? values.customerId.trim() : undefined,
-        deliveryNumber: values.deliveryNumber,
-        deliveryDate: values.issueDate,
-        status: values.status as "pending" | "in_transit" | "delivered" | "returned",
-        subtotal: values.subtotal || 0,
-        discount: values.discount || 0,
-        tax: values.tax || 0,
-        taxRate: values.template.taxRate || 0,
-        vatRate: values.template.vatRate || 20,
-        currency: values.template.currency || "EUR",
-        total: values.amount,
-        notes: values.noteDetails
+    (values: FormValues): UpdateDeliveryNoteRequest => {
+      const notes =
+        values.noteDetails
           ? extractTextFromContent(
               typeof values.noteDetails === "string"
                 ? createContentFromText(values.noteDetails)
-                : (values.noteDetails as any)
+                : (values.noteDetails as JSONContent | null | undefined)
             )
-          : undefined,
-        terms: values.paymentDetails
+          : undefined;
+      const terms =
+        values.paymentDetails
           ? extractTextFromContent(
               typeof values.paymentDetails === "string"
                 ? createContentFromText(values.paymentDetails)
-                : (values.paymentDetails as any)
+                : (values.paymentDetails as JSONContent | null | undefined)
             )
-          : undefined,
-        // Store fromDetails, customerDetails and logo for PDF generation
-        fromDetails: values.fromDetails || null,
-        customerDetails: values.customerDetails || null,
-        logoUrl: values.template.logoUrl ?? undefined,
-        // Build shippingAddress from customerDetails
-        shippingAddress: values.customerDetails
+          : undefined;
+      const shippingAddress =
+        values.customerDetails
           ? extractTextFromContent(
               typeof values.customerDetails === "string"
                 ? createContentFromText(values.customerDetails)
-                : (values.customerDetails as any)
+                : (values.customerDetails as JSONContent | null | undefined)
             ) || "N/A"
-          : "N/A",
+          : "N/A";
+
+      return {
+        companyId: values.customerId?.trim() ? values.customerId.trim() : undefined,
+        deliveryDate: values.issueDate,
+        status: values.status as "pending" | "in_transit" | "delivered" | "returned",
+        taxRate: values.template.taxRate || 0,
+        notes,
+        terms,
+        fromDetails: values.fromDetails || null,
+        customerDetails: values.customerDetails || null,
+        shippingAddress,
         items: values.lineItems
           .filter((item) => item.name && item.name.trim().length > 0)
           .map((item) => {
@@ -138,13 +130,12 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
               unit: item.unit || "pcs",
               unitPrice: item.price || 0,
               discount: item.discount || 0,
-              vatRate: item.vat || values.template.vatRate || 20,
-              total: total,
+              total,
             };
           }),
       };
     },
-    [user?.id]
+    []
   );
 
   // Auto-save draft - only when EDITING existing delivery note (not for new)
@@ -185,7 +176,7 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
     // Double-check the transformed data before sending
     const transformedData = transformFormValuesToDraft(currentFormValues);
     if (
-      !transformedData.customerCompanyId ||
+      !transformedData.companyId ||
       !transformedData.deliveryDate ||
       !transformedData.items ||
       transformedData.items.length === 0
@@ -197,7 +188,7 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
     isSavingDraftRef.current = true;
 
     draftMutationRef.current
-      .mutate(transformedData as any)
+      .mutate(transformedData)
       .then((result) => {
         if (result.success) {
           onDraftSaved?.();
@@ -219,18 +210,17 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
   // Submit the form
   const handleSubmit = async (values: FormValues) => {
     // Validate required fields
-    const initialCompanyId = (values.customerId || (values as any).companyId || "").trim();
+    const initialCompanyId = (values.customerId || "").trim();
     let companyIdFinal = initialCompanyId;
     if (!companyIdFinal) {
       const candidateName = (() => {
         const n = (values.customerName || "").trim();
         if (n) return n;
-        try {
-          const first = (values.customerDetails as any)?.content?.[0]?.content?.[0]?.text;
-          return typeof first === "string" ? first.trim() : "";
-        } catch {
-          return "";
-        }
+        const contentText =
+          typeof values.customerDetails === "string"
+            ? values.customerDetails
+            : extractTextFromContent(values.customerDetails as JSONContent | null | undefined);
+        return contentText.split("\n")[0]?.trim() ?? "";
       })();
       if (candidateName) {
         try {
@@ -270,33 +260,49 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
     }
 
     // Transform the data
-    const transformedData = {
-      ...transformFormValuesToDraft({
-        ...values,
-        customerId: companyIdFinal as any,
-      } as any),
-      status: "pending" as const,
+    const draftData = transformFormValuesToDraft({
+      ...values,
+      customerId: companyIdFinal,
+    });
+    const createData: CreateDeliveryNoteRequest = {
+      companyId: companyIdFinal,
+      deliveryDate: draftData.deliveryDate,
+      status: "pending",
+      shippingAddress: draftData.shippingAddress || "N/A",
+      items: (draftData.items || []).map((item) => ({
+        productName: item.productName,
+        description: item.description,
+        quantity: item.quantity || 1,
+        unit: item.unit || "pcs",
+        unitPrice: item.unitPrice || 0,
+        discount: item.discount || 0,
+        total: item.total,
+      })),
+      notes: draftData.notes,
+      terms: draftData.terms,
+      taxRate: draftData.taxRate,
+      fromDetails: draftData.fromDetails,
+      customerDetails: draftData.customerDetails,
+      createdBy: (user?.id as string) || "",
     };
 
     // Final validation before sending
     if (
-      !transformedData.customerCompanyId ||
-      !transformedData.deliveryDate ||
-      !transformedData.items ||
-      transformedData.items.length === 0
+      !createData.companyId ||
+      !createData.deliveryDate ||
+      !createData.items ||
+      createData.items.length === 0
     ) {
       logger.error("Submit validation failed:", {
-        customerCompanyId: transformedData.customerCompanyId,
-        deliveryDate: transformedData.deliveryDate,
-        itemsCount: transformedData.items?.length ?? 0,
+        customerCompanyId: createData.companyId,
+        deliveryDate: createData.deliveryDate,
+        itemsCount: createData.items?.length ?? 0,
       });
       toast.error("Please fill in all required fields");
       return;
     }
 
-    const result = await createMutation.mutate(
-      transformedData as unknown as CreateDeliveryNoteRequest
-    );
+    const result = await createMutation.mutate(createData);
 
     if (result.success && result.data) {
       const isUpdate = !!deliveryNoteId;

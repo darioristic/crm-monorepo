@@ -8,7 +8,7 @@ import { ProfitAnalysisWidget } from "./profit-analysis";
 import { RevenueForecastWidget } from "./revenue-forecast";
 import { RevenueSummaryWidget } from "./revenue-summary";
 import { RunwayWidget } from "./runway";
-import { type WidgetType, usePrimaryWidgets } from "./widget-provider";
+import { usePrimaryWidgets, type WidgetType } from "./widget-provider";
 
 const WIDGET_COMPONENTS: Record<WidgetType, React.ComponentType> = {
   runway: RunwayWidget,

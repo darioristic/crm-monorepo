@@ -1,8 +1,8 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
-import { LayoutGrid, History } from "lucide-react";
+import { History, LayoutGrid } from "lucide-react";
 import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { useWidgetActions } from "./widget-provider";
 
 function getTimeBasedGreeting(): string {
@@ -28,9 +28,12 @@ export function WidgetsHeader({ userName = "Dario" }: WidgetsHeaderProps) {
 
   useEffect(() => {
     // Update greeting every 5 minutes
-    const interval = setInterval(() => {
-      setGreeting(getTimeBasedGreeting());
-    }, 5 * 60 * 1000);
+    const interval = setInterval(
+      () => {
+        setGreeting(getTimeBasedGreeting());
+      },
+      5 * 60 * 1000
+    );
 
     return () => clearInterval(interval);
   }, []);
@@ -42,9 +45,7 @@ export function WidgetsHeader({ userName = "Dario" }: WidgetsHeaderProps) {
           <span>{greeting} </span>
           <span className="text-[#878787]">{userName},</span>
         </h1>
-        <p className="text-[#878787] text-[14px]">
-          here's a quick look at how things are going.
-        </p>
+        <p className="text-[#878787] text-[14px]">here's a quick look at how things are going.</p>
       </div>
 
       <div className="flex items-center space-x-2">

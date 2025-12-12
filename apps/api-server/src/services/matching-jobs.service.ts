@@ -5,14 +5,14 @@
  * Integrates with the simple-queue service for background processing.
  */
 
-import { serviceLogger } from "../lib/logger";
 import { getPendingInboxForMatching } from "../db/queries/inbox";
+import { serviceLogger } from "../lib/logger";
+import { updateCalibration } from "./calibration.service";
 import {
+  batchProcessMatching,
   processInboxMatching,
   processTransactionMatching,
-  batchProcessMatching,
 } from "./inbox-matching";
-import { updateCalibration } from "./calibration.service";
 
 // ==============================================
 // TYPES
@@ -162,10 +162,7 @@ export async function handleBatchInboxMatching(
     errors: 0,
   };
 
-  serviceLogger.info(
-    { tenantId, itemCount: inboxIds.length },
-    "Starting batch inbox matching"
-  );
+  serviceLogger.info({ tenantId, itemCount: inboxIds.length }, "Starting batch inbox matching");
 
   // Process in batches of 5
   const BATCH_SIZE = 5;
@@ -202,7 +199,10 @@ export async function handleBatchInboxMatching(
 
   // Update calibration in background
   updateCalibration(tenantId).catch((err) => {
-    serviceLogger.error({ error: err, tenantId }, "Failed to update calibration after batch matching");
+    serviceLogger.error(
+      { error: err, tenantId },
+      "Failed to update calibration after batch matching"
+    );
   });
 
   serviceLogger.info(

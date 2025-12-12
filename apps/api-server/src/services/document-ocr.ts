@@ -106,10 +106,7 @@ async function extractTextFromPdf(pdfBuffer: Buffer): Promise<OCRResult> {
 
     await parser.destroy();
 
-    serviceLogger.info(
-      { textLength: text.length },
-      "PDF text extraction completed"
-    );
+    serviceLogger.info({ textLength: text.length }, "PDF text extraction completed");
 
     return {
       text,

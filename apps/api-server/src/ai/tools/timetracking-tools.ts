@@ -74,7 +74,8 @@ export const getTimeEntriesTool = tool({
         }
       }
 
-      const variance = totalEstimated > 0 ? ((totalActual - totalEstimated) / totalEstimated) * 100 : 0;
+      const variance =
+        totalEstimated > 0 ? ((totalActual - totalEstimated) / totalEstimated) * 100 : 0;
 
       let response = `## ⏱️ Time Entries\n\n`;
       response += `### Summary\n`;
@@ -268,8 +269,7 @@ export const getTeamUtilizationTool = tool({
       }
 
       // Assume 160 hours/month standard capacity
-      const standardCapacity =
-        period === "week" ? 40 : period === "quarter" ? 480 : 160;
+      const standardCapacity = period === "week" ? 40 : period === "quarter" ? 480 : 160;
 
       let response = `## 👥 Team Utilization (Last ${period})\n\n`;
       response += `| Team Member | Role | Tasks | Completed | Hours | Utilization |\n`;
@@ -286,11 +286,7 @@ export const getTeamUtilizationTool = tool({
             : 0;
 
         const utilBar =
-          Number(utilizationRate) >= 80
-            ? "🟢"
-            : Number(utilizationRate) >= 50
-              ? "🟡"
-              : "🔴";
+          Number(utilizationRate) >= 80 ? "🟢" : Number(utilizationRate) >= 50 ? "🟡" : "🔴";
 
         response += `| ${member.name} | ${member.role || "-"} | ${member.tasks_assigned} | ${completionRate}% | ${hours.toFixed(1)}h | ${utilBar} ${utilizationRate}% |\n`;
       }

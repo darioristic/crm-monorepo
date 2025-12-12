@@ -1,67 +1,35 @@
 "use client";
 
-import type { Deal, DealStage } from "@crm/types";
-import { RefreshCwIcon, TrendingUpIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import type { Deal } from "@crm/types";
+import { RefreshCwIcon } from "lucide-react";
+import { useState } from "react";
+import { usePaginatedApi } from "@/hooks/use-api";
 import { DealFormSheet } from "@/components/crm/deal-form-sheet";
 import { DealsKanban } from "@/components/crm/deals-kanban";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { dealsApi } from "@/lib/api";
 
-type PipelineSummary = {
-  stages: { stage: DealStage; count: number; totalValue: number }[];
-  totalDeals: number;
-  totalValue: number;
-  avgDealValue: number;
-};
-
-function formatCurrency(value: number) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "EUR",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
 export default function DealsPage() {
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [summary, setSummary] = useState<PipelineSummary | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
-  const fetchData = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const [dealsResponse, summaryResponse] = await Promise.all([
-        dealsApi.getAll({ pageSize: 100 }),
-        dealsApi.getPipelineSummary(),
-      ]);
-
-      if (dealsResponse.success && dealsResponse.data) {
-        setDeals(dealsResponse.data);
-      } else {
-        setError(dealsResponse.error?.message || "Failed to load deals");
-      }
-
-      if (summaryResponse.success && summaryResponse.data) {
-        setSummary(summaryResponse.data);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const {
+    data: deals = [],
+    error,
+    isLoading,
+    refetch,
+    page,
+    pageSize,
+    totalPages,
+    setPage,
+    setPageSize,
+  } = usePaginatedApi<Deal>(dealsApi.getAll);
 
   return (
     <div className="space-y-6">
@@ -74,78 +42,49 @@ export default function DealsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => setShowCreateForm(true)}>New Deal</Button>
-          <Button variant="outline" size="icon" onClick={fetchData} aria-label="Refresh">
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={refetch}
+            aria-label="Refresh"
+          >
             <RefreshCwIcon className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Pipeline Value
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-32" />
-            ) : (
-              <div className="text-2xl font-bold">{formatCurrency(summary?.totalValue || 0)}</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Deals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-16" />
-            ) : (
-              <div className="text-2xl font-bold">{summary?.totalDeals || 0}</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Average Deal Value
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-24" />
-            ) : (
-              <div className="text-2xl font-bold">{formatCurrency(summary?.avgDealValue || 0)}</div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Won Deals Value
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-8 w-28" />
-            ) : (
-              <div className="flex items-center gap-2">
-                <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(
-                    summary?.stages.find((s) => s.stage === "closed_won")?.totalValue || 0
-                  )}
-                </div>
-                <TrendingUpIcon className="h-5 w-5 text-green-600" />
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      <div className="flex items-center justify-between gap-4">
+        <div className="text-sm text-muted-foreground">
+          Page {page} of {Math.max(totalPages, 1)}
+        </div>
+        <div className="flex items-center gap-2">
+          <Select
+            value={String(pageSize)}
+            onValueChange={(v) => setPageSize(parseInt(v, 10))}
+          >
+            <SelectTrigger className="w-28">
+              <SelectValue placeholder="Page size" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="10">10</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+              <SelectItem value="50">50</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            onClick={() => setPage(Math.max(page - 1, 1))}
+            disabled={page <= 1 || isLoading}
+          >
+            Previous
+          </Button>
+          <Button
+            onClick={() => setPage(page + 1)}
+            disabled={page >= totalPages || isLoading}
+          >
+            Next
+          </Button>
+        </div>
       </div>
 
       {/* Kanban Board */}
@@ -153,10 +92,14 @@ export default function DealsPage() {
         deals={deals}
         isLoading={isLoading}
         error={error || undefined}
-        onRefresh={fetchData}
+        onRefresh={refetch}
       />
 
-      <DealFormSheet open={showCreateForm} onOpenChange={setShowCreateForm} onSaved={fetchData} />
+      <DealFormSheet
+        open={showCreateForm}
+        onOpenChange={setShowCreateForm}
+        onSaved={refetch}
+      />
     </div>
   );
 }

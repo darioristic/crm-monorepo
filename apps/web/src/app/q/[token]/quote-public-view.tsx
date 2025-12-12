@@ -385,8 +385,7 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
       const { quotesApi } = await import("@/lib/api");
       const result = await quotesApi.convertToOrder(quote.id);
 
-      // Handle both possible response structures (API returns order with 'id', not 'orderId')
-      const orderId = result?.data?.id || (result as any)?.id;
+      const orderId = result?.data?.id;
 
       if (orderId) {
         toast.success("Quote successfully converted to order!");
@@ -410,8 +409,7 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
       const { quotesApi } = await import("@/lib/api");
       const result = await quotesApi.convertToInvoice(quote.id);
 
-      // Handle both possible response structures
-      const invoiceId = result?.data?.invoiceId || (result as any)?.invoiceId;
+      const invoiceId = result?.data?.invoiceId;
       if (invoiceId) {
         toast.success("Quote successfully converted to invoice!");
         // Navigate to the newly created invoice

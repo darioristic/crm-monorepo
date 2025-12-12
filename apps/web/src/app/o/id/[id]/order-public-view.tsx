@@ -137,7 +137,7 @@ function getStoredLogo(): string | null {
 const DEFAULT_LOGO_URL: string | null = "/logo.png";
 
 // Build customer details from company data
-function buildCustomerDetails(order: any): EditorDoc | null {
+function buildCustomerDetails(order: OrderApiResponse): EditorDoc | null {
   const lines: string[] = [];
 
   const companyName = order.companyName || order.company?.name;
@@ -257,18 +257,19 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
 
   // Transform API data to Order type
   // Prefer stored customerDetails from API; fallback to built from company fields
-  let customerDoc: any = null;
-  if ((order as any).customerDetails) {
-    customerDoc = (order as any).customerDetails as any;
-    if (typeof customerDoc === "string") {
+  let customerDoc: EditorDoc | null = null;
+  const rawCustomer = order.customerDetails;
+  if (rawCustomer) {
+    let parsed: unknown = rawCustomer;
+    if (typeof parsed === "string") {
       try {
-        customerDoc = JSON.parse(customerDoc);
+        parsed = JSON.parse(parsed);
       } catch {
-        customerDoc = null;
+        parsed = null;
       }
     }
-    if (!customerDoc || typeof customerDoc !== "object" || customerDoc.type !== "doc") {
-      customerDoc = null;
+    if (parsed && typeof parsed === "object" && (parsed as EditorDoc).type === "doc") {
+      customerDoc = parsed as EditorDoc;
     }
   }
 
@@ -281,7 +282,7 @@ export function OrderPublicView({ order }: OrderPublicViewProps) {
     amount: order.total,
     currency: order.currency || "EUR",
     lineItems:
-      order.items?.map((item: any) => ({
+      order.items?.map((item) => ({
         name: item.productName || item.description || "",
         quantity: item.quantity || 1,
         price: item.unitPrice || 0,

@@ -5,11 +5,9 @@ const nextConfig: NextConfig = {
   // Enable standalone output for Docker deployment
   output: "standalone",
   transpilePackages: ["@crm/types", "@crm/utils", "@crm/schemas"],
+  reactCompiler: false,
   typescript: {
     ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
   },
   env: {
     API_URL: process.env.API_URL || "http://localhost:3001",

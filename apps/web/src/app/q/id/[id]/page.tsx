@@ -12,7 +12,60 @@ type Props = {
 
 export default function QuoteByIdPage({ params }: Props) {
   const { id } = use(params);
-  const [quote, setQuote] = useState<any>(null);
+  interface PublicQuote {
+    id: string;
+    quoteNumber: string | null;
+    issueDate: string | null;
+    validUntil: string | null;
+    createdAt: string;
+    updatedAt: string | null;
+    total: number;
+    currency?: string | null;
+    items?: Array<{
+      productName?: string;
+      description?: string;
+      quantity?: number;
+      unitPrice?: number;
+      unit?: string;
+      discount?: number;
+      vat?: number;
+      vatRate?: number;
+    }>;
+    terms?: string;
+    notes?: string;
+    companyId: string;
+    companyName?: string;
+    company?: {
+      name?: string;
+      addressLine1?: string;
+      address?: string;
+      addressLine2?: string;
+      city?: string;
+      zip?: string;
+      postalCode?: string;
+      country?: string;
+      email?: string;
+      billingEmail?: string;
+      phone?: string;
+      vatNumber?: string;
+      website?: string;
+    };
+    fromDetails?: unknown;
+    customerDetails?: unknown;
+    logoUrl?: string | null;
+    vat?: number | null;
+    tax?: number | null;
+    discount?: number | null;
+    subtotal: number;
+    status: string;
+    taxRate?: number;
+    vatRate?: number;
+    sentAt?: string | null;
+    viewedAt?: string | null;
+    acceptedAt?: string | null;
+    rejectedAt?: string | null;
+  }
+  const [quote, setQuote] = useState<PublicQuote | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
@@ -28,7 +81,7 @@ export default function QuoteByIdPage({ params }: Props) {
         }
 
         const data = await response.json();
-        setQuote(data.data);
+        setQuote(data.data as PublicQuote);
       } catch (err) {
         setError(err instanceof Error ? err : new Error("Failed to load quote"));
       } finally {

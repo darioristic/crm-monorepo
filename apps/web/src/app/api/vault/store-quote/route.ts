@@ -38,7 +38,11 @@ function getLogoDataUrl(logoPath?: string): string | null {
     const base64 = logoBuffer.toString("base64");
     const ext = filePath.toLowerCase().split(".").pop();
     const mimeType =
-      ext === "svg" ? "image/svg+xml" : ext === "jpg" || ext === "jpeg" ? "image/jpeg" : "image/png";
+      ext === "svg"
+        ? "image/svg+xml"
+        : ext === "jpg" || ext === "jpeg"
+          ? "image/jpeg"
+          : "image/png";
     return `data:${mimeType};base64,${base64}`;
   } catch {
     return null;
@@ -126,7 +130,9 @@ export async function POST(request: NextRequest) {
           const lines: string[] = [];
           if (account?.name) lines.push(account.name);
           if (account?.address) lines.push(account.address);
-          const cityLine = [account?.city, account?.zip, account?.country].filter(Boolean).join(", ");
+          const cityLine = [account?.city, account?.zip, account?.country]
+            .filter(Boolean)
+            .join(", ");
           if (cityLine) lines.push(cityLine);
           if (account?.email) lines.push(account.email);
           if (account?.phone) lines.push(account.phone);
@@ -210,7 +216,9 @@ export async function POST(request: NextRequest) {
     const { renderToBuffer } = await import("@react-pdf/renderer");
     const { QuotePdfTemplate } = await import("@/components/quote/templates/pdf-template");
     const pdfDocument = await QuotePdfTemplate({ quote });
-    const pdfBuffer = await renderToBuffer(pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]);
+    const pdfBuffer = await renderToBuffer(
+      pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]
+    );
 
     // Step 3: Store in Vault
     const pdfBase64 = Buffer.from(pdfBuffer).toString("base64");
@@ -239,8 +247,14 @@ export async function POST(request: NextRequest) {
 
     if (!storeResponse.ok) {
       const errorData = await storeResponse.json().catch(() => ({}));
-      logger.error("Failed to store quote in vault", { status: storeResponse.status, error: errorData });
-      return NextResponse.json({ error: "Failed to store quote in vault", details: errorData }, { status: 500 });
+      logger.error("Failed to store quote in vault", {
+        status: storeResponse.status,
+        error: errorData,
+      });
+      return NextResponse.json(
+        { error: "Failed to store quote in vault", details: errorData },
+        { status: 500 }
+      );
     }
 
     const storeResult = await storeResponse.json();
@@ -259,6 +273,9 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     logger.error("Error storing quote in vault:", error);
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
-    return NextResponse.json({ error: "Failed to store quote", details: errorMessage }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to store quote", details: errorMessage },
+      { status: 500 }
+    );
   }
 }

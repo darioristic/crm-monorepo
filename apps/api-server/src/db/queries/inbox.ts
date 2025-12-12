@@ -1031,10 +1031,7 @@ export async function unmatchInboxItem(params: {
       WHERE id = ${inboxId} AND tenant_id = ${tenantId}
     `;
 
-    serviceLogger.info(
-      { inboxId, transactionId, userId },
-      "Inbox item unmatched successfully"
-    );
+    serviceLogger.info({ inboxId, transactionId, userId }, "Inbox item unmatched successfully");
 
     return { success: true, transactionId };
   } catch (error) {

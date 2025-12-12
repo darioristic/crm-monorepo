@@ -1,12 +1,7 @@
 "use client";
 
 import { Check, Loader2 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import type { InboxItem } from "@/lib/api/inbox";
 
 type Props = {

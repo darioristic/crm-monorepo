@@ -26,9 +26,9 @@ import {
   updateInboxAccount,
   upsertInboxAccount,
 } from "../db/queries/inbox";
-import { updateCalibration } from "../services/calibration.service";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
+import { updateCalibration } from "../services/calibration.service";
 import * as fileStorage from "../services/file-storage.service";
 import { processInboxItem } from "../services/inbox-ai.service";
 import {

@@ -88,7 +88,7 @@ export default function OrderDetailPage({ params }: PageProps) {
       setIsConverting(true);
       const result = await ordersApi.convertToInvoice(id);
       if (result?.success) {
-        const { invoiceId } = (result as any).data || {};
+        const invoiceId = result.data?.invoiceId;
         if (invoiceId) {
           toast.success("Order converted to invoice");
           router.push(`/dashboard/sales/invoices/${invoiceId}`);

@@ -5,16 +5,11 @@
  * Based on Midday's implementation with legal entity name extraction.
  */
 
-import type {
-  EnrichmentResult,
-  TransactionData,
-  UpdateData,
-} from "./enrichment-schema";
+import type { EnrichmentResult, TransactionData, UpdateData } from "./enrichment-schema";
 import {
   isValidCategory,
   shouldUseCategoryResult,
   shouldUseMerchantResult,
-  transactionCategories,
 } from "./enrichment-schema";
 
 /**
@@ -256,11 +251,7 @@ export function prepareUpdateData(
 
   // Category assignment logic (only for expenses - negative amounts)
   if (!transaction.categorySlug && transaction.amount <= 0) {
-    if (
-      shouldUseCategoryResult(result) &&
-      result.category &&
-      isValidCategory(result.category)
-    ) {
+    if (shouldUseCategoryResult(result) && result.category && isValidCategory(result.category)) {
       // High confidence: use the suggested category
       updateData.categorySlug = result.category;
     } else {

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useInboxParams } from "@/hooks/use-inbox-params";
-import { type InboxItem as InboxItemType, inboxApi } from "@/lib/api/inbox";
+import { inboxApi } from "@/lib/api/inbox";
 import { InboxDetails } from "./inbox-details";
 import { InboxEmpty, InboxNoResults } from "./inbox-empty";
 import { InboxHeader } from "./inbox-header";
@@ -199,10 +199,7 @@ export function InboxView() {
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <AlertCircle className="h-12 w-12 text-destructive mb-4" />
               <p className="text-muted-foreground">Failed to load inbox</p>
-              <button
-                onClick={handleRefresh}
-                className="mt-4 text-sm text-primary hover:underline"
-              >
+              <button onClick={handleRefresh} className="mt-4 text-sm text-primary hover:underline">
                 Try Again
               </button>
             </div>
@@ -221,12 +218,8 @@ export function InboxView() {
                     return (
                       <motion.div
                         key={item.id}
-                        initial={
-                          isNewItem ? { opacity: 0, y: -30, scale: 0.95 } : false
-                        }
-                        animate={
-                          isNewItem ? { opacity: 1, y: 0, scale: 1 } : "visible"
-                        }
+                        initial={isNewItem ? { opacity: 0, y: -30, scale: 0.95 } : false}
+                        animate={isNewItem ? { opacity: 1, y: 0, scale: 1 } : "visible"}
                         transition={
                           isNewItem
                             ? {

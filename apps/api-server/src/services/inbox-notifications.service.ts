@@ -6,11 +6,11 @@
  * - inbox_needs_review: Match suggestion needs user review
  */
 
-import { serviceLogger } from "../lib/logger";
-import { notificationsService } from "./notifications.service";
-import { getInboxById } from "../db/queries/inbox";
 import { sql as db } from "../db/client";
+import { getInboxById } from "../db/queries/inbox";
+import { serviceLogger } from "../lib/logger";
 import type { MatchResult } from "./advanced-matching.service";
+import { notificationsService } from "./notifications.service";
 
 // ==============================================
 // TYPES
@@ -88,10 +88,7 @@ export async function notifyAutoMatch(params: AutoMatchNotificationParams): Prom
       },
     });
 
-    serviceLogger.info(
-      { inboxId, transactionId, userId },
-      "Auto-match notification sent"
-    );
+    serviceLogger.info({ inboxId, transactionId, userId }, "Auto-match notification sent");
   } catch (error) {
     serviceLogger.error({ error, inboxId }, "Error sending auto-match notification");
   }

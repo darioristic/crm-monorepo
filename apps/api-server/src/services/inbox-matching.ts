@@ -20,17 +20,16 @@ import {
 } from "../db/queries/inbox";
 import { serviceLogger } from "../lib/logger";
 import {
+  findInboxMatchesForTransaction,
+  findMatchesTiered,
+  type MatchResult,
+} from "./advanced-matching.service";
+import {
   cosineSimilarity,
   generateEmbedding,
   prepareInboxText,
   prepareTransactionText,
 } from "./embeddings";
-import {
-  findMatchesTiered,
-  findInboxMatchesForTransaction,
-  type MatchResult,
-} from "./advanced-matching.service";
-import { getCalibration, updateCalibration } from "./calibration.service";
 
 // ==============================================
 // THRESHOLDS & WEIGHTS

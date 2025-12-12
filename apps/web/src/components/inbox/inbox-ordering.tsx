@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowUpDown } from "lucide-react";
-import { useInboxParams } from "@/hooks/use-inbox-params";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,6 +8,7 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useInboxParams } from "@/hooks/use-inbox-params";
 
 export function InboxOrdering() {
   const { params, setParams } = useInboxParams();
@@ -37,9 +37,7 @@ export function InboxOrdering() {
 
         <DropdownMenuCheckboxItem
           checked={params.sort === "name"}
-          onCheckedChange={() =>
-            setParams({ sort: "name", order: "asc" })
-          }
+          onCheckedChange={() => setParams({ sort: "name", order: "asc" })}
         >
           Alphabetically
         </DropdownMenuCheckboxItem>

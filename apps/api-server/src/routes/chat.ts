@@ -54,8 +54,8 @@ import {
 // Transactions Tools
 import {
   getRecurringTransactionsTool,
-  getTransactionsByVendorTool,
   getTransactionStatsTool,
+  getTransactionsByVendorTool,
   getTransactionsTool,
   searchTransactionsTool,
 } from "../ai/tools/transactions-tools";
@@ -314,7 +314,10 @@ export const chatRoutes: Route[] = [
         }
 
         if (!responseText) {
-          logger.warn({ result: JSON.stringify(result, null, 2).slice(0, 500) }, "[Chat] No response text generated");
+          logger.warn(
+            { result: JSON.stringify(result, null, 2).slice(0, 500) },
+            "[Chat] No response text generated"
+          );
           responseText = "I couldn't generate a response. Please try again.";
         }
 

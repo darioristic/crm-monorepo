@@ -86,7 +86,8 @@ export const getTransactionsTool = tool({
       for (const t of transactions.slice(0, 30)) {
         const date = new Date(t.date as string).toLocaleDateString();
         const amount = Number(t.amount) || 0;
-        const amountStr = amount >= 0 ? `+€${amount.toLocaleString()}` : `-€${Math.abs(amount).toLocaleString()}`;
+        const amountStr =
+          amount >= 0 ? `+€${amount.toLocaleString()}` : `-€${Math.abs(amount).toLocaleString()}`;
         const indicator = amount >= 0 ? "🟢" : "🔴";
         const desc = t.company_name || t.invoice_number || t.notes || "-";
         response += `| ${date} | ${desc.substring(0, 25)} | ${t.category_slug || "-"} | ${indicator} ${amountStr} |\n`;
@@ -135,10 +136,10 @@ export const searchTransactionsTool = tool({
         LEFT JOIN companies c ON i.company_id = c.id
         WHERE i.tenant_id = ${tenantId}
           AND (
-            c.name ILIKE ${"%" + query + "%"}
-            OR p.notes ILIKE ${"%" + query + "%"}
-            OR p.reference_number ILIKE ${"%" + query + "%"}
-            OR i.invoice_number ILIKE ${"%" + query + "%"}
+            c.name ILIKE ${`%${query}%`}
+            OR p.notes ILIKE ${`%${query}%`}
+            OR p.reference_number ILIKE ${`%${query}%`}
+            OR i.invoice_number ILIKE ${`%${query}%`}
           )
         ORDER BY p.date DESC
         LIMIT ${limit}
@@ -173,10 +174,7 @@ export const searchTransactionsTool = tool({
 
 const getTransactionStatsSchema = z.object({
   tenantId: z.string().describe("The tenant ID"),
-  period: z
-    .enum(["week", "month", "quarter", "year"])
-    .default("month")
-    .describe("Analysis period"),
+  period: z.enum(["week", "month", "quarter", "year"]).default("month").describe("Analysis period"),
 });
 
 type GetTransactionStatsParams = z.infer<typeof getTransactionStatsSchema>;
@@ -439,7 +437,7 @@ export const getTransactionsByVendorTool = tool({
         JOIN invoices i ON p.invoice_id = i.id
         LEFT JOIN companies c ON i.company_id = c.id
         WHERE i.tenant_id = ${tenantId}
-          AND c.name ILIKE ${"%" + vendorName + "%"}
+          AND c.name ILIKE ${`%${vendorName}%`}
         ORDER BY p.date DESC
         LIMIT 50
       `;

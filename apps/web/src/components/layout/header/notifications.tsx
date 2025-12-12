@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { getNotificationLink } from "@/hooks/use-notifications";
 import { notificationsApi } from "@/lib/api";
 import { logger } from "@/lib/logger";
 
@@ -85,6 +87,7 @@ function formatTimeAgo(dateString: string): string {
 
 const Notifications = () => {
   const isMobile = useIsMobile();
+  const router = useRouter();
   const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,6 +151,54 @@ const Notifications = () => {
       setUnreadCount(0);
       toast.success("All notifications marked as read");
     }
+  };
+
+  function getEntityLink(entityType?: string, entityId?: string): string | null {
+    if (!entityType || !entityId) return null;
+    switch (entityType) {
+      case "invoice":
+        return `/invoices/${entityId}`;
+      case "quote":
+        return `/quotes/${entityId}`;
+      case "order":
+        return `/orders/${entityId}`;
+      case "project":
+        return `/projects/${entityId}`;
+      case "task":
+        return `/tasks/${entityId}`;
+      case "lead":
+        return `/leads/${entityId}`;
+      case "deal":
+        return `/deals/${entityId}`;
+      case "document":
+        return `/vault/${entityId}`;
+      case "organization":
+      case "company":
+        return `/accounts/organizations?organizationId=${entityId}`;
+      default:
+        return null;
+    }
+  }
+
+  const handleNotificationClick = async (notification: NotificationType) => {
+    const targetLink =
+      notification.link ||
+      getEntityLink(notification.entityType, notification.entityId) ||
+      getNotificationLink(notification.type as unknown as string, notification.metadata) ||
+      "/dashboard/notifications";
+
+    if (!notification.isRead) {
+      const result = await notificationsApi.markAsRead(notification.id);
+      if (result.success) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === notification.id ? { ...n, isRead: true } : n))
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      }
+    }
+
+    setIsOpen(false);
+    router.push(targetLink);
   };
 
   return (
@@ -220,7 +271,7 @@ const Notifications = () => {
                 className={`group flex cursor-pointer items-start gap-3 rounded-none border-b px-4 py-3 ${
                   !notification.isRead ? "bg-muted/50" : ""
                 }`}
-                onClick={() => handleMarkAsRead(notification)}
+                onClick={() => handleNotificationClick(notification)}
               >
                 <div
                   className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${

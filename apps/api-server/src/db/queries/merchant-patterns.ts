@@ -7,8 +7,8 @@
  * Based on Midday's merchant pattern recognition system.
  */
 
-import { sql as db } from "../client";
 import { serviceLogger } from "../../lib/logger";
+import { sql as db } from "../client";
 
 // ==============================================
 // TYPES
@@ -249,8 +249,7 @@ function analyzePatterns(patterns: PatternHistoryItem[]): PatternAnalysis {
 
   const accuracy = totalMatches > 0 ? confirmedCount / totalMatches : 0;
 
-  const avgConfidence =
-    patterns.reduce((sum, p) => sum + p.confidenceScore, 0) / patterns.length;
+  const avgConfidence = patterns.reduce((sum, p) => sum + p.confidenceScore, 0) / patterns.length;
 
   const avgConfidenceConfirmed =
     confirmedCount > 0
@@ -285,13 +284,8 @@ function checkEligibility(
     isPerfectFinancialMatch: boolean;
   }
 ): MerchantPatternResult {
-  const {
-    confirmedCount,
-    negativeCount,
-    accuracy,
-    avgConfidenceConfirmed,
-    totalMatches,
-  } = analysis;
+  const { confirmedCount, negativeCount, accuracy, avgConfidenceConfirmed, totalMatches } =
+    analysis;
 
   // Base result
   const result: MerchantPatternResult = {

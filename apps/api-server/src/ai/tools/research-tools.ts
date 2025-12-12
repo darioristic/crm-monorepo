@@ -216,10 +216,7 @@ export const analyzeAffordabilityTool = tool({
       if (purchaseAmount <= currentBalance * 0.1 && purchaseAmount <= monthlySurplus) {
         affordabilityScore = "High";
         recommendation = "This purchase is well within budget. Safe to proceed.";
-      } else if (
-        purchaseAmount <= currentBalance * 0.25 &&
-        purchaseAmount <= monthlySurplus * 3
-      ) {
+      } else if (purchaseAmount <= currentBalance * 0.25 && purchaseAmount <= monthlySurplus * 3) {
         affordabilityScore = "Medium";
         recommendation = "Affordable but significant. Consider timing and cash flow impact.";
       } else if (purchaseAmount <= currentBalance * 0.5) {
@@ -396,7 +393,8 @@ const priceComparisonSchema = z.object({
 type PriceComparisonParams = z.infer<typeof priceComparisonSchema>;
 
 export const priceComparisonTool = tool({
-  description: "Compare prices across products and analyze pricing trends. Use for pricing decisions.",
+  description:
+    "Compare prices across products and analyze pricing trends. Use for pricing decisions.",
   parameters: priceComparisonSchema,
   execute: async (params: PriceComparisonParams): Promise<string> => {
     const { tenantId, productId, category } = params;

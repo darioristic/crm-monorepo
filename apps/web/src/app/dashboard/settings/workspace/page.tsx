@@ -19,13 +19,14 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { request } from "@/lib/api";
+import type { Company } from "@crm/types";
 
 export default function WorkspaceSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [form, setForm] = useState<{ [k: string]: any }>({
+  const [form, setForm] = useState<Partial<Company>>({
     name: "",
     industry: "",
     address: "",
@@ -127,7 +128,7 @@ export default function WorkspaceSettingsPage() {
   const onSave = async () => {
     setSaving(true);
     try {
-      const result = await request<any>("/api/v1/companies/current", {
+      const result = await request<Company>("/api/v1/companies/current", {
         method: "PUT",
         body: JSON.stringify(form),
       });

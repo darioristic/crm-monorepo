@@ -270,18 +270,19 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
 
   // Transform API data to Invoice type
   // Prefer stored customerDetails from API; fallback to built from company fields
-  let customerDoc: any = null;
-  if (invoice.customerDetails) {
-    customerDoc = invoice.customerDetails as any;
-    if (typeof customerDoc === "string") {
+  let customerDoc: EditorDoc | null = null;
+  const rawCustomer = invoice.customerDetails;
+  if (rawCustomer) {
+    let parsed: unknown = rawCustomer;
+    if (typeof parsed === "string") {
       try {
-        customerDoc = JSON.parse(customerDoc);
+        parsed = JSON.parse(parsed);
       } catch {
-        customerDoc = null;
+        parsed = null;
       }
     }
-    if (!customerDoc || typeof customerDoc !== "object" || customerDoc.type !== "doc") {
-      customerDoc = null;
+    if (parsed && typeof parsed === "object" && (parsed as EditorDoc).type === "doc") {
+      customerDoc = parsed as EditorDoc;
     }
   }
 
