@@ -80,6 +80,18 @@ export function InboxDetails() {
     },
   });
 
+  const reprocessMutation = useMutation({
+    mutationFn: (id: string) => inboxApi.process(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["inbox"] });
+      queryClient.invalidateQueries({ queryKey: ["inbox-stats"] });
+      toast.success("Reprocessing completed");
+    },
+    onError: () => {
+      toast.error("Failed to reprocess file");
+    },
+  });
+
   const handleCopyLink = async () => {
     if (!data) return;
     try {
@@ -203,12 +215,29 @@ export function InboxDetails() {
                 {retryMatchingMutation.isPending ? (
                   <>
                     <RefreshCw className="mr-2 size-4 animate-spin" />
-                    <span className="text-xs">Processing...</span>
+                    <span className="text-xs">Retrying...</span>
                   </>
                 ) : (
                   <>
                     <RefreshCw className="mr-2 size-4" />
                     <span className="text-xs">Retry Matching</span>
+                  </>
+                )}
+              </DropdownMenuItem>
+
+              <DropdownMenuItem
+                onClick={() => data?.id && reprocessMutation.mutate(data.id)}
+                disabled={reprocessMutation.isPending}
+              >
+                {reprocessMutation.isPending ? (
+                  <>
+                    <RefreshCw className="mr-2 size-4 animate-spin" />
+                    <span className="text-xs">Reprocessing...</span>
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="mr-2 size-4" />
+                    <span className="text-xs">Reprocess File</span>
                   </>
                 )}
               </DropdownMenuItem>

@@ -199,7 +199,7 @@ export function InboxView() {
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <AlertCircle className="h-12 w-12 text-destructive mb-4" />
               <p className="text-muted-foreground">Failed to load inbox</p>
-              <button onClick={handleRefresh} className="mt-4 text-sm text-primary hover:underline">
+              <button type="button" onClick={handleRefresh} className="mt-4 text-sm text-primary hover:underline">
                 Try Again
               </button>
             </div>
