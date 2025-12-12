@@ -10,6 +10,7 @@ import { Badge } from "./badge";
 import { Command, CommandGroup, CommandItem, CommandList } from "./command";
 
 export interface Option {
+  id?: string;
   value: string;
   label: string;
   create?: boolean;

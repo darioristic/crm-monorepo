@@ -1,9 +1,9 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import type { CustomerOrganization } from "@crm/types";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
@@ -105,6 +105,18 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
       tags: [],
     },
   });
+
+  const [addrSuggestions, setAddrSuggestions] = useState<
+    Array<
+      Pick<
+        CustomerOrganization,
+        "id" | "name" | "addressLine1" | "city" | "zip" | "state" | "country" | "countryCode"
+      >
+    >
+  >([]);
+  const [showAddrSuggestions, setShowAddrSuggestions] = useState(false);
+  const [addrLoading, setAddrLoading] = useState(false);
+  const addrDebounceRef = useRef<number | null>(null);
 
   useEffect(() => {
     async function load() {
@@ -257,9 +269,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                 className="space-y-4"
               >
                 <AccordionItem value="general" className="border-none">
-                  <AccordionTrigger className="text-sm font-medium py-2">
-                    General
-                  </AccordionTrigger>
+                  <AccordionTrigger className="text-sm font-medium py-2">General</AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-4">
                       <FormField
@@ -267,9 +277,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                         name="name"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">
-                              Name *
-                            </FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">Name *</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -288,9 +296,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                         name="email"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">
-                              Email
-                            </FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">Email</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -310,9 +316,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                         name="phone"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">
-                              Phone
-                            </FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">Phone</FormLabel>
                             <FormControl>
                               <Input
                                 {...field}
@@ -331,15 +335,9 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                         name="website"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">
-                              Website
-                            </FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">Website</FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="example.com"
-                                autoComplete="off"
-                              />
+                              <Input {...field} placeholder="example.com" autoComplete="off" />
                             </FormControl>
                             <FormDescription>
                               Used to fetch company logo automatically
@@ -358,11 +356,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                               Contact Person
                             </FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Marko Marković"
-                                autoComplete="off"
-                              />
+                              <Input {...field} placeholder="Marko Marković" autoComplete="off" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -373,9 +367,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                 </AccordionItem>
 
                 <AccordionItem value="details" className="border-none">
-                  <AccordionTrigger className="text-sm font-medium py-2">
-                    Details
-                  </AccordionTrigger>
+                  <AccordionTrigger className="text-sm font-medium py-2">Details</AccordionTrigger>
                   <AccordionContent>
                     <div className="space-y-4">
                       <FormField
@@ -387,11 +379,125 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                               Address Line 1
                             </FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Bulevar oslobođenja 123"
-                                autoComplete="off"
-                              />
+                              <div className="relative">
+                                <Input
+                                  {...field}
+                                  placeholder="Bulevar oslobođenja 123"
+                                  autoComplete="off"
+                                  onFocus={() => setShowAddrSuggestions(true)}
+                                  onBlur={() => {
+                                    // delay hiding to allow click selection
+                                    setTimeout(() => setShowAddrSuggestions(false), 150);
+                                  }}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    field.onChange(v);
+                                    if (addrDebounceRef.current) {
+                                      window.clearTimeout(addrDebounceRef.current);
+                                      addrDebounceRef.current = null;
+                                    }
+                                    addrDebounceRef.current = window.setTimeout(async () => {
+                                      if (!v || v.trim().length < 2) {
+                                        setAddrSuggestions([]);
+                                        setAddrLoading(false);
+                                        setShowAddrSuggestions(false);
+                                        return;
+                                      }
+                                      try {
+                                        setAddrLoading(true);
+                                        setShowAddrSuggestions(true);
+                                        const res = await organizationsApi.getAll({
+                                          search: v,
+                                          page: 1,
+                                          pageSize: 5,
+                                        });
+                                        if (res.success && Array.isArray(res.data)) {
+                                          const items = (res.data as CustomerOrganization[])
+                                            .map((o) => ({
+                                              id: o.id,
+                                              name: o.name,
+                                              addressLine1: o.addressLine1 || "",
+                                              city: o.city || "",
+                                              zip: o.zip || "",
+                                              state: o.state || "",
+                                              country: o.country || "",
+                                              countryCode: o.countryCode || "",
+                                            }))
+                                            .filter((i) => i.addressLine1);
+                                          // Only update suggestions if input hasn't changed
+                                          if (form.getValues("addressLine1") === v) {
+                                            setAddrSuggestions(items);
+                                            setShowAddrSuggestions(items.length > 0);
+                                          }
+                                        }
+                                      } catch {
+                                      } finally {
+                                        setAddrLoading(false);
+                                      }
+                                    }, 250);
+                                  }}
+                                />
+                                {showAddrSuggestions &&
+                                  (addrLoading || addrSuggestions.length > 0) && (
+                                    <div className="absolute z-50 mt-1 bg-background border shadow-md max-h-48 overflow-y-auto left-0 right-0 rounded-md">
+                                      {addrLoading ? (
+                                        <div className="px-3 py-2 text-xs text-muted-foreground">
+                                          Searching addresses...
+                                        </div>
+                                      ) : (
+                                        addrSuggestions.map((s) => (
+                                          <button
+                                            key={`${s.id}-${s.addressLine1}`}
+                                            type="button"
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-muted/60"
+                                            onMouseDown={(ev) => {
+                                              ev.preventDefault();
+                                              form.setValue("addressLine1", s.addressLine1 || "", {
+                                                shouldDirty: true,
+                                                shouldValidate: true,
+                                              });
+                                              if (s.city)
+                                                form.setValue("city", s.city, {
+                                                  shouldDirty: true,
+                                                  shouldValidate: true,
+                                                });
+                                              if (s.zip)
+                                                form.setValue("zip", s.zip, {
+                                                  shouldDirty: true,
+                                                  shouldValidate: true,
+                                                });
+                                              if (s.state)
+                                                form.setValue("state", s.state, {
+                                                  shouldDirty: true,
+                                                  shouldValidate: true,
+                                                });
+                                              if (s.country)
+                                                form.setValue("country", s.country, {
+                                                  shouldDirty: true,
+                                                  shouldValidate: true,
+                                                });
+                                              if (s.countryCode)
+                                                form.setValue("countryCode", s.countryCode, {
+                                                  shouldDirty: true,
+                                                  shouldValidate: true,
+                                                });
+                                              setShowAddrSuggestions(false);
+                                            }}
+                                          >
+                                            <div className="font-medium truncate">
+                                              {s.addressLine1}
+                                            </div>
+                                            <div className="text-muted-foreground truncate">
+                                              {[s.city, s.state, s.zip, s.country]
+                                                .filter(Boolean)
+                                                .join(", ")}
+                                            </div>
+                                          </button>
+                                        ))
+                                      )}
+                                    </div>
+                                  )}
+                              </div>
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -407,11 +513,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                               Address Line 2
                             </FormLabel>
                             <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Sprat 5, Stan 10"
-                                autoComplete="off"
-                              />
+                              <Input {...field} placeholder="Sprat 5, Stan 10" autoComplete="off" />
                             </FormControl>
                             <FormMessage />
                           </FormItem>
@@ -424,15 +526,9 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                           name="city"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel className="text-xs text-muted-foreground">
-                                City
-                              </FormLabel>
+                              <FormLabel className="text-xs text-muted-foreground">City</FormLabel>
                               <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Beograd"
-                                  autoComplete="off"
-                                />
+                                <Input {...field} placeholder="Beograd" autoComplete="off" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -448,11 +544,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                                 ZIP / Postal Code
                               </FormLabel>
                               <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="11000"
-                                  autoComplete="off"
-                                />
+                                <Input {...field} placeholder="11000" autoComplete="off" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -470,11 +562,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                                 State / Region
                               </FormLabel>
                               <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Grad Beograd"
-                                  autoComplete="off"
-                                />
+                                <Input {...field} placeholder="Grad Beograd" autoComplete="off" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -490,11 +578,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                                 Country
                               </FormLabel>
                               <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="Srbija"
-                                  autoComplete="off"
-                                />
+                                <Input {...field} placeholder="Srbija" autoComplete="off" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -512,11 +596,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                                 PIB / VAT Number
                               </FormLabel>
                               <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="123456789"
-                                  autoComplete="off"
-                                />
+                                <Input {...field} placeholder="123456789" autoComplete="off" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -532,11 +612,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                                 Matični broj
                               </FormLabel>
                               <FormControl>
-                                <Input
-                                  {...field}
-                                  placeholder="12345678"
-                                  autoComplete="off"
-                                />
+                                <Input {...field} placeholder="12345678" autoComplete="off" />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
@@ -567,11 +643,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {(form.watch("tags") || []).map((tag) => (
-                            <Badge
-                              key={tag.id}
-                              variant="secondary"
-                              className="gap-1 pr-1"
-                            >
+                            <Badge key={tag.id} variant="secondary" className="gap-1 pr-1">
                               {tag.name}
                               <button
                                 type="button"
@@ -593,9 +665,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                         name="note"
                         render={({ field }) => (
                           <FormItem>
-                            <FormLabel className="text-xs text-muted-foreground">
-                              Note
-                            </FormLabel>
+                            <FormLabel className="text-xs text-muted-foreground">Note</FormLabel>
                             <FormControl>
                               <Textarea
                                 {...field}
@@ -617,9 +687,7 @@ export function CompanyFormSheet({ open, onOpenChange, companyId, onSaved }: Pro
                 <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                   Cancel
                 </Button>
-                <Button type="submit">
-                  {isEdit ? "Update" : "Create"}
-                </Button>
+                <Button type="submit">{isEdit ? "Update" : "Create"}</Button>
               </div>
             </div>
           </form>

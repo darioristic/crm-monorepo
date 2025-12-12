@@ -1,7 +1,8 @@
 import type { CoreMessage, CoreTool } from "ai";
 
 export type UITools = Record<string, unknown>;
-export type ToolSet = Record<string, CoreTool<unknown, unknown>>;
+// biome-ignore lint/suspicious/noExplicitAny: CoreTool requires generic type parameters
+export type ToolSet = Record<string, CoreTool<any, any>>;
 
 export type ChatMessageMetadata = {
   webSearch?: boolean;

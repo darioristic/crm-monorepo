@@ -1,5 +1,5 @@
-import { generateUUID, now } from "@crm/utils";
 import type { Contact } from "@crm/types";
+import { generateUUID, now } from "@crm/utils";
 import { logger } from "../lib/logger";
 import { sql as db } from "./client";
 import { companyQueries } from "./queries/companies";
@@ -505,8 +505,8 @@ export async function addAdminToAllCompanies(): Promise<void> {
           postalCode: "11000",
           country: "Serbia",
         },
-        notes: null,
-        leadId: null,
+        notes: undefined,
+        leadId: undefined,
         createdAt: now(),
         updatedAt: now(),
       };

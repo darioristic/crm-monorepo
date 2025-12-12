@@ -9,6 +9,7 @@ import { z } from "zod";
 // Import AI components
 import { AVAILABLE_AGENTS, mainAgent, routeToAgent } from "../ai/agents";
 import { buildAppContext, getChatHistory, saveChatMessage } from "../ai/agents/config/shared";
+import { createCustomerTool } from "../ai/tools/create-customer";
 import { createInvoiceTool } from "../ai/tools/create-invoice";
 // Financial Analysis Tools
 import { getBurnRateTool } from "../ai/tools/get-burn-rate";
@@ -85,6 +86,7 @@ const tools = {
   getProductCategories: getProductCategoriesSummaryTool,
   getQuotes: getQuotesTool,
   getQuoteConversion: getQuoteConversionRateTool,
+  createCustomer: createCustomerTool,
   // Financial Analysis Tools
   getBurnRate: getBurnRateTool,
   getRunway: getRunwayTool,
@@ -120,7 +122,7 @@ const tools = {
 };
 
 // Get tools for specific agent
-function getAgentTools(agentName: string) {
+function getAgentTools(agentName: string): ToolSet {
   switch (agentName) {
     case "invoices":
       return {
@@ -133,6 +135,7 @@ function getAgentTools(agentName: string) {
         getCustomers: tools.getCustomers,
         getCustomerById: tools.getCustomerById,
         getIndustriesSummary: tools.getIndustriesSummary,
+        createCustomer: tools.createCustomer,
       };
     case "sales":
       return {
@@ -187,7 +190,7 @@ function getAgentTools(agentName: string) {
         getTransactionsByVendor: tools.getTransactionsByVendor,
       };
     default:
-      return tools; // General agent gets all tools
+      return tools as unknown as ToolSet; // General agent gets all tools
   }
 }
 
@@ -239,22 +242,51 @@ export const chatRoutes: Route[] = [
           "[Chat] User context built"
         );
 
+        // If AI provider is not configured, degrade gracefully instead of 500
+        if (!process.env.OPENAI_API_KEY) {
+          logger.warn("[Chat] OPENAI_API_KEY missing - returning fallback response");
+          await saveChatMessage(chatId, { role: "user", content: message });
+          const responseText =
+            "AI servis trenutno nije konfigurisan. Molim kontaktirajte administratora ili pokušajte kasnije.";
+          await saveChatMessage(chatId, { role: "assistant", content: responseText });
+          return json({
+            success: true,
+            data: {
+              chatId,
+              message: {
+                id: crypto.randomUUID(),
+                role: "assistant",
+                content: responseText,
+              },
+            },
+          });
+        }
+
         // Get chat history
         const history = await getChatHistory(chatId, 10);
         logger.info({ historyLength: history.length }, "[Chat] Got history");
 
         // Route to appropriate agent using triage agent
         logger.info("[Chat] Routing to agent...");
-        const routing = await generateText({
-          model: openai("gpt-4o-mini"),
-          system: mainAgent.getSystemPrompt(appContext),
-          messages: [{ role: "user", content: message }],
-        });
-        const agentName = routing.text.trim();
+        let agentName = "general";
+        try {
+          const routing = await generateText({
+            model: openai("gpt-4o-mini"),
+            system: mainAgent.getSystemPrompt(appContext),
+            messages: [{ role: "user", content: message }],
+          });
+          agentName = routing.text.trim() || "general";
+        } catch (routingError) {
+          logger.warn(
+            { error: routingError },
+            "[Chat] Routing failed, defaulting to general agent"
+          );
+          agentName = "general";
+        }
         logger.info({ agentName }, "[Chat] Routed to agent");
 
         const selectedAgent = routeToAgent(agentName);
-        const agentTools = getAgentTools(agentName);
+        const agentTools: ToolSet = getAgentTools(agentName);
         logger.info({ toolCount: Object.keys(agentTools).length }, "[Chat] Got agent tools");
 
         // Save user message to history
@@ -269,55 +301,62 @@ export const chatRoutes: Route[] = [
         // Generate response (non-streaming for Bun compatibility)
         logger.info("[Chat] Generating response...");
 
-        const result = await generateText({
-          model: openai("gpt-4o-mini"),
-          system: selectedAgent.getSystemPrompt(appContext),
-          messages,
-          tools: agentTools as unknown as ToolSet,
-          maxSteps: 5,
-        });
+        let responseText: string | undefined;
+        try {
+          const result = await generateText({
+            model: openai("gpt-4o-mini"),
+            system: selectedAgent.getSystemPrompt(appContext),
+            messages,
+            tools: agentTools,
+            maxSteps: 5,
+          });
 
-        logger.info(
-          {
-            textLength: result.text?.length,
-            toolCalls: result.toolCalls?.length,
-            toolResults: result.toolResults?.length,
-            steps: result.steps?.length,
-          },
-          "[Chat] Generation complete"
-        );
+          logger.info(
+            {
+              textLength: result.text?.length,
+              toolCalls: result.toolCalls?.length,
+              toolResults: result.toolResults?.length,
+              steps: result.steps?.length,
+            },
+            "[Chat] Generation complete"
+          );
 
-        // Build response from text or tool results
-        let responseText = result.text;
-
-        // If no text but we have tool results, use the last tool result as response
-        if (!responseText && result.toolResults && result.toolResults.length > 0) {
-          const lastToolResult = result.toolResults[result.toolResults.length - 1];
-          if (lastToolResult && typeof lastToolResult.result === "string") {
-            responseText = lastToolResult.result;
-            logger.info("[Chat] Using tool result as response");
+          // Build response from text or tool results
+          responseText = result.text;
+          type ToolCallResult = { result?: string };
+          type GenerationResult = {
+            text?: string;
+            toolResults?: ToolCallResult[];
+            steps?: Array<{ toolResults?: ToolCallResult[] }>;
+          };
+          const gen = result as unknown as GenerationResult;
+          if (!responseText && gen.toolResults && gen.toolResults.length > 0) {
+            const lastToolResult = gen.toolResults[gen.toolResults.length - 1];
+            if (lastToolResult && typeof lastToolResult.result === "string") {
+              responseText = lastToolResult.result;
+              logger.info("[Chat] Using tool result as response");
+            }
           }
-        }
-
-        // If still no response, check steps for tool results
-        if (!responseText && result.steps && result.steps.length > 0) {
-          for (const step of result.steps) {
-            if (step.toolResults && step.toolResults.length > 0) {
-              const toolResult = step.toolResults[step.toolResults.length - 1];
-              if (toolResult && typeof toolResult.result === "string") {
-                responseText = toolResult.result;
-                logger.info("[Chat] Using step tool result as response");
-                break;
+          if (!responseText && gen.steps && gen.steps.length > 0) {
+            for (const step of gen.steps) {
+              if (step.toolResults && step.toolResults.length > 0) {
+                const toolResult = step.toolResults[step.toolResults.length - 1];
+                if (toolResult && typeof toolResult.result === "string") {
+                  responseText = toolResult.result;
+                  logger.info("[Chat] Using step tool result as response");
+                  break;
+                }
               }
             }
           }
+        } catch (generationError) {
+          logger.error({ error: generationError }, "[Chat] Text generation failed");
+          responseText =
+            "Došlo je do greške pri generisanju odgovora. Molim pokušajte ponovo kasnije.";
         }
 
         if (!responseText) {
-          logger.warn(
-            { result: JSON.stringify(result, null, 2).slice(0, 500) },
-            "[Chat] No response text generated"
-          );
+          logger.warn("[Chat] No response text generated");
           responseText = "I couldn't generate a response. Please try again.";
         }
 

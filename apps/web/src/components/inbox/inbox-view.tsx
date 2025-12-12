@@ -25,11 +25,14 @@ export function InboxView() {
 
   // Fetch inbox items
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ["inbox", params.sort, params.order, params.status],
+    queryKey: ["inbox", params.sort, params.order, params.status, params.q],
     queryFn: () =>
       inboxApi.getAll({
         pageSize: 50,
         status: params.status || undefined,
+        order: params.order || undefined,
+        sort: params.sort === "name" ? "alphabetical" : "date",
+        q: params.q || undefined,
       }),
   });
 
@@ -48,10 +51,27 @@ export function InboxView() {
     });
   }, [data, params.sort, params.order]);
 
+  const selectedItemId = params.inboxId;
+  const selectedItemMissing = !!selectedItemId && !items.some((item) => item.id === selectedItemId);
+
+  const { data: selectedItem } = useQuery({
+    queryKey: ["inbox", "selected", selectedItemId],
+    queryFn: () => (selectedItemId ? inboxApi.getById(selectedItemId) : null),
+    enabled: selectedItemMissing,
+  });
+
+  const combinedItems = useMemo(() => {
+    if (selectedItemMissing && selectedItem) {
+      const withoutSelected = items.filter((i) => i.id !== selectedItemId);
+      return [selectedItem, ...withoutSelected];
+    }
+    return items;
+  }, [items, selectedItemMissing, selectedItem, selectedItemId]);
+
   const newItemIds = useMemo(() => {
     const newIds = new Set<string>();
 
-    for (const item of items) {
+    for (const item of combinedItems) {
       if (!allSeenIdsRef.current.has(item.id)) {
         newIds.add(item.id);
         allSeenIdsRef.current.add(item.id);
@@ -59,30 +79,30 @@ export function InboxView() {
     }
 
     return newIds;
-  }, [items]);
+  }, [combinedItems]);
 
   useEffect(() => {
-    if (!params.inboxId && items.length > 0) {
-      setParams({ inboxId: items[0]?.id ?? null });
+    if (!params.inboxId && combinedItems.length > 0) {
+      setParams({ inboxId: combinedItems[0]?.id ?? null });
     }
-  }, [items, params.inboxId, setParams]);
+  }, [combinedItems, params.inboxId, setParams]);
 
   // Arrow key navigation
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "ArrowUp") {
         event.preventDefault();
-        const currentIndex = items.findIndex((item) => item.id === params.inboxId);
+        const currentIndex = combinedItems.findIndex((item) => item.id === params.inboxId);
         if (currentIndex > 0) {
-          const prevItem = items[currentIndex - 1];
+          const prevItem = combinedItems[currentIndex - 1];
           shouldScrollRef.current = true;
           setParams({ inboxId: prevItem?.id });
         }
       } else if (event.key === "ArrowDown") {
         event.preventDefault();
-        const currentIndex = items.findIndex((item) => item.id === params.inboxId);
-        if (currentIndex < items.length - 1) {
-          const nextItem = items[currentIndex + 1];
+        const currentIndex = combinedItems.findIndex((item) => item.id === params.inboxId);
+        if (currentIndex < combinedItems.length - 1) {
+          const nextItem = combinedItems[currentIndex + 1];
           shouldScrollRef.current = true;
           setParams({ inboxId: nextItem?.id });
         }
@@ -92,6 +112,12 @@ export function InboxView() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [items, params.inboxId, setParams]);
+
+  useEffect(() => {
+    if (params.inboxId) {
+      shouldScrollRef.current = true;
+    }
+  }, [params.inboxId]);
 
   // Scroll selected item to center
   useEffect(() => {
@@ -121,7 +147,7 @@ export function InboxView() {
 
       shouldScrollRef.current = false;
     });
-  }, [params.inboxId, items]);
+  }, [params.inboxId, combinedItems]);
 
   const handleRefresh = useCallback(() => {
     refetch();
@@ -199,7 +225,11 @@ export function InboxView() {
             <div className="flex flex-col items-center justify-center h-full p-8 text-center">
               <AlertCircle className="h-12 w-12 text-destructive mb-4" />
               <p className="text-muted-foreground">Failed to load inbox</p>
-              <button type="button" onClick={handleRefresh} className="mt-4 text-sm text-primary hover:underline">
+              <button
+                type="button"
+                onClick={handleRefresh}
+                className="mt-4 text-sm text-primary hover:underline"
+              >
                 Try Again
               </button>
             </div>
@@ -212,7 +242,7 @@ export function InboxView() {
             >
               <AnimatePresence initial={false}>
                 <div className="m-0 h-full space-y-4">
-                  {items.map((item, index) => {
+                  {combinedItems.map((item, index) => {
                     const isNewItem = newItemIds.has(item.id);
 
                     return (

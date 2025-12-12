@@ -103,6 +103,9 @@ export const invoices = pgTable(
     viewedAt: timestamp("viewed_at", { withTimezone: true }),
     sentAt: timestamp("sent_at", { withTimezone: true }),
     paidAt: timestamp("paid_at", { withTimezone: true }),
+    // Scheduling fields
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    scheduledJobId: text("scheduled_job_id"),
     createdBy: uuid("created_by")
       .notNull()
       .references(() => users.id),

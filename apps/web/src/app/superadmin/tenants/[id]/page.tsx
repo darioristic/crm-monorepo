@@ -45,7 +45,27 @@ type Organization = {
   updatedAt: string;
 };
 
-function UserEditSheet(props: any) {
+type EditUserForm = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  role: "crm_user" | "tenant_admin";
+  status: string;
+};
+
+interface UserEditSheetProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  userToEdit: User | null;
+  editUserForm: EditUserForm;
+  setEditUserForm: (form: EditUserForm) => void;
+  id: string;
+  fetchUsers: () => Promise<void> | void;
+  creating: boolean;
+  setCreating: (v: boolean) => void;
+}
+
+function UserEditSheet(props: UserEditSheetProps) {
   const {
     open,
     onOpenChange,
@@ -79,10 +99,10 @@ function UserEditSheet(props: any) {
                 onOpenChange(false);
               } else {
                 const err = await res.json();
-                alert(err.error?.message || "Failed to update user");
+                toast.error(err.error?.message || "Failed to update user");
               }
             } catch (_error) {
-              alert("Failed to update user");
+              toast.error("Failed to update user");
             }
             setCreating(false);
           }}
@@ -179,13 +199,17 @@ type Tenant = {
   createdAt: string;
 };
 
-type Company = {
-  id: string;
+// Removed unused Company type
+
+type CreateOrganizationForm = {
   name: string;
   industry: string;
-  city?: string;
-  country?: string;
   address: string;
+  email?: string;
+  phone?: string;
+  pib?: string;
+  companyNumber?: string;
+  contactPerson?: string;
 };
 
 type User = {
@@ -208,7 +232,16 @@ export default function TenantDetailPage({ params }: Props) {
   const [activeTab, setActiveTab] = useState<"organisations" | "tenant-users">("tenant-users");
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", industry: "", address: "" });
+  const [form, setForm] = useState<CreateOrganizationForm>({
+    name: "",
+    industry: "",
+    address: "",
+    email: "",
+    phone: "",
+    pib: "",
+    companyNumber: "",
+    contactPerson: "",
+  });
   const [userForm, setUserForm] = useState({
     firstName: "",
     lastName: "",
@@ -305,10 +338,10 @@ export default function TenantDetailPage({ params }: Props) {
     try {
       const res = await fetch(`/api/superadmin/tenants/${id}/users`);
       const data = await res.json();
-      const list = (data.data || []) as Array<any>;
+      const list = (data.data || []) as User[];
       const filtered = list.filter(
-        (u) =>
-          u && u.status !== "deleted" && u.deleted !== true && u.isDeleted !== true && !u.deletedAt
+        // biome-ignore lint/suspicious/noExplicitAny: user object may have various deletion flags
+        (u: any) => u && u.status !== "deleted" && !u.deleted && !u.isDeleted && !u.deletedAt
       );
       setUsers(filtered);
     } catch {}
@@ -329,10 +362,10 @@ export default function TenantDetailPage({ params }: Props) {
         await fetchCompanies();
       } else {
         const err = await res.json();
-        alert(err.error?.message || "Failed to create company");
+        toast.error(err.error?.message || "Failed to create company");
       }
     } catch (_error) {
-      alert("Failed to create company");
+      toast.error("Failed to create company");
     }
     setCreating(false);
   };
@@ -358,16 +391,15 @@ export default function TenantDetailPage({ params }: Props) {
         await fetchUsers();
       } else {
         const err = await res.json();
-        alert(err.error?.message || "Failed to create user");
+        toast.error(err.error?.message || "Failed to create user");
       }
     } catch (_error) {
-      alert("Failed to create user");
+      toast.error("Failed to create user");
     }
     setCreating(false);
   };
 
   const deleteUser = async (userId: string) => {
-    if (!confirm("Are you sure you want to delete this user?")) return;
     const prevUsers = users;
     const prevSelected = selectedUserIds;
     setDeletingUserIds((prev) => ({ ...prev, [userId]: true }));
@@ -675,6 +707,7 @@ export default function TenantDetailPage({ params }: Props) {
       <div className="border-b">
         <div className="flex gap-4">
           <button
+            type="button"
             className={`px-4 py-2 border-b-2 ${
               activeTab === "tenant-users"
                 ? "border-primary font-semibold"
@@ -685,6 +718,7 @@ export default function TenantDetailPage({ params }: Props) {
             Tenant Users ({users.length})
           </button>
           <button
+            type="button"
             className={`px-4 py-2 border-b-2 ${
               activeTab === "organisations"
                 ? "border-primary font-semibold"
@@ -841,29 +875,8 @@ export default function TenantDetailPage({ params }: Props) {
                                 variant="destructive"
                                 size="sm"
                                 onClick={async () => {
-                                  if (
-                                    !confirm("Are you sure you want to delete this organisation?")
-                                  )
-                                    return;
-                                  try {
-                                    const res = await fetch(
-                                      `/api/superadmin/tenants/${id}/organizations/${o.id}`,
-                                      {
-                                        method: "DELETE",
-                                      }
-                                    );
-                                    if (res.ok) {
-                                      toast.success("Organisation deleted");
-                                      void fetchOrganizations();
-                                    } else {
-                                      const err = await res.json().catch(() => ({}));
-                                      toast.error(
-                                        err?.error?.message || "Failed to delete organisation"
-                                      );
-                                    }
-                                  } catch (_error) {
-                                    toast.error("Failed to delete organisation");
-                                  }
+                                  setCompanyToDeleteId(o.id);
+                                  setDeleteCompanyOpen(true);
                                 }}
                               >
                                 Delete
@@ -1140,15 +1153,24 @@ export default function TenantDetailPage({ params }: Props) {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify({
                     name: form.name,
-                    email: (form as any).email || null,
-                    phone: (form as any).phone || null,
-                    pib: (form as any).pib || null,
-                    companyNumber: (form as any).companyNumber || null,
-                    contactPerson: (form as any).contactPerson || null,
+                    email: form.email || null,
+                    phone: form.phone || null,
+                    pib: form.pib || null,
+                    companyNumber: form.companyNumber || null,
+                    contactPerson: form.contactPerson || null,
                   }),
                 });
                 if (res.ok) {
-                  setForm({ name: "", industry: "", address: "" });
+                  setForm({
+                    name: "",
+                    industry: "",
+                    address: "",
+                    email: "",
+                    phone: "",
+                    pib: "",
+                    companyNumber: "",
+                    contactPerson: "",
+                  });
                   await fetchOrganizations();
                   setCreateCompanyOpen(false);
                   toast.success("Organisation created");
@@ -1176,15 +1198,15 @@ export default function TenantDetailPage({ params }: Props) {
                 <Label>Email</Label>
                 <Input
                   type="email"
-                  value={(form as any).email || ""}
-                  onChange={(e) => setForm({ ...form, email: e.target.value } as any)}
+                  value={form.email || ""}
+                  onChange={(e) => setForm({ ...form, email: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Phone</Label>
                 <Input
-                  value={(form as any).phone || ""}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value } as any)}
+                  value={form.phone || ""}
+                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 />
               </div>
             </div>
@@ -1192,23 +1214,23 @@ export default function TenantDetailPage({ params }: Props) {
               <div className="space-y-2">
                 <Label>PIB</Label>
                 <Input
-                  value={(form as any).pib || ""}
-                  onChange={(e) => setForm({ ...form, pib: e.target.value } as any)}
+                  value={form.pib || ""}
+                  onChange={(e) => setForm({ ...form, pib: e.target.value })}
                 />
               </div>
               <div className="space-y-2">
                 <Label>Company Number</Label>
                 <Input
-                  value={(form as any).companyNumber || ""}
-                  onChange={(e) => setForm({ ...form, companyNumber: e.target.value } as any)}
+                  value={form.companyNumber || ""}
+                  onChange={(e) => setForm({ ...form, companyNumber: e.target.value })}
                 />
               </div>
             </div>
             <div className="space-y-2">
               <Label>Contact Person</Label>
               <Input
-                value={(form as any).contactPerson || ""}
-                onChange={(e) => setForm({ ...form, contactPerson: e.target.value } as any)}
+                value={form.contactPerson || ""}
+                onChange={(e) => setForm({ ...form, contactPerson: e.target.value })}
               />
             </div>
             <DialogFooter>
@@ -1289,10 +1311,10 @@ export default function TenantDetailPage({ params }: Props) {
                   setCreateUserOpen(false);
                 } else {
                   const err = await res.json();
-                  alert(err.error?.message || "Failed to create user");
+                  toast.error(err.error?.message || "Failed to create user");
                 }
               } catch (_error) {
-                alert("Failed to create user");
+                toast.error("Failed to create user");
               }
               setCreating(false);
             }}

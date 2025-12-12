@@ -710,6 +710,29 @@ export const invoicesApi = {
       method: "POST",
       body: JSON.stringify(customizations ? { customizations } : {}),
     }),
+
+  duplicate: (id: string) =>
+    request<Invoice>(`/api/v1/invoices/${id}/duplicate`, {
+      method: "POST",
+    }),
+
+  // Scheduling endpoints
+  schedule: (id: string, scheduledAt: string) =>
+    request<Invoice>(`/api/v1/invoices/${id}/schedule`, {
+      method: "POST",
+      body: JSON.stringify({ scheduledAt }),
+    }),
+
+  updateSchedule: (id: string, scheduledAt: string) =>
+    request<Invoice>(`/api/v1/invoices/${id}/schedule`, {
+      method: "PATCH",
+      body: JSON.stringify({ scheduledAt }),
+    }),
+
+  cancelSchedule: (id: string) =>
+    request<Invoice>(`/api/v1/invoices/${id}/schedule`, {
+      method: "DELETE",
+    }),
 };
 
 function toIso(date: string | undefined | null): string | undefined {
@@ -1281,6 +1304,82 @@ export const paymentsApi = {
     request<void>(`/api/v1/payments/${id}`, {
       method: "DELETE",
     }),
+
+  // Transaction Tags
+  getTags: (paymentId: string) => request<TransactionTag[]>(`/api/v1/payments/${paymentId}/tags`),
+
+  addTag: (paymentId: string, tagId: string) =>
+    request<TransactionTag>(`/api/v1/payments/${paymentId}/tags`, {
+      method: "POST",
+      body: JSON.stringify({ tagId }),
+    }),
+
+  removeTag: (paymentId: string, tagId: string) =>
+    request<void>(`/api/v1/payments/${paymentId}/tags/${tagId}`, {
+      method: "DELETE",
+    }),
+
+  setTags: (paymentId: string, tagIds: string[]) =>
+    request<TransactionTag[]>(`/api/v1/payments/${paymentId}/tags`, {
+      method: "PUT",
+      body: JSON.stringify({ tagIds }),
+    }),
+};
+
+// ============================================
+// Tags API (General Purpose Tags)
+// ============================================
+
+export type Tag = {
+  id: string;
+  tenantId: string;
+  name: string;
+  slug: string;
+  color: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type TransactionTag = {
+  id: string;
+  tenantId: string;
+  paymentId: string;
+  tagId: string;
+  createdAt: string;
+  tag?: Tag;
+};
+
+export const tagsApi = {
+  getAll: () => request<Tag[]>("/api/v1/tags"),
+
+  getById: (id: string) => request<Tag>(`/api/v1/tags/${id}`),
+
+  getBySlug: (slug: string) => request<Tag>(`/api/v1/tags/slug/${slug}`),
+
+  getUsage: () =>
+    request<Array<{ tagId: string; name: string; count: number }>>("/api/v1/tags/usage"),
+
+  create: (data: { name: string; color?: string }) =>
+    request<Tag>("/api/v1/tags", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+
+  update: (id: string, data: { name?: string; color?: string }) =>
+    request<Tag>(`/api/v1/tags/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  delete: (id: string) =>
+    request<void>(`/api/v1/tags/${id}`, {
+      method: "DELETE",
+    }),
+
+  getTransactionsByTag: (tagId: string, params: { limit?: number; offset?: number } = {}) =>
+    request<{ paymentIds: string[]; total: number }>(
+      `/api/v1/tags/${tagId}/transactions${buildQueryString(params)}`
+    ),
 };
 
 // ============================================

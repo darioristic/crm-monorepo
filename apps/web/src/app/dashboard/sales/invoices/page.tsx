@@ -3,8 +3,11 @@
 import dynamic from "next/dynamic";
 import { usePathname, useRouter } from "next/navigation";
 import { Suspense, useCallback, useState } from "react";
+import { InvoiceSummary } from "@/components/invoice/invoice-summary";
 import { InvoicesDataTable } from "@/components/sales/invoices-data-table";
+import { CompanyDetailsSheet } from "@/components/sheets/company-details-sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/auth-context";
 import { useInvoiceSettings } from "@/hooks/use-invoice-settings";
 
 // Dynamic import for InvoiceSheet to reduce initial bundle size
@@ -17,8 +20,10 @@ const InvoiceSheet = dynamic(
 function InvoicesPageContent() {
   const router = useRouter();
   const pathname = usePathname();
+  const { user } = useAuth();
   const { defaultSettings } = useInvoiceSettings();
   const [refreshKey, setRefreshKey] = useState(0);
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
 
   const _handleNewInvoice = () => {
     router.push(`${pathname}?type=create`);
@@ -26,6 +31,10 @@ function InvoicesPageContent() {
 
   const handleInvoiceCreated = useCallback(() => {
     setRefreshKey((prev) => prev + 1);
+  }, []);
+
+  const handleFilterChange = useCallback((statuses: string[]) => {
+    setStatusFilter(statuses);
   }, []);
 
   return (
@@ -36,10 +45,25 @@ function InvoicesPageContent() {
           <p className="text-muted-foreground">Create and manage your invoices</p>
         </div>
       </div>
-      <InvoicesDataTable refreshTrigger={refreshKey} />
+
+      {/* Invoice Summary Cards */}
+      <InvoiceSummary
+        onFilterChange={handleFilterChange}
+        companyId={user?.companyId}
+        currency={defaultSettings?.template?.currency || "EUR"}
+      />
+
+      <InvoicesDataTable
+        refreshTrigger={refreshKey}
+        externalStatusFilter={statusFilter}
+        onStatusFilterClear={() => setStatusFilter([])}
+      />
 
       {/* Invoice Sheet for URL-based opening */}
       <InvoiceSheet defaultSettings={defaultSettings} onInvoiceCreated={handleInvoiceCreated} />
+
+      {/* Company Details Sheet */}
+      <CompanyDetailsSheet />
     </div>
   );
 }

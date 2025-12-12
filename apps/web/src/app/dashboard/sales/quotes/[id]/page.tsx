@@ -10,12 +10,7 @@ import { HtmlTemplate } from "@/components/quote/templates/html";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useApi } from "@/hooks/use-api";
 import { useQuoteWorkflows } from "@/hooks/use-quote";
 import { quotesApi } from "@/lib/api";
@@ -49,6 +44,7 @@ interface QuoteApiResponse {
   subtotal?: number | null;
   tax?: number | null;
   vat?: number | null;
+  discount?: number | null;
   taxRate?: number;
   sentAt?: string | null;
   acceptedAt?: string | null;
@@ -199,10 +195,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
 
   return (
     <div className="flex flex-col justify-center items-center min-h-[calc(100vh-4rem)] dotted-bg p-4 sm:p-6 md:p-0">
-      <div
-        className="flex flex-col w-full max-w-full py-6"
-        style={{ maxWidth: width }}
-      >
+      <div className="flex flex-col w-full max-w-full py-6" style={{ maxWidth: width }}>
         {/* Customer Header */}
         <div className="flex justify-between items-center mb-4">
           <div className="flex items-center space-x-2">
@@ -216,9 +209,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
                 {quote.companyName?.[0] || "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="truncate text-sm">
-              {quote.companyName || "Unknown"}
-            </span>
+            <span className="truncate text-sm">{quote.companyName || "Unknown"}</span>
           </div>
 
           <QuoteStatus status={quote.status} />
@@ -314,10 +305,7 @@ export default function QuoteDetailPage({ params }: PageProps) {
             size="sm"
             className="h-8 text-xs"
             onClick={handleConvertToOrder}
-            disabled={
-              convertToOrder.isLoading ||
-              (quote.status === "accepted" ? false : false)
-            }
+            disabled={convertToOrder.isLoading}
           >
             Convert to Order
           </Button>
@@ -392,7 +380,13 @@ function transformQuoteToTemplateData(quote: QuoteApiResponse): QuoteType {
     vat: quote.vat || null,
     tax: quote.tax || null,
     subtotal: quote.subtotal || null,
-    status: quote.status || "draft",
+    status: (["draft", "sent", "accepted", "rejected", "expired"] as const).includes(
+      // biome-ignore lint/suspicious/noExplicitAny: status type mismatch from API
+      (quote.status || "draft") as any
+    )
+      ? // biome-ignore lint/suspicious/noExplicitAny: status type mismatch from API
+        ((quote.status || "draft") as any)
+      : "draft",
     template: defaultTemplate,
     token: quote.token || "",
     filePath: null,
@@ -421,7 +415,9 @@ function transformQuoteToTemplateData(quote: QuoteApiResponse): QuoteType {
       name: item.productName || item.description || "",
       quantity: Number(item.quantity) || 1,
       price: Number(item.unitPrice) || 0,
-      unit: item.unit || undefined,
+      unit: item.unit || "pcs",
+      discount: item.discount || 0,
+      vat: item.vat || 0,
     })),
     fromDetails: getStoredFromDetails(),
     customerDetails: quote.companyName

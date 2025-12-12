@@ -31,7 +31,7 @@ export const compareProductsTool = tool({
     const { tenantId, productIds, category } = params;
 
     try {
-      let query;
+      let query: Promise<Array<Record<string, unknown>>>;
       if (productIds && productIds.length > 0) {
         query = sql`
           SELECT
@@ -286,7 +286,7 @@ export const marketResearchTool = tool({
     "Get market data, customer insights, and industry trends based on internal data. Use for market understanding.",
   parameters: marketResearchSchema,
   execute: async (params: MarketResearchParams): Promise<string> => {
-    const { tenantId, topic } = params;
+    const { tenantId } = params;
 
     try {
       // Get customer distribution by industry

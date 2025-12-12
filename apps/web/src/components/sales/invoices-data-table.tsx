@@ -31,17 +31,42 @@ import {
 } from "@/components/ui/table";
 import { useAuth } from "@/contexts/auth-context";
 import { useMutation, usePaginatedApi } from "@/hooks/use-api";
+import { useCompanyParams } from "@/hooks/use-company-params";
 import { useStickyColumns } from "@/hooks/use-sticky-columns";
 import { companiesApi, invoicesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
-export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number }) {
+interface InvoicesDataTableProps {
+  refreshTrigger?: number;
+  externalStatusFilter?: string[];
+  onStatusFilterClear?: () => void;
+}
+
+export function InvoicesDataTable({
+  refreshTrigger,
+  externalStatusFilter,
+  onStatusFilterClear,
+}: InvoicesDataTableProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { user } = useAuth();
+  const { setParams: setCompanyParams } = useCompanyParams();
   const selectedCompanyId = user?.companyId;
   const [searchValue, setSearchValue] = React.useState("");
-  const [statusFilter, setStatusFilter] = React.useState("all");
+  const [internalStatusFilter, setInternalStatusFilter] = React.useState("all");
+
+  // Use external filter if provided, otherwise use internal
+  const statusFilter = externalStatusFilter?.length
+    ? externalStatusFilter.join(",")
+    : internalStatusFilter;
+
+  const setStatusFilter = (value: string) => {
+    // Clear external filter when user manually changes
+    if (onStatusFilterClear) {
+      onStatusFilterClear();
+    }
+    setInternalStatusFilter(value);
+  };
   const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
   const [selectedInvoice, setSelectedInvoice] = React.useState<InvoiceWithCompany | null>(null);
   const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
@@ -55,6 +80,14 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
       router.push(`${pathname}?type=edit&invoiceId=${invoiceId}`);
     },
     [router, pathname]
+  );
+
+  // Open company details sheet
+  const handleOpenCompanyDetails = React.useCallback(
+    (companyId: string) => {
+      setCompanyParams({ companyId, details: true });
+    },
+    [setCompanyParams]
   );
 
   // Fetch companies for name lookup - use paginated API to get all companies
@@ -120,6 +153,13 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
     }, 300);
     return () => clearTimeout(timer);
   }, [searchValue, statusFilter, selectedCompanyId, sorting, setFilters]);
+
+  // Reset internal filter when external filter is cleared
+  React.useEffect(() => {
+    if (externalStatusFilter?.length === 0) {
+      setInternalStatusFilter("all");
+    }
+  }, [externalStatusFilter]);
 
   // Handle external refresh trigger
   React.useEffect(() => {
@@ -208,23 +248,11 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
           setSelectedInvoice(invoice);
           setDeleteDialogOpen(true);
         },
-        onRecordPayment: (invoice) => {
-          setPaymentInvoice(invoice);
-          setPaymentDialogOpen(true);
-        },
         onOpenSheet: handleOpenSheet,
-        onConvertToDeliveryNote: async (invoice) => {
-          try {
-            await invoicesApi.convertToDeliveryNote(invoice.id);
-            toast.success("Invoice successfully converted to delivery note!");
-            refetch();
-          } catch (error) {
-            toast.error("Failed to convert invoice to delivery note");
-            console.error(error);
-          }
-        },
+        onOpenCompanyDetails: handleOpenCompanyDetails,
+        onRefresh: refetch,
       }),
-    [handleOpenSheet, refetch]
+    [handleOpenSheet, handleOpenCompanyDetails, refetch]
   );
 
   const table = useReactTable({
@@ -286,11 +314,17 @@ export function InvoicesDataTable({ refreshTrigger }: { refreshTrigger?: number 
           <InvoicesToolbar
             search={searchValue}
             onSearchChange={setSearchValue}
-            statusFilter={statusFilter}
+            statusFilter={internalStatusFilter}
             onStatusFilterChange={setStatusFilter}
             onRefresh={refetch}
             isLoading={isLoading}
             onNewInvoice={() => router.push(`${pathname}?type=create`)}
+            externalFilterLabel={
+              externalStatusFilter?.length
+                ? `Filtering: ${externalStatusFilter.map((s) => s.charAt(0).toUpperCase() + s.slice(1)).join(", ")}`
+                : undefined
+            }
+            onClearExternalFilter={onStatusFilterClear}
           />
         </div>
         {selectedInvoiceIds.length > 0 && (

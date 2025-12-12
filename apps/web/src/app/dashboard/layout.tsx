@@ -33,8 +33,6 @@ export default async function DashboardLayout({
           </div>
         </div>
       </SidebarInset>
-
-      {/* Global Sheets removed */}
     </SidebarProvider>
   );
 }

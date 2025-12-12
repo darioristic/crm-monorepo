@@ -364,42 +364,42 @@ router.delete("/api/v1/documents/:id", async (request, _url, params) => {
  */
 router.get("/api/v1/documents/view/:companyId/:filename", async (request, _url, params) => {
   return withAuth(request, async (auth) => {
-    const hasAccess = await canAccessCompany(auth, params.companyId);
-    if (!hasAccess) {
-      return json(errorResponse("FORBIDDEN", "Access denied"), 403);
+    try {
+      const hasAccess = await canAccessCompany(auth, params.companyId);
+      if (!hasAccess) {
+        return json(errorResponse("FORBIDDEN", "Access denied"), 403);
+      }
+
+      const pathTokens = [params.companyId, params.filename];
+      const fileInfo = fileStorage.getFileInfo(pathTokens);
+
+      if (!fileInfo.exists || !fileInfo.path) {
+        logger.warn({ pathTokens, fileInfo }, "Document view: File not found");
+        return json(errorResponse("NOT_FOUND", "File not found"), 404);
+      }
+
+      const mimetype = fileStorage.getMimeType(params.filename);
+
+      // Use Bun.file for more reliable file reading
+      const file = Bun.file(fileInfo.path);
+      if (!(await file.exists())) {
+        logger.warn({ path: fileInfo.path }, "Document view: Bun.file does not exist");
+        return json(errorResponse("NOT_FOUND", "File not found"), 404);
+      }
+
+      return new Response(file, {
+        status: 200,
+        headers: {
+          "Content-Type": mimetype,
+          "Content-Disposition": "inline",
+          "Content-Length": fileInfo.size?.toString() || "",
+          "Cache-Control": "private, max-age=3600",
+        },
+      });
+    } catch (error) {
+      logger.error({ error, params }, "Document view: Error serving file");
+      return json(errorResponse("INTERNAL_ERROR", "Failed to serve file"), 500);
     }
-
-    const pathTokens = [params.companyId, params.filename];
-    const fileInfo = fileStorage.getFileInfo(pathTokens);
-
-    if (!fileInfo.exists || !fileInfo.path) {
-      return json(errorResponse("NOT_FOUND", "File not found"), 404);
-    }
-
-    const mimetype = fileStorage.getMimeType(params.filename);
-    const stream = fileStorage.createFileReadStream(pathTokens);
-
-    if (!stream) {
-      return json(errorResponse("NOT_FOUND", "File not found"), 404);
-    }
-
-    const webStream = new ReadableStream({
-      start(controller) {
-        stream.on("data", (chunk) => controller.enqueue(chunk));
-        stream.on("end", () => controller.close());
-        stream.on("error", (err) => controller.error(err));
-      },
-    });
-
-    return new Response(webStream, {
-      status: 200,
-      headers: {
-        "Content-Type": mimetype,
-        "Content-Disposition": "inline",
-        "Content-Length": fileInfo.size?.toString() || "",
-        "Cache-Control": "private, max-age=3600",
-      },
-    });
   });
 });
 
@@ -705,8 +705,8 @@ router.post("/api/v1/documents/store-generated", async (request) => {
       let companyId: string | null = null;
       try {
         if (auth.activeTenantId) {
-          const { findSellerByTenantId } = await import("../db/queries/companies");
-          const seller = await findSellerByTenantId(auth.activeTenantId);
+          const companies = (await import("../db/queries/companies")).default;
+          const seller = await companies.findSellerByTenantId(auth.activeTenantId);
           companyId = (seller as { id?: string } | null)?.id ?? null;
         }
       } catch {}

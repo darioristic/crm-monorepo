@@ -121,9 +121,7 @@ export function OrganizationsDataTable({
                     <div className="flex flex-col">
                       <span className="font-medium">{c.name}</span>
                       {(c.email || c.phone) && (
-                        <span className="text-xs text-muted-foreground">
-                          {c.email || c.phone}
-                        </span>
+                        <span className="text-xs text-muted-foreground">{c.email || c.phone}</span>
                       )}
                     </div>
                   </div>
@@ -145,11 +143,7 @@ export function OrganizationsDataTable({
                   <div className="flex flex-wrap gap-1">
                     {c.tags && c.tags.length > 0 ? (
                       c.tags.slice(0, 3).map((tag) => (
-                        <Badge
-                          key={tag.id}
-                          variant="secondary"
-                          className="text-xs px-1.5 py-0"
-                        >
+                        <Badge key={tag.id} variant="secondary" className="text-xs px-1.5 py-0">
                           {tag.name}
                         </Badge>
                       ))

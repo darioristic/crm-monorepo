@@ -6,6 +6,7 @@ export function useCompanyParams() {
     createCompany: parseAsBoolean,
     name: parseAsString,
     q: parseAsString,
+    details: parseAsBoolean,
   });
 
   return {

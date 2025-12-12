@@ -98,9 +98,22 @@ export function CompanyDropdown({ isExpanded = false }: Props) {
         setSelectedId(result.data.companyId);
         try {
           window.localStorage?.setItem("selectedCompanyId", String(result.data.companyId));
-          document.cookie = `selected_company_id=${String(
-            result.data.companyId
-          )}; path=/; max-age=31536000; SameSite=Lax`;
+          const cs = (
+            window as unknown as {
+              cookieStore?: {
+                set: (opts: unknown) => Promise<unknown>;
+              };
+            }
+          ).cookieStore;
+          if (cs) {
+            await cs.set({
+              name: "selected_company_id",
+              value: String(result.data.companyId),
+              sameSite: "lax",
+              secure: window.location.protocol === "https:",
+              path: "/",
+            });
+          }
         } catch {}
       }
 

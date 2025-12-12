@@ -78,14 +78,11 @@ export function ContactFormSheet({ open, onOpenChange, contactId, onSaved }: Pro
                 }
               } else {
                 const res = await contactsApi.create({
-                  id: crypto.randomUUID(),
                   firstName: data.firstName,
                   lastName: data.lastName,
                   email: data.email || "",
                   phone: data.phone,
                   jmbg: data.jmbg,
-                  createdAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
                 });
                 if (res.success) {
                   onSaved?.();

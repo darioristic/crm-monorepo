@@ -122,10 +122,44 @@
 
 @theme inline {
   --animate-scroll: scroll var(--animation-duration, 40s) var(--animation-direction, forwards) linear infinite;
+  --animate-shimmer: shimmer 2.5s linear infinite;
+  --animate-scale-in-fade: webgl-scale-in-fade 0.3s ease-out forwards;
+  --animate-slide-effect: slide-effect 1.3s ease-in-out forwards;
 
   @keyframes scroll {
     to {
       transform: translate(calc(-50% - 0.5rem));
+    }
+  }
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+
+  @keyframes webgl-scale-in-fade {
+    0% {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes slide-effect {
+    0% {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
     }
   }
 
@@ -138,6 +172,20 @@
     50% {
       transform: scale(1.5);
       opacity: 1;
+    }
+  }
+
+  @keyframes shimmer-text {
+    0%,
+    90%,
+    100% {
+      background-position: calc(-100% - var(--spread) * 1em) center,
+        0 center;
+    }
+    30%,
+    60% {
+      background-position: calc(200% + var(--spread) * 1em) center,
+        0 center;
     }
   }
 
@@ -185,6 +233,37 @@
 * {
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+}
+
+/* Performance optimizations - from Midday */
+html {
+  overscroll-behavior: contain;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Smooth, optimized transitions */
+.transition-smooth {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* GPU-accelerated animations */
+.transform-gpu {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Dialog/Modal animations */
+[data-state="open"][data-slot="dialog-content"],
+[data-state="open"][data-slot="sheet-content"] {
+  animation: webgl-scale-in-fade 0.2s ease-out forwards;
+}
+
+/* Optimized list rendering */
+.optimized-list {
+  contain: content;
+  content-visibility: auto;
 }
 
 @layer base {

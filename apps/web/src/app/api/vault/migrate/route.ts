@@ -463,7 +463,19 @@ function buildInvoiceObject(apiInvoice: Record<string, unknown>): Invoice {
     tax: (apiInvoice.tax as number) || null,
     discount: (apiInvoice.discount as number) || null,
     subtotal: apiInvoice.subtotal as number,
-    status: apiInvoice.status as string,
+    status: ((): Invoice["status"] => {
+      const raw = String(apiInvoice.status || "").toLowerCase();
+      const map: Record<string, Invoice["status"]> = {
+        draft: "draft",
+        overdue: "overdue",
+        paid: "paid",
+        unpaid: "unpaid",
+        canceled: "canceled",
+        cancelled: "canceled",
+        scheduled: "scheduled",
+      };
+      return map[raw] ?? "draft";
+    })(),
     template: {
       ...DEFAULT_INVOICE_TEMPLATE,
       logoUrl: getLogoDataUrl(),
@@ -553,6 +565,7 @@ function buildQuoteObject(apiQuote: Record<string, unknown>): Quote {
         discount: item.discount || 0,
         vat: item.vat ?? item.vatRate ?? (apiQuote.vatRate as number) ?? 20,
       })) || [],
+    paymentDetails: null,
     customerDetails,
     fromDetails: null,
     noteDetails: apiQuote.notes
@@ -564,11 +577,23 @@ function buildQuoteObject(apiQuote: Record<string, unknown>): Quote {
         }
       : null,
     note: apiQuote.notes as string | null,
+    internalNote: null,
     vat: (apiQuote.vat as number) || null,
     tax: (apiQuote.tax as number) || null,
     discount: (apiQuote.discount as number) || null,
     subtotal: apiQuote.subtotal as number,
-    status: apiQuote.status as string,
+    status: ((): Quote["status"] => {
+      const raw = String(apiQuote.status || "").toLowerCase();
+      const map: Record<string, Quote["status"]> = {
+        draft: "draft",
+        sent: "sent",
+        accepted: "accepted",
+        rejected: "rejected",
+        expired: "expired",
+        viewed: "sent",
+      };
+      return map[raw] ?? "draft";
+    })(),
     template: {
       ...DEFAULT_QUOTE_TEMPLATE,
       logoUrl: getLogoDataUrl(),
@@ -580,6 +605,15 @@ function buildQuoteObject(apiQuote: Record<string, unknown>): Quote {
       includeDiscount: true,
       includeDecimals: true,
     },
+    token: (apiQuote.token as string) || "",
+    filePath: null,
+    sentAt: (apiQuote.sentAt as string) || null,
+    viewedAt: (apiQuote.viewedAt as string) || null,
+    acceptedAt: (apiQuote.acceptedAt as string) || null,
+    rejectedAt: (apiQuote.rejectedAt as string) || null,
+    sentTo: null,
+    topBlock: null,
+    bottomBlock: null,
     customerId: apiQuote.companyId as string,
     customerName: companyName || "Customer",
     customer: {
@@ -588,6 +622,8 @@ function buildQuoteObject(apiQuote: Record<string, unknown>): Quote {
       website: (company?.website as string) || null,
       email: (company?.email as string) || null,
     },
+    team: null,
+    scheduledAt: null,
   };
 }
 
@@ -600,7 +636,7 @@ async function generateInvoicePdf(invoice: Invoice): Promise<Uint8Array> {
 
 async function generateQuotePdf(quote: Quote): Promise<Uint8Array> {
   const { renderToBuffer } = await import("@react-pdf/renderer");
-  const { QuotePdfTemplate } = await import("@/components/quote/templates/pdf-template");
-  const pdfDocument = await QuotePdfTemplate({ quote });
+  const { PdfTemplate } = await import("@/components/quote/templates/pdf-template");
+  const pdfDocument = await PdfTemplate({ quote });
   return renderToBuffer(pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]);
 }

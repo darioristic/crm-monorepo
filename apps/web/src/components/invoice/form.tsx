@@ -87,7 +87,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
       return {
         createdBy: (user?.id as string) || "",
-        customerCompanyId: values.customerId?.trim() ? values.customerId.trim() : undefined,
+        companyId: values.customerId?.trim() ? values.customerId.trim() : undefined,
         invoiceNumber: values.invoiceNumber,
         issueDate: values.issueDate,
         dueDate: values.dueDate,
@@ -209,7 +209,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     // Double-check the transformed data before sending
     const transformedData = transformFormValuesToDraft(currentFormValues);
     if (
-      !(transformedData as any).customerCompanyId ||
+      !(transformedData as any).companyId ||
       !transformedData.dueDate ||
       !transformedData.items ||
       transformedData.items.length === 0
@@ -220,10 +220,10 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     // Prevent duplicate requests
     isSavingDraftRef.current = true;
 
-    const transformedUpdate: UpdateInvoiceRequest = {
+    const transformedUpdate = {
       ...transformedData,
-    } as any;
-    delete (transformedUpdate as any).items;
+    } as UpdateInvoiceRequest & { items?: unknown };
+    delete transformedUpdate.items;
     draftMutationRef.current
       .mutate(transformedUpdate)
       .then((result) => {
@@ -239,7 +239,11 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
   // Submit the form
   const handleSubmit = async (values: FormValues) => {
     // Validate required fields
-    const initialCompanyId = (values.customerId || (values as any).companyId || "").trim();
+    const initialCompanyId = (
+      values.customerId ||
+      (values as FormValues & { companyId?: string }).companyId ||
+      ""
+    ).trim();
     const companyIdFinal = initialCompanyId;
     if (!companyIdFinal) {
       toast.error("Please select a customer");
@@ -270,21 +274,24 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     const transformedData = {
       ...transformFormValuesToDraft({
         ...values,
-        customerId: companyIdFinal as any,
-        companyId: companyIdFinal as any,
-      } as any),
+        customerId: companyIdFinal,
+        companyId: companyIdFinal,
+      }),
       status: (values.template.deliveryType === "create" ? "draft" : "sent") as InvoiceStatus,
     };
 
     // Final validation before sending
+    const transformedWithCompany = transformedData as typeof transformedData & {
+      companyId?: string;
+    };
     if (
-      !(transformedData as any).customerCompanyId ||
+      !transformedWithCompany.companyId ||
       !transformedData.dueDate ||
       !transformedData.items ||
       transformedData.items.length === 0
     ) {
       logger.error("Submit validation failed:", {
-        customerCompanyId: (transformedData as any).customerCompanyId,
+        companyId: transformedWithCompany.companyId,
         dueDate: transformedData.dueDate,
         itemsCount: transformedData.items?.length ?? 0,
       });
@@ -294,7 +301,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
     const transformedWithCompany = {
       ...transformedData,
-      companyId: (user?.companyId as string) || "",
+      sellerCompanyId: (user?.companyId as string) || "",
     };
 
     // Use update API if editing existing invoice, otherwise create

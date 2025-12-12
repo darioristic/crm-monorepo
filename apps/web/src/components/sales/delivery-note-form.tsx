@@ -268,8 +268,7 @@ export function DeliveryNoteForm({
       : undefined;
 
     const data = {
-      companyId: (user?.companyId as string) || "",
-      customerCompanyId: values.companyId,
+      companyId: values.companyId,
       sellerCompanyId: user?.companyId,
       shippingAddress: values.shippingAddress,
       shipDate: values.shipDate ? new Date(values.shipDate).toISOString() : undefined,

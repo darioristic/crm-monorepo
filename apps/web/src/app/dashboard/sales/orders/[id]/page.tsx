@@ -1,6 +1,6 @@
 "use client";
 
-import type { OrderWithRelations } from "@crm/types";
+import type { EditorDoc } from "@crm/schemas";
 import { motion } from "framer-motion";
 import { ArrowLeft, Check, Copy, Download, Pencil } from "lucide-react";
 import Link from "next/link";
@@ -18,6 +18,60 @@ import type { OrderTemplate, Order as OrderType } from "@/types/order";
 
 interface PageProps {
   params: Promise<{ id: string }>;
+}
+
+interface OrderApiResponse {
+  id: string;
+  orderNumber: string | null;
+  issueDate?: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  total: number;
+  currency?: string | null;
+  items?: Array<{
+    productName?: string;
+    description?: string;
+    quantity?: number;
+    unitPrice?: number;
+    unit?: string;
+    discount?: number;
+    vat?: number;
+    vatRate?: number;
+  }>;
+  terms?: string | null;
+  notes?: string | null;
+  companyId: string;
+  companyName?: string;
+  company?: {
+    name?: string;
+    addressLine1?: string;
+    address?: string;
+    addressLine2?: string;
+    city?: string;
+    zip?: string;
+    postalCode?: string;
+    country?: string;
+    email?: string;
+    billingEmail?: string;
+    phone?: string;
+    vatNumber?: string;
+    website?: string;
+  };
+  customerDetails?: EditorDoc | string | null;
+  vat?: number | null;
+  tax?: number | null;
+  discount?: number | null;
+  subtotal: number | null;
+  status?: string;
+  taxRate?: number;
+  vatRate?: number;
+  completedAt?: string | null;
+  viewedAt?: string | null;
+  cancelledAt?: string | null;
+  refundedAt?: string | null;
+  quoteId?: string | null;
+  invoiceId?: string | null;
+  token?: string;
 }
 
 // Order Status Component
@@ -58,9 +112,15 @@ export default function OrderDetailPage({ params }: PageProps) {
     data: order,
     isLoading,
     error,
-  } = useApi<OrderWithRelations>(() => ordersApi.getById(id), {
-    autoFetch: true,
-  });
+  } = useApi<OrderApiResponse>(
+    () =>
+      ordersApi.getById(id) as unknown as Promise<
+        import("@/lib/api").ApiResponse<OrderApiResponse>
+      >,
+    {
+      autoFetch: true,
+    }
+  );
 
   const handleCopyLink = () => {
     const url = window.location.href;
@@ -154,10 +214,12 @@ export default function OrderDetailPage({ params }: PageProps) {
             </Button>
             <Avatar className="size-5 object-contain border border-border">
               <AvatarFallback className="text-[9px] font-medium">
-                {order.companyName?.[0] || "?"}
+                {(order.companyName || order.company?.name || "")?.[0] || "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="truncate text-sm">{order.companyName || "Unknown"}</span>
+            <span className="truncate text-sm">
+              {order.companyName || order.company?.name || "Unknown"}
+            </span>
           </div>
 
           <OrderStatus status={order.status} />
@@ -263,7 +325,7 @@ export default function OrderDetailPage({ params }: PageProps) {
 }
 
 // Transform API order to Order type
-function transformOrderToTemplateData(order: OrderWithRelations): OrderType {
+function transformOrderToTemplateData(order: OrderApiResponse): OrderType {
   // Default template
   const defaultTemplate: OrderTemplate = {
     title: "Order",
@@ -307,7 +369,7 @@ function transformOrderToTemplateData(order: OrderWithRelations): OrderType {
   return {
     id: order.id,
     orderNumber: order.orderNumber,
-    issueDate: order.issueDate,
+    issueDate: order.issueDate || null,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
     amount: order.total || 0,
@@ -316,7 +378,13 @@ function transformOrderToTemplateData(order: OrderWithRelations): OrderType {
     vat: order.vat || null,
     tax: order.tax || null,
     subtotal: order.subtotal || null,
-    status: order.status || "pending",
+    status: (["pending", "processing", "completed", "cancelled", "refunded"] as const).includes(
+      // biome-ignore lint/suspicious/noExplicitAny: status type mismatch from API
+      (order.status || "pending") as any
+    )
+      ? // biome-ignore lint/suspicious/noExplicitAny: status type mismatch from API
+        ((order.status || "pending") as any)
+      : "pending",
     template: defaultTemplate,
     token: order.token || "",
     filePath: null,
@@ -330,38 +398,46 @@ function transformOrderToTemplateData(order: OrderWithRelations): OrderType {
     topBlock: null,
     bottomBlock: null,
     customerId: order.companyId || null,
-    customerName: order.companyName || null,
+    customerName: order.companyName || order.company?.name || null,
     quoteId: order.quoteId || null,
     invoiceId: order.invoiceId || null,
-    customer: order.companyName
-      ? {
-          id: order.companyId,
-          name: order.companyName,
-          website: null,
-          email: null,
-        }
-      : null,
+    customer:
+      order.companyName || order.company?.name
+        ? {
+            id: order.companyId,
+            name: order.companyName || order.company?.name || null,
+            website: null,
+            email: null,
+          }
+        : null,
     team: null,
     scheduledAt: null,
-    lineItems: (order.items || []).map((item: OrderWithRelations["items"][number]) => ({
+    lineItems: (order.items || []).map((item) => ({
       name: item.productName || item.description || "",
       quantity: Number(item.quantity) || 1,
       price: Number(item.unitPrice) || 0,
-      unit: item.unit || undefined,
+      unit: item.unit || "pcs",
       discount: item.discount || 0,
+      vat: item.vat || 0,
     })),
     fromDetails: getStoredFromDetails(),
-    customerDetails: order.companyName
-      ? {
-          type: "doc" as const,
-          content: [
-            {
-              type: "paragraph",
-              content: [{ type: "text", text: order.companyName }],
-            },
-          ],
-        }
-      : null,
+    customerDetails:
+      order.companyName || order.company?.name
+        ? {
+            type: "doc" as const,
+            content: [
+              {
+                type: "paragraph",
+                content: [
+                  {
+                    type: "text",
+                    text: (order.companyName || order.company?.name) as string,
+                  },
+                ],
+              },
+            ],
+          }
+        : null,
     paymentDetails: getStoredPaymentDetails(),
     noteDetails: order.notes
       ? {

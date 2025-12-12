@@ -1,10 +1,10 @@
 "use client";
 
-import type { Company, CreateCompanyRequest } from "@crm/types";
+import type { Company, CreateCompanyRequest, CustomerOrganization } from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, Globe, Loader2, Search } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -128,6 +128,18 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
     },
   });
 
+  const [addrSuggestions, setAddrSuggestions] = useState<
+    Array<
+      Pick<
+        CustomerOrganization,
+        "id" | "name" | "addressLine1" | "city" | "zip" | "state" | "country" | "countryCode"
+      >
+    >
+  >([]);
+  const [showAddrSuggestions, setShowAddrSuggestions] = useState(false);
+  const [addrLoading, setAddrLoading] = useState(false);
+  const addrDebounceRef = useRef<number | null>(null);
+
   // Handle domain detection from email or website
   const handleDomainDetection = useCallback(
     (value: string, field: "email" | "website") => {
@@ -195,7 +207,7 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
     const formattedData: CreateCompanyRequest = {
       name: values.name,
       industry: values.industry || "Other",
-      address: values.address,
+      address: values.address || "",
       email: values.email || null,
       phone: values.phone || null,
       website: values.website || null,
@@ -223,6 +235,12 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
           pib: values.vatNumber || undefined,
           companyNumber: values.companyNumber || undefined,
           contactPerson: values.contact || undefined,
+          addressLine1: values.address || undefined,
+          city: values.city || undefined,
+          zip: values.zip || undefined,
+          country: values.country || undefined,
+          countryCode: values.countryCode || undefined,
+          note: values.note || undefined,
           isFavorite: false,
         });
       } catch {}
@@ -440,12 +458,116 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
                           Address *
                         </FormLabel>
                         <FormControl>
-                          <Input
-                            {...field}
-                            value={field.value ?? ""}
-                            placeholder="123 Main Street"
-                            autoComplete="off"
-                          />
+                          <div className="relative">
+                            <Input
+                              {...field}
+                              value={field.value ?? ""}
+                              placeholder="123 Main Street"
+                              autoComplete="off"
+                              onFocus={() => setShowAddrSuggestions(true)}
+                              onBlur={() => {
+                                setTimeout(() => setShowAddrSuggestions(false), 150);
+                              }}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                field.onChange(v);
+                                if (addrDebounceRef.current) {
+                                  window.clearTimeout(addrDebounceRef.current);
+                                  addrDebounceRef.current = null;
+                                }
+                                addrDebounceRef.current = window.setTimeout(async () => {
+                                  if (!v || v.trim().length < 2) {
+                                    setAddrSuggestions([]);
+                                    setAddrLoading(false);
+                                    setShowAddrSuggestions(false);
+                                    return;
+                                  }
+                                  try {
+                                    setAddrLoading(true);
+                                    setShowAddrSuggestions(true);
+                                    const res = await organizationsApi.getAll({
+                                      search: v,
+                                      page: 1,
+                                      pageSize: 5,
+                                    });
+                                    if (res.success && Array.isArray(res.data)) {
+                                      const items = (res.data as CustomerOrganization[])
+                                        .map((o) => ({
+                                          id: o.id,
+                                          name: o.name,
+                                          addressLine1: o.addressLine1 || "",
+                                          city: o.city || "",
+                                          zip: o.zip || "",
+                                          state: o.state || "",
+                                          country: o.country || "",
+                                          countryCode: o.countryCode || "",
+                                        }))
+                                        .filter((i) => i.addressLine1);
+                                      if (form.getValues("address") === v) {
+                                        setAddrSuggestions(items);
+                                        setShowAddrSuggestions(items.length > 0);
+                                      }
+                                    }
+                                  } catch {
+                                  } finally {
+                                    setAddrLoading(false);
+                                  }
+                                }, 250);
+                              }}
+                            />
+                            {showAddrSuggestions && (addrLoading || addrSuggestions.length > 0) && (
+                              <div className="absolute z-50 mt-1 bg-background border shadow-md max-h-48 overflow-y-auto left-0 right-0 rounded-md">
+                                {addrLoading ? (
+                                  <div className="px-3 py-2 text-xs text-muted-foreground">
+                                    Searching addresses...
+                                  </div>
+                                ) : (
+                                  addrSuggestions.map((s) => (
+                                    <button
+                                      key={`${s.id}-${s.addressLine1}`}
+                                      type="button"
+                                      className="w-full text-left px-3 py-2 text-xs hover:bg-muted/60"
+                                      onMouseDown={(ev) => {
+                                        ev.preventDefault();
+                                        form.setValue("address", s.addressLine1 || "", {
+                                          shouldDirty: true,
+                                          shouldValidate: true,
+                                        });
+                                        if (s.city)
+                                          form.setValue("city", s.city, {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                          });
+                                        if (s.zip)
+                                          form.setValue("zip", s.zip, {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                          });
+                                        if (s.country)
+                                          form.setValue("country", s.country, {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                          });
+                                        if (s.countryCode)
+                                          form.setValue("countryCode", s.countryCode, {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                          });
+                                        setShowAddrSuggestions(false);
+                                      }}
+                                    >
+                                      <div className="font-medium truncate">{s.addressLine1}</div>
+                                      <div className="text-muted-foreground truncate">
+                                        {[s.city, s.state, s.zip, s.country]
+                                          .filter(Boolean)
+                                          .join(", ")}
+                                      </div>
+                                    </button>
+                                  ))
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -278,9 +278,7 @@ export const inboxApi = {
   /**
    * Retry matching for an inbox item (without reprocessing the file)
    */
-  async retryMatching(
-    id: string
-  ): Promise<{
+  async retryMatching(id: string): Promise<{
     matches: number;
     autoMatched: boolean;
     matchResult?: Record<string, unknown> | null;

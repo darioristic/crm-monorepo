@@ -94,13 +94,13 @@ export async function loadDocument({
         if (metadata.mimetype.startsWith("text/")) {
           document = await loadTextFile(blob);
         } else {
-          logger.warn(`Unsupported file type: ${metadata.mimetype}`);
+          logger.warn([`Unsupported file type: ${metadata.mimetype}`]);
           return { text: null };
         }
       }
     }
   } catch (error) {
-    logger.error("Error loading document:", error);
+    logger.error(["Error loading document:", error]);
     return { text: null };
   }
 
@@ -129,13 +129,13 @@ async function loadPdf(blob: Blob): Promise<{ text: string | null; pageCount?: n
 
     // If text extraction failed (scanned PDF), try OCR
     if (cleanedText.trim().length === 0 && mistralClient) {
-      logger.info("PDF text extraction failed, attempting OCR...");
+      logger.info(["PDF text extraction failed, attempting OCR..."]);
       cleanedText = await performOcr(arrayBuffer);
     }
 
     return { text: cleanedText, pageCount };
   } catch (error) {
-    logger.error("PDF loading error:", error);
+    logger.error(["PDF loading error:", error]);
 
     // Try OCR as last resort
     if (mistralClient) {
@@ -172,7 +172,7 @@ async function performOcr(arrayBuffer: ArrayBuffer): Promise<string> {
 
     return text || "";
   } catch (error) {
-    logger.error("OCR failed:", error);
+    logger.error(["OCR failed:", error]);
     return "";
   }
 }
@@ -234,7 +234,7 @@ async function loadOfficeDocument(blob: Blob): Promise<string> {
     const result = await parseOfficeAsync(Buffer.from(arrayBuffer));
     return result || "";
   } catch (error) {
-    logger.error("Office document loading error:", error);
+    logger.error(["Office document loading error:", error]);
     return "";
   }
 }

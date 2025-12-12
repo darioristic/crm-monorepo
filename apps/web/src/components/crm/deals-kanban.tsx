@@ -5,6 +5,7 @@ import type { UniqueIdentifier } from "@dnd-kit/core";
 import { Calendar, GripVertical, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,6 +43,7 @@ const STAGES: StageInfo[] = [
   { id: "discovery", label: "Discovery" },
   { id: "proposal", label: "Proposal" },
   { id: "negotiation", label: "Negotiation" },
+  { id: "contract", label: "Contract" },
   { id: "closed_won", label: "Closed Won" },
   { id: "closed_lost", label: "Closed Lost" },
 ];
@@ -58,12 +60,14 @@ const priorityColors = {
   low: "outline",
   medium: "secondary",
   high: "destructive",
+  urgent: "destructive",
 } as const;
 
 const stageColors: Record<DealStage, string> = {
   discovery: "bg-blue-500/10 border-blue-500/20",
   proposal: "bg-yellow-500/10 border-yellow-500/20",
   negotiation: "bg-orange-500/10 border-orange-500/20",
+  contract: "bg-indigo-500/10 border-indigo-500/20",
   closed_won: "bg-green-500/10 border-green-500/20",
   closed_lost: "bg-red-500/10 border-red-500/20",
 };
@@ -156,17 +160,18 @@ function DealCard({
     </Card>
   );
 }
-
 export function DealsKanban({ deals, isLoading, error, onRefresh }: Props) {
   const [columns, setColumns] = useState<KanbanColumns>({
     discovery: [],
     proposal: [],
     negotiation: [],
+    contract: [],
     closed_won: [],
     closed_lost: [],
   });
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
   const [newDealStage, setNewDealStage] = useState<DealStage | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   // Organize deals into columns
   useEffect(() => {
@@ -175,6 +180,7 @@ export function DealsKanban({ deals, isLoading, error, onRefresh }: Props) {
         discovery: [],
         proposal: [],
         negotiation: [],
+        contract: [],
         closed_won: [],
         closed_lost: [],
       };
@@ -190,7 +196,6 @@ export function DealsKanban({ deals, isLoading, error, onRefresh }: Props) {
   }, [deals]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this deal?")) return;
     try {
       await dealsApi.delete(id);
       toast.success("Deal deleted");
@@ -201,7 +206,7 @@ export function DealsKanban({ deals, isLoading, error, onRefresh }: Props) {
   };
 
   const handleValueChange = useCallback(
-    async (newColumns: KanbanColumns) => {
+    async (newColumns: Record<UniqueIdentifier, Deal[]>) => {
       const previousColumns = columns;
 
       // Find deal that changed columns
@@ -232,7 +237,7 @@ export function DealsKanban({ deals, isLoading, error, onRefresh }: Props) {
         }
       }
 
-      setColumns(newColumns);
+      setColumns(newColumns as KanbanColumns);
     },
     [columns]
   );
@@ -245,6 +250,7 @@ export function DealsKanban({ deals, isLoading, error, onRefresh }: Props) {
       discovery: { count: 0, value: 0 },
       proposal: { count: 0, value: 0 },
       negotiation: { count: 0, value: 0 },
+      contract: { count: 0, value: 0 },
       closed_won: { count: 0, value: 0 },
       closed_lost: { count: 0, value: 0 },
     };
@@ -355,6 +361,17 @@ export function DealsKanban({ deals, isLoading, error, onRefresh }: Props) {
         onSaved={() => {
           setNewDealStage(null);
           onRefresh();
+        }}
+      />
+      <DeleteDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        title="Delete deal"
+        description="This action cannot be undone. This will permanently delete the selected deal."
+        onConfirm={async () => {
+          if (!deleteId) return;
+          await handleDelete(deleteId);
+          setDeleteId(null);
         }}
       />
     </>

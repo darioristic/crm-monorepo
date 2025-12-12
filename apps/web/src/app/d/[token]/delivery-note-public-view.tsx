@@ -1,6 +1,6 @@
 "use client";
 
-import type { DeliveryNoteWithRelations } from "@crm/types";
+import type { DeliveryNote, DeliveryNoteWithRelations } from "@crm/types";
 import { motion } from "framer-motion";
 import { Check, Download, Link2, Pencil } from "lucide-react";
 import { useState } from "react";
@@ -10,14 +10,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
+import type { EditorDoc as InvoiceEditorDoc } from "@/types/invoice";
+import type { EditorDoc as QuoteEditorDoc } from "@/types/quote";
 
-type EditorDoc = {
-  type: "doc";
-  content: Array<{
-    type: string;
-    content?: Array<{ type: string; text?: string; marks?: Array<{ type: string }> }>;
-  }>;
-};
+type EditorDoc = QuoteEditorDoc;
 
 type PublicDeliveryNote = Partial<DeliveryNoteWithRelations> & {
   id?: string;
@@ -86,14 +82,14 @@ function parseFromDetails(apiFromDetails: unknown): EditorDoc | null {
 // Build fromDetails with fallback chain: API -> localStorage -> default
 function buildFromDetails(
   apiFromDetails: unknown,
-  storedFromDetails: EditorDoc | null
+  storedFromDetails: InvoiceEditorDoc | null
 ): EditorDoc | null {
   // First try API response
   const fromApi = parseFromDetails(apiFromDetails);
   if (fromApi) return fromApi;
 
   // Then try localStorage
-  if (storedFromDetails) return storedFromDetails;
+  if (storedFromDetails) return storedFromDetails as unknown as EditorDoc;
 
   // Return default placeholder
   return {
@@ -125,12 +121,69 @@ export function DeliveryNotePublicView({
 
   const customerName = deliveryNote.companyName || deliveryNote.company?.name || "Customer";
 
-  const customerDetails = buildCustomerDetails(deliveryNote);
+  const maybeCompany = deliveryNote.company && {
+    name: deliveryNote.company.name || undefined,
+    address: deliveryNote.company.address || undefined,
+    city: deliveryNote.company.city || undefined,
+    zip: deliveryNote.company.zip || undefined,
+    country: deliveryNote.company.country || undefined,
+    email: deliveryNote.company.email || undefined,
+    phone: deliveryNote.company.phone || undefined,
+    vatNumber: deliveryNote.company.vatNumber || undefined,
+    companyNumber: deliveryNote.company.companyNumber || undefined,
+  };
+  const customerDetails = buildCustomerDetails({
+    company: maybeCompany || undefined,
+    companyName: deliveryNote.companyName,
+    customerDetails: deliveryNote.customerDetails,
+  });
   const storedFromDetails = getStoredFromDetails();
   const fromDetails = buildFromDetails(deliveryNote.fromDetails, storedFromDetails);
 
   const width = 625;
   const height = 842;
+
+  const dnForTemplate: DeliveryNote = {
+    id: deliveryNote.id || "",
+    createdAt: deliveryNote.createdAt || "",
+    updatedAt: deliveryNote.updatedAt || "",
+    deliveryNumber: deliveryNote.deliveryNumber || "",
+    invoiceId: deliveryNote.invoiceId,
+    companyId: deliveryNote.companyId || "",
+    contactId: deliveryNote.contactId,
+    status: (["pending", "in_transit", "delivered", "returned"] as const).includes(
+      // biome-ignore lint/suspicious/noExplicitAny: status type mismatch from API
+      (deliveryNote.status || "pending") as any
+    )
+      ? // biome-ignore lint/suspicious/noExplicitAny: status type mismatch from API
+        ((deliveryNote.status || "pending") as any)
+      : "pending",
+    shipDate: deliveryNote.shipDate,
+    deliveryDate: deliveryNote.deliveryDate,
+    items: (deliveryNote.items || []).map((item) => ({
+      id: item.id || "",
+      deliveryNoteId: deliveryNote.id || "",
+      productName: item.productName || item.description || "",
+      description: item.description || undefined,
+      quantity: Number(item.quantity) || 0,
+      unit: item.unit || "pcs",
+      unitPrice: Number(item.unitPrice) || 0,
+      discount: Number(item.discount) || 0,
+      total: typeof item.total === "number" ? item.total : undefined,
+    })),
+    shippingAddress: deliveryNote.shippingAddress || "",
+    trackingNumber: deliveryNote.trackingNumber,
+    carrier: deliveryNote.carrier,
+    taxRate: Number(deliveryNote.taxRate) || 0,
+    subtotal: Number(deliveryNote.subtotal) || 0,
+    tax: Number(deliveryNote.tax) || 0,
+    total: Number(deliveryNote.total) || 0,
+    notes: deliveryNote.notes || undefined,
+    terms: deliveryNote.terms || undefined,
+    fromDetails: deliveryNote.fromDetails,
+    customerDetails: deliveryNote.customerDetails,
+    createdBy: deliveryNote.createdBy || "",
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -174,7 +227,7 @@ export function DeliveryNotePublicView({
           <div className="shadow-[0_24px_48px_-12px_rgba(0,0,0,0.3)] dark:shadow-[0_24px_48px_-12px_rgba(0,0,0,0.6)]">
             <HtmlTemplate
               data={{
-                deliveryNote,
+                deliveryNote: dnForTemplate,
                 customerDetails,
                 fromDetails,
                 paymentDetails: deliveryNote.terms

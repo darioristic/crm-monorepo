@@ -86,10 +86,11 @@ export function ChatHistory({
               <div className="space-y-1">
                 {filteredSessions.map((session) => (
                   <button
+                    type="button"
                     key={session.id}
                     onClick={() => onSelectChat(session.id)}
                     className={cn(
-                      "w-full text-left p-3 rounded-lg transition-colors group",
+                      "w-full text-left p-3 rounded-lg transition-colors group cursor-pointer",
                       "hover:bg-muted",
                       currentChatId === session.id && "bg-muted"
                     )}

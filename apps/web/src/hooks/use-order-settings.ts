@@ -1,9 +1,9 @@
 "use client";
 
+import type { EditorDoc } from "@crm/schemas";
 import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/contexts/tenant-context";
-import type { EditorDoc, OrderDefaultSettings } from "@/types/order";
-import { DEFAULT_ORDER_TEMPLATE } from "@/types/order";
+import { DEFAULT_ORDER_TEMPLATE, type OrderDefaultSettings } from "@/types/order";
 
 // Hook for order settings - fetches fromDetails and logo from current tenant
 export function useOrderSettings() {

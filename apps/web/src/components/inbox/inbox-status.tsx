@@ -25,10 +25,7 @@ export function InboxStatus({ item }: Props) {
             </div>
           </TooltipTrigger>
           <TooltipContent sideOffset={10} className="text-xs">
-            <p>
-              We're reviewing the file and checking <br />
-              for a matching transaction
-            </p>
+            <p>We're reviewing the file and checking for a matching transaction</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -46,10 +43,7 @@ export function InboxStatus({ item }: Props) {
             </div>
           </TooltipTrigger>
           <TooltipContent sideOffset={10} className="text-xs">
-            <p>
-              We found a possible match — confirm <br />
-              or dismiss it
-            </p>
+            <p>We found a possible match — confirm or dismiss it</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -66,10 +60,7 @@ export function InboxStatus({ item }: Props) {
             </div>
           </TooltipTrigger>
           <TooltipContent sideOffset={10} className="text-xs">
-            <p>
-              We didn't find a match yet — we'll check <br />
-              again when new transactions arrive
-            </p>
+            <p>We didn't find a match yet — we'll check again when new transactions arrive</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -87,10 +78,7 @@ export function InboxStatus({ item }: Props) {
             </div>
           </TooltipTrigger>
           <TooltipContent sideOffset={10} className="text-xs">
-            <p>
-              This file has been successfully <br />
-              matched to a transaction
-            </p>
+            <p>This file has been successfully matched to a transaction</p>
           </TooltipContent>
         </Tooltip>
       </TooltipProvider>
@@ -107,10 +95,7 @@ export function InboxStatus({ item }: Props) {
           </div>
         </TooltipTrigger>
         <TooltipContent sideOffset={10} className="text-xs">
-          <p>
-            We couldn't find a match — please <br />
-            select the transaction manually
-          </p>
+          <p>We couldn't find a match — please select the transaction manually</p>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

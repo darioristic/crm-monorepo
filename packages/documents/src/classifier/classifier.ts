@@ -9,7 +9,7 @@ import type {
 } from "../types";
 
 export class DocumentClassifier {
-  private model = mistral("mistral-small-latest");
+  private model = mistral("mistral-small-latest") as unknown as import("ai").LanguageModel;
 
   async #processDocument({ content }: DocumentClassifierRequest): Promise<ClassificationResult> {
     const result = await generateObject({

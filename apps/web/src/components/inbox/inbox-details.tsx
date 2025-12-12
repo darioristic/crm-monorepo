@@ -6,6 +6,7 @@ import { Check, Copy, Download, MoreVertical, RefreshCw, Trash2 } from "lucide-r
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { FileViewer } from "@/components/file-viewer";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +28,7 @@ export function InboxDetails() {
   const { params, setParams } = useInboxParams();
   const [_isCopied, setIsCopied] = useState(false);
   const [showFallback, setShowFallback] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
 
   const id = params.inboxId;
 
@@ -108,9 +110,7 @@ export function InboxDetails() {
 
   const handleDelete = () => {
     if (!data) return;
-    if (confirm("Are you sure you want to delete this item?")) {
-      deleteMutation.mutate(data.id);
-    }
+    setIsDeleteOpen(true);
   };
 
   const handleRetryMatching = () => {
@@ -266,6 +266,19 @@ export function InboxDetails() {
 
       <Separator />
 
+      <DeleteDialog
+        open={isDeleteOpen}
+        onOpenChange={setIsDeleteOpen}
+        title="Delete item"
+        description="This action cannot be undone. This will permanently delete the selected inbox item."
+        onConfirm={() => {
+          if (!data) return;
+          deleteMutation.mutate(data.id);
+          setIsDeleteOpen(false);
+        }}
+        isLoading={deleteMutation.isPending}
+      />
+
       {data?.id ? (
         <div className="flex flex-col flex-grow min-h-0 relative">
           <div className="flex items-start p-4">
@@ -320,13 +333,17 @@ export function InboxDetails() {
             <InboxActions data={data} key={data.id} />
           </div>
 
-          {data?.filePath && (
-            <FileViewer
-              mimeType={data.contentType}
-              url={`/api/proxy?filePath=${encodeURIComponent(data.filePath.join("/"))}`}
-              key={data.id}
-            />
-          )}
+          <div className="flex flex-col gap-4 overflow-y-auto flex-1 min-h-0 scrollbar-hide">
+            {data?.filePath && (
+              <div className="min-h-0 flex-shrink-0">
+                <FileViewer
+                  mimeType={data.contentType}
+                  url={`/api/proxy?filePath=${encodeURIComponent(data.filePath.join("/"))}`}
+                  key={`${params.order}-${params.status}-primary`}
+                />
+              </div>
+            )}
+          </div>
         </div>
       ) : (
         <div className="p-8 text-center text-muted-foreground">No attachment selected</div>

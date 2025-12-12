@@ -58,6 +58,8 @@ import { tenantAdminRoutes } from "./tenant-admin";
 import { transactionAttachmentRoutes } from "./transaction-attachments";
 import { transactionCategoryRoutes } from "./transaction-categories";
 import { transactionEnrichmentRoutes } from "./transaction-enrichment";
+import { transactionMatchingRoutes } from "./transaction-matching";
+import { transactionTagRoutes } from "./transaction-tags";
 import { userRoutes } from "./users";
 
 // ============================================
@@ -134,6 +136,12 @@ const routes: Route[] = [
 
   // Transaction Enrichment
   ...transactionEnrichmentRoutes,
+
+  // Transaction Tags
+  ...transactionTagRoutes,
+
+  // Transaction Matching
+  ...transactionMatchingRoutes,
 
   // Recurring Transactions
   ...recurringTransactionRoutes,

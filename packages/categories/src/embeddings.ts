@@ -22,7 +22,9 @@ export async function generateEmbedding(text: string): Promise<EmbeddingResult> 
     throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is not configured");
   }
 
-  const model = google.textEmbeddingModel(EMBEDDING_CONFIG.modelName);
+  const model = google.textEmbeddingModel(
+    EMBEDDING_CONFIG.modelName
+  ) as unknown as import("ai").EmbeddingModel<string>;
 
   const { embedding } = await embed({
     model,
@@ -43,7 +45,9 @@ export async function generateEmbeddings(texts: string[]): Promise<EmbeddingsRes
     throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is not configured");
   }
 
-  const model = google.textEmbeddingModel(EMBEDDING_CONFIG.modelName);
+  const model = google.textEmbeddingModel(
+    EMBEDDING_CONFIG.modelName
+  ) as unknown as import("ai").EmbeddingModel<string>;
 
   const { embeddings } = await embedMany({
     model,

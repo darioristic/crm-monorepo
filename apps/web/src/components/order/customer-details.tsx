@@ -26,9 +26,12 @@ export function CustomerDetails() {
   const { control, setValue, watch } = useFormContext();
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
   const [selectedType, setSelectedType] = useState<"individual" | "organization" | null>(null);
+  const [isLoadingCustomer, setIsLoadingCustomer] = useState(false);
 
   const content = watch("customerDetails");
   const id = watch("id");
+  const existingCustomerId = watch("customerId");
+  const existingCustomerName = watch("customerName");
 
   const {
     data: companiesData,
@@ -120,10 +123,10 @@ export function CustomerDetails() {
           ct.email,
           ct.phone,
           ct.jmbg ? `JMBG: ${ct.jmbg}` : undefined,
-        ].filter(Boolean);
+        ].filter((line): line is string => Boolean(line));
         const content = {
           type: "doc",
-          content: lines.map((line: string) => ({
+          content: lines.map((line) => ({
             type: "paragraph",
             content: [{ type: "text", text: line }],
           })),
@@ -155,10 +158,62 @@ export function CustomerDetails() {
   // Check if we have actual content to show
   const contentHasText = hasContent(content);
 
+  // Effect to load customer data when editing and customerDetails is missing
+  useEffect(() => {
+    async function loadExistingCustomer() {
+      // Only run if we have customerId but no content (editing scenario)
+      if (!existingCustomerId || contentHasText || isLoadingCustomer) return;
+
+      setIsLoadingCustomer(true);
+      try {
+        const res = await companiesApi.getById(existingCustomerId);
+        if (res.success && res.data) {
+          const c = res.data as Company;
+          const customerContent = transformCustomerToContent(c);
+          setValue("customerDetails", customerContent, {
+            shouldValidate: true,
+            shouldDirty: false,
+          });
+          setValue("customerName", c.name, { shouldDirty: false });
+        } else if (existingCustomerName) {
+          const simpleContent: JSONContent = {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: existingCustomerName }],
+              },
+            ],
+          };
+          setValue("customerDetails", simpleContent, { shouldDirty: false });
+        }
+      } catch (err) {
+        console.error("Failed to load customer:", err);
+        if (existingCustomerName) {
+          const simpleContent: JSONContent = {
+            type: "doc",
+            content: [
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: existingCustomerName }],
+              },
+            ],
+          };
+          setValue("customerDetails", simpleContent, { shouldDirty: false });
+        }
+      } finally {
+        setIsLoadingCustomer(false);
+      }
+    }
+    loadExistingCustomer();
+  }, [existingCustomerId, existingCustomerName, contentHasText, isLoadingCustomer, setValue]);
+
   return (
     <div>
       <LabelInput name="template.customerLabel" className="mb-2 block" />
-      {contentHasText ? (
+      {isLoadingCustomer ? (
+        <div className="text-xs text-muted-foreground">Loading customer...</div>
+      ) : contentHasText ? (
         <Controller
           name="customerDetails"
           control={control}

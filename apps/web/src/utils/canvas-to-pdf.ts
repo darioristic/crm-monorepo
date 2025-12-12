@@ -14,16 +14,8 @@ export interface CanvasPdfOptions {
 /**
  * Simple PDF generation from canvas content
  */
-export async function generateCanvasPdf(
-  options: CanvasPdfOptions = {},
-): Promise<void> {
-  const {
-    filename = "report.pdf",
-    quality = 1.0,
-    scale = 4,
-    padding = 10,
-    theme,
-  } = options;
+export async function generateCanvasPdf(options: CanvasPdfOptions = {}): Promise<void> {
+  const { filename = "report.pdf", quality = 1.0, scale = 4, padding = 10, theme } = options;
 
   // Resolve theme: if "system" or undefined, check system preference
   const resolvedTheme =
@@ -35,9 +27,7 @@ export async function generateCanvasPdf(
 
   const backgroundColor = resolvedTheme === "dark" ? "#0c0c0c" : "#ffffff";
   const backgroundRgb =
-    resolvedTheme === "dark"
-      ? { r: 12, g: 12, b: 12 }
-      : { r: 255, g: 255, b: 255 };
+    resolvedTheme === "dark" ? { r: 12, g: 12, b: 12 } : { r: 255, g: 255, b: 255 };
 
   try {
     // Find the canvas content
@@ -47,8 +37,7 @@ export async function generateCanvasPdf(
     }
 
     // Get the element's scrollHeight and add extra buffer to ensure we capture everything
-    const elementHeight =
-      canvasContent.scrollHeight || canvasContent.offsetHeight;
+    const elementHeight = canvasContent.scrollHeight || canvasContent.offsetHeight;
     const extraHeight = 100; // Add extra pixels to ensure nothing is cut off
 
     // Capture the content as is, without any modifications
@@ -91,20 +80,15 @@ export async function generateCanvasPdf(
         }
 
         // Apply font directly to all SVG text elements
-        const allTextElements = clonedDoc.querySelectorAll(
-          "svg text, svg tspan",
-        );
+        const allTextElements = clonedDoc.querySelectorAll("svg text, svg tspan");
 
         for (const element of allTextElements) {
-          (element as HTMLElement).style.fontFamily =
-            "system-ui, sans-serif";
+          (element as HTMLElement).style.fontFamily = "system-ui, sans-serif";
           (element as HTMLElement).style.fontSize = "10px";
         }
 
         // Hide elements marked for PDF hiding
-        const hideElements = clonedDoc.querySelectorAll(
-          '[data-hide-in-pdf="true"]',
-        );
+        const hideElements = clonedDoc.querySelectorAll('[data-hide-in-pdf="true"]');
 
         for (const element of hideElements) {
           (element as HTMLElement).style.display = "none";
@@ -137,15 +121,8 @@ export async function generateCanvasPdf(
 /**
  * Generate PDF as Blob for sharing
  */
-export async function generateCanvasPdfBlob(
-  options: CanvasPdfOptions = {},
-): Promise<Blob> {
-  const {
-    quality = 1.0,
-    scale = 4,
-    padding = 10,
-    theme,
-  } = options;
+export async function generateCanvasPdfBlob(options: CanvasPdfOptions = {}): Promise<Blob> {
+  const { quality = 1.0, scale = 4, padding = 10, theme } = options;
 
   // Resolve theme: if "system" or undefined, check system preference
   const resolvedTheme =
@@ -157,9 +134,7 @@ export async function generateCanvasPdfBlob(
 
   const backgroundColor = resolvedTheme === "dark" ? "#0c0c0c" : "#ffffff";
   const backgroundRgb =
-    resolvedTheme === "dark"
-      ? { r: 12, g: 12, b: 12 }
-      : { r: 255, g: 255, b: 255 };
+    resolvedTheme === "dark" ? { r: 12, g: 12, b: 12 } : { r: 255, g: 255, b: 255 };
 
   try {
     // Find the canvas content
@@ -169,8 +144,7 @@ export async function generateCanvasPdfBlob(
     }
 
     // Get the element's scrollHeight and add extra buffer to ensure we capture everything
-    const elementHeight =
-      canvasContent.scrollHeight || canvasContent.offsetHeight;
+    const elementHeight = canvasContent.scrollHeight || canvasContent.offsetHeight;
     const extraHeight = 100; // Add extra pixels to ensure nothing is cut off
 
     // Capture the content as is, without any modifications
@@ -213,20 +187,15 @@ export async function generateCanvasPdfBlob(
         }
 
         // Apply font directly to all SVG text elements
-        const allTextElements = clonedDoc.querySelectorAll(
-          "svg text, svg tspan",
-        );
+        const allTextElements = clonedDoc.querySelectorAll("svg text, svg tspan");
 
         for (const element of allTextElements) {
-          (element as HTMLElement).style.fontFamily =
-            "system-ui, sans-serif";
+          (element as HTMLElement).style.fontFamily = "system-ui, sans-serif";
           (element as HTMLElement).style.fontSize = "10px";
         }
 
         // Hide elements marked for PDF hiding
-        const hideElements = clonedDoc.querySelectorAll(
-          '[data-hide-in-pdf="true"]',
-        );
+        const hideElements = clonedDoc.querySelectorAll('[data-hide-in-pdf="true"]');
 
         for (const element of hideElements) {
           (element as HTMLElement).style.display = "none";
@@ -267,7 +236,7 @@ async function createPdfFromCanvas(
     quality: number;
     padding: number;
     backgroundRgb: { r: number; g: number; b: number };
-  },
+  }
 ): Promise<void> {
   // Use JPEG for better compression while maintaining quality
   const imgData = canvas.toDataURL("image/jpeg", options.quality);
@@ -295,22 +264,11 @@ async function createPdfFromCanvas(
   });
 
   // Add background
-  pdf.setFillColor(
-    options.backgroundRgb.r,
-    options.backgroundRgb.g,
-    options.backgroundRgb.b,
-  );
+  pdf.setFillColor(options.backgroundRgb.r, options.backgroundRgb.g, options.backgroundRgb.b);
   pdf.rect(0, 0, a4Width, pdfHeight, "F");
 
   // Add the image
-  pdf.addImage(
-    imgData,
-    "JPEG",
-    options.padding,
-    options.padding,
-    scaledWidth,
-    scaledHeight,
-  );
+  pdf.addImage(imgData, "JPEG", options.padding, options.padding, scaledWidth, scaledHeight);
 
   // Add metadata
   pdf.setProperties({
@@ -332,7 +290,7 @@ async function createPdfBlobFromCanvas(
     quality: number;
     padding: number;
     backgroundRgb: { r: number; g: number; b: number };
-  },
+  }
 ): Promise<Blob> {
   // Use JPEG for better compression while maintaining quality
   const imgData = canvas.toDataURL("image/jpeg", options.quality);
@@ -360,22 +318,11 @@ async function createPdfBlobFromCanvas(
   });
 
   // Add background
-  pdf.setFillColor(
-    options.backgroundRgb.r,
-    options.backgroundRgb.g,
-    options.backgroundRgb.b,
-  );
+  pdf.setFillColor(options.backgroundRgb.r, options.backgroundRgb.g, options.backgroundRgb.b);
   pdf.rect(0, 0, a4Width, pdfHeight, "F");
 
   // Add the image
-  pdf.addImage(
-    imgData,
-    "JPEG",
-    options.padding,
-    options.padding,
-    scaledWidth,
-    scaledHeight,
-  );
+  pdf.addImage(imgData, "JPEG", options.padding, options.padding, scaledWidth, scaledHeight);
 
   // Add metadata
   pdf.setProperties({

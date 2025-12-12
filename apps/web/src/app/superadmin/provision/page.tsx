@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 import { logger } from "@/lib/logger";
 
 export default function ProvisionPage() {
@@ -51,11 +52,11 @@ export default function ProvisionPage() {
         router.push(`/superadmin/tenants/${data.data.tenantId}`);
       } else {
         const error = await response.json();
-        alert(`Error: ${error.error?.message || "Provisioning failed"}`);
+        toast.error(error.error?.message || "Provisioning failed");
       }
     } catch (error) {
       logger.error("Error provisioning tenant:", error);
-      alert("Failed to provision tenant");
+      toast.error("Failed to provision tenant");
     } finally {
       setLoading(false);
     }

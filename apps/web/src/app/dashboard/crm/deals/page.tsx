@@ -3,7 +3,6 @@
 import type { Deal } from "@crm/types";
 import { RefreshCwIcon } from "lucide-react";
 import { useState } from "react";
-import { usePaginatedApi } from "@/hooks/use-api";
 import { DealFormSheet } from "@/components/crm/deal-form-sheet";
 import { DealsKanban } from "@/components/crm/deals-kanban";
 import { Button } from "@/components/ui/button";
@@ -14,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { usePaginatedApi } from "@/hooks/use-api";
 import { dealsApi } from "@/lib/api";
 
 export default function DealsPage() {
@@ -42,12 +42,7 @@ export default function DealsPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={() => setShowCreateForm(true)}>New Deal</Button>
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={refetch}
-            aria-label="Refresh"
-          >
+          <Button variant="outline" size="icon" onClick={refetch} aria-label="Refresh">
             <RefreshCwIcon className="h-4 w-4" />
           </Button>
         </div>
@@ -58,10 +53,7 @@ export default function DealsPage() {
           Page {page} of {Math.max(totalPages, 1)}
         </div>
         <div className="flex items-center gap-2">
-          <Select
-            value={String(pageSize)}
-            onValueChange={(v) => setPageSize(parseInt(v, 10))}
-          >
+          <Select value={String(pageSize)} onValueChange={(v) => setPageSize(parseInt(v, 10))}>
             <SelectTrigger className="w-28">
               <SelectValue placeholder="Page size" />
             </SelectTrigger>
@@ -78,10 +70,7 @@ export default function DealsPage() {
           >
             Previous
           </Button>
-          <Button
-            onClick={() => setPage(page + 1)}
-            disabled={page >= totalPages || isLoading}
-          >
+          <Button onClick={() => setPage(page + 1)} disabled={page >= totalPages || isLoading}>
             Next
           </Button>
         </div>
@@ -95,11 +84,7 @@ export default function DealsPage() {
         onRefresh={refetch}
       />
 
-      <DealFormSheet
-        open={showCreateForm}
-        onOpenChange={setShowCreateForm}
-        onSaved={refetch}
-      />
+      <DealFormSheet open={showCreateForm} onOpenChange={setShowCreateForm} onSaved={refetch} />
     </div>
   );
 }

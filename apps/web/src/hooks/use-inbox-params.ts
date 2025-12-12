@@ -7,6 +7,7 @@ export const inboxParamsSchema = {
   order: parseAsStringLiteral(["asc", "desc"] as const).withDefault("asc"),
   sort: parseAsStringLiteral(["date", "name"] as const).withDefault("date"),
   status: parseAsStringLiteral(["done", "pending", "suggested_match", "no_match"] as const),
+  q: parseAsString,
 };
 
 export function useInboxParams() {

@@ -245,6 +245,12 @@ export const invoiceQueries = {
     data: Partial<Invoice>,
     items?: Omit<InvoiceItem, "invoiceId">[]
   ): Promise<Invoice> {
+    // Check if timestamp fields are explicitly set (even to null/undefined)
+    const hasPaidAt = "paidAt" in data;
+    const hasScheduledAt = "scheduledAt" in data;
+    const hasViewedAt = "viewedAt" in data;
+    const hasSentAt = "sentAt" in data;
+
     const result = await db`
       UPDATE invoices SET
         quote_id = COALESCE(${data.quoteId ?? null}, quote_id),
@@ -252,6 +258,7 @@ export const invoiceQueries = {
         seller_company_id = COALESCE(${(data as { sellerCompanyId?: string }).sellerCompanyId ?? null}, seller_company_id),
         contact_id = COALESCE(${data.contactId ?? null}, contact_id),
         status = COALESCE(${data.status ?? null}, status),
+        issue_date = COALESCE(${data.issueDate ?? null}, issue_date),
         due_date = COALESCE(${data.dueDate ?? null}, due_date),
         gross_total = COALESCE(${data.grossTotal ?? null}, gross_total),
         subtotal = COALESCE(${data.subtotal ?? null}, subtotal),
@@ -268,6 +275,10 @@ export const invoiceQueries = {
         customer_details = COALESCE(${data.customerDetails ? JSON.stringify(data.customerDetails) : null}, customer_details),
         logo_url = COALESCE(${data.logoUrl ?? null}, logo_url),
         template_settings = COALESCE(${data.templateSettings ? JSON.stringify(data.templateSettings) : null}, template_settings),
+        viewed_at = CASE WHEN ${hasViewedAt} THEN ${data.viewedAt ?? null} ELSE viewed_at END,
+        sent_at = CASE WHEN ${hasSentAt} THEN ${data.sentAt ?? null} ELSE sent_at END,
+        paid_at = CASE WHEN ${hasPaidAt} THEN ${data.paidAt ?? null} ELSE paid_at END,
+        scheduled_at = CASE WHEN ${hasScheduledAt} THEN ${data.scheduledAt ?? null} ELSE scheduled_at END,
         updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
@@ -547,6 +558,8 @@ function mapInvoice(row: Record<string, unknown>, items: unknown[]): Invoice {
     viewedAt: row.viewed_at ? toISOString(row.viewed_at) : undefined,
     sentAt: row.sent_at ? toISOString(row.sent_at) : undefined,
     paidAt: row.paid_at ? toISOString(row.paid_at) : undefined,
+    scheduledAt: row.scheduled_at ? toISOString(row.scheduled_at) : undefined,
+    scheduledJobId: row.scheduled_job_id as string | undefined,
     createdBy: row.created_by as string,
     tenantId: row.tenant_id as string | undefined,
   } as Invoice;
@@ -577,18 +590,14 @@ function mapInvoiceWithRelations(
           name: row.company_name as string,
           industry: row.company_industry as string,
           address: row.company_address as string,
-          addressLine1: row.company_address_line1 as string | undefined,
-          city: row.company_city as string | undefined,
-          zip: row.company_zip as string | undefined,
-          postalCode: row.company_postal_code as string | undefined,
-          country: row.company_country as string | undefined,
-          phone: row.company_phone as string | undefined,
-          email: row.company_email as string | undefined,
-          billingEmail: row.company_billing_email as string | undefined,
-          vatNumber: row.company_vat_number as string | undefined,
-          companyNumber: row.company_company_number as string | undefined,
-          registrationNumber: row.company_registration_number as string | undefined,
-          website: row.company_website as string | undefined,
+          city: (row.company_city as string) || null,
+          zip: (row.company_zip as string) || null,
+          country: (row.company_country as string) || null,
+          email: (row.company_email as string) || null,
+          phone: (row.company_phone as string) || null,
+          vatNumber: (row.company_vat_number as string) || null,
+          companyNumber: (row.company_company_number as string) || null,
+          website: (row.company_website as string) || null,
         }
       : undefined,
     contact: row.contact_id_join

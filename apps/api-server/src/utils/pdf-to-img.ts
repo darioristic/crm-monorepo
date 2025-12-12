@@ -37,8 +37,7 @@ export async function getPdfImage(data: ArrayBuffer): Promise<Buffer | null> {
       canvasFactory,
     };
 
-    // @ts-expect-error - pdfjs types don't match exactly
-    const renderTask = page.render(renderContext);
+    const renderTask = page.render(renderContext as Parameters<typeof page.render>[0]);
     await renderTask.promise;
 
     // Return image as PNG buffer

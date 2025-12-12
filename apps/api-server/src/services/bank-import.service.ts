@@ -300,15 +300,6 @@ function parseDate(dateStr: string, format: string): Date | null {
       } else return null;
       break;
     }
-    default: {
-      const parts = cleanDate.split("-");
-      if (parts.length >= 3) {
-        year = parseInt(parts[0], 10);
-        month = parseInt(parts[1], 10) - 1;
-        day = parseInt(parts[2], 10);
-      } else return null;
-      break;
-    }
 
     case "DD-MM-YYYY": {
       const parts = cleanDate.split("-");
@@ -316,6 +307,16 @@ function parseDate(dateStr: string, format: string): Date | null {
         day = parseInt(parts[0], 10);
         month = parseInt(parts[1], 10) - 1;
         year = parseInt(parts[2], 10);
+      } else return null;
+      break;
+    }
+
+    default: {
+      const parts = cleanDate.split("-");
+      if (parts.length >= 3) {
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10) - 1;
+        day = parseInt(parts[2], 10);
       } else return null;
       break;
     }

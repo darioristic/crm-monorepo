@@ -6,11 +6,9 @@ import type {
   ProductCategory,
   UpdateProductRequest,
 } from "@crm/types";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -36,6 +34,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useMutation } from "@/hooks/use-api";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { productsApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -95,8 +94,7 @@ export function ProductForm({ product, categories, mode }: ProductFormProps) {
     productsApi.update(product?.id || "", data)
   );
 
-  const form = useForm<ProductFormValues>({
-    resolver: zodResolver(productFormSchema),
+  const form = useZodForm(productFormSchema, {
     defaultValues: {
       name: product?.name || "",
       sku: product?.sku || "",

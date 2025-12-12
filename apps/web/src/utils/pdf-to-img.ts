@@ -28,10 +28,7 @@ export async function getPdfImage(data: ArrayBuffer): Promise<Buffer | null> {
 
     const viewport = page.getViewport({ scale: 2.0 });
 
-    const canvasAndContext = canvasFactory.create(
-      viewport.width,
-      viewport.height,
-    );
+    const canvasAndContext = canvasFactory.create(viewport.width, viewport.height);
 
     const renderContext = {
       canvasContext: canvasAndContext.context,

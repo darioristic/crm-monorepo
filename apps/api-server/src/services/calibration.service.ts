@@ -301,8 +301,8 @@ interface CalibratedThresholds {
 }
 
 function calculateCalibratedThresholds(feedback: FeedbackData): CalibratedThresholds {
-  let suggestedThreshold = CALIBRATION_CONSTANTS.DEFAULT_SUGGESTED_THRESHOLD;
-  let autoThreshold = CALIBRATION_CONSTANTS.DEFAULT_AUTO_THRESHOLD;
+  let suggestedThreshold: number = CALIBRATION_CONSTANTS.DEFAULT_SUGGESTED_THRESHOLD;
+  let autoThreshold: number = CALIBRATION_CONSTANTS.DEFAULT_AUTO_THRESHOLD;
 
   const { accuracy, confirmed, declined, unmatched, confidenceGap } = feedback;
   const negativeFeedback = declined + unmatched;

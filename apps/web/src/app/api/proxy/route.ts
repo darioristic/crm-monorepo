@@ -26,11 +26,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Proxy the request to the backend API
+    // Proxy the request to the backend API - use view endpoint for inline display
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
-    const downloadUrl = `${apiUrl}/api/v1/documents/download/${filePath}`;
+    const viewUrl = `${apiUrl}/api/v1/documents/view/${filePath}`;
 
-    const response = await fetch(downloadUrl, {
+    const response = await fetch(viewUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

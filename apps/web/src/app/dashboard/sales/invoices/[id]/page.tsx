@@ -130,10 +130,10 @@ export default function InvoiceDetailPage({ params }: PageProps) {
             </Button>
             <Avatar className="size-5 object-contain border border-border">
               <AvatarFallback className="text-[9px] font-medium">
-                {invoice.companyName?.[0] || "?"}
+                {(invoice.company?.name || "")?.[0] || "?"}
               </AvatarFallback>
             </Avatar>
-            <span className="truncate text-sm">{invoice.companyName || "Unknown"}</span>
+            <span className="truncate text-sm">{invoice.company?.name || "Unknown"}</span>
           </div>
 
           <InvoiceStatus status={invoice.status} />
@@ -255,7 +255,8 @@ function transformInvoiceToTemplateData(invoice: InvoiceWithRelations): InvoiceT
     fromDetails: null,
     noteDetails: null,
     dateFormat: "dd.MM.yyyy",
-    includeVat: Boolean(invoice.vat),
+    // biome-ignore lint/suspicious/noExplicitAny: vatRate may exist on invoice
+    includeVat: Boolean((invoice as any).vatRate),
     includeTax: Boolean(invoice.tax),
     includeDiscount: Boolean(invoice.discount),
     includeDecimals: true,
@@ -280,10 +281,11 @@ function transformInvoiceToTemplateData(invoice: InvoiceWithRelations): InvoiceT
     amount: invoice.total || 0,
     currency: invoice.currency || "EUR",
     discount: invoice.discount || null,
-    vat: invoice.vat || null,
+    // biome-ignore lint/suspicious/noExplicitAny: vat may exist on invoice
+    vat: (invoice as any).vat ?? null,
     tax: invoice.tax || null,
     subtotal: invoice.subtotal || null,
-    status: invoice.status || "draft",
+    status: mapInvoiceStatus(invoice.status),
     template: defaultTemplate,
     token: invoice.token || "",
     filePath: null,
@@ -297,11 +299,11 @@ function transformInvoiceToTemplateData(invoice: InvoiceWithRelations): InvoiceT
     topBlock: null,
     bottomBlock: null,
     customerId: invoice.companyId || null,
-    customerName: invoice.companyName || null,
-    customer: invoice.companyName
+    customerName: invoice.company?.name || null,
+    customer: invoice.company?.name
       ? {
           id: invoice.companyId,
-          name: invoice.companyName,
+          name: invoice.company?.name || null,
           website: null,
           email: null,
         }
@@ -312,16 +314,25 @@ function transformInvoiceToTemplateData(invoice: InvoiceWithRelations): InvoiceT
       name: item.productName || item.description || "",
       quantity: Number(item.quantity) || 1,
       price: Number(item.unitPrice) || 0,
-      unit: item.unit || undefined,
+      unit: item.unit || "pcs",
+      // biome-ignore lint/suspicious/noExplicitAny: item fields may vary
+      discount: (item as any).discount ?? 0,
+      // biome-ignore lint/suspicious/noExplicitAny: vatRate may exist on item/invoice
+      vat: (item as any).vatRate ?? (invoice as any).vatRate ?? 0,
     })),
     fromDetails: getStoredFromDetails(),
-    customerDetails: invoice.companyName
+    customerDetails: invoice.company?.name
       ? {
           type: "doc" as const,
           content: [
             {
               type: "paragraph",
-              content: [{ type: "text", text: invoice.companyName }],
+              content: [
+                {
+                  type: "text",
+                  text: invoice.company?.name as string,
+                },
+              ],
             },
           ],
         }
@@ -351,6 +362,24 @@ function transformInvoiceToTemplateData(invoice: InvoiceWithRelations): InvoiceT
         }
       : null,
   };
+}
+
+function mapInvoiceStatus(s?: string): InvoiceType["status"] {
+  switch (s) {
+    case "paid":
+      return "paid";
+    case "overdue":
+      return "overdue";
+    case "scheduled":
+      return "scheduled";
+    case "cancelled":
+      return "canceled";
+    case "partial":
+    case "sent":
+      return "unpaid";
+    default:
+      return "draft";
+  }
 }
 
 // Get stored fromDetails from localStorage

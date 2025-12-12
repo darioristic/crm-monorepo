@@ -92,8 +92,9 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
 
       const selectedCompanyId = (values.customerId || "").trim();
       return {
-        customerCompanyId: selectedCompanyId ? selectedCompanyId : undefined,
+        companyId: selectedCompanyId ? selectedCompanyId : undefined,
         sellerCompanyId: user?.companyId,
+        createdBy: (user?.id as string) || undefined,
         issueDate: values.issueDate,
         validUntil: values.validUntil,
         status: values.status as "draft" | "sent" | "accepted" | "rejected" | "expired",
@@ -214,7 +215,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
     // Double-check the transformed data before sending
     const transformedData = transformFormValuesToDraft(currentFormValues);
     if (
-      !transformedData.customerCompanyId ||
+      !transformedData.companyId ||
       !transformedData.validUntil ||
       !transformedData.items ||
       transformedData.items.length === 0
@@ -226,7 +227,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
     isSavingDraftRef.current = true;
 
     draftMutationRef.current
-      .mutate(transformedData)
+      .mutate({ ...transformedData, items: undefined })
       .then((result) => {
         if (result.success) {
           onDraftSaved?.();
@@ -273,13 +274,13 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
 
     // Final validation before sending
     if (
-      !transformedData.customerCompanyId ||
+      !transformedData.companyId ||
       !transformedData.validUntil ||
       !transformedData.items ||
       transformedData.items.length === 0
     ) {
       logger.error("Submit validation failed:", {
-        customerCompanyId: transformedData.customerCompanyId,
+        companyId: transformedData.companyId,
         validUntil: transformedData.validUntil,
         itemsCount: transformedData.items?.length ?? 0,
       });

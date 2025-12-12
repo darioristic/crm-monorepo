@@ -15,8 +15,8 @@ import {
   UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -132,7 +132,7 @@ const Notifications = () => {
     return () => clearInterval(interval);
   }, [fetchNotifications]);
 
-  const handleMarkAsRead = async (notification: NotificationType) => {
+  const _handleMarkAsRead = async (notification: NotificationType) => {
     if (notification.isRead) return;
 
     const result = await notificationsApi.markAsRead(notification.id);

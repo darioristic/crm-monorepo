@@ -1,12 +1,12 @@
 import type { DeliveryNote } from "@crm/types";
 import { format, parseISO } from "date-fns";
 import { EditorContent } from "@/components/invoice/templates/html/components/editor-content";
-import type { EditorDoc as QuoteEditorDoc } from "@/types/quote";
 import { LineItems } from "@/components/invoice/templates/html/components/line-items";
 import { Logo } from "@/components/invoice/templates/html/components/logo";
 import { Summary } from "@/components/invoice/templates/html/components/summary";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import type { EditorDoc as QuoteEditorDoc } from "@/types/quote";
 
 type DeliveryNoteTemplate = {
   logoUrl?: string | null;
@@ -222,11 +222,8 @@ export function HtmlTemplate({ data, width, height, disableScroll = false }: Pro
             taxRate={deliveryNote.taxRate || 0}
             vatRate={0}
             currency={config.currency || "EUR"}
-            vatLabel="VAT"
-            taxLabel="Tax"
             totalLabel="Total"
             lineItems={lineItems}
-            includeDiscount={config.includeDiscount ?? true}
             discountLabel="Discount"
             locale={config.locale || "sr-RS"}
             includeDecimals={config.includeDecimals ?? true}

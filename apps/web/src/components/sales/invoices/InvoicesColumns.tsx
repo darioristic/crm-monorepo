@@ -1,46 +1,27 @@
 "use client";
 
-import type { Invoice } from "@crm/types";
 import type { ColumnDef } from "@tanstack/react-table";
-import {
-  ArrowUpDown,
-  CreditCard,
-  Eye,
-  MoreHorizontal,
-  Package,
-  Pencil,
-  Trash2,
-} from "lucide-react";
+import { ArrowUpDown } from "lucide-react";
 import { type InvoiceStatus, InvoiceStatusBadge } from "@/components/sales/status";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { InvoiceActionsMenu, type InvoiceWithCompany } from "./InvoiceActionsMenu";
 
-export type InvoiceWithCompany = Invoice & {
-  companyName?: string;
-};
+export type { InvoiceWithCompany };
 
 interface InvoicesColumnsOptions {
-  onView?: (invoice: InvoiceWithCompany) => void;
-  onEdit?: (invoice: InvoiceWithCompany) => void;
   onDelete?: (invoice: InvoiceWithCompany) => void;
-  onRecordPayment?: (invoice: InvoiceWithCompany) => void;
   onOpenSheet?: (invoiceId: string) => void;
-  onConvertToDeliveryNote?: (invoice: InvoiceWithCompany) => void;
+  onOpenCompanyDetails?: (companyId: string) => void;
+  onRefresh?: () => void;
 }
 
 export function getInvoicesColumns({
   onDelete,
-  onRecordPayment,
   onOpenSheet,
-  onConvertToDeliveryNote,
+  onOpenCompanyDetails,
+  onRefresh,
 }: InvoicesColumnsOptions = {}): ColumnDef<InvoiceWithCompany>[] {
   return [
     {
@@ -95,10 +76,26 @@ export function getInvoicesColumns({
       header: "Company",
       cell: ({ row }) => {
         const companyName = row.original.companyName;
+        const companyId = row.original.companyId;
         if (!companyName || companyName === "Unknown Company") {
           return <span className="text-muted-foreground">-</span>;
         }
-        return <span className="text-muted-foreground">{companyName}</span>;
+        if (onOpenCompanyDetails && companyId) {
+          return (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenCompanyDetails(companyId);
+              }}
+              className="text-left hover:underline cursor-pointer"
+            >
+              {companyName}
+            </button>
+          );
+        }
+        return <span>{companyName}</span>;
       },
     },
     {
@@ -175,55 +172,12 @@ export function getInvoicesColumns({
     {
       id: "actions",
       cell: ({ row }) => (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem
-              onClick={(e) => {
-                e.preventDefault();
-                window.open(`/i/id/${row.original.id}`, "_blank", "noopener,noreferrer");
-              }}
-            >
-              <Eye className="mr-2 h-4 w-4" />
-              View Invoice
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onOpenSheet?.(row.original.id)}>
-              <Pencil className="mr-2 h-4 w-4" />
-              Edit Invoice
-            </DropdownMenuItem>
-            {row.original.status !== "paid" && onRecordPayment && (
-              <DropdownMenuItem onClick={() => onRecordPayment(row.original)}>
-                <CreditCard className="mr-2 h-4 w-4" />
-                Record Payment
-              </DropdownMenuItem>
-            )}
-            {onConvertToDeliveryNote && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => onConvertToDeliveryNote(row.original)}>
-                  <Package className="mr-2 h-4 w-4" />
-                  Convert to Delivery Note
-                </DropdownMenuItem>
-              </>
-            )}
-            {onDelete && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive"
-                  onClick={() => onDelete(row.original)}
-                >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <InvoiceActionsMenu
+          invoice={row.original}
+          onRefresh={onRefresh}
+          onDelete={onDelete}
+          onOpenSheet={onOpenSheet}
+        />
       ),
     },
   ];

@@ -332,7 +332,9 @@ async function executeRawQuery(
 
   // Koristimo prepared statement pristup
   // postgres.js podržava pozicione parametre kada se koristi sa nizom
-  return db.unsafe(query, [...(values as unknown[])]);
+  type DBParams = NonNullable<Parameters<typeof db.unsafe>[1]>;
+  const params = values as unknown as DBParams;
+  return db.unsafe(query, [...params]);
 }
 
 // ============================================

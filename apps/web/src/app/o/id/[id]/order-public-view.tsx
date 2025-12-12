@@ -166,7 +166,8 @@ function buildCustomerDetails(order: OrderApiResponse): EditorDoc | null {
     if (cityLine) lines.push(cityLine);
 
     if (order.company.email || order.company.billingEmail) {
-      lines.push(order.company.billingEmail || order.company.email);
+      const email = order.company.billingEmail || order.company.email;
+      if (email) lines.push(email);
     }
 
     if (order.company.phone) lines.push(order.company.phone);

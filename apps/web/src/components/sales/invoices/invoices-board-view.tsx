@@ -314,7 +314,11 @@ export function InvoicesBoardView({ onNewInvoice: _onNewInvoice }: InvoicesBoard
           editInvoice
             ? {
                 id: editInvoice.id,
-                status: editInvoice.status,
+                status: (["draft", "sent", "paid", "partial", "overdue", "cancelled"].includes(
+                  (editInvoice.status || "").toLowerCase()
+                )
+                  ? (editInvoice.status as any)
+                  : "draft") as any,
                 invoiceNumber: editInvoice.invoiceNumber,
                 issueDate: editInvoice.issueDate,
                 dueDate: editInvoice.dueDate,

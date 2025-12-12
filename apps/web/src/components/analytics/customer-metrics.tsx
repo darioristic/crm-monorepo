@@ -2,6 +2,7 @@
 
 import { DollarSign, TrendingDown, TrendingUp, UserMinus, UserPlus, Users } from "lucide-react";
 import { useMemo } from "react";
+import type { TooltipProps } from "recharts";
 import {
   Area,
   AreaChart,
@@ -155,7 +156,7 @@ export function CustomerMetrics({
   };
 
   // Custom tooltip for pie chart
-  const PieTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
+  const PieTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
 
     const data = payload[0].payload as CustomerTypeData & { color: string };
@@ -175,15 +176,7 @@ export function CustomerMetrics({
   };
 
   // Custom tooltip for area chart
-  const AreaTooltip = ({
-    active,
-    payload,
-    label,
-  }: {
-    active?: boolean;
-    payload?: any[];
-    label?: string;
-  }) => {
+  const AreaTooltip = ({ active, payload, label }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
 
     return (

@@ -452,6 +452,166 @@ router.post("/api/v1/invoices/:id/payment", async (request, _url, params) => {
   });
 });
 
+router.post("/api/v1/invoices/:id/duplicate", async (request, _url, params) => {
+  return withAuth(
+    request,
+    async (auth) => {
+      // Get the original invoice
+      const original = await salesService.getInvoiceById(params.id);
+      if (!original.success || !original.data) {
+        return errorResponse("NOT_FOUND", "Invoice not found");
+      }
+
+      const invoice = original.data;
+
+      // Create a new invoice with the same data but as a draft
+      // Note: subtotal, tax, total are calculated by the server from items
+      const payload: import("@crm/types").CreateInvoiceRequest = {
+        companyId: invoice.companyId,
+        contactId: invoice.contactId || undefined,
+        status: "draft",
+        issueDate: new Date().toISOString(),
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
+        currency: invoice.currency,
+        taxRate: invoice.taxRate || 0,
+        vatRate: invoice.vatRate || undefined,
+        notes: invoice.notes || undefined,
+        terms: invoice.terms || undefined,
+        customerDetails: invoice.customerDetails ?? undefined,
+        fromDetails: invoice.fromDetails ?? undefined,
+        templateSettings: invoice.templateSettings ?? undefined,
+        createdBy: auth.userId,
+        sellerCompanyId: auth.activeTenantId,
+        items: (invoice.items || []).map((item) => ({
+          productName: item.productName,
+          description: item.description || undefined,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+          discount: item.discount || 0,
+          vatRate: item.vatRate || undefined,
+        })),
+      };
+
+      return salesService.createInvoice(payload);
+    },
+    201
+  );
+});
+
+// Schedule an invoice to be sent at a specific time
+router.post("/api/v1/invoices/:id/schedule", async (request, _url, params) => {
+  return withAuth(request, async (_auth) => {
+    try {
+      const body = (await request.json()) as { scheduledAt?: string };
+      const { scheduledAt } = body;
+
+      if (!scheduledAt) {
+        return errorResponse("VALIDATION_ERROR", "scheduledAt is required");
+      }
+
+      const scheduledDate = new Date(scheduledAt);
+      if (scheduledDate <= new Date()) {
+        return errorResponse("VALIDATION_ERROR", "scheduledAt must be in the future");
+      }
+
+      // Generate a unique job ID for tracking
+      const scheduledJobId = `schedule-${params.id}-${Date.now()}`;
+
+      // Update the invoice with scheduled status and scheduling info
+      const result = await salesService.updateInvoice(params.id, {
+        status: "scheduled",
+        scheduledAt: scheduledDate.toISOString(),
+      });
+
+      if (!result.success) {
+        return result;
+      }
+
+      // Note: In production, you would queue a job here using a job queue like BullMQ
+      // For now, we just store the schedule information in the database
+      logger.info({ invoiceId: params.id, scheduledAt, scheduledJobId }, "Invoice scheduled");
+
+      return result;
+    } catch (error) {
+      logger.error({ error }, "Error scheduling invoice");
+      return errorResponse("SERVER_ERROR", "Failed to schedule invoice");
+    }
+  });
+});
+
+// Update the schedule of an already scheduled invoice
+router.patch("/api/v1/invoices/:id/schedule", async (request, _url, params) => {
+  return withAuth(request, async (_auth) => {
+    try {
+      const body = (await request.json()) as { scheduledAt?: string };
+      const { scheduledAt } = body;
+
+      if (!scheduledAt) {
+        return errorResponse("VALIDATION_ERROR", "scheduledAt is required");
+      }
+
+      const scheduledDate = new Date(scheduledAt);
+      if (scheduledDate <= new Date()) {
+        return errorResponse("VALIDATION_ERROR", "scheduledAt must be in the future");
+      }
+
+      // Get current invoice to check status
+      const current = await salesService.getInvoiceById(params.id);
+      if (!current.success || !current.data) {
+        return errorResponse("NOT_FOUND", "Invoice not found");
+      }
+
+      if (current.data.status !== "scheduled") {
+        return errorResponse("VALIDATION_ERROR", "Invoice is not scheduled");
+      }
+
+      // Update the scheduled time
+      const result = await salesService.updateInvoice(params.id, {
+        scheduledAt: scheduledDate.toISOString(),
+      });
+
+      logger.info({ invoiceId: params.id, scheduledAt }, "Invoice schedule updated");
+
+      return result;
+    } catch (error) {
+      logger.error({ error }, "Error updating invoice schedule");
+      return errorResponse("SERVER_ERROR", "Failed to update schedule");
+    }
+  });
+});
+
+// Cancel a scheduled invoice (revert to draft)
+router.delete("/api/v1/invoices/:id/schedule", async (request, _url, params) => {
+  return withAuth(request, async (_auth) => {
+    try {
+      // Get current invoice to check status
+      const current = await salesService.getInvoiceById(params.id);
+      if (!current.success || !current.data) {
+        return errorResponse("NOT_FOUND", "Invoice not found");
+      }
+
+      if (current.data.status !== "scheduled") {
+        return errorResponse("VALIDATION_ERROR", "Invoice is not scheduled");
+      }
+
+      // Cancel the schedule and revert to draft
+      // Note: In production, you would also cancel the scheduled job here
+      const result = await salesService.updateInvoice(params.id, {
+        status: "draft",
+        scheduledAt: undefined,
+      });
+
+      logger.info({ invoiceId: params.id }, "Invoice schedule cancelled");
+
+      return result;
+    } catch (error) {
+      logger.error({ error }, "Error cancelling invoice schedule");
+      return errorResponse("SERVER_ERROR", "Failed to cancel schedule");
+    }
+  });
+});
+
 // ============================================
 // DELIVERY NOTES
 // ============================================
@@ -586,7 +746,7 @@ router.post("/api/v1/quotes/:id/convert-to-order", async (request, _url, params)
               }
             : undefined,
         });
-        return successResponse({ id: (order as { id: string }).id } as any);
+        return successResponse({ id: (order as { id: string }).id });
       } catch (_err) {
         const { quoteQueries } = await import("../db/queries/quotes");
         const { orderQueries } = await import("../db/queries/orders");
@@ -623,7 +783,7 @@ router.post("/api/v1/quotes/:id/convert-to-order", async (request, _url, params)
             createResult.error?.message || "Failed to convert quote to order"
           );
         }
-        return successResponse({ id: createResult.data.id } as any);
+        return successResponse({ id: createResult.data.id });
       }
     },
     201
@@ -713,7 +873,7 @@ router.post("/api/v1/quotes/:id/convert-to-invoice", async (request, _url, param
             updatedAt: new Date().toISOString(),
             // sellerCompanyId actually carries tenantId in legacy schema
             sellerCompanyId: auth.activeTenantId,
-          } as any,
+          } as Parameters<typeof invoiceQueries.create>[0],
           (quote.items || []).map((i) => ({
             productName: i.productName,
             description: i.description || undefined,

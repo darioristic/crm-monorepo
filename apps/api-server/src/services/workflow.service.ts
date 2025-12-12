@@ -3,9 +3,9 @@
  * Quote → Invoice → Delivery Note flow
  */
 
+import { randomUUID } from "node:crypto";
 import type { ApiResponse, DeliveryNote, Invoice, Quote } from "@crm/types";
 import { errorResponse, successResponse } from "@crm/utils";
-import { v4 as uuidv4 } from "uuid";
 import { sql } from "../db/client";
 import { runInTransaction } from "../db/transaction";
 import { logger } from "../lib/logger";
@@ -127,7 +127,7 @@ class WorkflowService {
     options: ConvertQuoteOptions
   ): Promise<ApiResponse<{ invoice: Invoice; workflow: WorkflowInstance }>> {
     const { quoteId, userId, sendEmail = false, invoiceOverrides = {} } = options;
-    const workflowId = uuidv4();
+    const workflowId = randomUUID();
 
     const steps: WorkflowStep[] = [
       { id: "validate", name: "Validate Quote", status: "pending" },
@@ -188,7 +188,7 @@ class WorkflowService {
         steps[1].startedAt = new Date().toISOString();
 
         const invoiceNumber = await generateInvoiceNumber();
-        const invoiceId = uuidv4();
+        const invoiceId = randomUUID();
         const issueDate = new Date();
         const dueDate = invoiceOverrides.dueDate
           ? new Date(invoiceOverrides.dueDate)
@@ -226,7 +226,7 @@ class WorkflowService {
               id, invoice_id, product_name, description,
               quantity, unit_price, discount, total, created_at, updated_at
             ) VALUES (
-              ${uuidv4()}, ${invoiceId}, 
+              ${randomUUID()}, ${invoiceId}, 
               ${item.product_name}, ${item.description},
               ${item.quantity}, ${item.unit_price}, ${item.discount}, ${item.total},
               NOW(), NOW()
@@ -317,7 +317,7 @@ class WorkflowService {
     options: ConvertInvoiceOptions
   ): Promise<ApiResponse<{ deliveryNote: DeliveryNote; workflow: WorkflowInstance }>> {
     const { invoiceId, userId, shippingAddress, deliveryNotes } = options;
-    const workflowId = uuidv4();
+    const workflowId = randomUUID();
 
     const steps: WorkflowStep[] = [
       { id: "validate", name: "Validate Invoice", status: "pending" },
@@ -380,7 +380,7 @@ class WorkflowService {
         steps[1].startedAt = new Date().toISOString();
 
         const deliveryNoteNumber = await generateDeliveryNoteNumber();
-        const deliveryNoteId = uuidv4();
+        const deliveryNoteId = randomUUID();
 
         await sql`
           INSERT INTO delivery_notes (
@@ -413,7 +413,7 @@ class WorkflowService {
               id, delivery_note_id, product_name, description,
               quantity, unit, created_at, updated_at
             ) VALUES (
-              ${uuidv4()}, ${deliveryNoteId},
+              ${randomUUID()}, ${deliveryNoteId},
               ${item.product_name}, ${item.description},
               ${item.quantity}, 'pcs', NOW(), NOW()
             )
@@ -493,7 +493,7 @@ class WorkflowService {
       workflow: WorkflowInstance;
     }>
   > {
-    const workflowId = uuidv4();
+    const workflowId = randomUUID();
     const { sendInvoiceEmail = false, createDeliveryNote = true, shippingAddress } = options;
 
     logger.info({ quoteId, workflowId, options }, "Starting full sales cycle");

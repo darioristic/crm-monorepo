@@ -15,7 +15,7 @@ async function retryCall<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 1000
       return await fn();
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      logger.info(`Attempt ${attempt} failed: ${lastError.message}`);
+      logger.info([`Attempt ${attempt} failed: ${lastError.message}`]);
 
       if (attempt < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, delayMs * attempt));
@@ -27,7 +27,7 @@ async function retryCall<T>(fn: () => Promise<T>, maxRetries = 3, delayMs = 1000
 }
 
 export class ReceiptProcessor {
-  private model = mistral("mistral-small-latest");
+  private model = mistral("mistral-small-latest") as unknown as import("ai").LanguageModel;
 
   async #processDocument({ documentUrl }: GetDocumentRequest) {
     if (!documentUrl) {

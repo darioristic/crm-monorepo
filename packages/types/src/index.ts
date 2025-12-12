@@ -165,19 +165,29 @@ export interface CustomerOrganization extends BaseEntity {
   name: string;
   email?: string | null;
   phone?: string | null;
+  /** Website domain for logo fetching via logo.dev API */
+  website?: string | null;
   pib?: string | null;
   companyNumber?: string | null;
   contactPerson?: string | null;
   isFavorite?: boolean;
   logoUrl?: string | null;
+  /** Address fields */
+  addressLine1?: string | null;
+  addressLine2?: string | null;
+  city?: string | null;
+  state?: string | null;
+  country?: string | null;
+  countryCode?: string | null;
+  zip?: string | null;
   /** Multi-tenant isolation */
   tenantId?: UUID;
   /** Roles of the organization in the CRM/ERP */
   roles?: OrganizationRole[];
   /** Lifecycle status */
   status?: OrganizationStatus;
-  /** Simple tag system */
-  tags?: string[];
+  /** Simple tag system - array of tag objects with id and name */
+  tags?: Array<{ id: string; name: string }>;
   /** Free-form notes */
   note?: string | null;
 }
@@ -295,7 +305,14 @@ export interface QuoteWithRelations extends Quote {
 }
 
 // Invoice (Faktura)
-export type InvoiceStatus = "draft" | "sent" | "paid" | "partial" | "overdue" | "cancelled";
+export type InvoiceStatus =
+  | "draft"
+  | "scheduled"
+  | "sent"
+  | "paid"
+  | "partial"
+  | "overdue"
+  | "cancelled";
 
 export interface InvoiceItem {
   id: UUID;
@@ -351,6 +368,10 @@ export interface Invoice extends BaseEntity {
   sentAt?: Timestamp;
   /** When the invoice was paid */
   paidAt?: Timestamp;
+  /** When the invoice is scheduled to be sent */
+  scheduledAt?: Timestamp;
+  /** Job ID for the scheduled send (for cancellation/rescheduling) */
+  scheduledJobId?: string;
   createdBy: UUID;
 }
 
@@ -433,6 +454,7 @@ export interface OrderWithRelations extends Order {
   contact?: Contact;
   quote?: Quote;
   invoice?: Invoice;
+  companyName?: string | null;
 }
 
 // ============================================
@@ -582,7 +604,9 @@ export type NotificationType =
   | "deal_lost"
   | "system"
   | "mention"
-  | "reminder";
+  | "reminder"
+  | "inbox_matched"
+  | "inbox_needs_review";
 
 export type NotificationChannel = "in_app" | "email" | "both";
 
@@ -760,6 +784,10 @@ export type CreateInvoiceRequest = Omit<
   templateSettings?: unknown;
   fromDetails?: unknown;
   customerDetails?: unknown;
+  /** For scheduled invoices - when to send */
+  scheduledAt?: Timestamp;
+  /** Delivery type: create, create_and_send, or scheduled */
+  deliveryType?: "create" | "create_and_send" | "scheduled";
 };
 export type UpdateInvoiceRequest = Partial<Omit<CreateInvoiceRequest, "items">> & {
   items?: Omit<InvoiceItem, "invoiceId" | "total">[];

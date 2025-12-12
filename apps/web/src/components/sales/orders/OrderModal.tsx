@@ -144,7 +144,7 @@ export function OrderModal({ order, mode, open, onOpenChange, onSuccess }: Order
         const items = form.getValues("items");
         let subtotal = 0;
 
-        items.forEach((item) => {
+        items.forEach((item: OrderFormValues["items"][number]) => {
           const quantity = item.quantity || 0;
           const unitPrice = item.unitPrice || 0;
           const discount = item.discount || 0;

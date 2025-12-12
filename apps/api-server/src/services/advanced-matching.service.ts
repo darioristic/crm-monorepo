@@ -99,14 +99,25 @@ export const TIER_CONFIG = {
 } as const;
 
 // Date ranges by document type
-const DATE_RANGES = {
+const DATE_RANGES: Record<
+  import("../db/queries/inbox").InboxType | "default",
+  { daysBefore: number; daysAfter: number }
+> = {
   expense: {
-    daysBefore: 93, // Receipt/expense can be up to 93 days after transaction
+    daysBefore: 93,
+    daysAfter: 10,
+  },
+  receipt: {
+    daysBefore: 93,
     daysAfter: 10,
   },
   invoice: {
-    daysBefore: 10, // Invoice is usually before payment
-    daysAfter: 123, // Payment can be up to ~4 months after invoice (Net 90+)
+    daysBefore: 10,
+    daysAfter: 123,
+  },
+  other: {
+    daysBefore: 60,
+    daysAfter: 30,
   },
   default: {
     daysBefore: 60,

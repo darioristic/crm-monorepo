@@ -3,6 +3,7 @@
 import type { Lead } from "@crm/types";
 import { ArrowUpDown, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { DeleteDialog } from "@/components/shared/delete-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -33,17 +34,19 @@ const statusColors: Record<Lead["status"], string> = {
   new: "bg-blue-500",
   contacted: "bg-yellow-500",
   qualified: "bg-green-500",
+  proposal: "bg-indigo-500",
+  negotiation: "bg-orange-500",
+  won: "bg-green-700",
   lost: "bg-red-500",
-  converted: "bg-purple-500",
 };
 
 const sourceLabels: Record<Lead["source"], string> = {
   website: "Website",
   referral: "Referral",
-  social: "Social Media",
-  advertisement: "Advertisement",
   cold_call: "Cold Call",
-  event: "Event",
+  email: "Email",
+  social_media: "Social Media",
+  advertisement: "Advertisement",
   other: "Other",
 };
 
@@ -59,6 +62,7 @@ export function LeadsDataTable({
 }: Props) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [editId, setEditId] = useState<string | null>(null);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
 
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -71,7 +75,6 @@ export function LeadsDataTable({
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this lead?")) return;
     await leadsApi.delete(id);
     onRefresh();
   };
@@ -152,118 +155,131 @@ export function LeadsDataTable({
   const editingLead = editId ? data.find((l) => l.id === editId) : undefined;
 
   return (
-    <div className="space-y-3">
-      <div className="rounded-md border">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead className="w-10"></TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort("name")}>
-                  Name
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort("email")}>
-                  Contact
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort("company")}>
-                  Company
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort("status")}>
-                  Status
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead>Source</TableHead>
-              <TableHead>
-                <Button variant="ghost" onClick={() => handleSort("value")}>
-                  Value
-                  <ArrowUpDown className="ml-2 h-4 w-4" />
-                </Button>
-              </TableHead>
-              <TableHead className="w-32">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((lead) => (
-              <TableRow key={lead.id}>
-                <TableCell>
-                  <Checkbox
-                    checked={!!selected[lead.id]}
-                    onCheckedChange={(v) => setSelected({ ...selected, [lead.id]: !!v })}
-                  />
-                </TableCell>
-                <TableCell className="font-medium">{lead.name}</TableCell>
-                <TableCell>
-                  <div className="text-sm">
-                    <div>{lead.email}</div>
-                    {lead.phone && <div className="text-muted-foreground">{lead.phone}</div>}
-                  </div>
-                </TableCell>
-                <TableCell>{lead.company || "-"}</TableCell>
-                <TableCell>
-                  <Badge className={`${statusColors[lead.status]} text-white capitalize`}>
-                    {lead.status}
-                  </Badge>
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {sourceLabels[lead.source] || lead.source}
-                </TableCell>
-                <TableCell>{lead.value ? `$${lead.value.toLocaleString()}` : "-"}</TableCell>
-                <TableCell>
-                  <div className="flex gap-1">
-                    <Button variant="ghost" size="icon" onClick={() => setEditId(lead.id)}>
-                      <Pencil className="h-4 w-4" />
-                    </Button>
-                    <Button variant="ghost" size="icon" onClick={() => handleDelete(lead.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                </TableCell>
+    <>
+      <div className="space-y-3">
+        <div className="rounded-md border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10"></TableHead>
+                <TableHead>
+                  <Button variant="ghost" onClick={() => handleSort("name")}>
+                    Name
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button variant="ghost" onClick={() => handleSort("email")}>
+                    Contact
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button variant="ghost" onClick={() => handleSort("company")}>
+                    Company
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>
+                  <Button variant="ghost" onClick={() => handleSort("status")}>
+                    Status
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead>Source</TableHead>
+                <TableHead>
+                  <Button variant="ghost" onClick={() => handleSort("value")}>
+                    Value
+                    <ArrowUpDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </TableHead>
+                <TableHead className="w-32">Actions</TableHead>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-
-      {totalPages > 1 && (
-        <div className="flex items-center justify-end gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => onPageChange(page - 1)}
-          >
-            Previous
-          </Button>
-          <span className="text-sm text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => onPageChange(page + 1)}
-          >
-            Next
-          </Button>
+            </TableHeader>
+            <TableBody>
+              {data.map((lead) => (
+                <TableRow key={lead.id}>
+                  <TableCell>
+                    <Checkbox
+                      checked={!!selected[lead.id]}
+                      onCheckedChange={(v) => setSelected({ ...selected, [lead.id]: !!v })}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">{lead.name}</TableCell>
+                  <TableCell>
+                    <div className="text-sm">
+                      <div>{lead.email}</div>
+                      {lead.phone && <div className="text-muted-foreground">{lead.phone}</div>}
+                    </div>
+                  </TableCell>
+                  <TableCell>{lead.company || "-"}</TableCell>
+                  <TableCell>
+                    <Badge className={`${statusColors[lead.status]} text-white capitalize`}>
+                      {lead.status}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {sourceLabels[lead.source] || lead.source}
+                  </TableCell>
+                  <TableCell>{lead.value ? `$${lead.value.toLocaleString()}` : "-"}</TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
+                      <Button variant="ghost" size="icon" onClick={() => setEditId(lead.id)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button variant="ghost" size="icon" onClick={() => setDeleteId(lead.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
         </div>
-      )}
 
-      <LeadFormSheet
-        open={!!editId}
-        onOpenChange={(open) => !open && setEditId(null)}
-        lead={editingLead}
-        onSaved={onRefresh}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => onPageChange(page - 1)}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => onPageChange(page + 1)}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+
+        <LeadFormSheet
+          open={!!editId}
+          onOpenChange={(open) => !open && setEditId(null)}
+          lead={editingLead}
+          onSaved={onRefresh}
+        />
+      </div>
+      <DeleteDialog
+        open={!!deleteId}
+        onOpenChange={(open) => !open && setDeleteId(null)}
+        title="Delete lead"
+        description="This action cannot be undone. This will permanently delete the selected lead."
+        onConfirm={async () => {
+          if (!deleteId) return;
+          await handleDelete(deleteId);
+          setDeleteId(null);
+        }}
       />
-    </div>
+    </>
   );
 }

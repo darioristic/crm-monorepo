@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import type { TooltipProps } from "recharts";
 import {
   Bar,
   BarChart,
@@ -101,7 +102,7 @@ export function SalesFunnel({
   };
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
+  const CustomTooltip = ({ active, payload }: TooltipProps<number, string>) => {
     if (!active || !payload?.length) return null;
 
     const data = payload[0].payload as FunnelStage & { conversionRate: string };

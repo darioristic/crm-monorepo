@@ -85,6 +85,7 @@ export function HtmlTemplate({ data, width, height, disableScroll = false }: Pro
         <Summary
           includeVat={template.includeVat}
           includeTax={template.includeTax}
+          includeDiscount={template.includeDiscount}
           taxRate={template.taxRate}
           vatRate={template.vatRate}
           currency={currency || "EUR"}
@@ -92,7 +93,6 @@ export function HtmlTemplate({ data, width, height, disableScroll = false }: Pro
           taxLabel={template.taxLabel}
           totalLabel={template.totalSummaryLabel}
           lineItems={lineItems}
-          includeDiscount={template.includeDiscount}
           discountLabel={template.discountLabel}
           locale={template.locale}
           includeDecimals={template.includeDecimals}

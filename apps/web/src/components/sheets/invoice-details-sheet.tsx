@@ -4,6 +4,7 @@ import type { Invoice } from "@crm/types";
 import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { Copy, Download, Printer } from "lucide-react";
 import { toast } from "sonner";
+import { InvoiceActivity } from "@/components/invoice/invoice-activity";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -207,6 +208,13 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
                 </div>
               </>
             )}
+
+            {/* Activity Timeline */}
+            <Separator />
+            <div>
+              <h4 className="font-medium mb-4">Activity</h4>
+              <InvoiceActivity invoice={invoice} />
+            </div>
           </div>
         </div>
       </SheetContent>

@@ -60,7 +60,7 @@ export function ProductAwareAmountInput({ name, lineItemIndex, className }: Prop
     if (currentProductId && lineItemName && lineItemName.trim().length > 0) {
       saveProductMutation.mutate({
         name: lineItemName.trim(),
-        price: value !== undefined ? value : null,
+        price: typeof value === "number" ? value : null,
         unit: currentUnit || null,
         productId: currentProductId,
         currency: currency || null,
@@ -76,7 +76,7 @@ export function ProductAwareAmountInput({ name, lineItemIndex, className }: Prop
         name={name}
         id={name}
         autoComplete="off"
-        value={value}
+        value={value as number | string | null | undefined}
         onValueChange={(values) => {
           onChange(
             values.floatValue !== undefined && values.floatValue !== null ? values.floatValue : 0

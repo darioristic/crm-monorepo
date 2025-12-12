@@ -779,8 +779,8 @@ class SalesService {
                 ? (data as { currency?: string }).currency
                 : undefined) || "EUR",
             templateSettings: data.templateSettings || null,
-            sellerCompanyId: tenantId,
-          } as unknown;
+            tenantId,
+          };
 
           created = await invoiceQueries.create(invoice, items);
         } catch (err: unknown) {

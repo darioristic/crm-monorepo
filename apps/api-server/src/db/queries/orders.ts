@@ -103,7 +103,7 @@ export const orderQueries = {
 
       // Count query
       const countQuery = `SELECT COUNT(*) FROM orders ${whereClause}`;
-      const countResult = await db.unsafe(countQuery, whereValues as unknown[]);
+      const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
       const total = parseInt(countResult[0].count, 10);
 
       // Sort
@@ -122,7 +122,7 @@ export const orderQueries = {
         ...whereValues,
         safePageSize,
         safeOffset,
-      ] as unknown[]);
+      ] as QueryParam[]);
 
       const orders = data.map(mapOrder);
 
@@ -153,9 +153,7 @@ export const orderQueries = {
     return result.map(mapOrder);
   },
 
-  async findById(
-    id: string
-  ): Promise<
+  async findById(id: string): Promise<
     | (Order & {
         items?: OrderItemSummary[];
         company?: Company | null;
@@ -413,7 +411,7 @@ export const orderQueries = {
         RETURNING *
       `;
 
-      const result = await db.unsafe(updateQuery, values as unknown[]);
+      const result = await db.unsafe(updateQuery, values as QueryParam[]);
 
       if (result.length === 0) {
         return {

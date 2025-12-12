@@ -1100,7 +1100,23 @@ app.get("/api/v1/invoices", async (c) => {
     const conditions = [eq(invoicesImproved.tenantId, user.tenantId)];
 
     if (status) {
-      conditions.push(eq(invoicesImproved.status, status as unknown as string));
+      const allowed = [
+        "draft",
+        "sent",
+        "paid",
+        "overdue",
+        "cancelled",
+        "refunded",
+        "viewed",
+        "partially_paid",
+      ] as const;
+      const normalized = String(status).toLowerCase();
+      const mapped = (
+        normalized === "canceled" ? "cancelled" : normalized
+      ) as (typeof allowed)[number];
+      if (allowed.includes(mapped)) {
+        conditions.push(eq(invoicesImproved.status, mapped));
+      }
     }
     if (companyId) {
       conditions.push(eq(invoicesImproved.companyId, companyId));

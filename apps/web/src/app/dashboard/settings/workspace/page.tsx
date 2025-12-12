@@ -1,5 +1,6 @@
 "use client";
 
+import type { Company } from "@crm/types";
 import { ImageIcon, Loader2, Upload, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -19,7 +20,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
 import { request } from "@/lib/api";
-import type { Company } from "@crm/types";
 
 export default function WorkspaceSettingsPage() {
   const [loading, setLoading] = useState(true);
@@ -166,68 +166,77 @@ export default function WorkspaceSettingsPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className="grid gap-2">
                 <Label htmlFor="name">Name</Label>
-                <Input id="name" value={form.name} onChange={onChange("name")} />
+                <Input id="name" value={form.name ?? ""} onChange={onChange("name")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="industry">Industry</Label>
-                <Input id="industry" value={form.industry} onChange={onChange("industry")} />
+                <Input id="industry" value={form.industry ?? ""} onChange={onChange("industry")} />
               </div>
               <div className="lg:col-span-2 grid gap-2">
                 <Label htmlFor="address">Address</Label>
-                <Input id="address" value={form.address} onChange={onChange("address")} />
+                <Input id="address" value={form.address ?? ""} onChange={onChange("address")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" value={form.email} onChange={onChange("email")} />
+                <Input
+                  id="email"
+                  type="email"
+                  value={form.email ?? ""}
+                  onChange={onChange("email")}
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" value={form.phone} onChange={onChange("phone")} />
+                <Input id="phone" value={form.phone ?? ""} onChange={onChange("phone")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="website">Website</Label>
-                <Input id="website" value={form.website} onChange={onChange("website")} />
+                <Input id="website" value={form.website ?? ""} onChange={onChange("website")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="vatNumber">VAT</Label>
-                <Input id="vatNumber" value={form.vatNumber} onChange={onChange("vatNumber")} />
+                <Input
+                  id="vatNumber"
+                  value={form.vatNumber ?? ""}
+                  onChange={onChange("vatNumber")}
+                />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="companyNumber">Company No</Label>
                 <Input
                   id="companyNumber"
-                  value={form.companyNumber}
+                  value={form.companyNumber ?? ""}
                   onChange={onChange("companyNumber")}
                 />
               </div>
               <Separator className="lg:col-span-2" />
               <div className="grid gap-2">
                 <Label htmlFor="contact">Primary Contact</Label>
-                <Input id="contact" value={form.contact} onChange={onChange("contact")} />
+                <Input id="contact" value={form.contact ?? ""} onChange={onChange("contact")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="city">City</Label>
-                <Input id="city" value={form.city} onChange={onChange("city")} />
+                <Input id="city" value={form.city ?? ""} onChange={onChange("city")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="zip">ZIP</Label>
-                <Input id="zip" value={form.zip} onChange={onChange("zip")} />
+                <Input id="zip" value={form.zip ?? ""} onChange={onChange("zip")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="country">Country</Label>
-                <Input id="country" value={form.country} onChange={onChange("country")} />
+                <Input id="country" value={form.country ?? ""} onChange={onChange("country")} />
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="countryCode">Country Code</Label>
                 <Input
                   id="countryCode"
-                  value={form.countryCode}
+                  value={form.countryCode ?? ""}
                   onChange={onChange("countryCode")}
                 />
               </div>
               <div className="lg:col-span-2 grid gap-2">
                 <Label htmlFor="note">Notes</Label>
-                <Textarea id="note" rows={3} value={form.note} onChange={onChange("note")} />
+                <Textarea id="note" rows={3} value={form.note ?? ""} onChange={onChange("note")} />
               </div>
             </div>
           )}

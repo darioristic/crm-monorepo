@@ -143,24 +143,36 @@ export const documentQueries = {
     const offset = cursor ? Number.parseInt(cursor, 10) : 0;
     const safePageSize = Math.min(100, Math.max(1, Math.floor(pageSize)));
 
-    // Build WHERE conditions
-    const conditions: string[] = ["company_id = $1"];
-    const values: QueryParam[] = [companyId];
-    let paramIndex = 2;
+    // Build WHERE conditions - use tenant_id as primary filter
+    // Documents are stored with seller company's companyId, so we filter by tenant_id
+    // to ensure all tenant documents (invoices, quotes, etc.) are visible
+    const conditions: string[] = [];
+    const values: QueryParam[] = [];
+    let paramIndex = 1;
 
-    // Enforce tenant scoping for safety (derive tenant_id from company)
+    // Resolve tenant_id from company and use it as the primary filter
+    let resolvedTenantId: string | null = null;
     try {
       const tenantRow = await db`
         SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
       `;
-      const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
-      if (tenantId) {
+      resolvedTenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+      if (resolvedTenantId) {
         conditions.push(`tenant_id = $${paramIndex}`);
-        values.push(tenantId);
+        values.push(resolvedTenantId);
+        paramIndex++;
+      } else {
+        // Fallback to company_id if no tenant_id found
+        conditions.push(`company_id = $${paramIndex}`);
+        values.push(companyId);
         paramIndex++;
       }
     } catch (error) {
       logger.warn({ error, companyId }, "Failed to resolve tenant_id for document list");
+      // Fallback to company_id
+      conditions.push(`company_id = $${paramIndex}`);
+      values.push(companyId);
+      paramIndex++;
     }
 
     // Exclude folder placeholders
@@ -190,14 +202,26 @@ export const documentQueries = {
     // Tag filtering
     if (tags && tags.length > 0) {
       // Get document IDs that have the specified tags
+      // Use tenant_id to filter documents, since documents may be stored with seller's company_id
       const tagPlaceholders = tags.map((_, i) => `$${paramIndex + i}`).join(", ");
-      const tagConditionQuery = `
+      const tagConditionQuery = resolvedTenantId
+        ? `
+				SELECT DISTINCT dta.document_id
+				FROM document_tag_assignments dta
+				JOIN documents d ON d.id = dta.document_id
+				WHERE d.tenant_id = $1 AND dta.tag_id IN (${tagPlaceholders})
+			`
+        : `
 				SELECT DISTINCT document_id
 				FROM document_tag_assignments
 				WHERE company_id = $1 AND tag_id IN (${tagPlaceholders})
 			`;
 
-      const docIdsResult = await db.unsafe(tagConditionQuery, [companyId, ...tags] as QueryParam[]);
+      const filterValue = resolvedTenantId || companyId;
+      const docIdsResult = await db.unsafe(tagConditionQuery, [
+        filterValue,
+        ...tags,
+      ] as QueryParam[]);
       const documentIds = docIdsResult.map((row) => row.document_id as string);
 
       if (documentIds.length === 0) {
@@ -231,7 +255,7 @@ export const documentQueries = {
 				LIMIT $${paramIndex} OFFSET $${paramIndex + 1}
 			`;
 
-      data = await db.unsafe(selectQuery, [...values, safePageSize, offset] as unknown[]);
+      data = await db.unsafe(selectQuery, [...values, safePageSize, offset] as QueryParam[]);
     } catch (error) {
       logger.error({ error }, "Error selecting documents");
       logger.error({ companyId }, "CompanyId");
@@ -282,12 +306,19 @@ export const documentQueries = {
   },
 
   /**
-   * Get a single document by ID
+   * Get a single document by ID (uses tenant_id for proper scoping)
    */
   async findById(id: string, companyId: string): Promise<DocumentWithTags | null> {
-    const result = await db`
-			SELECT * FROM documents WHERE id = ${id} AND company_id = ${companyId}
-		`;
+    // Resolve tenant_id from company
+    const tenantRow = await db`
+      SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+    `;
+    const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
+    // Query by tenant_id if available, otherwise fallback to company_id
+    const result = tenantId
+      ? await db`SELECT * FROM documents WHERE id = ${id} AND tenant_id = ${tenantId}`
+      : await db`SELECT * FROM documents WHERE id = ${id} AND company_id = ${companyId}`;
 
     if (result.length === 0) return null;
 
@@ -375,7 +406,7 @@ export const documentQueries = {
   },
 
   /**
-   * Update a document
+   * Update a document (uses tenant_id for proper scoping)
    */
   async update(
     id: string,
@@ -392,9 +423,31 @@ export const documentQueries = {
       metadata: DocumentMetadata;
     }>
   ): Promise<Document | null> {
+    // Resolve tenant_id from company
+    const tenantRow = await db`
+      SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+    `;
+    const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
     // Serialize metadata to JSON string for proper JSONB handling
     const metadataJson = data.metadata ? JSON.stringify(data.metadata) : null;
-    const result = await db`
+    const result = tenantId
+      ? await db`
+			UPDATE documents SET
+				title = COALESCE(${data.title ?? null}, title),
+				summary = COALESCE(${data.summary ?? null}, summary),
+				content = COALESCE(${data.content ?? null}, content),
+				body = COALESCE(${data.body ?? null}, body),
+				tag = COALESCE(${data.tag ?? null}, tag),
+				date = COALESCE(${data.date ?? null}, date),
+				language = COALESCE(${data.language ?? null}, language),
+				processing_status = COALESCE(${data.processingStatus ?? null}, processing_status),
+				metadata = COALESCE(${metadataJson}::jsonb, metadata),
+				updated_at = NOW()
+			WHERE id = ${id} AND tenant_id = ${tenantId}
+			RETURNING *
+		`
+      : await db`
 			UPDATE documents SET
 				title = COALESCE(${data.title ?? null}, title),
 				summary = COALESCE(${data.summary ?? null}, summary),
@@ -415,7 +468,7 @@ export const documentQueries = {
   },
 
   /**
-   * Update processing status for multiple documents
+   * Update processing status for multiple documents (uses tenant_id)
    */
   async updateProcessingStatus(
     names: string[],
@@ -424,7 +477,20 @@ export const documentQueries = {
   ): Promise<Document[]> {
     if (names.length === 0) return [];
 
-    const result = await db`
+    // Resolve tenant_id from company
+    const tenantRow = await db`
+      SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+    `;
+    const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
+    const result = tenantId
+      ? await db`
+			UPDATE documents
+			SET processing_status = ${status}, updated_at = NOW()
+			WHERE name = ANY(${names}) AND tenant_id = ${tenantId}
+			RETURNING *
+		`
+      : await db`
 			UPDATE documents
 			SET processing_status = ${status}, updated_at = NOW()
 			WHERE name = ANY(${names}) AND company_id = ${companyId}
@@ -435,13 +501,25 @@ export const documentQueries = {
   },
 
   /**
-   * Delete a document
+   * Delete a document (uses tenant_id for proper scoping)
    */
   async delete(
     id: string,
     companyId: string
   ): Promise<{ id: string; pathTokens: string[] } | null> {
-    const result = await db`
+    // Resolve tenant_id from company
+    const tenantRow = await db`
+      SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+    `;
+    const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
+    const result = tenantId
+      ? await db`
+			DELETE FROM documents
+			WHERE id = ${id} AND tenant_id = ${tenantId}
+			RETURNING id, path_tokens
+		`
+      : await db`
 			DELETE FROM documents
 			WHERE id = ${id} AND company_id = ${companyId}
 			RETURNING id, path_tokens
@@ -455,20 +533,41 @@ export const documentQueries = {
   },
 
   /**
-   * Count documents for a company
+   * Count documents for a company (uses tenant_id for accurate count)
    */
   async count(companyId: string): Promise<number> {
-    const result = await db`
-			SELECT COUNT(*) FROM documents WHERE company_id = ${companyId}
-		`;
+    // Resolve tenant_id from company to count all tenant documents
+    const tenantRow = await db`
+      SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+    `;
+    const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
+    const result = tenantId
+      ? await db`SELECT COUNT(*) FROM documents WHERE tenant_id = ${tenantId}`
+      : await db`SELECT COUNT(*) FROM documents WHERE company_id = ${companyId}`;
+
     return Number.parseInt(result[0].count as string, 10);
   },
 
   /**
-   * Get recent documents
+   * Get recent documents (uses tenant_id to include all tenant documents)
    */
   async findRecent(companyId: string, limit: number = 5): Promise<Document[]> {
-    const result = await db`
+    // Resolve tenant_id from company to get all tenant documents
+    const tenantRow = await db`
+      SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+    `;
+    const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
+    const result = tenantId
+      ? await db`
+			SELECT * FROM documents
+			WHERE tenant_id = ${tenantId}
+			  AND (name IS NULL OR name NOT LIKE '%.folderPlaceholder')
+			ORDER BY created_at DESC
+			LIMIT ${limit}
+		`
+      : await db`
 			SELECT * FROM documents
 			WHERE company_id = ${companyId}
 			  AND (name IS NULL OR name NOT LIKE '%.folderPlaceholder')
@@ -489,6 +588,12 @@ export const documentQueries = {
   ): Promise<Array<Document & { similarityScore: number }>> {
     const { threshold = 0.3, limit = 5 } = options;
 
+    // Resolve tenant_id from company
+    const tenantRow = await db`
+      SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+    `;
+    const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
     try {
       const result = await db`
 				SELECT * FROM match_similar_documents_by_title(
@@ -507,8 +612,18 @@ export const documentQueries = {
       // If the function doesn't exist yet, fall back to simple query
       logger.warn({ error }, "match_similar_documents_by_title function not found, using fallback");
 
-      // Fallback: get recent documents excluding current one
-      const fallbackResult = await db`
+      // Fallback: get recent documents excluding current one (use tenant_id)
+      const fallbackResult = tenantId
+        ? await db`
+				SELECT * FROM documents
+				WHERE tenant_id = ${tenantId}
+				  AND id != ${documentId}
+				  AND processing_status = 'completed'
+				  AND (name IS NULL OR name NOT LIKE '%.folderPlaceholder')
+				ORDER BY created_at DESC
+				LIMIT ${limit}
+			`
+        : await db`
 				SELECT * FROM documents
 				WHERE company_id = ${companyId}
 				  AND id != ${documentId}

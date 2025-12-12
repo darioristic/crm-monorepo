@@ -7,11 +7,9 @@ import type {
   UpdateProjectRequest,
   User,
 } from "@crm/types";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -37,6 +35,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useApi, useMutation } from "@/hooks/use-api";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { companiesApi, projectsApi, usersApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -80,8 +79,7 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
     projectsApi.update(project?.id || "", data)
   );
 
-  const form = useForm<ProjectFormValues>({
-    resolver: zodResolver(projectFormSchema),
+  const form = useZodForm(projectFormSchema, {
     defaultValues: {
       name: project?.name || "",
       description: project?.description || "",
@@ -188,7 +186,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               {/* Basic Info */}
               <FormField
-                control={form.control}
                 name="name"
                 render={({ field }) => (
                   <FormItem>
@@ -202,7 +199,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
               />
 
               <FormField
-                control={form.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
@@ -222,7 +218,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
-                  control={form.control}
                   name="clientId"
                   render={({ field }) => (
                     <FormItem>
@@ -253,7 +248,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
                 />
 
                 <FormField
-                  control={form.control}
                   name="managerId"
                   render={({ field }) => (
                     <FormItem>
@@ -284,7 +278,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <FormField
-                  control={form.control}
                   name="status"
                   render={({ field }) => (
                     <FormItem>
@@ -309,7 +302,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
                 />
 
                 <FormField
-                  control={form.control}
                   name="startDate"
                   render={({ field }) => (
                     <FormItem>
@@ -323,7 +315,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
                 />
 
                 <FormField
-                  control={form.control}
                   name="endDate"
                   render={({ field }) => (
                     <FormItem>
@@ -339,7 +330,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
-                  control={form.control}
                   name="budget"
                   render={({ field }) => (
                     <FormItem>
@@ -353,7 +343,6 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
                 />
 
                 <FormField
-                  control={form.control}
                   name="currency"
                   render={({ field }) => (
                     <FormItem>
@@ -379,13 +368,12 @@ export function ProjectForm({ project, mode }: ProjectFormProps) {
 
               {/* Tags */}
               <FormField
-                control={form.control}
                 name="tags"
                 render={() => (
                   <FormItem>
                     <FormLabel>Tags</FormLabel>
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {watchedTags.map((tag) => (
+                      {watchedTags.map((tag: string) => (
                         <Badge key={tag} variant="secondary" className="gap-1">
                           {tag}
                           <button

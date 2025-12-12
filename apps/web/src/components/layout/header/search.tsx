@@ -1,8 +1,20 @@
 "use client";
 
-import { CommandIcon, SearchIcon } from "lucide-react";
+import {
+  Calculator,
+  CommandIcon,
+  FileText,
+  FolderOpen,
+  LayoutDashboard,
+  Plus,
+  Receipt,
+  SearchIcon,
+  Settings,
+  TrendingUp,
+  Users,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { navItems } from "@/components/layout/sidebar/nav-main";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,8 +25,95 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
+  CommandShortcut,
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
+
+// Quick actions for creating new items
+const quickActions = [
+  {
+    id: "create-invoice",
+    label: "Create Invoice",
+    icon: Plus,
+    href: "/dashboard/sales/invoices/new",
+    keywords: ["new invoice", "add invoice"],
+  },
+  {
+    id: "create-quote",
+    label: "Create Quote",
+    icon: Plus,
+    href: "/dashboard/sales/quotes/new",
+    keywords: ["new quote", "add proposal"],
+  },
+  {
+    id: "create-order",
+    label: "Create Order",
+    icon: Plus,
+    href: "/dashboard/sales/orders/new",
+    keywords: ["new order", "add order"],
+  },
+  {
+    id: "create-customer",
+    label: "Create Customer",
+    icon: Plus,
+    href: "/dashboard/customers?action=create",
+    keywords: ["new customer", "add customer"],
+  },
+];
+
+// Shortcuts for common pages
+const shortcuts = [
+  {
+    id: "dashboard",
+    label: "Dashboard",
+    icon: LayoutDashboard,
+    href: "/dashboard",
+    shortcut: "⌘D",
+  },
+  {
+    id: "invoices",
+    label: "Invoices",
+    icon: Receipt,
+    href: "/dashboard/sales/invoices",
+  },
+  {
+    id: "quotes",
+    label: "Quotes",
+    icon: FileText,
+    href: "/dashboard/sales/quotes",
+  },
+  {
+    id: "customers",
+    label: "Customers",
+    icon: Users,
+    href: "/dashboard/customers",
+  },
+  {
+    id: "vault",
+    label: "Vault",
+    icon: FolderOpen,
+    href: "/dashboard/inbox",
+  },
+  {
+    id: "leads",
+    label: "Leads",
+    icon: TrendingUp,
+    href: "/crm/leads",
+  },
+  {
+    id: "deals",
+    label: "Deals",
+    icon: Calculator,
+    href: "/crm/deals",
+  },
+  {
+    id: "settings",
+    label: "Settings",
+    icon: Settings,
+    href: "/dashboard/settings",
+    shortcut: "⌘,",
+  },
+];
 
 export default function Search() {
   const [open, setOpen] = useState(false);
@@ -30,6 +129,14 @@ export default function Search() {
     document.addEventListener("keydown", down);
     return () => document.removeEventListener("keydown", down);
   }, []);
+
+  const runCommand = useCallback(
+    (href: string) => {
+      setOpen(false);
+      router.push(href);
+    },
+    [router]
+  );
 
   return (
     <div className="lg:flex-1">
@@ -56,24 +163,53 @@ export default function Search() {
       <CommandDialog
         open={open}
         onOpenChange={setOpen}
-        title="Search"
+        title="Command Palette"
         description="Search commands and navigate to pages"
       >
         <CommandInput placeholder="Type a command or search..." />
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
+
+          {/* Quick Actions */}
+          <CommandGroup heading="Quick Actions">
+            {quickActions.map((action) => (
+              <CommandItem
+                key={action.id}
+                value={`${action.label} ${action.keywords?.join(" ") || ""}`}
+                onSelect={() => runCommand(action.href)}
+              >
+                <action.icon className="size-4" />
+                <span>{action.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+
+          <CommandSeparator />
+
+          {/* Shortcuts */}
+          <CommandGroup heading="Shortcuts">
+            {shortcuts.map((item) => (
+              <CommandItem key={item.id} value={item.label} onSelect={() => runCommand(item.href)}>
+                <item.icon className="size-4" />
+                <span>{item.label}</span>
+                {item.shortcut && <CommandShortcut>{item.shortcut}</CommandShortcut>}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+
+          <CommandSeparator />
+
+          {/* Navigation from sidebar */}
           {navItems.map((route) => (
             <React.Fragment key={route.title}>
               <CommandGroup heading={route.title}>
                 {route.items.map((item) => (
                   <CommandItem
                     key={item.href}
-                    onSelect={() => {
-                      setOpen(false);
-                      router.push(item.href);
-                    }}
+                    value={item.title}
+                    onSelect={() => runCommand(item.href)}
                   >
-                    {item.icon && <item.icon />}
+                    {item.icon && <item.icon className="size-4" />}
                     <span>{item.title}</span>
                   </CommandItem>
                 ))}

@@ -1,11 +1,9 @@
 "use client";
 
 import type { CreateTaskRequest, Project, Task, UpdateTaskRequest, User } from "@crm/types";
-import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -31,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useApi, useMutation } from "@/hooks/use-api";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { projectsApi, tasksApi, usersApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
@@ -72,8 +71,7 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
     tasksApi.update(task?.id || "", data)
   );
 
-  const form = useForm<TaskFormValues>({
-    resolver: zodResolver(taskFormSchema),
+  const form = useZodForm(taskFormSchema, {
     defaultValues: {
       title: task?.title || "",
       description: task?.description || "",
@@ -174,7 +172,6 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <FormField
-                control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
@@ -188,7 +185,6 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
               />
 
               <FormField
-                control={form.control}
                 name="description"
                 render={({ field }) => (
                   <FormItem>
@@ -208,7 +204,6 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <FormField
-                  control={form.control}
                   name="projectId"
                   render={({ field }) => (
                     <FormItem>
@@ -237,7 +232,6 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
                 />
 
                 <FormField
-                  control={form.control}
                   name="assignedTo"
                   render={({ field }) => (
                     <FormItem>
@@ -270,7 +264,6 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
 
               <div className="grid gap-4 sm:grid-cols-3">
                 <FormField
-                  control={form.control}
                   name="status"
                   render={({ field }) => (
                     <FormItem>
@@ -294,7 +287,6 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
                 />
 
                 <FormField
-                  control={form.control}
                   name="priority"
                   render={({ field }) => (
                     <FormItem>
@@ -318,7 +310,6 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
                 />
 
                 <FormField
-                  control={form.control}
                   name="dueDate"
                   render={({ field }) => (
                     <FormItem>
@@ -333,7 +324,6 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
               </div>
 
               <FormField
-                control={form.control}
                 name="estimatedHours"
                 render={({ field }) => (
                   <FormItem className="max-w-[200px]">
@@ -348,13 +338,12 @@ export function TaskForm({ task, mode, defaultProjectId }: TaskFormProps) {
 
               {/* Tags */}
               <FormField
-                control={form.control}
                 name="tags"
                 render={() => (
                   <FormItem>
                     <FormLabel>Tags</FormLabel>
                     <div className="flex flex-wrap gap-2 mb-2">
-                      {watchedTags.map((tag) => (
+                      {watchedTags.map((tag: string) => (
                         <Badge key={tag} variant="secondary" className="gap-1">
                           {tag}
                           <button

@@ -465,7 +465,7 @@ export function TenantCompanyForm({ company, onSuccess }: Props) {
             <FormField
               control={form.control}
               name="logoUrl"
-              render={({ field }) => (
+              render={() => (
                 <FormItem>
                   <FormLabel className="text-xs text-[#878787] font-normal">Logo</FormLabel>
                   <FormControl>

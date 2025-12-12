@@ -1,7 +1,8 @@
 "use client";
 
 import { PlusCircledIcon } from "@radix-ui/react-icons";
-import { RefreshCwIcon } from "lucide-react";
+import { RefreshCwIcon, XIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,6 +31,8 @@ interface InvoicesToolbarProps {
   onRefresh: () => void;
   isLoading?: boolean;
   onNewInvoice?: () => void;
+  externalFilterLabel?: string;
+  onClearExternalFilter?: () => void;
 }
 
 export function InvoicesToolbar({
@@ -40,6 +43,8 @@ export function InvoicesToolbar({
   onRefresh,
   isLoading = false,
   onNewInvoice,
+  externalFilterLabel,
+  onClearExternalFilter,
 }: InvoicesToolbarProps) {
   return (
     <div className="flex items-center justify-between gap-4 py-4">
@@ -50,18 +55,31 @@ export function InvoicesToolbar({
           onChange={(e) => onSearchChange(e.target.value)}
           className="md:max-w-sm"
         />
-        <Select value={statusFilter} onValueChange={onStatusFilterChange}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            {statusOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {externalFilterLabel ? (
+          <Badge variant="secondary" className="gap-1 px-3 py-1.5">
+            {externalFilterLabel}
+            <button
+              type="button"
+              onClick={onClearExternalFilter}
+              className="ml-1 rounded-full hover:bg-muted-foreground/20"
+            >
+              <XIcon className="h-3 w-3" />
+            </button>
+          </Badge>
+        ) : (
+          <Select value={statusFilter} onValueChange={onStatusFilterChange}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by status" />
+            </SelectTrigger>
+            <SelectContent>
+              {statusOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
       <div className="flex items-center gap-2">
         <Button onClick={onNewInvoice} size="sm">

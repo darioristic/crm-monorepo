@@ -270,7 +270,7 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
   const watchedTaxRate = form.watch("taxRate");
 
   const calculations = useMemo(() => {
-    const subtotal = watchedItems.reduce((sum, item) => {
+    const subtotal = watchedItems.reduce((sum: number, item: QuoteFormValues["items"][number]) => {
       const lineTotal = (item.quantity || 0) * (item.unitPrice || 0);
       const discountAmount = lineTotal * ((item.discount || 0) / 100);
       return sum + (lineTotal - discountAmount);
@@ -303,7 +303,7 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
       createdBy: "current-user-id",
     };
 
-    const result: { success: true; data: Quote } | { success: false; error: string } =
+    const result =
       mode === "create"
         ? await createMutation.mutate({
             ...baseData,
@@ -317,14 +317,14 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
           } as CreateQuoteRequest)
         : await updateMutation.mutate(baseData as UpdateQuoteRequest);
 
-    if (result.success) {
+    if (result.success && result.data) {
       toast.success(
         mode === "create" ? "Quote created successfully" : "Quote updated successfully"
       );
       onOpenChange(false);
       onSuccess?.();
     } else {
-      toast.error(getErrorMessage(result.error, "Failed to save quote"));
+      toast.error(getErrorMessage(result.error || "", "Failed to save quote"));
     }
   };
 

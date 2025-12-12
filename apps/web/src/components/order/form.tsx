@@ -11,6 +11,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { useMutation } from "@/hooks/use-api";
 import { accountsApi, ordersApi } from "@/lib/api";
 import { logger } from "@/lib/logger";
+import { getErrorMessage } from "@/lib/utils";
 import { CustomerDetails } from "./customer-details";
 import { EditBlock } from "./edit-block";
 import { createContentFromText, extractTextFromContent } from "./editor";
@@ -334,7 +335,12 @@ export function Form({ orderId, onSuccess, onDraftSaved }: FormProps) {
       );
       onSuccess?.(result.data.id);
     } else {
-      toast.error(result.error || (orderId ? "Failed to update order" : "Failed to create order"));
+      toast.error(
+        getErrorMessage(
+          result.error || "",
+          orderId ? "Failed to update order" : "Failed to create order"
+        )
+      );
     }
   };
 

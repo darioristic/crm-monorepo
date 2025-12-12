@@ -34,7 +34,7 @@ export const userQueries = {
 
     // Izvršavaj count
     const countQuery = `SELECT COUNT(*) FROM users u ${whereClause}`;
-    const countResult = await db.unsafe(countQuery, whereValues as unknown[]);
+    const countResult = await db.unsafe(countQuery, whereValues as QueryParam[]);
     const total = parseInt(countResult[0].count, 10);
 
     // Sanitizuj sortiranje - dodaj prefiks za JOIN
@@ -72,7 +72,7 @@ export const userQueries = {
       ...whereValues,
       safePageSize,
       safeOffset,
-    ] as unknown[]);
+    ] as QueryParam[]);
 
     return { data: data.map(mapUserWithCompany), total };
   },

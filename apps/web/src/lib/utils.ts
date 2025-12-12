@@ -48,6 +48,45 @@ export function formatCurrency(amount: number, currency = "EUR"): string {
   }).format(amount);
 }
 
+type FormatAmountParams = {
+  currency: string;
+  amount: number;
+  locale?: string | null;
+  maximumFractionDigits?: number;
+  minimumFractionDigits?: number;
+};
+
+export function formatAmount({
+  currency,
+  amount,
+  locale = "sr-RS",
+  minimumFractionDigits,
+  maximumFractionDigits,
+}: FormatAmountParams): string | undefined {
+  if (!currency) {
+    return;
+  }
+
+  const safeLocale = locale ?? "sr-RS";
+
+  try {
+    return Intl.NumberFormat(safeLocale, {
+      style: "currency",
+      currency,
+      minimumFractionDigits,
+      maximumFractionDigits,
+    }).format(amount);
+  } catch {
+    // Fallback to EUR if currency is invalid
+    return Intl.NumberFormat(safeLocale, {
+      style: "currency",
+      currency: "EUR",
+      minimumFractionDigits,
+      maximumFractionDigits,
+    }).format(amount);
+  }
+}
+
 export function formatDate(date: string | Date): string {
   const d = new Date(date);
   const day = d.getDate().toString().padStart(2, "0");

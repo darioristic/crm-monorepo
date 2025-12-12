@@ -52,7 +52,7 @@ const invoiceFormSchema = z.object({
   companyId: z.string().min(1, "Company is required"),
   issueDate: z.string().min(1, "Issue date is required"),
   dueDate: z.string().min(1, "Due date is required"),
-  status: z.enum(["draft", "sent", "paid", "partial", "overdue", "cancelled"]),
+  status: z.enum(["draft", "scheduled", "sent", "paid", "partial", "overdue", "cancelled"]),
   taxRate: z.coerce.number().min(0).max(100).default(0),
   notes: z.string().optional(),
   terms: z.string().optional(),
@@ -171,11 +171,14 @@ export function InvoiceModal({ invoice, mode, open, onOpenChange, onSuccess }: I
   const watchedTaxRate = form.watch("taxRate");
 
   const calculations = useMemo(() => {
-    const subtotal = watchedItems.reduce((sum, item) => {
-      const lineTotal = (item.quantity || 0) * (item.unitPrice || 0);
-      const discountAmount = lineTotal * ((item.discount || 0) / 100);
-      return sum + (lineTotal - discountAmount);
-    }, 0);
+    const subtotal = watchedItems.reduce(
+      (sum: number, item: InvoiceFormValues["items"][number]) => {
+        const lineTotal = (item.quantity || 0) * (item.unitPrice || 0);
+        const discountAmount = lineTotal * ((item.discount || 0) / 100);
+        return sum + (lineTotal - discountAmount);
+      },
+      0
+    );
     const tax = subtotal * ((watchedTaxRate || 0) / 100);
     const total = subtotal + tax;
     return { subtotal, tax, total };

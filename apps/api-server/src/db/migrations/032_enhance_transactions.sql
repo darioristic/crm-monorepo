@@ -6,26 +6,34 @@
 -- ENUM TYPES
 -- ==============================================
 
--- Transaction methods
-CREATE TYPE transaction_method AS ENUM (
-  'payment',
-  'card_purchase',
-  'transfer',
-  'deposit',
-  'withdrawal',
-  'fee',
-  'interest',
-  'other'
-);
+-- Transaction methods (with IF NOT EXISTS check)
+DO $$ BEGIN
+  CREATE TYPE transaction_method AS ENUM (
+    'payment',
+    'card_purchase',
+    'transfer',
+    'deposit',
+    'withdrawal',
+    'fee',
+    'interest',
+    'other'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
--- Transaction frequency for recurring
-CREATE TYPE transaction_frequency AS ENUM (
-  'weekly',
-  'biweekly',
-  'monthly',
-  'annually',
-  'unknown'
-);
+-- Transaction frequency for recurring (with IF NOT EXISTS check)
+DO $$ BEGIN
+  CREATE TYPE transaction_frequency AS ENUM (
+    'weekly',
+    'biweekly',
+    'monthly',
+    'annually',
+    'unknown'
+  );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ==============================================
 -- TRANSACTION CATEGORIES TABLE
@@ -176,6 +184,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS tr_transaction_categories_updated ON transaction_categories;
 CREATE TRIGGER tr_transaction_categories_updated
   BEFORE UPDATE ON transaction_categories
   FOR EACH ROW EXECUTE FUNCTION update_category_updated_at();

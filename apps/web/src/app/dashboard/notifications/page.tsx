@@ -103,7 +103,7 @@ export default function NotificationsPage() {
   const fetchNotifications = useCallback(async () => {
     setIsLoading(true);
     try {
-      const params: { pageSize: number; isRead?: boolean } = { pageSize: 50 };
+      const params: Parameters<typeof notificationsApi.getAll>[0] = { pageSize: 50 };
       if (filter === "unread") params.isRead = false;
       if (filter === "read") params.isRead = true;
 

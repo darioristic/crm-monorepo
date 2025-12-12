@@ -20,6 +20,7 @@ import { useFieldArray } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { SelectCompany } from "@/components/companies/select-company";
+import { type DeliveryType, InvoiceSubmitButton } from "@/components/invoice/invoice-submit-button";
 import { CreateCompanyInlineForm } from "@/components/shared/documents/create-company-inline-form";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -76,7 +77,7 @@ const invoiceFormSchema = z.object({
   companyId: z.string().min(1, "Company is required"),
   issueDate: z.string().min(1, "Issue date is required"),
   dueDate: z.string().min(1, "Due date is required"),
-  status: z.enum(["draft", "sent", "paid", "partial", "overdue", "cancelled"]),
+  status: z.enum(["draft", "scheduled", "sent", "paid", "partial", "overdue", "cancelled"]),
   taxRate: z.coerce.number().min(0).max(100).default(0),
   notes: z.string().optional(),
   terms: z.string().optional(),
@@ -211,18 +212,27 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
   const watchedTaxRate = form.watch("taxRate");
 
   const calculations = useMemo(() => {
-    const subtotal = watchedItems.reduce((sum, item) => {
-      const lineTotal = (item.quantity || 0) * (item.unitPrice || 0);
-      const discountAmount = lineTotal * ((item.discount || 0) / 100);
-      return sum + (lineTotal - discountAmount);
-    }, 0);
+    const subtotal = watchedItems.reduce(
+      (sum: number, item: InvoiceFormValues["items"][number]) => {
+        const lineTotal = (item.quantity || 0) * (item.unitPrice || 0);
+        const discountAmount = lineTotal * ((item.discount || 0) / 100);
+        return sum + (lineTotal - discountAmount);
+      },
+      0
+    );
     const tax = subtotal * ((watchedTaxRate || 0) / 100);
     const total = subtotal + tax;
     return { subtotal, tax, total };
   }, [watchedItems, watchedTaxRate]);
 
-  const onSubmit = async (values: InvoiceFormValues) => {
-    const items = values.items.map((item) => ({
+  const handleSubmit = async (deliveryType: DeliveryType, scheduledAt?: string) => {
+    // Trigger form validation
+    const isValid = await form.trigger();
+    if (!isValid) return;
+
+    const values = form.getValues();
+
+    const items = values.items.map((item: InvoiceFormValues["items"][number]) => ({
       productName: item.productName,
       description: item.description || undefined,
       quantity: item.quantity,
@@ -248,46 +258,110 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
         }
       : undefined;
 
-    const createData: CreateInvoiceRequest = {
-      companyId: values.companyId,
-      sellerCompanyId: user?.companyId,
-      issueDate: new Date(values.issueDate).toISOString(),
-      dueDate: new Date(values.dueDate).toISOString(),
-      status: values.status,
-      taxRate: values.taxRate,
-      notes: values.notes || undefined,
-      terms: values.terms || undefined,
-      items,
-      customerDetails,
-    };
-
-    const updateData: UpdateInvoiceRequest = {
-      companyId: values.companyId,
-      sellerCompanyId: user?.companyId,
-      issueDate: new Date(values.issueDate).toISOString(),
-      dueDate: new Date(values.dueDate).toISOString(),
-      status: values.status,
-      taxRate: values.taxRate,
-      notes: values.notes || undefined,
-      terms: values.terms || undefined,
-      items,
-      customerDetails,
-    };
-
-    const result: { success: true; data: Invoice } | { success: false; error: string } =
-      mode === "create"
-        ? await createMutation.mutate(createData)
-        : await updateMutation.mutate(updateData);
-
-    if (result.success) {
-      toast.success(
-        mode === "create" ? "Invoice created successfully" : "Invoice updated successfully"
-      );
-      router.push("/dashboard/sales/invoices");
-      router.refresh();
-    } else {
-      toast.error(getErrorMessage(result.error, "Failed to save invoice"));
+    // Determine status based on delivery type
+    let status: "draft" | "sent" | "scheduled" = "draft";
+    if (deliveryType === "create_and_send") {
+      status = "sent";
+    } else if (deliveryType === "scheduled") {
+      status = "scheduled";
     }
+
+    const createData = {
+      companyId: values.companyId,
+      sellerCompanyId: user?.companyId,
+      issueDate: new Date(values.issueDate).toISOString(),
+      dueDate: new Date(values.dueDate).toISOString(),
+      status,
+      taxRate: values.taxRate,
+      notes: values.notes || undefined,
+      terms: values.terms || undefined,
+      items,
+      customerDetails,
+      deliveryType,
+      scheduledAt,
+    } as CreateInvoiceRequest;
+
+    const updateData = {
+      companyId: values.companyId,
+      sellerCompanyId: user?.companyId,
+      issueDate: new Date(values.issueDate).toISOString(),
+      dueDate: new Date(values.dueDate).toISOString(),
+      status,
+      taxRate: values.taxRate,
+      notes: values.notes || undefined,
+      terms: values.terms || undefined,
+      items,
+      customerDetails,
+    } as UpdateInvoiceRequest;
+
+    try {
+      const result =
+        mode === "create"
+          ? await createMutation.mutate(createData)
+          : await updateMutation.mutate(updateData);
+
+      if (result.success && result.data) {
+        // If scheduling and creation successful, schedule the invoice
+        if (mode === "create" && deliveryType === "scheduled" && scheduledAt) {
+          const scheduleResult = await invoicesApi.schedule(result.data.id, scheduledAt);
+          if (!scheduleResult.success) {
+            toast.error("Invoice created but scheduling failed");
+            router.push("/dashboard/sales/invoices");
+            router.refresh();
+            return;
+          }
+        }
+
+        // Handle scheduling for existing invoices
+        if (mode === "edit" && invoice?.id && deliveryType === "scheduled" && scheduledAt) {
+          // Schedule or update schedule
+          if (invoice.status === "scheduled") {
+            await invoicesApi.updateSchedule(invoice.id, scheduledAt);
+          } else {
+            await invoicesApi.schedule(invoice.id, scheduledAt);
+          }
+        }
+
+        const message =
+          deliveryType === "scheduled"
+            ? "Invoice scheduled successfully"
+            : deliveryType === "create_and_send"
+              ? "Invoice sent successfully"
+              : mode === "create"
+                ? "Invoice created successfully"
+                : "Invoice updated successfully";
+        toast.success(message);
+        router.push("/dashboard/sales/invoices");
+        router.refresh();
+      } else {
+        toast.error(getErrorMessage(result.error, "Failed to save invoice"));
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error, "Failed to save invoice"));
+    }
+  };
+
+  const handleCancelSchedule = async () => {
+    if (invoice?.id && invoice.status === "scheduled") {
+      try {
+        const result = await invoicesApi.cancelSchedule(invoice.id);
+        if (result.success) {
+          toast.success("Schedule cancelled");
+          router.refresh();
+        } else {
+          toast.error("Failed to cancel schedule");
+        }
+      } catch (_error) {
+        toast.error("Failed to cancel schedule");
+      }
+    }
+  };
+
+  // Keep the old onSubmit for form submission (required by Form component)
+  const onSubmit = async (_values: InvoiceFormValues) => {
+    // This is called when the form is submitted via Enter key
+    // Default to "create" delivery type
+    await handleSubmit("create");
   };
 
   const isLoading = createMutation.isLoading || updateMutation.isLoading;
@@ -368,6 +442,7 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="draft">Draft</SelectItem>
+                          <SelectItem value="scheduled">Scheduled</SelectItem>
                           <SelectItem value="sent">Sent</SelectItem>
                           <SelectItem value="paid">Paid</SelectItem>
                           <SelectItem value="partial">Partial</SelectItem>
@@ -640,11 +715,12 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                   </Card>
                 ))}
 
-                {form.formState.errors.items?.root && (
-                  <p className="text-sm text-destructive">
-                    {form.formState.errors.items.root.message}
-                  </p>
-                )}
+                {form.formState.errors.items?.root &&
+                  typeof (form.formState.errors.items.root as any)?.message === "string" && (
+                    <p className="text-sm text-destructive">
+                      {(form.formState.errors.items.root as any).message as string}
+                    </p>
+                  )}
               </div>
 
               {/* Totals */}
@@ -710,10 +786,14 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
 
               {/* Actions */}
               <div className="flex gap-4">
-                <Button type="submit" disabled={isLoading}>
-                  {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  {mode === "create" ? "Create Invoice" : "Update Invoice"}
-                </Button>
+                <InvoiceSubmitButton
+                  mode={mode}
+                  isLoading={isLoading}
+                  isScheduled={invoice?.status === "scheduled"}
+                  currentScheduledAt={invoice?.scheduledAt}
+                  onSubmit={handleSubmit}
+                  onCancelSchedule={handleCancelSchedule}
+                />
                 <Button type="button" variant="outline" onClick={() => router.back()}>
                   Cancel
                 </Button>

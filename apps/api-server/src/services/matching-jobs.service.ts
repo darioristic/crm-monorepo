@@ -103,9 +103,10 @@ export async function handleBidirectionalMatching(
   // Get pending inbox items that weren't matched in Phase 1
   try {
     const pendingInbox = await getPendingInboxForMatching(tenantId, 50);
-    const unprocessedInbox = pendingInbox.filter(
-      (item: { id: string }) => !processedInboxIds.has(item.id)
-    );
+    const unprocessedInbox = pendingInbox.filter((item) => {
+      const id = (item as { id?: string })?.id;
+      return typeof id === "string" && !processedInboxIds.has(id);
+    }) as Array<{ id: string }>;
 
     if (unprocessedInbox.length > 0) {
       serviceLogger.info(
@@ -117,7 +118,7 @@ export async function handleBidirectionalMatching(
       const BATCH_SIZE = 10;
       for (let i = 0; i < unprocessedInbox.length; i += BATCH_SIZE) {
         const batch = unprocessedInbox.slice(i, i + BATCH_SIZE);
-        const batchIds = batch.map((item: { id: string }) => item.id);
+        const batchIds = batch.map((item) => item.id);
 
         const batchResult = await batchProcessMatching(tenantId, batchIds);
         result.processed += batchResult.processed;
@@ -249,7 +250,9 @@ export async function smartMatching(params: {
     };
   }
 
-  const pendingIds = pendingInbox.map((item: { id: string }) => item.id);
+  const pendingIds = pendingInbox
+    .map((item) => (item as { id?: string })?.id)
+    .filter((id): id is string => typeof id === "string");
   return handleBatchInboxMatching({ tenantId, inboxIds: pendingIds });
 }
 

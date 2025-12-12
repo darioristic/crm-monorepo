@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { Document, Page, PasswordResponses, pdfjs } from "react-pdf";
 import "react-pdf/dist/Page/TextLayer.css";
-import "react-pdf/dist/Page/AnnotationLayer.css";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";

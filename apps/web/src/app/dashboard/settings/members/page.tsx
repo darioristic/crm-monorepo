@@ -28,8 +28,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import type { CreateTenantUserRequest, TenantUser } from "@/lib/api";
 import { tenantAdminApi } from "@/lib/api";
-import type { TenantUser, CreateTenantUserRequest } from "@/lib/api";
 
 // Use workspace TenantUser type from API client
 
@@ -75,7 +75,7 @@ export default function MembersSettingsPage() {
     <main className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Members</h1>
-        <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <Dialog open={inviteOpen} onOpenChange={(open) => setInviteOpen(open)}>
           <DialogTrigger asChild>
             <Button>Invite</Button>
           </DialogTrigger>
@@ -97,7 +97,11 @@ export default function MembersSettingsPage() {
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="invite-role">Role</Label>
-                <Select name="role" value={inviteRole} onValueChange={setInviteRole}>
+                <Select
+                  name="role"
+                  value={inviteRole}
+                  onValueChange={(v) => setInviteRole(v as CreateTenantUserRequest["role"])}
+                >
                   <SelectTrigger id="invite-role">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>

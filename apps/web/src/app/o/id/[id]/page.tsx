@@ -1,5 +1,6 @@
 "use client";
 
+import type { EditorDoc } from "@crm/schemas";
 import Link from "next/link";
 import { use, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -48,7 +49,7 @@ export default function OrderByIdPage({ params }: Props) {
       vatNumber?: string;
       website?: string;
     };
-    customerDetails?: unknown;
+    customerDetails?: EditorDoc | string | null;
     vat?: number | null;
     tax?: number | null;
     discount?: number | null;
@@ -62,7 +63,7 @@ export default function OrderByIdPage({ params }: Props) {
     refundedAt?: string | null;
     quoteId?: string | null;
     invoiceId?: string | null;
-    fromDetails?: unknown;
+    fromDetails?: EditorDoc | string | null;
     logoUrl?: string | null;
   }
   const [order, setOrder] = useState<PublicOrder | null>(null);

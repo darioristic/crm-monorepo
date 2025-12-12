@@ -176,6 +176,7 @@ export async function POST(request: NextRequest) {
           discount: item.discount || 0,
           vat: item.vat ?? item.vatRate ?? apiQuote.vatRate ?? 20,
         })) || [],
+      paymentDetails: null,
       customerDetails,
       fromDetails,
       noteDetails: apiQuote.notes
@@ -185,11 +186,23 @@ export async function POST(request: NextRequest) {
           }
         : null,
       note: apiQuote.notes,
+      internalNote: null,
       vat: apiQuote.vat || null,
       tax: apiQuote.tax || null,
       discount: apiQuote.discount || null,
       subtotal: apiQuote.subtotal,
-      status: apiQuote.status,
+      status: ((): Quote["status"] => {
+        const raw = String(apiQuote.status || "").toLowerCase();
+        const map: Record<string, Quote["status"]> = {
+          draft: "draft",
+          sent: "sent",
+          viewed: "sent",
+          accepted: "accepted",
+          rejected: "rejected",
+          expired: "expired",
+        };
+        return map[raw] ?? "draft";
+      })(),
       template: {
         ...DEFAULT_QUOTE_TEMPLATE,
         ...(apiQuote.templateSettings || {}),
@@ -202,6 +215,15 @@ export async function POST(request: NextRequest) {
         includeDiscount: true,
         includeDecimals: true,
       },
+      token: apiQuote.token || "",
+      filePath: null,
+      sentAt: apiQuote.sentAt || null,
+      viewedAt: apiQuote.viewedAt || null,
+      acceptedAt: apiQuote.acceptedAt || null,
+      rejectedAt: apiQuote.rejectedAt || null,
+      sentTo: null,
+      topBlock: null,
+      bottomBlock: null,
       customerId: apiQuote.companyId,
       customerName: companyName || "Customer",
       customer: {
@@ -210,12 +232,14 @@ export async function POST(request: NextRequest) {
         website: apiQuote.company?.website || null,
         email: apiQuote.company?.email || null,
       },
+      team: null,
+      scheduledAt: null,
     };
 
     // Step 2: Generate PDF
     const { renderToBuffer } = await import("@react-pdf/renderer");
-    const { QuotePdfTemplate } = await import("@/components/quote/templates/pdf-template");
-    const pdfDocument = await QuotePdfTemplate({ quote });
+    const { PdfTemplate } = await import("@/components/quote/templates/pdf-template");
+    const pdfDocument = await PdfTemplate({ quote });
     const pdfBuffer = await renderToBuffer(
       pdfDocument as unknown as Parameters<typeof renderToBuffer>[0]
     );

@@ -289,7 +289,7 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
             });
             return (
               <View
-                key={`${item.name}-${item.price}-${item.quantity}`}
+                key={item.productId || `line-item-${index}`}
                 style={{
                   paddingVertical: 5,
                   borderBottomWidth: 0.5,

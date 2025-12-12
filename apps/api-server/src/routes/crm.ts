@@ -383,9 +383,19 @@ router.post("/api/v1/organizations", async (request) => {
       name: string;
       email?: string | null;
       phone?: string | null;
+      website?: string | null;
       pib?: string | null;
       companyNumber?: string | null;
       contactPerson?: string | null;
+      addressLine1?: string | null;
+      addressLine2?: string | null;
+      city?: string | null;
+      state?: string | null;
+      country?: string | null;
+      countryCode?: string | null;
+      zip?: string | null;
+      note?: string | null;
+      tags?: Array<{ id: string; name: string }>;
       isFavorite?: boolean;
     }>(request);
     if (!body?.name) return errorResponse("VALIDATION_ERROR", "Name is required");
@@ -395,9 +405,19 @@ router.post("/api/v1/organizations", async (request) => {
       name: body.name,
       email: body.email || null,
       phone: body.phone || null,
+      website: body.website || null,
       pib: body.pib || null,
       companyNumber: body.companyNumber || null,
       contactPerson: body.contactPerson || null,
+      addressLine1: body.addressLine1 || null,
+      addressLine2: body.addressLine2 || null,
+      city: body.city || null,
+      state: body.state || null,
+      country: body.country || null,
+      countryCode: body.countryCode || null,
+      zip: body.zip || null,
+      note: body.note || null,
+      tags: body.tags,
       isFavorite: !!body.isFavorite,
       createdAt: now,
       updatedAt: now,
@@ -412,9 +432,19 @@ router.put("/api/v1/organizations/:id", async (request, _url, params) => {
       name?: string;
       email?: string | null;
       phone?: string | null;
+      website?: string | null;
       pib?: string | null;
       companyNumber?: string | null;
       contactPerson?: string | null;
+      addressLine1?: string | null;
+      addressLine2?: string | null;
+      city?: string | null;
+      state?: string | null;
+      country?: string | null;
+      countryCode?: string | null;
+      zip?: string | null;
+      note?: string | null;
+      tags?: Array<{ id: string; name: string }>;
       isFavorite?: boolean;
     }>(request);
     if (!body) {
@@ -426,9 +456,19 @@ router.put("/api/v1/organizations/:id", async (request, _url, params) => {
         name: body.name,
         email: body.email,
         phone: body.phone,
+        website: body.website,
         pib: body.pib,
         companyNumber: body.companyNumber,
         contactPerson: body.contactPerson,
+        addressLine1: body.addressLine1,
+        addressLine2: body.addressLine2,
+        city: body.city,
+        state: body.state,
+        country: body.country,
+        countryCode: body.countryCode,
+        zip: body.zip,
+        note: body.note,
+        tags: body.tags,
         isFavorite: body.isFavorite,
         updatedAt: new Date().toISOString(),
       },

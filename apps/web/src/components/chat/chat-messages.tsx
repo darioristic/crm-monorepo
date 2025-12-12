@@ -1,6 +1,12 @@
 "use client";
 
-type Message = { id: string; role: "user" | "assistant"; content: string };
+type ChatMessage = {
+  id: string;
+  role: "user" | "assistant";
+  content: string | Array<string | { text?: string }>;
+  text?: string;
+  display?: string;
+};
 
 import { AlertCircleIcon, BotIcon, RefreshCwIcon, UserIcon } from "lucide-react";
 import ReactMarkdown from "react-markdown";
@@ -9,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface ChatMessagesProps {
-  messages: any[];
+  messages: ChatMessage[];
   isLoading?: boolean;
   error?: Error | null;
   onRetry?: () => void;
@@ -67,13 +73,11 @@ export function ChatMessages({ messages, isLoading, error, onRetry }: ChatMessag
   );
 }
 
-function getMessageText(message: any): string {
-  const m = message as any;
+function getMessageText(message: ChatMessage): string {
+  const m = message;
   if (typeof m.content === "string") return m.content;
   if (Array.isArray(m.content)) {
-    const parts = m.content
-      .map((p: any) => (typeof p === "string" ? p : p?.text || ""))
-      .filter(Boolean);
+    const parts = m.content.map((p) => (typeof p === "string" ? p : p?.text || "")).filter(Boolean);
     if (parts.length) return parts.join("\n\n");
   }
   if (typeof m.text === "string") return m.text;
@@ -81,8 +85,8 @@ function getMessageText(message: any): string {
   return "";
 }
 
-function MessageBubble({ message }: { message: any }) {
-  const isUser = (message as any).role === "user";
+function MessageBubble({ message }: { message: ChatMessage }) {
+  const isUser = message.role === "user";
 
   return (
     <div className={cn("flex items-start gap-3", isUser && "flex-row-reverse")}>

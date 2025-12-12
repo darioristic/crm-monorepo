@@ -6,13 +6,15 @@ import { CustomerMetricsCanvas } from "./customer-metrics-canvas";
 import { SalesFunnelCanvas } from "./sales-funnel-canvas";
 
 interface CanvasRouterProps {
-  data?: any;
+  data?: unknown;
 }
 
 export function CanvasRouter({ data }: CanvasRouterProps) {
   const searchParams = useSearchParams();
   const router = useRouter();
   const artifactType = searchParams.get("artifact-type") as ArtifactType | null;
+  // biome-ignore lint/suspicious/noExplicitAny: data shape varies by artifact type
+  const d = (data ?? {}) as any;
 
   if (!artifactType) return null;
 
@@ -24,13 +26,13 @@ export function CanvasRouter({ data }: CanvasRouterProps) {
 
   switch (artifactType) {
     case "sales-funnel":
-      return <SalesFunnelCanvas data={data?.funnelData} onClose={handleClose} />;
+      return <SalesFunnelCanvas data={d.funnelData} onClose={handleClose} />;
     case "customer-metrics":
       return (
         <CustomerMetricsCanvas
-          typeData={data?.typeData}
-          growthData={data?.growthData}
-          metrics={data?.metrics}
+          typeData={d.typeData}
+          growthData={d.growthData}
+          metrics={d.metrics}
           onClose={handleClose}
         />
       );

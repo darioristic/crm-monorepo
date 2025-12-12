@@ -1,6 +1,11 @@
 "use client";
 
-import type { CreateDeliveryNoteRequest, UpdateDeliveryNoteRequest, DeliveryNote } from "@crm/types";
+import type {
+  CreateDeliveryNoteRequest,
+  DeliveryNote,
+  UpdateDeliveryNoteRequest,
+} from "@crm/types";
+import type { JSONContent } from "@tiptap/react";
 import { useCallback, useEffect, useRef } from "react";
 import { type FieldErrors, useFormContext, useWatch } from "react-hook-form";
 import { toast } from "sonner";
@@ -8,7 +13,6 @@ import { useDebounceValue } from "usehooks-ts";
 import { CustomerDetails } from "@/components/order/customer-details";
 import { EditBlock } from "@/components/order/edit-block";
 import { createContentFromText, extractTextFromContent } from "@/components/order/editor";
-import type { JSONContent } from "@tiptap/react";
 import { FromDetails } from "@/components/order/from-details";
 import { LineItems } from "@/components/order/line-items";
 import { Logo } from "@/components/order/logo";
@@ -37,11 +41,11 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
   const { user } = useAuth();
 
   // Mutations
-  const draftMutation = useMutation<DeliveryNote, UpdateDeliveryNoteRequest>((data: UpdateDeliveryNoteRequest) =>
-    deliveryNotesApi.update(deliveryNoteId || "", data)
+  const draftMutation = useMutation<DeliveryNote, UpdateDeliveryNoteRequest>(
+    (data: UpdateDeliveryNoteRequest) => deliveryNotesApi.update(deliveryNoteId || "", data)
   );
-  const createMutation = useMutation<DeliveryNote, CreateDeliveryNoteRequest>((data: CreateDeliveryNoteRequest) =>
-    deliveryNotesApi.create(data)
+  const createMutation = useMutation<DeliveryNote, CreateDeliveryNoteRequest>(
+    (data: CreateDeliveryNoteRequest) => deliveryNotesApi.create(data)
   );
 
   // Use refs for mutation functions to prevent infinite loops in useEffect
@@ -82,30 +86,27 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
   // Transform form values to API format
   const transformFormValuesToDraft = useCallback(
     (values: FormValues): UpdateDeliveryNoteRequest => {
-      const notes =
-        values.noteDetails
-          ? extractTextFromContent(
-              typeof values.noteDetails === "string"
-                ? createContentFromText(values.noteDetails)
-                : (values.noteDetails as JSONContent | null | undefined)
-            )
-          : undefined;
-      const terms =
-        values.paymentDetails
-          ? extractTextFromContent(
-              typeof values.paymentDetails === "string"
-                ? createContentFromText(values.paymentDetails)
-                : (values.paymentDetails as JSONContent | null | undefined)
-            )
-          : undefined;
-      const shippingAddress =
-        values.customerDetails
-          ? extractTextFromContent(
-              typeof values.customerDetails === "string"
-                ? createContentFromText(values.customerDetails)
-                : (values.customerDetails as JSONContent | null | undefined)
-            ) || "N/A"
-          : "N/A";
+      const notes = values.noteDetails
+        ? extractTextFromContent(
+            typeof values.noteDetails === "string"
+              ? createContentFromText(values.noteDetails)
+              : (values.noteDetails as JSONContent | null | undefined)
+          )
+        : undefined;
+      const terms = values.paymentDetails
+        ? extractTextFromContent(
+            typeof values.paymentDetails === "string"
+              ? createContentFromText(values.paymentDetails)
+              : (values.paymentDetails as JSONContent | null | undefined)
+          )
+        : undefined;
+      const shippingAddress = values.customerDetails
+        ? extractTextFromContent(
+            typeof values.customerDetails === "string"
+              ? createContentFromText(values.customerDetails)
+              : (values.customerDetails as JSONContent | null | undefined)
+          ) || "N/A"
+        : "N/A";
 
       return {
         companyId: values.customerId?.trim() ? values.customerId.trim() : undefined,
@@ -117,22 +118,6 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
         fromDetails: values.fromDetails || null,
         customerDetails: values.customerDetails || null,
         shippingAddress,
-        items: values.lineItems
-          .filter((item) => item.name && item.name.trim().length > 0)
-          .map((item) => {
-            const baseAmount = (item.price || 0) * (item.quantity || 1);
-            const discountAmount = baseAmount * ((item.discount || 0) / 100);
-            const total = baseAmount - discountAmount;
-            return {
-              productName: item.name,
-              description: "",
-              quantity: item.quantity || 1,
-              unit: item.unit || "pcs",
-              unitPrice: item.price || 0,
-              discount: item.discount || 0,
-              total,
-            };
-          }),
       };
     },
     []
@@ -229,12 +214,9 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
             type: "organization",
             limit: 1,
           });
-          if (
-            (res as any)?.success &&
-            Array.isArray((res as any).data) &&
-            (res as any).data.length > 0
-          ) {
-            companyIdFinal = (res as any).data[0].id;
+          const resData = res as { success?: boolean; data?: { id: string }[] };
+          if (resData?.success && Array.isArray(resData.data) && resData.data.length > 0) {
+            companyIdFinal = resData.data[0].id;
           }
         } catch {}
       }
@@ -294,7 +276,7 @@ export function Form({ deliveryNoteId, onSuccess, onDraftSaved }: FormProps) {
       createData.items.length === 0
     ) {
       logger.error("Submit validation failed:", {
-        customerCompanyId: createData.companyId,
+        companyId: createData.companyId,
         deliveryDate: createData.deliveryDate,
         itemsCount: createData.items?.length ?? 0,
       });

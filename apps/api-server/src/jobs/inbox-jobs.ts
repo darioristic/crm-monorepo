@@ -70,10 +70,26 @@ function createInboxOCRWorker(): Worker {
 
         const fileBuffer = await fs.readFile(fullPath);
 
-        // Process document with OCR
         const ocrResult = await processDocument(fileBuffer, mimeType);
 
-        // Update inbox with extracted data
+        let parsedDate: string | null = null;
+        try {
+          const dateStr = ocrResult.extractedData?.invoiceDate || null;
+          if (dateStr) {
+            const parts = dateStr.split(/[./-]/).map((p) => p.trim());
+            if (parts.length === 3) {
+              const [d, m, y] = parts.map((p) => parseInt(p, 10));
+              const fullY = y < 100 ? 2000 + y : y;
+              const dateObj = new Date(fullY, m - 1, d);
+              if (!Number.isNaN(dateObj.getTime())) {
+                parsedDate = dateObj.toISOString();
+              }
+            }
+          }
+        } catch {
+          parsedDate = null;
+        }
+
         await db`
           UPDATE inbox
           SET
@@ -81,8 +97,9 @@ function createInboxOCRWorker(): Worker {
             ocr_confidence = ${ocrResult.confidence},
             amount = COALESCE(${ocrResult.extractedData?.totalAmount || null}, amount),
             currency = COALESCE(${ocrResult.extractedData?.currency || null}, currency),
-            date = COALESCE(${ocrResult.extractedData?.invoiceDate || null}::timestamp, date),
+            date = COALESCE(${parsedDate}::timestamp, date),
             reference_id = COALESCE(${ocrResult.extractedData?.invoiceNumber || null}, reference_id),
+            display_name = COALESCE(${ocrResult.extractedData?.vendorName || null}, display_name),
             status = 'pending',
             updated_at = NOW()
           WHERE id = ${inboxId} AND tenant_id = ${tenantId}

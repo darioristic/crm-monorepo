@@ -1,6 +1,6 @@
 "use client";
 
-import type { CreateOrderRequest, Order, UpdateOrderRequest } from "@crm/types";
+import type { CreateOrderRequest, Invoice, Order, Quote, UpdateOrderRequest } from "@crm/types";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Loader2, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -33,8 +33,8 @@ import {
 import { Sheet, SheetContent, SheetHeader } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/contexts/auth-context";
-import { useMutation } from "@/hooks/use-api";
-import { ordersApi } from "@/lib/api";
+import { useApi, useMutation } from "@/hooks/use-api";
+import { invoicesApi, ordersApi, quotesApi } from "@/lib/api";
 import { getErrorMessage } from "@/lib/utils";
 
 const lineItemSchema = z.object({
@@ -98,7 +98,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
   );
 
   const form = useForm<OrderFormValues>({
-    resolver: zodResolver(orderFormSchema),
+    resolver: zodResolver(orderFormSchema) as any,
     defaultValues: {
       companyId: order?.companyId || "",
       contactId: order?.contactId || "",
@@ -199,7 +199,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
 
   const onSubmit = async (values: OrderFormValues) => {
     const data = {
-      customerCompanyId: values.companyId,
+      companyId: values.companyId,
       sellerCompanyId: user?.companyId,
       contactId: values.contactId || undefined,
       quoteId: values.quoteId || undefined,
@@ -214,19 +214,19 @@ export function OrderForm({ order, mode }: OrderFormProps) {
       items: values.items,
     };
 
-    const result: { success: true; data: Order } | { success: false; error: string } =
+    const result =
       mode === "create"
         ? await createMutation.mutate(data as CreateOrderRequest)
         : await updateMutation.mutate(data as UpdateOrderRequest);
 
-    if (result.success) {
+    if (result.success && result.data) {
       toast.success(
         mode === "create" ? "Order created successfully" : "Order updated successfully"
       );
       router.push("/dashboard/sales/orders");
       router.refresh();
     } else {
-      toast.error(getErrorMessage(result.error, "Failed to save order"));
+      toast.error(getErrorMessage(result.error || "", "Failed to save order"));
     }
   };
 

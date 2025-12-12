@@ -8,6 +8,15 @@ import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/comp
 import { Skeleton } from "@/components/ui/skeleton";
 import { request } from "@/lib/api";
 
+type BankAccount = {
+  id: string;
+  accountName?: string;
+  bankName?: string;
+  iban?: string;
+  balance?: number;
+  currency?: string;
+};
+
 function BankAccountListSkeleton() {
   return (
     <div className="space-y-4">
@@ -22,10 +31,12 @@ function BankAccountList() {
     queryKey: ["connected-accounts"],
     queryFn: async () => {
       const response = await request("/api/v1/connected-accounts");
-      return response.success && response.data ? response.data : [];
+      return (
+        response.success && response.data ? (response.data as BankAccount[]) : []
+      ) as BankAccount[];
     },
   });
-  const accounts = Array.isArray(data) ? data : [];
+  const accounts: BankAccount[] = Array.isArray(data) ? data : [];
 
   if (isLoading) {
     return <BankAccountListSkeleton />;
@@ -37,7 +48,7 @@ function BankAccountList() {
 
   return (
     <div className="space-y-4">
-      {accounts.map((account: any) => (
+      {accounts.map((account) => (
         <div key={account.id} className="border p-4 rounded">
           <div className="font-medium">{account.accountName}</div>
           {account.bankName && (

@@ -93,3 +93,77 @@ export function QuantityInput({
     </div>
   );
 }
+
+// Compact version with visible buttons for forms
+type CompactQuantityInputProps = {
+  value: number;
+  onChange: (value: number) => void;
+  min?: number;
+  max?: number;
+  disabled?: boolean;
+  className?: string;
+  size?: "sm" | "default";
+};
+
+export function CompactQuantityInput({
+  value,
+  onChange,
+  min = 0,
+  max = Infinity,
+  disabled,
+  className,
+  size = "default",
+}: CompactQuantityInputProps) {
+  const clamp = (val: number) => Math.min(Math.max(val, min), max);
+
+  const sizeClasses = {
+    sm: "size-6",
+    default: "size-8",
+  };
+
+  const iconSizes = {
+    sm: "size-3",
+    default: "size-4",
+  };
+
+  return (
+    <div className={cn("inline-flex items-center", className)}>
+      <button
+        type="button"
+        onClick={() => onChange(clamp(value - 1))}
+        disabled={disabled || value <= min}
+        className={cn(
+          sizeClasses[size],
+          "flex items-center justify-center rounded-l-md border bg-muted text-muted-foreground",
+          "hover:bg-accent hover:text-accent-foreground",
+          "disabled:opacity-50 disabled:pointer-events-none",
+          "transition-colors"
+        )}
+      >
+        <Minus className={iconSizes[size]} />
+      </button>
+      <div
+        className={cn(
+          "flex items-center justify-center border-y bg-background px-3 text-sm tabular-nums",
+          size === "sm" ? "h-6 min-w-[2rem]" : "h-8 min-w-[2.5rem]"
+        )}
+      >
+        {value}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange(clamp(value + 1))}
+        disabled={disabled || value >= max}
+        className={cn(
+          sizeClasses[size],
+          "flex items-center justify-center rounded-r-md border bg-muted text-muted-foreground",
+          "hover:bg-accent hover:text-accent-foreground",
+          "disabled:opacity-50 disabled:pointer-events-none",
+          "transition-colors"
+        )}
+      >
+        <Plus className={iconSizes[size]} />
+      </button>
+    </div>
+  );
+}

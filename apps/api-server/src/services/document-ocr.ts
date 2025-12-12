@@ -56,6 +56,7 @@ export interface PageResult {
 export interface ExtractedDocumentData {
   // Common invoice/receipt fields
   vendorName?: string;
+  vendorWebsite?: string;
   vendorAddress?: string;
   vendorTaxId?: string;
 
@@ -280,13 +281,67 @@ async function ocrWithGoogleDocumentAI(fileBuffer: Buffer, mimeType: string): Pr
 /**
  * Extract structured data from raw OCR text using regex patterns
  */
-function extractDataFromText(text: string): ExtractedDocumentData {
+export function extractDataFromText(text: string): ExtractedDocumentData {
   const data: ExtractedDocumentData = {};
+
+  // Try to infer vendor name from header lines (Serbian/EU formats)
+  try {
+    const lines = text
+      .split(/\r?\n/)
+      .map((l) => l.trim())
+      .filter((l) => l.length > 0)
+      .slice(0, 50);
+
+    // Match legal entity suffixes commonly used in Serbia/EU
+    const companyRegex =
+      /^(.*?\b[A-ZŠĐČĆŽ][A-Za-z0-9&.\- ]{1,}\s(?:d\.?o\.?o\.?|doo|d\.?d\.?|a\.?d\.?|gmbh|llc|inc|ltd)\b.*)$/i;
+    for (const line of lines) {
+      const m = line.match(companyRegex);
+      if (m) {
+        // Clean trailing address or extra spacing
+        data.vendorName = m[1].replace(/\s{2,}/g, " ").trim();
+        break;
+      }
+    }
+
+    // If not found, use line preceding PIB/Tax ID mention
+    if (!data.vendorName) {
+      const pibIndex = lines.findIndex((l) => /\b(pib|tax\s*id|vat\s*id)\b/i.test(l));
+      if (pibIndex > 0) {
+        // Pick nearest non-empty line above
+        for (let i = pibIndex - 1; i >= 0; i--) {
+          const candidate = lines[i];
+          if (candidate && candidate.length >= 3) {
+            data.vendorName = candidate.replace(/\s{2,}/g, " ").trim();
+            break;
+          }
+        }
+      }
+    }
+
+    if (!data.vendorName) {
+      const genericKeywords =
+        /(faktura|račun|racun|invoice|proforma|ponuda|quote|datum|date|ukupno|total|iznos|amount|porez|tax|pdv|vat)/i;
+      const candidate = lines.find(
+        (l) =>
+          !genericKeywords.test(l) &&
+          !/^\d/.test(l) &&
+          /[A-Za-zŠĐČĆŽšđčćž]/.test(l) &&
+          l.length >= 3 &&
+          l.length <= 80
+      );
+      if (candidate) {
+        data.vendorName = candidate.replace(/\s{2,}/g, " ").trim();
+      }
+    }
+  } catch {
+    // Ignore vendor name inference errors
+  }
 
   // Invoice/Receipt number patterns
   const invoicePatterns = [
-    /(?:invoice|faktura|račun|racun)[\s#:]*([A-Z0-9-]+)/i,
-    /(?:inv|br|broj)[\s.#:]*([A-Z0-9-]+)/i,
+    /(?:invoice|faktura|račun|racun)\s*(?:broj|br\.?|no\.?|id)\b\s*[:#]?\s*([A-Z0-9]+(?:[/-][A-Z0-9]+)*)/i,
+    /\b(?:broj|inv|no\.?|id|br\.?)\b\s*[:#]?\s*([A-Z0-9]+(?:[/-][A-Z0-9]+)*)/i,
   ];
   for (const pattern of invoicePatterns) {
     const match = text.match(pattern);
@@ -311,24 +366,40 @@ function extractDataFromText(text: string): ExtractedDocumentData {
 
   // Amount patterns
   const amountPatterns = [
-    /(?:total|ukupno|iznos|suma|amount)[\s:]*([€$£]?\s*[\d,.]+)/i,
+    /(?:total|ukupno|ukupan\s*iznos|iznos\s*računa|iznos|suma|amount|za\s*uplatu)[^0-9€$£]*([€$£]?\s*[\d,.]+)/i,
     /([€$£]\s*[\d,.]+)/,
-    /([\d,.]+)\s*(?:EUR|USD|RSD|GBP)/i,
+    /([\d,.]+)\s*(?:EUR|USD|RSD|GBP|HRK|BAM|KM|CHF)/i,
+    /(?:EUR|USD|RSD|GBP|HRK|BAM|KM|CHF)\s*([\d,.]+)/i,
   ];
   for (const pattern of amountPatterns) {
     const match = text.match(pattern);
     if (match) {
-      const amountStr = match[1].replace(/[€$£,\s]/g, "").replace(",", ".");
+      let amountStr = match[1].replace(/[€$£\s]/g, "");
+      amountStr = amountStr.replace(/\./g, "").replace(",", ".");
       data.totalAmount = parseFloat(amountStr);
       break;
     }
   }
 
   // Currency detection
-  if (text.includes("€") || text.includes("EUR")) data.currency = "EUR";
-  else if (text.includes("$") || text.includes("USD")) data.currency = "USD";
-  else if (text.includes("RSD") || text.includes("din")) data.currency = "RSD";
-  else if (text.includes("£") || text.includes("GBP")) data.currency = "GBP";
+  {
+    const lower = text.toLowerCase();
+    if (/\u20ac|eur\b/i.test(text)) {
+      data.currency = "EUR";
+    } else if (/\$|usd\b/i.test(text)) {
+      data.currency = "USD";
+    } else if (/\brsd\b/i.test(lower) || /\bdin(?:ara)?\b/i.test(lower)) {
+      data.currency = "RSD";
+    } else if (/£|gbp\b/i.test(text)) {
+      data.currency = "GBP";
+    } else if (/\bhrk\b|\bkuna\b|kn\b/i.test(lower)) {
+      data.currency = "HRK";
+    } else if (/\bbam\b|\bkm\b/i.test(lower)) {
+      data.currency = "BAM";
+    } else if (/\bchf\b/i.test(lower)) {
+      data.currency = "CHF";
+    }
+  }
 
   // Tax/VAT patterns
   const taxPatterns = [
@@ -349,6 +420,24 @@ function extractDataFromText(text: string): ExtractedDocumentData {
     data.iban = ibanMatch[1];
   }
 
+  // Website / domain detection (from URLs or emails)
+  try {
+    // From email
+    const emailDomainMatch = text.match(/[A-Z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,})/i);
+    if (emailDomainMatch) {
+      data.vendorWebsite = emailDomainMatch[1].toLowerCase().replace(/^www\./, "");
+    }
+    // From URL
+    if (!data.vendorWebsite) {
+      const urlDomainMatch = text.match(/(?:https?:\/\/)?(?:www\.)?([a-z0-9.-]+\.[a-z]{2,})/i);
+      if (urlDomainMatch) {
+        data.vendorWebsite = urlDomainMatch[1].toLowerCase().replace(/^www\./, "");
+      }
+    }
+  } catch {
+    // Ignore website inference errors
+  }
+
   // Tax ID / PIB patterns
   const taxIdPatterns = [
     /(?:pib|tax\s*id|vat\s*id)[\s:]*(\d{9,13})/i,
@@ -359,6 +448,22 @@ function extractDataFromText(text: string): ExtractedDocumentData {
     if (match) {
       data.vendorTaxId = match[1];
       break;
+    }
+  }
+
+  // Normalize currency code (map synonyms to ISO code)
+  if (data.currency) {
+    const cur = data.currency.trim().toUpperCase();
+    if (cur === "DIN" || cur === "DINARA") {
+      data.currency = "RSD";
+    } else if (cur === "EURO") {
+      data.currency = "EUR";
+    } else if (cur === "KUNA" || cur === "KN" || cur === "HRK") {
+      data.currency = "HRK";
+    } else if (cur === "KM" || cur === "BAM") {
+      data.currency = "BAM";
+    } else if (cur.length === 3) {
+      data.currency = cur;
     }
   }
 
@@ -402,14 +507,24 @@ function extractDataFromEntities(
         break;
       case "total_amount":
       case "net_amount":
-        data.totalAmount = parseFloat(mentionText.replace(/[^0-9.,]/g, "").replace(",", "."));
+        data.totalAmount = parseFloat(
+          mentionText
+            .replace(/[^0-9.,]/g, "")
+            .replace(/\./g, "")
+            .replace(",", ".")
+        );
         break;
       case "currency":
         data.currency = mentionText;
         break;
       case "vat_amount":
       case "tax_amount":
-        data.taxAmount = parseFloat(mentionText.replace(/[^0-9.,]/g, "").replace(",", "."));
+        data.taxAmount = parseFloat(
+          mentionText
+            .replace(/[^0-9.,]/g, "")
+            .replace(/\./g, "")
+            .replace(",", ".")
+        );
         break;
     }
   }

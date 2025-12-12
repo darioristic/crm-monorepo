@@ -565,6 +565,7 @@ class ERPClient {
   private mapInvoiceStatus(status: Invoice["status"]): ERPInvoice["status"] {
     const statusMap: Record<Invoice["status"], ERPInvoice["status"]> = {
       draft: "draft",
+      scheduled: "draft", // ERP might not have scheduled, map to draft
       sent: "sent",
       paid: "paid",
       partial: "sent", // ERP might not have partial, map to sent

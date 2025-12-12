@@ -36,6 +36,7 @@ export function InboxSearch() {
   const handleSearch = (evt: React.ChangeEvent<HTMLInputElement>) => {
     const value = evt.target.value;
     setSearchQuery(value);
+    setParams({ q: value.length ? value : null });
   };
 
   return (

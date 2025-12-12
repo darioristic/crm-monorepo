@@ -6,33 +6,53 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 
 -- ==============================================
--- ENUM TYPES
+-- ENUM TYPES (with IF NOT EXISTS checks)
 -- ==============================================
 
 -- Email provider types (Gmail, Outlook, etc.)
-CREATE TYPE inbox_account_provider AS ENUM ('gmail', 'outlook', 'imap');
+DO $$ BEGIN
+  CREATE TYPE inbox_account_provider AS ENUM ('gmail', 'outlook', 'imap');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Connection status for email accounts
-CREATE TYPE inbox_account_status AS ENUM ('connected', 'disconnected', 'error');
+DO $$ BEGIN
+  CREATE TYPE inbox_account_status AS ENUM ('connected', 'disconnected', 'error');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Processing status for inbox items
-CREATE TYPE inbox_status AS ENUM (
-  'new',           -- Just received
-  'processing',    -- Being processed (OCR, AI analysis)
-  'analyzing',     -- AI is analyzing content
-  'pending',       -- Awaiting user action
-  'suggested_match', -- AI suggested a match
-  'no_match',      -- No matching transaction found
-  'done',          -- Successfully matched/processed
-  'archived',      -- Archived by user
-  'deleted'        -- Soft deleted
-);
+DO $$ BEGIN
+  CREATE TYPE inbox_status AS ENUM (
+    'new',           -- Just received
+    'processing',    -- Being processed (OCR, AI analysis)
+    'analyzing',     -- AI is analyzing content
+    'pending',       -- Awaiting user action
+    'suggested_match', -- AI suggested a match
+    'no_match',      -- No matching transaction found
+    'done',          -- Successfully matched/processed
+    'archived',      -- Archived by user
+    'deleted'        -- Soft deleted
+  );
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Type of inbox item
-CREATE TYPE inbox_type AS ENUM ('invoice', 'expense', 'receipt', 'other');
+DO $$ BEGIN
+  CREATE TYPE inbox_type AS ENUM ('invoice', 'expense', 'receipt', 'other');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- Blocklist type (email address or domain)
-CREATE TYPE inbox_blocklist_type AS ENUM ('email', 'domain');
+DO $$ BEGIN
+  CREATE TYPE inbox_blocklist_type AS ENUM ('email', 'domain');
+EXCEPTION
+  WHEN duplicate_object THEN NULL;
+END $$;
 
 -- ==============================================
 -- INBOX ACCOUNTS TABLE
@@ -284,14 +304,17 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Triggers for updated_at
+DROP TRIGGER IF EXISTS tr_inbox_accounts_updated ON inbox_accounts;
 CREATE TRIGGER tr_inbox_accounts_updated
   BEFORE UPDATE ON inbox_accounts
   FOR EACH ROW EXECUTE FUNCTION update_inbox_updated_at();
 
+DROP TRIGGER IF EXISTS tr_inbox_updated ON inbox;
 CREATE TRIGGER tr_inbox_updated
   BEFORE UPDATE ON inbox
   FOR EACH ROW EXECUTE FUNCTION update_inbox_updated_at();
 
+DROP TRIGGER IF EXISTS tr_match_suggestions_updated ON transaction_match_suggestions;
 CREATE TRIGGER tr_match_suggestions_updated
   BEFORE UPDATE ON transaction_match_suggestions
   FOR EACH ROW EXECUTE FUNCTION update_inbox_updated_at();

@@ -34,17 +34,19 @@ const LEAD_STATUSES: { value: Lead["status"]; label: string }[] = [
   { value: "new", label: "New" },
   { value: "contacted", label: "Contacted" },
   { value: "qualified", label: "Qualified" },
+  { value: "proposal", label: "Proposal" },
+  { value: "negotiation", label: "Negotiation" },
+  { value: "won", label: "Won" },
   { value: "lost", label: "Lost" },
-  { value: "converted", label: "Converted" },
 ];
 
 const LEAD_SOURCES: { value: Lead["source"]; label: string }[] = [
   { value: "website", label: "Website" },
   { value: "referral", label: "Referral" },
-  { value: "social", label: "Social Media" },
+  { value: "social_media", label: "Social Media" },
   { value: "advertisement", label: "Advertisement" },
   { value: "cold_call", label: "Cold Call" },
-  { value: "event", label: "Event" },
+  { value: "email", label: "Email" },
   { value: "other", label: "Other" },
 ];
 
