@@ -111,7 +111,7 @@
     "react-pdf": "10.2.0",
     "react-resizable-panels": "^2.1.7",
     "react-world-flags": "1.6.0",
-    "recharts": "^2.13.3",
+    "recharts": "^3.5.1",
     "remark-gfm": "4.0.1",
     "require-in-the-middle": "8.0.1",
     "shiki": "3.17.0",
