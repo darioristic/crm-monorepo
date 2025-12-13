@@ -51,7 +51,7 @@
     "ai": "^5.0.0",
     "bcryptjs": "3.0.3",
     "bullmq": "^5.30.0",
-    "drizzle-orm": "0.44.7",
+    "drizzle-orm": "0.45.1",
     "ioredis": "^5.4.1",
     "nanoid": "^5.0.6",
     "officeparser": "5.2.2",
