@@ -46,7 +46,7 @@
     "@crm/types": "workspace:*",
     "@crm/utils": "workspace:*",
     "@hono/zod-validator": "0.7.5",
-    "@sentry/bun": "10.28.0",
+    "@sentry/bun": "10.30.0",
     "@types/pdf-parse": "1.1.5",
     "ai": "^5.0.0",
     "bcryptjs": "3.0.3",
