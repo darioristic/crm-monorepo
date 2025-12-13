@@ -14,7 +14,7 @@
     "format": "biome format ./src --write"
   },
   "dependencies": {
-    "@ai-sdk/google": "^1.0.0",
+    "@ai-sdk/google": "^2.0.46",
     "ai": "^5.0.87"
   },
   "devDependencies": {
