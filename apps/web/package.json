@@ -109,7 +109,7 @@
     "react-markdown": "10.1.0",
     "react-number-format": "5.4.4",
     "react-pdf": "10.2.0",
-    "react-resizable-panels": "^2.1.7",
+    "react-resizable-panels": "^3.0.6",
     "react-world-flags": "1.6.0",
     "recharts": "^2.13.3",
     "remark-gfm": "4.0.1",
