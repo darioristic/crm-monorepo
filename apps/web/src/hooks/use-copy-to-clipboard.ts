@@ -19,7 +19,7 @@ export function useCopyToClipboard(): [CopiedValue, CopyFn] {
       setCopiedText(text);
       return true;
     } catch (error) {
-      console.warn("Copy failed", error as any);
+      console.warn("Copy failed", error instanceof Error ? error : String(error));
       setCopiedText(null);
       return false;
     }

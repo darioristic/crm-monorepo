@@ -39,7 +39,8 @@ import { inboxApi } from "@/lib/api/inbox";
 // Gmail icon component
 function GmailIcon({ className }: { className?: string }) {
   return (
-    <svg className={className} viewBox="0 0 24 24" fill="none">
+    <svg className={className} viewBox="0 0 24 24" fill="none" role="img" aria-label="Gmail logo">
+      <title>Gmail</title>
       <path d="M22 6L12 13L2 6V4L12 11L22 4V6Z" fill="currentColor" fillOpacity="0.8" />
       <path
         d="M2 6L12 13L22 6V18C22 19.1 21.1 20 20 20H4C2.9 20 2 19.1 2 18V6Z"

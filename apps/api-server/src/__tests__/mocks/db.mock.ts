@@ -1,7 +1,7 @@
 import { vi } from "vitest";
 
 // Mock database client
-export const createMockDb = (): any => {
+export const createMockDb = (): Record<string, unknown> => {
   const mockQuery = vi.fn();
 
   return {
@@ -37,4 +37,4 @@ export const createMockDb = (): any => {
   };
 };
 
-export const mockDb: any = createMockDb();
+export const mockDb: Record<string, unknown> = createMockDb();

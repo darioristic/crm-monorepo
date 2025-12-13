@@ -22,7 +22,7 @@ export function InboxActions({ data }: Props) {
         <SuggestedMatch key="suggested-match" data={data} />
       )}
 
-      {!data?.suggestion && <MatchTransaction key="match-transaction" data={data} />}
+      {!data?.suggestion && <MatchTransaction key="match-transaction" />}
     </AnimatePresence>
   );
 }
@@ -106,7 +106,7 @@ function SuggestedMatch({ data }: Props) {
   );
 }
 
-function MatchTransaction({ data }: Props) {
+function MatchTransaction() {
   const [searchValue, setSearchValue] = useState("");
 
   return (

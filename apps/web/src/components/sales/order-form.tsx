@@ -5,7 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Loader2, Plus, Trash2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { type Resolver, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { SelectCompany } from "@/components/companies/select-company";
@@ -98,7 +98,7 @@ export function OrderForm({ order, mode }: OrderFormProps) {
   );
 
   const form = useForm<OrderFormValues>({
-    resolver: zodResolver(orderFormSchema) as any,
+    resolver: zodResolver(orderFormSchema) as Resolver<OrderFormValues>,
     defaultValues: {
       companyId: order?.companyId || "",
       contactId: order?.contactId || "",

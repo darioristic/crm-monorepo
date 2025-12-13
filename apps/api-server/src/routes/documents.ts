@@ -9,6 +9,7 @@ import { addDocumentProcessingJob } from "../jobs/queue";
 import { logger } from "../lib/logger";
 import { canAccessCompany } from "../middleware/auth";
 import {
+  documentSharesService,
   documentsService,
   documentTagAssignmentsService,
   documentTagsService,
@@ -174,6 +175,40 @@ router.get("/api/v1/documents/:id/related", async (request, url, params) => {
       threshold,
       limit,
     });
+  });
+});
+
+/**
+ * GET /api/v1/documents/search/semantic - Semantic search within document content
+ * Uses vector embeddings to find documents matching natural language queries
+ */
+router.get("/api/v1/documents/search/semantic", async (request, url) => {
+  return withAuth(request, async (auth) => {
+    try {
+      const effectiveUrl = applyCompanyIdFromHeader(request, url);
+      const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+      if (error) return error;
+      if (!companyId) {
+        return errorResponse("VALIDATION_ERROR", "Company ID required");
+      }
+
+      const query = url.searchParams.get("q");
+      if (!query || query.trim().length < 2) {
+        return errorResponse("VALIDATION_ERROR", "Search query must be at least 2 characters");
+      }
+
+      const limit = url.searchParams.get("limit")
+        ? parseInt(url.searchParams.get("limit")!, 10)
+        : 10;
+      const threshold = url.searchParams.get("threshold")
+        ? parseFloat(url.searchParams.get("threshold")!)
+        : 0.3;
+
+      return documentsService.semanticSearch(companyId, query.trim(), { limit, threshold });
+    } catch (error) {
+      logger.error({ error }, "Error in semantic search route");
+      return errorResponse("INTERNAL_ERROR", "Failed to perform semantic search");
+    }
   });
 });
 
@@ -749,6 +784,460 @@ router.get("/api/v1/documents/by-entity/:type/:id", async (request, _url, params
     }
 
     return documentsService.findByEntityId(companyId, params.type, params.id);
+  });
+});
+
+// ============================================
+// BATCH OPERATIONS
+// ============================================
+
+/**
+ * POST /api/v1/documents/batch/rename - Batch rename documents
+ */
+router.post("/api/v1/documents/batch/rename", async (request, _url) => {
+  return withAuth(request, async (auth) => {
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    const body = await parseBody<{
+      documentIds: string[];
+      pattern: string;
+      options?: {
+        prefix?: string;
+        suffix?: string;
+        startNumber?: number;
+        preserveExtension?: boolean;
+      };
+    }>(request);
+
+    if (!body?.documentIds || !Array.isArray(body.documentIds) || body.documentIds.length === 0) {
+      return errorResponse("VALIDATION_ERROR", "documentIds array required");
+    }
+    if (!body?.pattern) {
+      return errorResponse("VALIDATION_ERROR", "pattern required");
+    }
+
+    return documentsService.batchRename(companyId, {
+      documentIds: body.documentIds,
+      pattern: body.pattern,
+      options: body.options,
+    });
+  });
+});
+
+// ============================================
+// DOCUMENT ACTIVITY
+// ============================================
+
+/**
+ * GET /api/v1/documents/:id/activity - Get document activity/audit log
+ */
+router.get("/api/v1/documents/:id/activity", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    const url = new URL(request.url);
+    const page = parseInt(url.searchParams.get("page") || "1", 10);
+    const pageSize = parseInt(url.searchParams.get("pageSize") || "20", 10);
+
+    return documentsService.getDocumentActivity(params.id, companyId, { page, pageSize });
+  });
+});
+
+/**
+ * POST /api/v1/documents/:id/view - Track document view
+ */
+router.post("/api/v1/documents/:id/view", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    return documentsService.trackDocumentView(params.id, companyId, auth.userId);
+  });
+});
+
+// ============================================
+// DOCUMENT SHARES (Public Links)
+// ============================================
+
+/**
+ * POST /api/v1/documents/:id/share - Create a share link for a document
+ */
+router.post("/api/v1/documents/:id/share", async (request, _url, params) => {
+  return withAuth(
+    request,
+    async (auth) => {
+      const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+      const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+      if (error) return error;
+      if (!companyId) {
+        return errorResponse("VALIDATION_ERROR", "Company ID required");
+      }
+
+      const body = await parseBody<{
+        expiresAt?: string;
+        password?: string;
+        maxViews?: number;
+      }>(request);
+
+      return documentSharesService.createShare(companyId, {
+        documentId: params.id,
+        createdBy: auth.userId,
+        expiresAt: body?.expiresAt ? new Date(body.expiresAt) : undefined,
+        password: body?.password,
+        maxViews: body?.maxViews,
+      });
+    },
+    201
+  );
+});
+
+/**
+ * GET /api/v1/documents/:id/shares - Get all share links for a document
+ */
+router.get("/api/v1/documents/:id/shares", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    return documentSharesService.getSharesForDocument(params.id, companyId);
+  });
+});
+
+/**
+ * DELETE /api/v1/document-shares/:id - Delete/revoke a share link
+ */
+router.delete("/api/v1/document-shares/:id", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    return documentSharesService.deleteShare(params.id, companyId, auth.userId);
+  });
+});
+
+/**
+ * PATCH /api/v1/document-shares/:id - Toggle share active status
+ */
+router.patch("/api/v1/document-shares/:id", async (request, _url, params) => {
+  return withAuth(request, async (auth) => {
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, auth, false);
+    if (error) return error;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    const body = await parseBody<{ isActive: boolean }>(request);
+    if (body?.isActive === undefined) {
+      return errorResponse("VALIDATION_ERROR", "isActive field required");
+    }
+
+    return documentSharesService.toggleShareStatus(params.id, companyId, body.isActive);
+  });
+});
+
+/**
+ * GET /api/v1/public/document/:token - Access shared document (PUBLIC - no auth required)
+ */
+router.get("/api/v1/public/document/:token", async (_request, url, params) => {
+  const password = url.searchParams.get("password") || undefined;
+  const result = await documentSharesService.getDocumentByToken(params.token, password);
+
+  if (!result.success) {
+    const status =
+      result.error?.code === "NOT_FOUND"
+        ? 404
+        : result.error?.code === "UNAUTHORIZED"
+          ? 401
+          : result.error?.code === "FORBIDDEN"
+            ? 403
+            : 500;
+    return json(result, status);
+  }
+
+  return json(result, 200);
+});
+
+/**
+ * GET /api/v1/public/document/:token/download - Download shared document (PUBLIC - no auth required)
+ */
+router.get("/api/v1/public/document/:token/download", async (_request, url, params) => {
+  const password = url.searchParams.get("password") || undefined;
+  const result = await documentSharesService.getDocumentByToken(params.token, password);
+
+  if (!result.success || !result.data) {
+    return json(result, result.error?.code === "NOT_FOUND" ? 404 : 403);
+  }
+
+  const { document } = result.data;
+  const pathTokens = document.pathTokens;
+
+  if (!pathTokens || pathTokens.length === 0) {
+    return json(errorResponse("NOT_FOUND", "File not found"), 404);
+  }
+
+  const fileInfo = fileStorage.getFileInfo(pathTokens);
+
+  if (!fileInfo.exists || !fileInfo.path) {
+    return json(errorResponse("NOT_FOUND", "File not found"), 404);
+  }
+
+  const mimetype = fileStorage.getMimeType(pathTokens[pathTokens.length - 1]);
+  const stream = fileStorage.createFileReadStream(pathTokens);
+
+  if (!stream) {
+    return json(errorResponse("NOT_FOUND", "File not found"), 404);
+  }
+
+  const webStream = new ReadableStream({
+    start(controller) {
+      stream.on("data", (chunk) => controller.enqueue(chunk));
+      stream.on("end", () => controller.close());
+      stream.on("error", (err) => controller.error(err));
+    },
+  });
+
+  const downloadName =
+    (document.metadata?.originalName as string) ||
+    document.title ||
+    pathTokens[pathTokens.length - 1];
+
+  return new Response(webStream, {
+    status: 200,
+    headers: {
+      "Content-Type": mimetype,
+      "Content-Disposition": `attachment; filename="${downloadName}"`,
+      "Content-Length": fileInfo.size?.toString() || "",
+    },
+  });
+});
+
+/**
+ * GET /api/v1/public/document/:token/view - View shared document inline (PUBLIC - no auth required)
+ */
+router.get("/api/v1/public/document/:token/view", async (_request, url, params) => {
+  const password = url.searchParams.get("password") || undefined;
+  const result = await documentSharesService.getDocumentByToken(params.token, password);
+
+  if (!result.success || !result.data) {
+    return json(result, result.error?.code === "NOT_FOUND" ? 404 : 403);
+  }
+
+  const { document } = result.data;
+  const pathTokens = document.pathTokens;
+
+  if (!pathTokens || pathTokens.length === 0) {
+    return json(errorResponse("NOT_FOUND", "File not found"), 404);
+  }
+
+  const fileInfo = fileStorage.getFileInfo(pathTokens);
+
+  if (!fileInfo.exists || !fileInfo.path) {
+    return json(errorResponse("NOT_FOUND", "File not found"), 404);
+  }
+
+  const mimetype = fileStorage.getMimeType(pathTokens[pathTokens.length - 1]);
+  const file = Bun.file(fileInfo.path);
+
+  if (!(await file.exists())) {
+    return json(errorResponse("NOT_FOUND", "File not found"), 404);
+  }
+
+  return new Response(file, {
+    status: 200,
+    headers: {
+      "Content-Type": mimetype,
+      "Content-Disposition": "inline",
+      "Content-Length": fileInfo.size?.toString() || "",
+      "Cache-Control": "private, max-age=3600",
+    },
+  });
+});
+
+// ============================================
+// ADVANCED INVOICE EXTRACTION
+// ============================================
+
+/**
+ * POST /api/v1/documents/:id/extract-invoice - Extract invoice data with 4-pass AI processing
+ * Uses advanced multi-pass extraction for high accuracy
+ */
+router.post("/api/v1/documents/:id/extract-invoice", async (request, _url, params) => {
+  return withAuth(request, async (_auth) => {
+    const effectiveUrl = applyCompanyIdFromHeader(request, new URL(request.url));
+    const { companyId, error } = await getCompanyIdForFilter(effectiveUrl, _auth, false);
+    if (error) return error;
+    if (!companyId) {
+      return errorResponse("VALIDATION_ERROR", "Company ID required");
+    }
+
+    // Get document
+    const docResult = await documentsService.getDocumentById(params.id, companyId);
+    if (!docResult.success || !docResult.data) {
+      return errorResponse("NOT_FOUND", "Document not found");
+    }
+
+    const doc = docResult.data;
+    const pathTokens = doc.pathTokens;
+
+    if (!pathTokens || pathTokens.length === 0) {
+      return errorResponse("NOT_FOUND", "File not found");
+    }
+
+    // Get options from body
+    let options: { companyContext?: string; maxPasses?: number } = {};
+    try {
+      options = (await parseBody<typeof options>(request)) || {};
+    } catch {
+      // Ignore parse errors, use defaults
+    }
+
+    try {
+      // Import the invoice processor dynamically
+      const { processInvoice } = await import("../ai/document-extraction/invoice-processor");
+
+      // Read file content
+      const buffer = await fileStorage.readFileAsBuffer(pathTokens);
+      if (!buffer) {
+        return errorResponse("NOT_FOUND", "File content not found");
+      }
+
+      const mimetype =
+        (doc.metadata?.mimetype as string) ||
+        fileStorage.getMimeType(pathTokens[pathTokens.length - 1]);
+      const isImage = mimetype.startsWith("image/");
+      const isPdf = mimetype === "application/pdf";
+
+      let content: string | { type: "image"; data: string; mimeType: string };
+
+      if (isImage) {
+        // For images, pass as base64
+        content = {
+          type: "image",
+          data: buffer.toString("base64"),
+          mimeType: mimetype,
+        };
+      } else if (isPdf) {
+        // For PDFs, extract text first
+        const { documentLoader } = await import("../services/document-loader.service");
+        const text = await documentLoader.loadDocument({
+          content: buffer,
+          mimetype: "application/pdf",
+        });
+        content = text || "";
+      } else {
+        // For other documents, try to read as text
+        content = buffer.toString("utf-8");
+      }
+
+      // Process with 4-pass extraction
+      const result = await processInvoice(content, {
+        companyContext: options.companyContext,
+        maxPasses: options.maxPasses,
+      });
+
+      // Update document with extracted data
+      await documentsService.updateDocument(params.id, companyId, {
+        summary: typeof content === "string" ? content : doc.summary || undefined,
+        processingStatus: "completed",
+      });
+
+      return successResponse({
+        documentId: params.id,
+        extraction: result.data,
+        quality: result.quality,
+        confidence: result.confidence,
+        pass: result.pass,
+        fixes: result.fixes,
+      });
+    } catch (err) {
+      logger.error({ error: err, documentId: params.id }, "Invoice extraction failed");
+      return errorResponse("INTERNAL_ERROR", "Failed to extract invoice data");
+    }
+  });
+});
+
+/**
+ * POST /api/v1/documents/extract-invoice - Extract invoice data from uploaded file
+ * Accepts base64 encoded file content
+ */
+router.post("/api/v1/documents/extract-invoice", async (request) => {
+  return withAuth(request, async (_auth) => {
+    const body = await parseBody<{
+      contentBase64: string;
+      mimetype: string;
+      companyContext?: string;
+      maxPasses?: number;
+    }>(request);
+
+    if (!body?.contentBase64 || !body?.mimetype) {
+      return errorResponse("VALIDATION_ERROR", "contentBase64 and mimetype required");
+    }
+
+    try {
+      const { processInvoice } = await import("../ai/document-extraction/invoice-processor");
+
+      const buffer = Buffer.from(body.contentBase64, "base64");
+      const isImage = body.mimetype.startsWith("image/");
+      const isPdf = body.mimetype === "application/pdf";
+
+      let content: string | { type: "image"; data: string; mimeType: string };
+
+      if (isImage) {
+        content = {
+          type: "image",
+          data: body.contentBase64,
+          mimeType: body.mimetype,
+        };
+      } else if (isPdf) {
+        const { documentLoader } = await import("../services/document-loader.service");
+        const text = await documentLoader.loadDocument({
+          content: buffer,
+          mimetype: "application/pdf",
+        });
+        content = text || "";
+      } else {
+        content = buffer.toString("utf-8");
+      }
+
+      const result = await processInvoice(content, {
+        companyContext: body.companyContext,
+        maxPasses: body.maxPasses,
+      });
+
+      return successResponse({
+        extraction: result.data,
+        quality: result.quality,
+        confidence: result.confidence,
+        pass: result.pass,
+        fixes: result.fixes,
+      });
+    } catch (err) {
+      logger.error({ error: err }, "Invoice extraction failed");
+      return errorResponse("INTERNAL_ERROR", "Failed to extract invoice data");
+    }
   });
 });
 

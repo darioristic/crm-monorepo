@@ -66,7 +66,11 @@ export function DataTable() {
                   {row.getAllCells().map((cell) => (
                     <TableCell
                       key={cell.id}
-                      className={cn("py-4", (cell.column.columnDef.meta as any)?.className)}
+                      className={cn(
+                        "py-4",
+                        (cell.column.columnDef.meta as { className?: string } | undefined)
+                          ?.className
+                      )}
                     >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </TableCell>

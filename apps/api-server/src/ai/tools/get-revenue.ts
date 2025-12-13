@@ -9,11 +9,8 @@ import { sql } from "../../db/client";
 
 const getRevenueSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  months: z.number().min(1).max(24).default(12).describe("Number of months to analyze"),
-  groupBy: z
-    .enum(["month", "client", "category"])
-    .default("month")
-    .describe("How to group revenue data"),
+  months: z.number().min(1).max(24).optional().describe("Number of months to analyze"),
+  groupBy: z.enum(["month", "client", "category"]).optional().describe("How to group revenue data"),
 });
 
 type GetRevenueParams = z.infer<typeof getRevenueSchema>;
@@ -21,9 +18,9 @@ type GetRevenueParams = z.infer<typeof getRevenueSchema>;
 export const getRevenueTool = tool({
   description:
     "Analyze revenue streams, growth rates, top clients, and revenue trends. Use this to understand income sources and patterns.",
-  parameters: getRevenueSchema,
-  execute: async (params: GetRevenueParams): Promise<string> => {
-    const { tenantId, months, groupBy } = params;
+  inputSchema: getRevenueSchema,
+  execute: async (input: GetRevenueParams): Promise<string> => {
+    const { tenantId, months = 12, groupBy = "month" } = input;
 
     try {
       // Get total revenue by month

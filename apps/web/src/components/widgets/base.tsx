@@ -23,7 +23,8 @@ export function BaseWidget({
   onConfigure,
 }: BaseWidgetProps) {
   return (
-    <div
+    <button
+      type="button"
       className={cn(
         "dark:bg-[#121212] bg-card border dark:border-[#1c1c1c] p-4 h-[210px] flex flex-col justify-between transition-all duration-300 dark:hover:bg-[#1a1a1a] dark:hover:border-[#262626] hover:border-border/80 group cursor-pointer"
       )}
@@ -64,6 +65,6 @@ export function BaseWidget({
           {actions}
         </span>
       </div>
-    </div>
+    </button>
   );
 }

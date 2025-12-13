@@ -9,12 +9,9 @@ import { sql } from "../../db/client";
 
 const getExpensesSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  months: z.number().min(1).max(24).default(6).describe("Number of months to analyze"),
-  groupBy: z
-    .enum(["category", "vendor", "month"])
-    .default("category")
-    .describe("How to group expense data"),
-  includeRecurring: z.boolean().default(true).describe("Highlight recurring expenses"),
+  months: z.number().min(1).max(24).optional().describe("Number of months to analyze"),
+  groupBy: z.enum(["category", "vendor", "month"]).optional().describe("How to group expense data"),
+  includeRecurring: z.boolean().optional().describe("Highlight recurring expenses"),
 });
 
 type GetExpensesParams = z.infer<typeof getExpensesSchema>;
@@ -22,9 +19,9 @@ type GetExpensesParams = z.infer<typeof getExpensesSchema>;
 export const getExpensesTool = tool({
   description:
     "Analyze expense breakdown by category, vendor, or month. Identifies spending patterns, recurring costs, and optimization opportunities.",
-  parameters: getExpensesSchema,
-  execute: async (params: GetExpensesParams): Promise<string> => {
-    const { tenantId, months, groupBy, includeRecurring } = params;
+  inputSchema: getExpensesSchema,
+  execute: async (input: GetExpensesParams): Promise<string> => {
+    const { tenantId, months = 6, groupBy = "category", includeRecurring = true } = input;
 
     try {
       // Get expenses by category

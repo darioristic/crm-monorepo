@@ -715,12 +715,16 @@ export function InvoiceForm({ invoice, mode }: InvoiceFormProps) {
                   </Card>
                 ))}
 
-                {form.formState.errors.items?.root &&
-                  typeof (form.formState.errors.items.root as any)?.message === "string" && (
-                    <p className="text-sm text-destructive">
-                      {(form.formState.errors.items.root as any).message as string}
-                    </p>
-                  )}
+                {(() => {
+                  const rootError = form.formState.errors.items?.root as
+                    | { message?: unknown }
+                    | undefined;
+                  const msg = rootError?.message;
+                  if (typeof msg === "string") {
+                    return <p className="text-sm text-destructive">{msg}</p>;
+                  }
+                  return null;
+                })()}
               </div>
 
               {/* Totals */}

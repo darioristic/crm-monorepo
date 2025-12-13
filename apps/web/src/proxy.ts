@@ -10,7 +10,13 @@ export default function proxy(request: NextRequest) {
   const accessToken = request.cookies.get("access_token")?.value;
   const isAuthenticated = !!accessToken;
 
-  const isProtectedRoute = PROTECTED_ROUTES.some((route) => pathname.startsWith(route));
+  const isChatRoute = pathname.startsWith("/dashboard/chat");
+  const allowPublicChat =
+    (process.env.NEXT_PUBLIC_ENABLE_PUBLIC_CHAT || "").toLowerCase() === "true" ||
+    process.env.NODE_ENV !== "production";
+  const isProtectedRoute =
+    PROTECTED_ROUTES.some((route) => pathname.startsWith(route)) &&
+    !(isChatRoute && allowPublicChat);
 
   const isAuthRoute = AUTH_ROUTES.some((route) => pathname.startsWith(route));
 

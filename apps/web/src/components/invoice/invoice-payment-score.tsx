@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -29,12 +30,13 @@ interface PaymentScoreVisualizerProps {
 
 function PaymentScoreVisualizer({ score, count = 15 }: PaymentScoreVisualizerProps) {
   const filledBars = Math.round((score / 100) * count);
+  const bars = useMemo(() => Array.from({ length: count }).map((_, i) => `bar-${i}`), [count]);
 
   return (
     <div className="flex gap-0.5">
-      {Array.from({ length: count }).map((_, i) => (
+      {bars.map((id, i) => (
         <div
-          key={`bar-${i}`}
+          key={id}
           className={cn("w-1 h-5 rounded-sm", i < filledBars ? "bg-foreground" : "bg-muted")}
         />
       ))}

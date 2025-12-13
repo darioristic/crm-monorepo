@@ -9,12 +9,12 @@ import { sql } from "../../db/client";
 
 const getForecastSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  forecastMonths: z.number().min(1).max(12).default(6).describe("Number of months to forecast"),
+  forecastMonths: z.number().min(1).max(12).optional().describe("Number of months to forecast"),
   scenario: z
     .enum(["conservative", "moderate", "optimistic"])
-    .default("moderate")
+    .optional()
     .describe("Forecast scenario"),
-  includeSeasonality: z.boolean().default(true).describe("Account for seasonal patterns"),
+  includeSeasonality: z.boolean().optional().describe("Account for seasonal patterns"),
 });
 
 type GetForecastParams = z.infer<typeof getForecastSchema>;
@@ -31,9 +31,14 @@ interface MonthlyForecast {
 export const getForecastTool = tool({
   description:
     "Generate financial forecasts for revenue, expenses, and cash position. Uses historical data to project future performance under different scenarios.",
-  parameters: getForecastSchema,
-  execute: async (params: GetForecastParams): Promise<string> => {
-    const { tenantId, forecastMonths, scenario, includeSeasonality } = params;
+  inputSchema: getForecastSchema,
+  execute: async (input: GetForecastParams): Promise<string> => {
+    const {
+      tenantId,
+      forecastMonths = 6,
+      scenario = "moderate",
+      includeSeasonality = true,
+    } = input;
 
     try {
       // Get historical monthly data (12 months)

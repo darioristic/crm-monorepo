@@ -1,28 +1,13 @@
 import { openai } from "@ai-sdk/openai";
-import type { CoreMessage, LanguageModel } from "ai";
+import { Agent, type AgentConfig } from "@ai-sdk-tools/agents";
+import { RedisProvider } from "@ai-sdk-tools/memory/redis";
+import type { CoreMessage } from "ai";
 import { redis } from "../../../cache/redis";
 import { logger } from "../../../lib/logger";
 import type { AppContext, ChatUserContext } from "../../types";
 
-// Memory storage using Redis
-const CHAT_HISTORY_PREFIX = "chat:history:";
-const CHAT_MEMORY_PREFIX = "chat:memory:";
-const MEMORY_TTL = 60 * 60 * 24 * 7; // 7 days
-
-export interface AgentConfig {
-  name: string;
-  model: LanguageModel;
-  temperature?: number;
-  instructions: string | ((ctx: AppContext) => string);
-  tools?: Record<string, unknown>;
-  maxTurns?: number;
-}
-
-export interface Agent {
-  name: string;
-  config: AgentConfig;
-  getSystemPrompt: (ctx: AppContext) => string;
-}
+// Memory provider using existing Redis client
+export const memoryProvider = new RedisProvider(redis);
 
 export function formatContextForLLM(context: AppContext): string {
   return `<company_info>
@@ -65,19 +50,31 @@ export function buildAppContext(context: ChatUserContext, chatId: string): AppCo
   };
 }
 
-export function createAgent(config: AgentConfig): Agent {
-  return {
-    name: config.name,
-    config,
-    getSystemPrompt: (ctx: AppContext) => {
-      const instructions =
-        typeof config.instructions === "function" ? config.instructions(ctx) : config.instructions;
-      return instructions;
+// Create agent using @ai-sdk-tools/agents Agent class (identical to Midday)
+export const createAgent = (config: AgentConfig<AppContext>) => {
+  return new Agent({
+    ...config,
+    memory: {
+      provider: memoryProvider,
+      history: {
+        enabled: true,
+        limit: 10,
+      },
+      workingMemory: {
+        enabled: false,
+        scope: "user" as const,
+      },
+      chats: {
+        enabled: true,
+      },
     },
-  };
-}
+  });
+};
 
-// Chat history management
+// Chat history management (kept for backwards compatibility)
+const CHAT_HISTORY_PREFIX = "chat:history:";
+const MEMORY_TTL = 60 * 60 * 24 * 7; // 7 days
+
 export async function getChatHistory(chatId: string, limit = 20): Promise<CoreMessage[]> {
   try {
     const key = `${CHAT_HISTORY_PREFIX}${chatId}`;
@@ -99,39 +96,8 @@ export async function saveChatMessage(chatId: string, message: CoreMessage): Pro
   }
 }
 
-export async function clearChatHistory(chatId: string): Promise<void> {
-  try {
-    const key = `${CHAT_HISTORY_PREFIX}${chatId}`;
-    await redis.del(key);
-  } catch (error) {
-    logger.error({ error }, "Error clearing chat history");
-  }
-}
-
-// Working memory management
-export async function getWorkingMemory(userId: string): Promise<string | null> {
-  try {
-    const key = `${CHAT_MEMORY_PREFIX}${userId}`;
-    return await redis.get(key);
-  } catch (error) {
-    logger.error({ error }, "Error getting working memory");
-    return null;
-  }
-}
-
-export async function saveWorkingMemory(userId: string, memory: string): Promise<void> {
-  try {
-    const key = `${CHAT_MEMORY_PREFIX}${userId}`;
-    await redis.set(key, memory);
-    await redis.expire(key, MEMORY_TTL);
-  } catch (error) {
-    logger.error({ error }, "Error saving working memory");
-  }
-}
-
 // Default model configurations
-export const models: Record<string, unknown> = {
+export const models: Record<string, ReturnType<typeof openai>> = {
   fast: openai("gpt-4o-mini"),
   smart: openai("gpt-4o"),
-  embedding: openai.embedding("text-embedding-3-small"),
 };

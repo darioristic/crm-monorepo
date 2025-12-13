@@ -1,19 +1,22 @@
 "use client";
 
-import { Check, Copy, Download, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Share2, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { documentsApi } from "@/lib/api";
 import { DeleteVaultFileDialog } from "./delete-vault-file-dialog";
+import { ShareDocumentDialog } from "./share-document-dialog";
 
 type Props = {
   id: string;
   filePath: string[];
+  title?: string | null;
   hideDelete?: boolean;
+  hideShare?: boolean;
 };
 
-export function VaultItemActions({ id, filePath, hideDelete }: Props) {
+export function VaultItemActions({ id, filePath, title, hideDelete, hideShare }: Props) {
   const [copiedText, copy] = useCopyToClipboard();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
@@ -60,6 +63,29 @@ export function VaultItemActions({ id, filePath, hideDelete }: Props) {
       >
         {copiedText ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
       </Button>
+
+      {!hideShare && (
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+            }
+          }}
+        >
+          <ShareDocumentDialog
+            documentId={id}
+            documentTitle={title}
+            trigger={
+              <Button variant="outline" size="icon" className="rounded-full h-7 w-7 bg-background">
+                <Share2 className="h-3.5 w-3.5" />
+              </Button>
+            }
+          />
+        </div>
+      )}
 
       {!hideDelete && (
         <Button

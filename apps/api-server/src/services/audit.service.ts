@@ -62,8 +62,15 @@ export type AuditAction =
   | "CREATE_API_KEY"
   | "REVOKE_API_KEY"
   | "CREATE_DOCUMENT"
+  | "UPDATE_DOCUMENT"
+  | "DELETE_DOCUMENT"
+  | "VIEW_DOCUMENT"
+  | "DOWNLOAD_DOCUMENT"
   | "PROCESS_DOCUMENT"
-  | "DOCUMENT_FAILED";
+  | "DOCUMENT_FAILED"
+  // Document share actions
+  | "CREATE_DOCUMENT_SHARE"
+  | "DELETE_DOCUMENT_SHARE";
 
 export type EntityType =
   | "user"
@@ -80,7 +87,8 @@ export type EntityType =
   | "settings"
   | "api_key"
   | "session"
-  | "document";
+  | "document"
+  | "document_share";
 
 // ============================================
 // Audit Log Entry Interface

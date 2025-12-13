@@ -2,8 +2,8 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import type { Quote } from "@/types/quote";
-import { DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
+import type { EditorDoc, Quote } from "@/types/quote";
+import { createEditorDocFromText, DEFAULT_QUOTE_TEMPLATE } from "@/types/quote";
 
 export const runtime = "nodejs";
 
@@ -31,6 +31,23 @@ function getLogoDataUrl(logoPath?: string): string | null {
   } catch {
     return null;
   }
+}
+
+function parseDoc(raw: unknown): EditorDoc | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try {
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === "object" && (obj as EditorDoc).type === "doc") {
+        return obj as EditorDoc;
+      }
+    } catch {}
+    return createEditorDocFromText(raw);
+  }
+  if (raw && typeof raw === "object" && (raw as EditorDoc).type === "doc") {
+    return raw as EditorDoc;
+  }
+  return null;
 }
 
 export async function GET(request: NextRequest) {
@@ -162,36 +179,17 @@ export async function GET(request: NextRequest) {
       lineItems:
         apiQuote.items?.map((item: QuoteItemApi) => ({
           name: item.productName || item.description || "",
+          description: item.description || "",
           quantity: item.quantity || 1,
           price: item.unitPrice || 0,
           unit: item.unit || "pcs",
           discount: item.discount || 0,
           vat: item.vat ?? item.vatRate ?? apiQuote.vatRate ?? 20,
         })) || [],
-      paymentDetails: apiQuote.terms
-        ? {
-            type: "doc",
-            content: [
-              {
-                type: "paragraph",
-                content: [{ type: "text", text: apiQuote.terms }],
-              },
-            ],
-          }
-        : null,
+      paymentDetails: parseDoc(apiQuote.terms),
       customerDetails,
       fromDetails,
-      noteDetails: apiQuote.notes
-        ? {
-            type: "doc",
-            content: [
-              {
-                type: "paragraph",
-                content: [{ type: "text", text: apiQuote.notes }],
-              },
-            ],
-          }
-        : null,
+      noteDetails: parseDoc(apiQuote.notes),
       note: apiQuote.notes,
       internalNote: null,
       vat: apiQuote.vat || null,

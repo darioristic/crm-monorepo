@@ -1,4 +1,4 @@
-import type { EditorDoc } from "@/types/quote";
+import type { EditorDoc, Mark } from "@/types/quote";
 
 export function formatEditorContent(doc?: EditorDoc | null): React.ReactNode | null {
   if (!doc || !doc.content) {
@@ -7,18 +7,19 @@ export function formatEditorContent(doc?: EditorDoc | null): React.ReactNode | n
 
   return (
     <>
-      {(doc.content as any[]).map((node: any, nodeIndex) => {
+      {(doc.content ?? []).map((node, nodeIndex) => {
         if (node?.type === "paragraph") {
           return (
             <p key={`paragraph-${nodeIndex.toString()}`}>
               {Array.isArray(node.content)
-                ? (node.content as any[]).map((inlineContent: any, inlineIndex) => {
+                ? (node.content as EditorDoc[]).map((inlineContent, inlineIndex) => {
                     if (inlineContent?.type === "text") {
                       let style = "text-[11px]";
                       let href: string | undefined;
 
-                      if (Array.isArray(inlineContent.marks)) {
-                        for (const mark of inlineContent.marks as any[]) {
+                      const marks = (inlineContent as { marks?: Mark[] }).marks ?? [];
+                      if (Array.isArray(marks)) {
+                        for (const mark of marks) {
                           if (mark?.type === "bold") {
                             style += " font-semibold";
                           } else if (mark?.type === "italic") {
@@ -32,7 +33,7 @@ export function formatEditorContent(doc?: EditorDoc | null): React.ReactNode | n
                         }
                       }
 
-                      const content = String(inlineContent.text || "");
+                      const content = String((inlineContent as { text?: string }).text || "");
                       const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(content);
 
                       if (href || isEmail) {

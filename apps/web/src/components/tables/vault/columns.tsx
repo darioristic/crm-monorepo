@@ -5,6 +5,7 @@ import { format, formatDistanceToNow } from "date-fns";
 import { File, FileImage, FileSpreadsheet, FileText } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { VaultItemActions } from "@/components/vault/vault-item-actions";
 import type { DocumentWithTags } from "@/lib/api";
 
 function getFileIcon(mimetype?: string) {
@@ -122,5 +123,15 @@ export const columns: ColumnDef<DocumentWithTags>[] = [
         </span>
       );
     },
+  },
+  {
+    id: "actions",
+    header: "",
+    cell: ({ row }) => {
+      const document = row.original;
+      return <VaultItemActions id={document.id} filePath={document.pathTokens ?? []} />;
+    },
+    enableSorting: false,
+    enableHiding: false,
   },
 ];

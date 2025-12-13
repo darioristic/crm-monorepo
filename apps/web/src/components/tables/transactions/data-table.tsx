@@ -54,31 +54,30 @@ export function DataTable({ filters = {} }: DataTableProps) {
   const hasFilters = Object.values(filters).some((v) => v !== undefined && v !== "");
 
   // Fetch transactions with infinite query
-  const { data, fetchNextPage, hasNextPage, isFetching, isFetchingNextPage, isLoading } =
-    useInfiniteQuery({
-      queryKey: ["transactions", filters],
-      queryFn: async ({ pageParam }) => {
-        const response = await paymentsApi.getAll({
-          pageSize: 50,
-          page: pageParam,
-          search: filters.search,
-          status: filters.status,
-          paymentMethod: filters.method,
-          dateFrom: filters.dateFrom,
-          dateTo: filters.dateTo,
-        });
-        return {
-          data: response.data || [],
-          meta: response.meta,
-        };
-      },
-      getNextPageParam: (lastPage) => {
-        if (!lastPage.meta) return undefined;
-        const { page, totalPages } = lastPage.meta;
-        return page < totalPages ? page + 1 : undefined;
-      },
-      initialPageParam: 1,
-    });
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } = useInfiniteQuery({
+    queryKey: ["transactions", filters],
+    queryFn: async ({ pageParam }) => {
+      const response = await paymentsApi.getAll({
+        pageSize: 50,
+        page: pageParam,
+        search: filters.search,
+        status: filters.status,
+        paymentMethod: filters.method,
+        dateFrom: filters.dateFrom,
+        dateTo: filters.dateTo,
+      });
+      return {
+        data: response.data || [],
+        meta: response.meta,
+      };
+    },
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.meta) return undefined;
+      const { page, totalPages } = lastPage.meta;
+      return page < totalPages ? page + 1 : undefined;
+    },
+    initialPageParam: 1,
+  });
 
   // Flatten pages into single array
   const transactions = useMemo(() => {

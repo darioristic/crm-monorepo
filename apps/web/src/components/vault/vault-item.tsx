@@ -18,8 +18,16 @@ export function VaultItem({ data, small }: Props) {
 
   const isLoading = data.processingStatus === "pending";
 
+  const handleDragStart = (e: React.DragEvent) => {
+    e.dataTransfer.setData("application/x-document-id", data.id);
+    e.dataTransfer.setData("application/x-document-title", data.title || data.name || "Document");
+    e.dataTransfer.effectAllowed = "link";
+  };
+
   return (
     <div
+      draggable
+      onDragStart={handleDragStart}
       className={cn(
         "h-72 border relative flex text-muted-foreground p-4 flex-col gap-3 hover:bg-muted dark:hover:bg-[#141414] transition-colors duration-200 group cursor-pointer",
         small && "h-48"

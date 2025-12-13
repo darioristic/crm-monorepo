@@ -1,11 +1,13 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
 import { DocumentActions } from "@/components/document-actions";
 import { DocumentDetailsSkeleton } from "@/components/document-details-skeleton";
 import { DocumentTags } from "@/components/document-tags";
 import { FileViewer } from "@/components/file-viewer";
 import { SheetHeader } from "@/components/ui/sheet";
+import { DocumentActivity } from "@/components/vault/document-activity";
 import { VaultRelatedFiles } from "@/components/vault/vault-related-files";
 import { useDocumentParams } from "@/hooks/use-document-params";
 import { type DocumentWithTags, documentsApi } from "@/lib/api";
@@ -21,9 +23,20 @@ function formatSize(bytes: number): string {
 export function DocumentDetails() {
   const queryClient = useQueryClient();
   const { params } = useDocumentParams();
+  const trackedViewRef = useRef<string | null>(null);
 
   const isOpen = Boolean(params.filePath || params.documentId);
   const fullView = Boolean(params.documentId);
+
+  // Track document view when opened
+  useEffect(() => {
+    if (params.documentId && params.documentId !== trackedViewRef.current) {
+      trackedViewRef.current = params.documentId;
+      documentsApi.trackView(params.documentId).catch(() => {
+        // Silently fail - view tracking is not critical
+      });
+    }
+  }, [params.documentId]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["document", params.documentId],
@@ -90,7 +103,14 @@ export function DocumentDetails() {
 
         {data?.id && <DocumentTags tags={data?.documentTagAssignments} id={data.id} />}
 
-        {fullView && <VaultRelatedFiles />}
+        {fullView && (
+          <>
+            <div className="mt-4 pt-4 border-t">
+              <DocumentActivity documentId={params.documentId!} />
+            </div>
+            <VaultRelatedFiles />
+          </>
+        )}
       </div>
     </div>
   );

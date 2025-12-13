@@ -19,12 +19,11 @@ import { inboxApi } from "@/lib/api/inbox";
 
 type Props = {
   id: string;
-  filePath: string[] | null;
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
-export function DeleteInboxDialog({ id, filePath, isOpen, onOpenChange }: Props) {
+export function DeleteInboxDialog({ id, isOpen, onOpenChange }: Props) {
   const queryClient = useQueryClient();
   const router = useRouter();
   const { setParams, params } = useInboxParams();

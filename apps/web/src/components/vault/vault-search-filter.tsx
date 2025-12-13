@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { format, formatISO } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Brain, Loader2 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Filter, FilterList } from "@/components/filter-list";
 import {
@@ -342,6 +342,16 @@ export function VaultSearchFilter() {
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           </DropdownMenuGroup>
+
+          <DropdownMenuSeparator />
+
+          <DropdownMenuCheckboxItem
+            checked={filter.semantic ?? false}
+            onCheckedChange={(checked) => setFilter({ semantic: checked })}
+          >
+            <Brain className="mr-2 h-4 w-4" />
+            <span>Semantic Search</span>
+          </DropdownMenuCheckboxItem>
 
           {hasValidFilters && (
             <>

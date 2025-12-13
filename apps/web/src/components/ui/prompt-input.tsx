@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowUp, Paperclip, Plus, Square, X } from "lucide-react";
+import Image from "next/image";
 import {
   type ChangeEventHandler,
   Children,
@@ -79,7 +80,7 @@ export function PromptInputAttachment({ data, className, ...props }: PromptInput
   return (
     <div className={cn("group relative h-14 w-14 border", className)} key={data.id} {...props}>
       {data.mediaType?.startsWith("image/") && data.url ? (
-        <img
+        <Image
           alt={data.filename || "attachment"}
           className="size-full object-cover"
           height={56}

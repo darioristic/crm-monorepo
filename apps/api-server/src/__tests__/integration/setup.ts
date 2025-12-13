@@ -167,20 +167,26 @@ async function _cleanupRedis() {
 
 // Mock Bun global if not available (for Vitest in Node environment)
 if (typeof globalThis.Bun === "undefined") {
-  (globalThis as any).Bun = {
+  const bunGlobal = {
     password: {
       hash: async (password: string) => `hashed_${password}`,
       verify: async (password: string, hash: string) => hash === `hashed_${password}`,
     },
   };
+  (globalThis as unknown as { Bun: typeof bunGlobal }).Bun = bunGlobal;
 }
 
 beforeAll(async () => {
   const dbOk = await setupTestDatabase();
   if (!dbOk) {
-    const d: any = (globalThis as any).describe;
-    if (d && typeof d.skip === "function") {
-      (globalThis as any).describe = d.skip.bind(d);
+    const d = (globalThis as unknown as { describe?: unknown }).describe;
+    const hasSkip =
+      d &&
+      typeof (d as { skip?: (this: unknown, ...args: unknown[]) => unknown }).skip === "function";
+    if (hasSkip) {
+      (globalThis as unknown as { describe: unknown }).describe = (
+        d as { skip: (this: unknown, ...args: unknown[]) => unknown }
+      ).skip.bind(d);
     }
     return;
   }

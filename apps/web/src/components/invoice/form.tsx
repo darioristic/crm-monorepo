@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { useDebounceValue } from "usehooks-ts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/contexts/auth-context";
+import { useTenant } from "@/contexts/tenant-context";
 import { useMutation } from "@/hooks/use-api";
 import { invoicesApi } from "@/lib/api";
 import { logger } from "@/lib/logger";
@@ -34,6 +35,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
   const form = useFormContext<FormValues>();
   const _customerId = form.watch("customerId");
   const { user } = useAuth();
+  const { currentTenant } = useTenant();
 
   // Mutations
   const draftMutation = useMutation((data: UpdateInvoiceRequest) =>
@@ -104,14 +106,14 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
           ? extractTextFromContent(
               typeof values.noteDetails === "string"
                 ? createContentFromText(values.noteDetails)
-                : (values.noteDetails as any)
+                : values.noteDetails
             )
           : undefined,
         terms: values.paymentDetails
           ? extractTextFromContent(
               typeof values.paymentDetails === "string"
                 ? createContentFromText(values.paymentDetails)
-                : (values.paymentDetails as any)
+                : values.paymentDetails
             )
           : undefined,
         // Store fromDetails, customerDetails and logo for PDF generation
@@ -209,7 +211,7 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     // Double-check the transformed data before sending
     const transformedData = transformFormValuesToDraft(currentFormValues);
     if (
-      !(transformedData as any).companyId ||
+      !(transformedData as { companyId?: string }).companyId ||
       !transformedData.dueDate ||
       !transformedData.items ||
       transformedData.items.length === 0
@@ -220,12 +222,14 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
     // Prevent duplicate requests
     isSavingDraftRef.current = true;
 
-    const transformedUpdate = {
+    // Include items in auto-save tako da izmene stavki ostanu sačuvane.
+    // Uklanjamo 'total' iz stavki da odgovara UpdateInvoiceRequest tipu.
+    const autoSavePayload = {
       ...transformedData,
-    } as UpdateInvoiceRequest & { items?: unknown };
-    delete transformedUpdate.items;
+      items: transformedData.items?.map(({ total: _omit, ...it }) => it),
+    } as unknown as UpdateInvoiceRequest;
     draftMutationRef.current
-      .mutate(transformedUpdate)
+      .mutate(autoSavePayload)
       .then((result) => {
         if (result.success) {
           onDraftSaved?.();
@@ -260,6 +264,11 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       return;
     }
 
+    if (!currentTenant?.id) {
+      toast.error("Please select a tenant/company");
+      return;
+    }
+
     // Check if at least one line item has a name and valid price
     const validLineItems = values.lineItems.filter(
       (item) => item.name && item.name.trim().length > 0
@@ -275,23 +284,22 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       ...transformFormValuesToDraft({
         ...values,
         customerId: companyIdFinal,
-        companyId: companyIdFinal,
       }),
       status: (values.template.deliveryType === "create" ? "draft" : "sent") as InvoiceStatus,
     };
 
     // Final validation before sending
-    const transformedWithCompany = transformedData as typeof transformedData & {
+    const validatedTransformed = transformedData as typeof transformedData & {
       companyId?: string;
     };
     if (
-      !transformedWithCompany.companyId ||
+      !validatedTransformed.companyId ||
       !transformedData.dueDate ||
       !transformedData.items ||
       transformedData.items.length === 0
     ) {
       logger.error("Submit validation failed:", {
-        companyId: transformedWithCompany.companyId,
+        companyId: validatedTransformed.companyId,
         dueDate: transformedData.dueDate,
         itemsCount: transformedData.items?.length ?? 0,
       });
@@ -301,8 +309,14 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
 
     const transformedWithCompany = {
       ...transformedData,
-      sellerCompanyId: (user?.companyId as string) || "",
+      sellerCompanyId: (currentTenant?.id as string) || "",
     };
+
+    try {
+      if (typeof window !== "undefined" && currentTenant?.id) {
+        window.localStorage?.setItem("selectedCompanyId", String(currentTenant.id));
+      }
+    } catch {}
 
     // Use update API if editing existing invoice, otherwise create
     const result = invoiceId
@@ -325,9 +339,14 @@ export function Form({ invoiceId, onSuccess, onDraftSaved }: FormProps) {
       );
       onSuccess?.(result.data.id);
     } else {
+      const backendMessage =
+        typeof result.error === "string"
+          ? result.error
+          : result.error && typeof (result.error as { message?: unknown }).message === "string"
+            ? ((result.error as { message?: string }).message as string)
+            : undefined;
       const message =
-        (result.error && (result.error as any).message) ||
-        (invoiceId ? "Failed to update invoice" : "Failed to create invoice");
+        backendMessage || (invoiceId ? "Failed to update invoice" : "Failed to create invoice");
       toast.error(message);
     }
   };

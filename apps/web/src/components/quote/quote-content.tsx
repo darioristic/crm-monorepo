@@ -75,7 +75,12 @@ type SuccessContentProps = {
   onClose?: () => void;
 };
 
-function SuccessContent({ quoteId, onViewQuote, onCreateAnother, onClose }: SuccessContentProps) {
+function SuccessContent({
+  quoteId: _quoteId,
+  onViewQuote,
+  onCreateAnother,
+  onClose: _onClose,
+}: SuccessContentProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 text-center">
       <div className="w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center mb-6">

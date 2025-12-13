@@ -94,7 +94,6 @@ export function usePaginatedApi<T>(
   fetchFn: (params: FilterParams & PaginationParams) => Promise<ApiResponse<T[]>>,
   initialFilters: FilterParams = {}
 ): UsePaginatedApiResult<T> {
-  const { user } = useAuth();
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [filters, setFilters] = useState<FilterParams>({

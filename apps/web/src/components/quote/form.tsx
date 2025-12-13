@@ -161,6 +161,7 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
             const discountAmount = baseAmount * ((item.discount || 0) / 100);
             const total = baseAmount - discountAmount;
             return {
+              id: (item as unknown as Record<string, unknown>).id as string | undefined,
               productName: item.name,
               description: item.description || "",
               quantity: item.quantity || 1,
@@ -226,8 +227,17 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
     // Prevent duplicate requests
     isSavingDraftRef.current = true;
 
+    const autoSavePayload: UpdateQuoteRequest = {
+      ...transformedData,
+      items: transformedData.items?.map((it) => ({
+        ...(it as unknown as Record<string, unknown>),
+        id:
+          (it as unknown as Record<string, unknown>).id ??
+          (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : undefined),
+      })) as unknown as UpdateQuoteRequest["items"],
+    };
     draftMutationRef.current
-      .mutate({ ...transformedData, items: undefined })
+      .mutate(autoSavePayload)
       .then((result) => {
         if (result.success) {
           onDraftSaved?.();
@@ -288,7 +298,22 @@ export function Form({ quoteId, onSuccess, onDraftSaved }: FormProps) {
       return;
     }
 
-    const result = await createMutation.mutate(transformedData);
+    const isUpdate = !!quoteId;
+    const payload = isUpdate
+      ? ({
+          ...transformedData,
+          items: transformedData.items?.map((it) => ({
+            ...(it as unknown as Record<string, unknown>),
+            id:
+              (it as unknown as Record<string, unknown>).id ??
+              (typeof crypto !== "undefined" && crypto.randomUUID
+                ? crypto.randomUUID()
+                : undefined),
+          })) as unknown as UpdateQuoteRequest["items"],
+        } as UpdateQuoteRequest)
+      : (transformedData as CreateQuoteRequest);
+
+    const result = await createMutation.mutate(payload);
 
     if (result.success && result.data) {
       const isUpdate = !!quoteId;

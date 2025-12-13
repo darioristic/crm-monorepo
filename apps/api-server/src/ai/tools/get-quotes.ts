@@ -3,7 +3,7 @@ import { z } from "zod";
 import { sql as db } from "../../db/client";
 
 const getQuotesSchema = z.object({
-  pageSize: z.number().min(1).max(50).default(10).describe("Number of quotes to return"),
+  pageSize: z.number().min(1).max(50).optional().describe("Number of quotes to return"),
   status: z
     .enum(["draft", "sent", "accepted", "rejected", "expired"])
     .optional()
@@ -15,9 +15,9 @@ type GetQuotesParams = z.infer<typeof getQuotesSchema>;
 
 export const getQuotesTool = tool({
   description: "Retrieve and filter sales quotes with pagination and status filtering",
-  parameters: getQuotesSchema,
-  execute: async (params: GetQuotesParams): Promise<string> => {
-    const { pageSize = 10, status, search } = params;
+  inputSchema: getQuotesSchema,
+  execute: async (input: GetQuotesParams): Promise<string> => {
+    const { pageSize = 10, status, search } = input;
     try {
       let query = `
         SELECT q.*, c.name as company_name
@@ -91,7 +91,7 @@ ${tableRows}
 const getQuoteConversionSchema = z.object({
   period: z
     .enum(["week", "month", "quarter", "year"])
-    .default("month")
+    .optional()
     .describe("Time period for analysis"),
 });
 
@@ -99,9 +99,9 @@ type GetQuoteConversionParams = z.infer<typeof getQuoteConversionSchema>;
 
 export const getQuoteConversionRateTool = tool({
   description: "Get quote to invoice conversion rate and statistics",
-  parameters: getQuoteConversionSchema,
-  execute: async (params: GetQuoteConversionParams): Promise<string> => {
-    const { period } = params;
+  inputSchema: getQuoteConversionSchema,
+  execute: async (input: GetQuoteConversionParams): Promise<string> => {
+    const { period = "month" } = input;
     try {
       const periodDaysMap: Record<string, number> = {
         week: 7,

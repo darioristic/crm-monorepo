@@ -1,11 +1,12 @@
 "use client";
 
 import type { QuoteFormValues } from "@crm/schemas";
+import type { EnhancedCompany, Quote } from "@crm/types";
 import { formatCurrency, formatDateDMY } from "@crm/utils";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Copy, Download, Loader2 } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,59 +21,10 @@ import { ProductEditProvider } from "./product-edit-context";
 import { ProductEditSheet } from "./product-edit-sheet";
 
 // API Quote Response Type
-interface QuoteApiResponse {
-  id: string;
-  quoteNumber: string | null;
-  issueDate: string | null;
-  validUntil: string | null;
-  createdAt: string;
-  updatedAt: string | null;
-  total: number;
-  currency?: string | null;
-  items?: Array<{
-    productName?: string;
-    description?: string;
-    quantity?: number;
-    unitPrice?: number;
-    unit?: string;
-    discount?: number;
-    vat?: number;
-    vatRate?: number;
-  }>;
-  terms?: string;
-  notes?: string;
-  companyId: string;
+type QuoteApiResponse = Quote & {
   companyName?: string;
-  company?: {
-    name?: string;
-    addressLine1?: string;
-    address?: string;
-    addressLine2?: string;
-    city?: string;
-    zip?: string;
-    postalCode?: string;
-    country?: string;
-    email?: string;
-    billingEmail?: string;
-    phone?: string;
-    vatNumber?: string;
-    website?: string;
-  };
-  vat?: number | null;
-  tax?: number | null;
-  discount?: number | null;
-  subtotal: number;
-  status: string;
-  taxRate?: number;
-  vatRate?: number;
-  sentAt?: string | null;
-  viewedAt?: string | null;
-  acceptedAt?: string | null;
-  rejectedAt?: string | null;
-  token?: string;
-  fromDetails?: any;
-  customerDetails?: any;
-}
+  company?: Partial<EnhancedCompany>;
+};
 
 type QuoteSheetProps = {
   defaultSettings?: Partial<QuoteDefaultSettings>;
@@ -88,6 +40,15 @@ export function QuoteSheet({ defaultSettings, onQuoteCreated }: QuoteSheetProps)
   const quoteId = searchParams.get("quoteId");
 
   const isOpen = type === "create" || type === "edit" || type === "success";
+
+  // Ensure a fresh form instance every time we open in create mode
+  // This prevents carrying over previous form data (Bill to, Description, etc.)
+  const [createNonce, setCreateNonce] = useState<number>(0);
+  useEffect(() => {
+    if (isOpen && type === "create") {
+      setCreateNonce(Date.now());
+    }
+  }, [isOpen, type]);
 
   // Fetch quote data when editing or showing success
   const { data: quoteData, isLoading: isLoadingQuote } = useApi(() => quotesApi.getById(quoteId!), {
@@ -141,7 +102,7 @@ export function QuoteSheet({ defaultSettings, onQuoteCreated }: QuoteSheetProps)
       <Sheet open={isOpen} onOpenChange={handleOpenChange}>
         {isOpen && (
           <FormContext
-            key={`${type}-${quoteId || "new"}`}
+            key={`${type}-${quoteId || "new"}${type === "create" ? `-${createNonce}` : ""}`}
             defaultSettings={defaultSettings}
             data={formData}
           >
@@ -175,7 +136,7 @@ function QuoteSheetContent({
   quoteId,
   quoteData,
   onSuccess,
-  onClose,
+  onClose: _onClose,
   isLoading,
 }: QuoteSheetContentProps) {
   const [size] = useState(700);
@@ -318,11 +279,11 @@ function SuccessContent({ quoteId, quote, onViewQuote, onCreateAnother }: Succes
               {company?.phone && (
                 <p className="text-sm text-muted-foreground">Tel: {company.phone}</p>
               )}
-              {(company?.email || company?.billingEmail) && (
+              {company?.email && (
                 <p className="text-sm text-muted-foreground">
                   E-mail:{" "}
-                  <a href={`mailto:${company.email || company.billingEmail}`} className="underline">
-                    {company.email || company.billingEmail}
+                  <a href={`mailto:${company.email}`} className="underline">
+                    {company.email}
                   </a>
                 </p>
               )}
@@ -336,7 +297,7 @@ function SuccessContent({ quoteId, quote, onViewQuote, onCreateAnother }: Succes
           <div className="flex justify-between items-center mb-6">
             <span className="text-sm text-muted-foreground">Total</span>
             <span className="text-2xl font-semibold">
-              {formatCurrency(quote?.total || 0, quote?.currency || "EUR", "sr-RS")}
+              {formatCurrency(quote?.total || 0, "EUR", "sr-RS")}
             </span>
           </div>
 
@@ -404,9 +365,9 @@ function SuccessContent({ quoteId, quote, onViewQuote, onCreateAnother }: Succes
 // Transform API quote to form values
 function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormValues> {
   const allowed: QuoteFormValues["status"][] = ["draft", "sent", "accepted", "rejected", "expired"];
-  const status = allowed.includes(quote.status as any)
+  const status = allowed.includes(quote.status as QuoteFormValues["status"])
     ? (quote.status as QuoteFormValues["status"])
-    : ("draft" as QuoteFormValues["status"]);
+    : "draft";
   return {
     id: quote.id,
     status,
@@ -417,9 +378,9 @@ function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormV
     customerName: quote.companyName,
     amount: quote.total || 0,
     subtotal: quote.subtotal || 0,
-    vat: quote.vat || 0,
+    vat: 0,
     tax: quote.tax || 0,
-    discount: quote.discount || 0,
+    discount: 0,
     noteDetails: quote.notes
       ? {
           type: "doc",
@@ -442,23 +403,24 @@ function transformQuoteToFormValues(quote: QuoteApiResponse): Partial<QuoteFormV
           ],
         }
       : null,
-    fromDetails: quote.fromDetails || null,
-    customerDetails: quote.customerDetails || null,
+    fromDetails: (quote.fromDetails ?? null) as QuoteFormValues["fromDetails"],
+    customerDetails: null,
     lineItems: (quote.items || []).map((item) => ({
+      id: item.id,
       name: item.productName || "",
       description: item.description || "",
       quantity: item.quantity ?? 1,
       price: item.unitPrice ?? 0,
-      unit: item.unit ?? "pcs",
+      unit: "pcs",
       discount: item.discount ?? 0,
-      vat: item.vat ?? item.vatRate ?? 0,
+      vat: 20,
       productId: undefined,
     })),
     template: {
       ...DEFAULT_QUOTE_TEMPLATE,
-      currency: quote.currency || "EUR",
+      currency: "EUR",
       taxRate: quote.taxRate || 0,
     },
-    token: quote.token,
+    token: undefined,
   };
 }

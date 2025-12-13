@@ -208,7 +208,7 @@ export const invoiceQueries = {
         created_by, created_at, updated_at
       ) VALUES (
         ${invoice.id}, ${invoice.invoiceNumber}, ${token}, ${invoice.quoteId || null},
-        ${invoice.companyId}, ${(invoice as { sellerCompanyId?: string }).sellerCompanyId ?? null}, ${invoice.contactId || null}, ${invoice.status},
+        ${invoice.companyId}, ${(invoice as { tenantId?: string }).tenantId ?? null}, ${invoice.contactId || null}, ${invoice.status},
         ${invoice.issueDate}, ${invoice.dueDate},
         ${invoice.grossTotal ?? invoice.subtotal}, ${invoice.subtotal}, ${invoice.discount ?? 0},
         ${invoice.taxRate}, ${invoice.vatRate ?? 20}, ${invoice.tax}, ${invoice.total},

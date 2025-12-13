@@ -26,9 +26,9 @@ type CompareProductsParams = z.infer<typeof compareProductsSchema>;
 export const compareProductsTool = tool({
   description:
     "Compare multiple products by features, price, margin, and value. Use for product selection decisions.",
-  parameters: compareProductsSchema,
-  execute: async (params: CompareProductsParams): Promise<string> => {
-    const { tenantId, productIds, category } = params;
+  inputSchema: compareProductsSchema,
+  execute: async (input: CompareProductsParams): Promise<string> => {
+    const { tenantId, productIds, category } = input;
 
     try {
       let query: Promise<Array<Record<string, unknown>>>;
@@ -144,7 +144,7 @@ const analyzeAffordabilitySchema = z.object({
   tenantId: z.string().describe("The tenant ID"),
   purchaseAmount: z.number().describe("The amount of the potential purchase"),
   purchaseDescription: z.string().describe("What is being purchased").optional(),
-  isRecurring: z.boolean().describe("Is this a recurring expense").default(false),
+  isRecurring: z.boolean().describe("Is this a recurring expense").optional(),
 });
 
 type AnalyzeAffordabilityParams = z.infer<typeof analyzeAffordabilitySchema>;
@@ -152,9 +152,9 @@ type AnalyzeAffordabilityParams = z.infer<typeof analyzeAffordabilitySchema>;
 export const analyzeAffordabilityTool = tool({
   description:
     "Analyze if a purchase fits within the budget and financial capacity. Use before major purchasing decisions.",
-  parameters: analyzeAffordabilitySchema,
-  execute: async (params: AnalyzeAffordabilityParams): Promise<string> => {
-    const { tenantId, purchaseAmount, purchaseDescription, isRecurring } = params;
+  inputSchema: analyzeAffordabilitySchema,
+  execute: async (input: AnalyzeAffordabilityParams): Promise<string> => {
+    const { tenantId, purchaseAmount, purchaseDescription, isRecurring = false } = input;
 
     try {
       // Get current financial position
@@ -284,9 +284,9 @@ type MarketResearchParams = z.infer<typeof marketResearchSchema>;
 export const marketResearchTool = tool({
   description:
     "Get market data, customer insights, and industry trends based on internal data. Use for market understanding.",
-  parameters: marketResearchSchema,
-  execute: async (params: MarketResearchParams): Promise<string> => {
-    const { tenantId } = params;
+  inputSchema: marketResearchSchema,
+  execute: async (input: MarketResearchParams): Promise<string> => {
+    const { tenantId } = input;
 
     try {
       // Get customer distribution by industry
@@ -395,9 +395,9 @@ type PriceComparisonParams = z.infer<typeof priceComparisonSchema>;
 export const priceComparisonTool = tool({
   description:
     "Compare prices across products and analyze pricing trends. Use for pricing decisions.",
-  parameters: priceComparisonSchema,
-  execute: async (params: PriceComparisonParams): Promise<string> => {
-    const { tenantId, productId, category } = params;
+  inputSchema: priceComparisonSchema,
+  execute: async (input: PriceComparisonParams): Promise<string> => {
+    const { tenantId, productId, category } = input;
 
     try {
       // Get pricing data with historical from quote/order items

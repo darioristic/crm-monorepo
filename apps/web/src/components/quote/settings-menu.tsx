@@ -26,14 +26,20 @@ import {
 } from "@/components/ui/dropdown-menu";
 import type { FormValues } from "./form-context";
 
-const DATE_FORMATS = [
+const DATE_FORMATS: Array<{
+  value: FormValues["template"]["dateFormat"];
+  label: string;
+}> = [
   { value: "dd.MM.yyyy", label: "31.12.2024" },
   { value: "dd/MM/yyyy", label: "31/12/2024" },
   { value: "MM/dd/yyyy", label: "12/31/2024" },
   { value: "yyyy-MM-dd", label: "2024-12-31" },
 ];
 
-const QUOTE_SIZES = [
+const QUOTE_SIZES: Array<{
+  value: FormValues["template"]["size"];
+  label: string;
+}> = [
   { value: "a4", label: "A4" },
   { value: "letter", label: "Letter" },
 ];
@@ -89,7 +95,7 @@ export function SettingsMenu() {
                 key={format.value}
                 checked={dateFormat === format.value}
                 onCheckedChange={() =>
-                  setValue("template.dateFormat", format.value as any, {
+                  setValue("template.dateFormat", format.value, {
                     shouldDirty: true,
                   })
                 }
@@ -112,7 +118,7 @@ export function SettingsMenu() {
                 key={s.value}
                 checked={size === s.value}
                 onCheckedChange={() =>
-                  setValue("template.size", s.value as any, {
+                  setValue("template.size", s.value, {
                     shouldDirty: true,
                   })
                 }

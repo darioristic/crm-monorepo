@@ -619,13 +619,13 @@ export const quotesApi = {
   create: (data: CreateQuoteRequest) =>
     request<Quote>("/api/v1/quotes", {
       method: "POST",
-      body: JSON.stringify(data),
+      body: JSON.stringify(sanitizeQuoteCreatePayload(data)),
     }),
 
   update: (id: string, data: UpdateQuoteRequest) =>
     request<Quote>(`/api/v1/quotes/${id}`, {
       method: "PUT",
-      body: JSON.stringify(data),
+      body: JSON.stringify(sanitizeQuoteUpdatePayload(data)),
     }),
 
   delete: (id: string) =>
@@ -795,9 +795,11 @@ function sanitizeItems(items: unknown[]): SanitizedItem[] {
 
 function sanitizeInvoiceCreatePayload(data: CreateInvoiceRequest): CreateInvoiceRequest {
   const anyData = data as Record<string, unknown>;
+  const customerCompanyId =
+    cleanString(anyData.customerCompanyId as string) || cleanString(anyData.companyId as string);
   const payload: Record<string, unknown> = {
     ...anyData,
-    customerCompanyId: cleanString(anyData.customerCompanyId as string),
+    customerCompanyId,
     contactId: cleanString(anyData.contactId as string),
     quoteId: cleanString(anyData.quoteId as string),
     status: cleanString(anyData.status as string) || "draft",
@@ -818,6 +820,7 @@ function sanitizeInvoiceCreatePayload(data: CreateInvoiceRequest): CreateInvoice
     items: sanitizeItems((anyData.items as unknown[]) || []),
   };
   delete payload.invoiceNumber;
+  delete (payload as Record<string, unknown>).companyId;
   return payload as CreateInvoiceRequest;
 }
 
@@ -842,6 +845,81 @@ function sanitizeInvoiceUpdatePayload(data: UpdateInvoiceRequest): UpdateInvoice
   };
   delete payload.invoiceNumber;
   return payload as UpdateInvoiceRequest;
+}
+
+function sanitizeQuoteCreatePayload(data: CreateQuoteRequest): CreateQuoteRequest {
+  const anyData = data as Record<string, unknown>;
+  const customerCompanyId =
+    cleanString(anyData.customerCompanyId as string) || cleanString(anyData.companyId as string);
+  const payload: Record<string, unknown> = {
+    ...anyData,
+    customerCompanyId,
+    contactId: cleanString(anyData.contactId as string),
+    status: cleanString(anyData.status as string) || "draft",
+    issueDate: toIso(anyData.issueDate as string),
+    validUntil: toIso(anyData.validUntil as string),
+    notes: cleanString(anyData.notes as string),
+    terms: cleanString(anyData.terms as string),
+    taxRate: typeof anyData.taxRate === "number" ? anyData.taxRate : Number(anyData.taxRate) || 0,
+    items: ((anyData.items as unknown[]) || []).map((item: unknown) => {
+      const i = item as Record<string, unknown>;
+      return {
+        productName: truncateString(cleanString(i.productName as string), 255) || "",
+        description: cleanString(i.description as string),
+        quantity: typeof i.quantity === "number" ? i.quantity : Number(i.quantity) || 1,
+        unitPrice: typeof i.unitPrice === "number" ? i.unitPrice : Number(i.unitPrice) || 0,
+        discount: typeof i.discount === "number" ? i.discount : Number(i.discount) || 0,
+      };
+    }),
+  };
+  delete (payload as Record<string, unknown>).quoteNumber;
+  delete (payload as Record<string, unknown>).companyId;
+  return payload as unknown as CreateQuoteRequest;
+}
+
+function sanitizeQuoteUpdatePayload(data: UpdateQuoteRequest): UpdateQuoteRequest {
+  const anyData = (data || {}) as Record<string, unknown>;
+  const customerCompanyId =
+    cleanString(anyData.customerCompanyId as string) || cleanString(anyData.companyId as string);
+  const payload: Record<string, unknown> = {
+    ...anyData,
+    customerCompanyId,
+    contactId: cleanString(anyData.contactId as string),
+    status: cleanString(anyData.status as string),
+    validUntil: toIso(anyData.validUntil as string),
+    notes: cleanString(anyData.notes as string),
+    terms: cleanString(anyData.terms as string),
+    taxRate: typeof anyData.taxRate === "number" ? anyData.taxRate : Number(anyData.taxRate),
+    // Only include items if provided in the update data
+    items:
+      (anyData.items as unknown[] | undefined)?.map((item: unknown) => {
+        const i = item as Record<string, unknown>;
+        const existingId = cleanString(i.id as string);
+        const qty = typeof i.quantity === "number" ? i.quantity : Number(i.quantity);
+        const price = typeof i.unitPrice === "number" ? i.unitPrice : Number(i.unitPrice);
+        const discount = typeof i.discount === "number" ? i.discount : Number(i.discount) || 0;
+        const baseAmount = (Number(price) || 0) * (Number(qty) || 0);
+        const discountAmount = baseAmount * ((Number(discount) || 0) / 100);
+        const computedTotal = baseAmount - discountAmount;
+        return {
+          id: existingId && existingId.length === 36 ? existingId : undefined,
+          productName: truncateString(cleanString(i.productName as string), 255) || "",
+          description: cleanString(i.description as string),
+          quantity: typeof i.quantity === "number" ? i.quantity : Number(i.quantity) || 1,
+          unitPrice: typeof i.unitPrice === "number" ? i.unitPrice : Number(i.unitPrice) || 0,
+          discount: typeof i.discount === "number" ? i.discount : Number(i.discount) || 0,
+          total:
+            typeof i.total === "number"
+              ? i.total
+              : Number.isFinite(computedTotal)
+                ? computedTotal
+                : undefined,
+        };
+      }) ?? undefined,
+  };
+  delete (payload as Record<string, unknown>).quoteNumber;
+  delete (payload as Record<string, unknown>).companyId;
+  return payload as unknown as UpdateQuoteRequest;
 }
 
 // Delivery Notes API
@@ -1429,6 +1507,10 @@ export type DocumentsListResult = {
     cursor: string | undefined;
     hasPreviousPage: boolean;
     hasNextPage: boolean;
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
   };
 };
 
@@ -1601,6 +1683,20 @@ export const documentsApi = {
   },
 
   /**
+   * Semantic search within document content
+   * Uses vector embeddings to find documents matching natural language queries
+   */
+  semanticSearch: (query: string, options?: { limit?: number; threshold?: number }) => {
+    const params = new URLSearchParams();
+    params.append("q", query);
+    if (options?.limit) params.append("limit", options.limit.toString());
+    if (options?.threshold) params.append("threshold", options.threshold.toString());
+    return request<Array<DocumentWithTags & { similarity: number }>>(
+      `/api/v1/documents/search/semantic?${params.toString()}`
+    );
+  },
+
+  /**
    * Store a generated document (invoice, quote PDF) in the vault
    */
   storeGenerated: (params: {
@@ -1628,6 +1724,56 @@ export const documentsApi = {
   reprocess: (id: string) =>
     request<{ message: string; documentId: string }>(`/api/v1/documents/${id}/reprocess`, {
       method: "POST",
+    }),
+
+  /**
+   * Get document activity/audit log
+   */
+  getActivity: (id: string, options?: { page?: number; pageSize?: number }) => {
+    const params = new URLSearchParams();
+    if (options?.page) params.append("page", options.page.toString());
+    if (options?.pageSize) params.append("pageSize", options.pageSize.toString());
+    const query = params.toString();
+    return request<{
+      activities: Array<{
+        id: string;
+        action: string;
+        userId: string | null;
+        userName?: string;
+        createdAt: string;
+        metadata: Record<string, unknown> | null;
+      }>;
+      totalCount: number;
+    }>(`/api/v1/documents/${id}/activity${query ? `?${query}` : ""}`);
+  },
+
+  /**
+   * Track document view (call when user opens a document)
+   */
+  trackView: (id: string) =>
+    request<void>(`/api/v1/documents/${id}/view`, {
+      method: "POST",
+    }),
+
+  /**
+   * Batch rename documents
+   */
+  batchRename: (data: {
+    documentIds: string[];
+    pattern: string;
+    options?: {
+      prefix?: string;
+      suffix?: string;
+      startNumber?: number;
+      preserveExtension?: boolean;
+    };
+  }) =>
+    request<{
+      renamed: Array<{ id: string; oldTitle: string; newTitle: string }>;
+      failed: Array<{ id: string; reason: string }>;
+    }>("/api/v1/documents/batch/rename", {
+      method: "POST",
+      body: JSON.stringify(data),
     }),
 };
 
@@ -1660,6 +1806,83 @@ export const documentTagAssignmentsApi = {
       method: "DELETE",
       body: JSON.stringify(data),
     }),
+};
+
+// Document Shares API
+export type DocumentShare = {
+  id: string;
+  documentId: string;
+  companyId: string;
+  token: string;
+  createdBy: string | null;
+  expiresAt: string | null;
+  viewCount: number;
+  maxViews: number | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export const documentSharesApi = {
+  /**
+   * Create a share link for a document
+   */
+  create: (
+    documentId: string,
+    options?: {
+      expiresAt?: string;
+      password?: string;
+      maxViews?: number;
+    }
+  ) =>
+    request<DocumentShare>(`/api/v1/documents/${documentId}/share`, {
+      method: "POST",
+      body: JSON.stringify(options || {}),
+    }),
+
+  /**
+   * Get all share links for a document
+   */
+  getForDocument: (documentId: string) =>
+    request<DocumentShare[]>(`/api/v1/documents/${documentId}/shares`),
+
+  /**
+   * Delete/revoke a share link
+   */
+  delete: (shareId: string) =>
+    request<{ id: string }>(`/api/v1/document-shares/${shareId}`, {
+      method: "DELETE",
+    }),
+
+  /**
+   * Toggle share active status
+   */
+  toggle: (shareId: string, isActive: boolean) =>
+    request<DocumentShare>(`/api/v1/document-shares/${shareId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ isActive }),
+    }),
+
+  /**
+   * Get public share URL
+   */
+  getPublicUrl: (token: string) => `/share/${token}`,
+
+  /**
+   * Get public download URL
+   */
+  getPublicDownloadUrl: (token: string, password?: string) => {
+    const params = password ? `?password=${encodeURIComponent(password)}` : "";
+    return `/api/v1/public/document/${token}/download${params}`;
+  },
+
+  /**
+   * Get public view URL
+   */
+  getPublicViewUrl: (token: string, password?: string) => {
+    const params = password ? `?password=${encodeURIComponent(password)}` : "";
+    return `/api/v1/public/document/${token}/view${params}`;
+  },
 };
 
 // Invites API
@@ -1802,3 +2025,50 @@ export const tenantAdminApi = {
 };
 
 export { request, buildQueryString };
+
+export const firecrawlApi = {
+  scrape: (data: { url: string; formats?: string[]; includeScreenshots?: boolean }) =>
+    apiClient.post<{ jobId: string; result: Record<string, unknown> }>(
+      "/api/firecrawl/scrape",
+      data
+    ),
+  crawl: (data: { url: string; maxDepth?: number; formats?: string[] }) =>
+    apiClient.post<{ jobId: string; result: Record<string, unknown> }>(
+      "/api/firecrawl/crawl",
+      data
+    ),
+  map: (data: { url: string; strategy?: string }) =>
+    apiClient.post<{ jobId: string; result: Record<string, unknown> }>("/api/firecrawl/map", data),
+  search: (data: { query: string; limit?: number; formats?: string[] }) =>
+    apiClient.post<{ jobId: string; result: Record<string, unknown> }>(
+      "/api/firecrawl/search",
+      data
+    ),
+  extract: (data: { urls: string[]; schema?: Record<string, unknown>; prompt?: string }) =>
+    apiClient.post<{ jobId: string; result: Record<string, unknown> }>(
+      "/api/firecrawl/extract",
+      data
+    ),
+  batchScrape: (data: { urls: string[]; formats?: string[] }) =>
+    apiClient.post<{ jobId: string; serviceJobId?: string }>("/api/firecrawl/batch/scrape", data),
+  enrichCompany: (data: { companyId: string; url?: string }) =>
+    apiClient.post<import("@crm/types").CustomerOrganization>("/api/companies/enrich", data),
+  enrichContact: (data: { contactId: string; url?: string }) =>
+    apiClient.post<import("@crm/types").Contact>("/api/contacts/enrich", data),
+  listJobs: (params: FilterParams & PaginationParams = {}) =>
+    apiClient.get<
+      Array<{ id: string; requestId: string; type: string; status: string; createdAt: string }>
+    >(`/api/firecrawl/jobs${buildQueryString(params)}`),
+  getJob: (id: string) =>
+    apiClient.get<{
+      id: string;
+      requestId: string;
+      type: string;
+      status: string;
+      createdAt: string;
+      startedAt?: string | null;
+      completedAt?: string | null;
+      error?: string | null;
+      results?: Array<{ id: string; createdAt: string; content: Record<string, unknown> }>;
+    }>(`/api/firecrawl/jobs/${id}`),
+};

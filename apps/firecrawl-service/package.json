@@ -1,0 +1,16 @@
+{
+  "name": "@crm/firecrawl-service",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "start": "bun run src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "bullmq": "^5.4.0",
+    "hono": "^4.4.7",
+    "pino": "^9.3.0"
+  }
+}

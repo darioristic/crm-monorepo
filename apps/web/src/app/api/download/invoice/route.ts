@@ -216,6 +216,7 @@ export async function GET(request: NextRequest) {
       lineItems:
         apiInvoice.items?.map((item: InvoiceItemApi) => ({
           name: item.productName || item.description || "",
+          description: item.description || "",
           quantity: item.quantity || 1,
           price: item.unitPrice || 0,
           unit: item.unit || "pcs",
@@ -450,6 +451,7 @@ export async function POST(request: NextRequest) {
       lineItems:
         apiInvoice.items?.map((item: InvoiceItemApi) => ({
           name: item.productName || item.description || "",
+          description: item.description || "",
           quantity: item.quantity || 1,
           price: item.unitPrice || 0,
           unit: item.unit || "pcs",

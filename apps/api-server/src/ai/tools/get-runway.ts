@@ -9,7 +9,7 @@ import { sql } from "../../db/client";
 
 const getRunwaySchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  includeScenarios: z.boolean().default(true).describe("Include best/worst case scenarios"),
+  includeScenarios: z.boolean().optional().describe("Include best/worst case scenarios"),
   growthRate: z.number().optional().describe("Expected monthly growth rate (e.g., 0.1 for 10%)"),
 });
 
@@ -25,9 +25,9 @@ interface RunwayScenario {
 export const getRunwayTool = tool({
   description:
     "Calculate financial runway - how many months until funds run out. Includes multiple scenarios based on spending patterns.",
-  parameters: getRunwaySchema,
-  execute: async (params: GetRunwayParams): Promise<string> => {
-    const { tenantId, includeScenarios, growthRate } = params;
+  inputSchema: getRunwaySchema,
+  execute: async (input: GetRunwayParams): Promise<string> => {
+    const { tenantId, includeScenarios = true, growthRate } = input;
 
     try {
       // Get current cash position

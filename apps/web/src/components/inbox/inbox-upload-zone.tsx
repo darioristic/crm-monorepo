@@ -113,7 +113,7 @@ export function InboxUploadZone({ children, onUploadComplete }: Props) {
     [queryClient, onUploadComplete]
   );
 
-  const { getRootProps, getInputProps, isDragActive, open } = useDropzone({
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     onDropRejected: (rejections) => {
       const errors = rejections.flatMap((r) => r.errors);
@@ -182,8 +182,8 @@ export function InboxUploadZone({ children, onUploadComplete }: Props) {
           <Progress value={totalProgress} className="h-2 mb-2" />
           <p className="text-xs text-muted-foreground">{totalProgress}% complete</p>
           <div className="mt-3 max-h-32 overflow-auto space-y-1">
-            {uploadingFiles.map((f, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs">
+            {uploadingFiles.map((f) => (
+              <div key={f.file.name} className="flex items-center gap-2 text-xs">
                 <span
                   className={cn(
                     "w-2 h-2 rounded-full",
@@ -207,7 +207,7 @@ export function InboxUploadZone({ children, onUploadComplete }: Props) {
 }
 
 // Export a button trigger for manual upload
-export function InboxUploadButton({ onUploadComplete }: { onUploadComplete?: () => void }) {
+export function InboxUploadButton() {
   const handleClick = () => {
     const input = document.getElementById("upload-inbox-files");
     if (input) {

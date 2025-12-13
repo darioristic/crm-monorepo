@@ -18,7 +18,7 @@ interface RecordButtonProps {
 
 export function RecordButton({
   onRecordingComplete,
-  onTranscription,
+  onTranscription: _onTranscription,
   className,
   disabled = false,
   maxDuration = 60,
@@ -88,7 +88,9 @@ export function RecordButton({
       mediaRecorderRef.current.stop();
 
       // Stop all tracks
-      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current?.getTracks().forEach((track) => {
+        track.stop();
+      });
 
       // Clear timer
       if (timerRef.current) {
@@ -250,7 +252,9 @@ export function useAudioRecording(options?: {
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
-      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current?.getTracks().forEach((track) => {
+        track.stop();
+      });
       setIsRecording(false);
 
       if (timerRef.current) {

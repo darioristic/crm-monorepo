@@ -16,7 +16,7 @@ const getDocumentsSchema = z.object({
   companyId: z.string().describe("Filter by company ID").optional(),
   search: z.string().describe("Search term for document title or content").optional(),
   tags: z.array(z.string()).describe("Filter by tags").optional(),
-  limit: z.number().default(20).describe("Maximum results to return"),
+  limit: z.number().optional().describe("Maximum results to return"),
 });
 
 type GetDocumentsParams = z.infer<typeof getDocumentsSchema>;
@@ -24,9 +24,9 @@ type GetDocumentsParams = z.infer<typeof getDocumentsSchema>;
 export const getDocumentsTool = tool({
   description:
     "Search and retrieve documents from the vault. Use to find contracts, invoices, receipts, etc.",
-  parameters: getDocumentsSchema,
-  execute: async (params: GetDocumentsParams): Promise<string> => {
-    const { tenantId, companyId, search, tags, limit } = params;
+  inputSchema: getDocumentsSchema,
+  execute: async (input: GetDocumentsParams): Promise<string> => {
+    const { tenantId, companyId, search, tags, limit = 20 } = input;
 
     try {
       const documents = await sql`
@@ -82,7 +82,7 @@ const getInboxItemsSchema = z.object({
     .enum(["new", "pending", "processing", "processed", "archived"])
     .describe("Filter by status")
     .optional(),
-  limit: z.number().default(20).describe("Maximum results to return"),
+  limit: z.number().optional().describe("Maximum results to return"),
 });
 
 type GetInboxItemsParams = z.infer<typeof getInboxItemsSchema>;
@@ -90,9 +90,9 @@ type GetInboxItemsParams = z.infer<typeof getInboxItemsSchema>;
 export const getInboxItemsTool = tool({
   description:
     "Get inbox items (uploaded receipts, invoices, scanned documents). Shows items pending processing.",
-  parameters: getInboxItemsSchema,
-  execute: async (params: GetInboxItemsParams): Promise<string> => {
-    const { tenantId, status, limit } = params;
+  inputSchema: getInboxItemsSchema,
+  execute: async (input: GetInboxItemsParams): Promise<string> => {
+    const { tenantId, status, limit = 20 } = input;
 
     try {
       const items = await sql`
@@ -179,9 +179,9 @@ type GetAccountBalancesParams = z.infer<typeof getAccountBalancesSchema>;
 export const getAccountBalancesTool = tool({
   description:
     "Get connected bank account balances and financial position summary. Use for cash position overview.",
-  parameters: getAccountBalancesSchema,
-  execute: async (params: GetAccountBalancesParams): Promise<string> => {
-    const { tenantId } = params;
+  inputSchema: getAccountBalancesSchema,
+  execute: async (input: GetAccountBalancesParams): Promise<string> => {
+    const { tenantId } = input;
 
     try {
       // Get connected accounts
@@ -283,9 +283,9 @@ type GetInboxStatsParams = z.infer<typeof getInboxStatsSchema>;
 
 export const getInboxStatsTool = tool({
   description: "Get inbox statistics and processing metrics. Use to understand inbox health.",
-  parameters: getInboxStatsSchema,
-  execute: async (params: GetInboxStatsParams): Promise<string> => {
-    const { tenantId } = params;
+  inputSchema: getInboxStatsSchema,
+  execute: async (input: GetInboxStatsParams): Promise<string> => {
+    const { tenantId } = input;
 
     try {
       const stats = await sql`
@@ -362,9 +362,9 @@ type ProcessInboxItemParams = z.infer<typeof processInboxItemSchema>;
 export const processInboxItemTool = tool({
   description:
     "Trigger OCR and AI processing on an inbox item. Use to extract data from documents.",
-  parameters: processInboxItemSchema,
-  execute: async (params: ProcessInboxItemParams): Promise<string> => {
-    const { tenantId, inboxId } = params;
+  inputSchema: processInboxItemSchema,
+  execute: async (input: ProcessInboxItemParams): Promise<string> => {
+    const { tenantId, inboxId } = input;
 
     try {
       // Check if item exists and get current status

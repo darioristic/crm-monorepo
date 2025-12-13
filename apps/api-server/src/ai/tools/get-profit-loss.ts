@@ -9,8 +9,8 @@ import { sql } from "../../db/client";
 
 const getProfitLossSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  period: z.enum(["month", "quarter", "year", "ytd"]).default("month").describe("Reporting period"),
-  compareWithPrevious: z.boolean().default(true).describe("Compare with previous period"),
+  period: z.enum(["month", "quarter", "year", "ytd"]).optional().describe("Reporting period"),
+  compareWithPrevious: z.boolean().optional().describe("Compare with previous period"),
 });
 
 type GetProfitLossParams = z.infer<typeof getProfitLossSchema>;
@@ -18,9 +18,9 @@ type GetProfitLossParams = z.infer<typeof getProfitLossSchema>;
 export const getProfitLossTool = tool({
   description:
     "Generate profit and loss statement showing revenue, expenses, and net income. Use this for profitability analysis and financial reporting.",
-  parameters: getProfitLossSchema,
-  execute: async (params: GetProfitLossParams): Promise<string> => {
-    const { tenantId, period, compareWithPrevious } = params;
+  inputSchema: getProfitLossSchema,
+  execute: async (input: GetProfitLossParams): Promise<string> => {
+    const { tenantId, period = "month", compareWithPrevious = true } = input;
 
     try {
       // Determine date ranges

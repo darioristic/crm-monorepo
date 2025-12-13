@@ -124,7 +124,12 @@ export function InboxNoResults() {
           <p className="text-[#606060] text-sm">Try another search term</p>
         </div>
 
-        <Button variant="outline" onClick={() => (window.location.href = "/dashboard/inbox")}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            window.location.href = "/dashboard/inbox";
+          }}
+        >
           Clear search
         </Button>
       </div>

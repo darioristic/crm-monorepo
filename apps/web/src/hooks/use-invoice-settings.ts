@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useTenant } from "@/contexts/tenant-context";
-import type { InvoiceDefaultSettings } from "@/types/invoice";
+import type { EditorDoc, InvoiceDefaultSettings } from "@/types/invoice";
 import { DEFAULT_INVOICE_TEMPLATE } from "@/types/invoice";
 
 // Hook for invoice settings - fetches fromDetails and logo from current tenant
 export function useInvoiceSettings() {
   const { currentTenant } = useTenant();
-  const [fromDetails, setFromDetails] = useState<any>(null);
-  const [paymentDetails, setPaymentDetails] = useState<any>(null);
+  const [fromDetails, setFromDetails] = useState<EditorDoc | null>(null);
+  const [paymentDetails, setPaymentDetails] = useState<EditorDoc | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -71,7 +71,7 @@ export function useInvoiceSettings() {
     try {
       const savedPaymentDetails = localStorage.getItem("invoice_payment_details");
       if (savedPaymentDetails) {
-        setPaymentDetails(JSON.parse(savedPaymentDetails));
+        setPaymentDetails(JSON.parse(savedPaymentDetails) as EditorDoc);
       }
     } catch {
       setPaymentDetails(null);

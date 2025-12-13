@@ -19,7 +19,7 @@ type Expense = {
 
 const getSpendingInsightsSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  months: z.number().min(1).max(12).default(3).describe("Number of months to analyze"),
+  months: z.number().min(1).max(12).optional().describe("Number of months to analyze"),
 });
 
 type GetSpendingInsightsParams = z.infer<typeof getSpendingInsightsSchema>;
@@ -27,9 +27,9 @@ type GetSpendingInsightsParams = z.infer<typeof getSpendingInsightsSchema>;
 export const getSpendingInsightsTool = tool({
   description:
     "Get intelligent insights about spending patterns, anomalies, savings opportunities, and unusual transactions. Use this to understand spending behavior.",
-  parameters: getSpendingInsightsSchema,
-  execute: async (params: GetSpendingInsightsParams): Promise<string> => {
-    const { tenantId, months } = params;
+  inputSchema: getSpendingInsightsSchema,
+  execute: async (input: GetSpendingInsightsParams): Promise<string> => {
+    const { tenantId, months = 3 } = input;
 
     try {
       // Get all expenses with details

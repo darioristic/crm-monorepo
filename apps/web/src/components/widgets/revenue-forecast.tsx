@@ -17,7 +17,13 @@ export function RevenueForecastWidget() {
 
           {/* Simple trend line */}
           <div className="h-12 w-full flex items-center">
-            <svg viewBox="0 0 100 40" className="w-full h-full" preserveAspectRatio="none">
+            <svg
+              viewBox="0 0 100 40"
+              className="w-full h-full"
+              preserveAspectRatio="none"
+              role="img"
+            >
+              <title>Revenue trend line</title>
               <path
                 d="M 0 35 Q 20 30, 30 25 T 50 20 T 70 15 T 100 10"
                 fill="none"

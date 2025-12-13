@@ -101,7 +101,9 @@ export function LineItems({
           <div className="self-start">
             <Description content={item.name} />
             {item.description && (
-              <div className="text-[10px] text-[#666666] italic mt-0.5">{item.description}</div>
+              <div className="text-[#666666] italic mt-0.5">
+                <Description content={item.description} />
+              </div>
             )}
           </div>
           <div className="text-[11px] self-start text-center">{item.quantity ?? 0}</div>

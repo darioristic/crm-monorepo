@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useFieldArray, useForm } from "react-hook-form";
+import { type Resolver, useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 import { SelectCompany } from "@/components/companies/select-company";
@@ -104,7 +104,7 @@ export function DeliveryNoteForm({
   deliveryNote,
   mode,
   onSuccess,
-  onClose,
+  onClose: _onClose,
 }: DeliveryNoteFormProps) {
   const router = useRouter();
   const { user } = useAuth();
@@ -145,7 +145,7 @@ export function DeliveryNoteForm({
   }, []);
 
   const form = useForm<DeliveryNoteFormValues>({
-    resolver: zodResolver(deliveryNoteFormSchema) as any,
+    resolver: zodResolver(deliveryNoteFormSchema) as Resolver<DeliveryNoteFormValues>,
     defaultValues: {
       companyId: deliveryNote?.companyId || "",
       shippingAddress: deliveryNote?.shippingAddress || "",

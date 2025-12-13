@@ -24,9 +24,9 @@ type GetTimeEntriesParams = z.infer<typeof getTimeEntriesSchema>;
 export const getTimeEntriesTool = tool({
   description:
     "Get time entries from tasks showing estimated vs actual hours. Use for time tracking overview.",
-  parameters: getTimeEntriesSchema,
-  execute: async (params: GetTimeEntriesParams): Promise<string> => {
-    const { tenantId, projectId, userId, startDate, endDate } = params;
+  inputSchema: getTimeEntriesSchema,
+  execute: async (input: GetTimeEntriesParams): Promise<string> => {
+    const { tenantId, projectId, userId, startDate, endDate } = input;
 
     try {
       const tasks = await sql`
@@ -124,9 +124,9 @@ type GetProjectTimeParams = z.infer<typeof getProjectTimeSchema>;
 
 export const getProjectTimeTool = tool({
   description: "Get total time logged to a project with breakdown by task and milestone.",
-  parameters: getProjectTimeSchema,
-  execute: async (params: GetProjectTimeParams): Promise<string> => {
-    const { tenantId, projectId } = params;
+  inputSchema: getProjectTimeSchema,
+  execute: async (input: GetProjectTimeParams): Promise<string> => {
+    const { tenantId, projectId } = input;
 
     try {
       const projects = await sql`
@@ -230,16 +230,16 @@ export const getProjectTimeTool = tool({
 
 const getTeamUtilizationSchema = z.object({
   tenantId: z.string().describe("The tenant ID"),
-  period: z.enum(["week", "month", "quarter"]).default("month").describe("Time period to analyze"),
+  period: z.enum(["week", "month", "quarter"]).optional().describe("Time period to analyze"),
 });
 
 type GetTeamUtilizationParams = z.infer<typeof getTeamUtilizationSchema>;
 
 export const getTeamUtilizationTool = tool({
   description: "Get team utilization rates showing hours worked per team member.",
-  parameters: getTeamUtilizationSchema,
-  execute: async (params: GetTeamUtilizationParams): Promise<string> => {
-    const { tenantId, period } = params;
+  inputSchema: getTeamUtilizationSchema,
+  execute: async (input: GetTeamUtilizationParams): Promise<string> => {
+    const { tenantId, period = "month" } = input;
 
     const periodInterval =
       period === "week" ? "7 days" : period === "quarter" ? "3 months" : "1 month";
@@ -319,9 +319,9 @@ type GetTimeStatsParams = z.infer<typeof getTimeStatsSchema>;
 
 export const getTimeStatsTool = tool({
   description: "Get overall time tracking statistics and metrics.",
-  parameters: getTimeStatsSchema,
-  execute: async (params: GetTimeStatsParams): Promise<string> => {
-    const { tenantId } = params;
+  inputSchema: getTimeStatsSchema,
+  execute: async (input: GetTimeStatsParams): Promise<string> => {
+    const { tenantId } = input;
 
     try {
       // Overall stats

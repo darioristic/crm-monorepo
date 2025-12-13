@@ -1,5 +1,6 @@
 "use client";
 
+import type { InvoiceFormValues } from "@crm/schemas";
 import type { Company, Invoice } from "@crm/types";
 import { Filter, LayoutGrid, MoreHorizontal, RefreshCw, Search } from "lucide-react";
 import * as React from "react";
@@ -314,11 +315,13 @@ export function InvoicesBoardView({ onNewInvoice: _onNewInvoice }: InvoicesBoard
           editInvoice
             ? {
                 id: editInvoice.id,
-                status: (["draft", "sent", "paid", "partial", "overdue", "cancelled"].includes(
-                  (editInvoice.status || "").toLowerCase()
-                )
-                  ? (editInvoice.status as any)
-                  : "draft") as any,
+                status: ((
+                  ["draft", "sent", "paid", "partial", "overdue", "cancelled"] as Array<
+                    InvoiceFormValues["status"]
+                  >
+                ).includes(editInvoice.status as InvoiceFormValues["status"])
+                  ? (editInvoice.status as InvoiceFormValues["status"])
+                  : "draft") as InvoiceFormValues["status"],
                 invoiceNumber: editInvoice.invoiceNumber,
                 issueDate: editInvoice.issueDate,
                 dueDate: editInvoice.dueDate,

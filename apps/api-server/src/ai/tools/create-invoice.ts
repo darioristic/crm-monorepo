@@ -12,9 +12,9 @@ import { invoiceQueries } from "../../db/queries/invoices";
 const invoiceItemSchema = z.object({
   productName: z.string().describe("Name of the product or service"),
   description: z.string().optional().describe("Optional description"),
-  quantity: z.number().min(1).default(1).describe("Quantity"),
+  quantity: z.number().min(1).optional().describe("Quantity"),
   unitPrice: z.number().min(0).describe("Price per unit"),
-  discount: z.number().min(0).max(100).default(0).describe("Discount percentage"),
+  discount: z.number().min(0).max(100).optional().describe("Discount percentage"),
 });
 
 const createInvoiceSchema = z.object({
@@ -24,17 +24,26 @@ const createInvoiceSchema = z.object({
   items: z.array(invoiceItemSchema).min(1).describe("Invoice line items"),
   dueDate: z.string().optional().describe("Due date in YYYY-MM-DD format"),
   notes: z.string().optional().describe("Notes to include on the invoice"),
-  currency: z.string().default("EUR").describe("Currency code"),
-  vatRate: z.number().default(20).describe("VAT rate percentage"),
+  currency: z.string().optional().describe("Currency code"),
+  vatRate: z.number().optional().describe("VAT rate percentage"),
 });
 
 type CreateInvoiceParams = z.infer<typeof createInvoiceSchema>;
 
 export const createInvoiceTool = tool({
   description: "Create a new invoice for a customer. Requires either customerName or customerId.",
-  parameters: createInvoiceSchema,
-  execute: async (params: CreateInvoiceParams): Promise<string> => {
-    const { tenantId, customerName, customerId, items, dueDate, notes, currency, vatRate } = params;
+  inputSchema: createInvoiceSchema,
+  execute: async (input: CreateInvoiceParams): Promise<string> => {
+    const {
+      tenantId,
+      customerName,
+      customerId,
+      items,
+      dueDate,
+      notes,
+      currency = "EUR",
+      vatRate = 20,
+    } = input;
 
     try {
       // Find the customer/company
@@ -84,12 +93,12 @@ export const createInvoiceTool = tool({
       const calculatedItems = items.map((item) => ({
         productName: item.productName,
         description: item.description,
-        quantity: item.quantity,
+        quantity: item.quantity ?? 1,
         unitPrice: item.unitPrice,
-        discount: item.discount,
+        discount: item.discount ?? 0,
         unit: "pcs",
         vatRate: vatRate,
-        total: item.quantity * item.unitPrice * (1 - item.discount / 100),
+        total: (item.quantity ?? 1) * item.unitPrice * (1 - (item.discount ?? 0) / 100),
       }));
 
       const subtotal = calculatedItems.reduce((sum, item) => sum + item.total, 0);

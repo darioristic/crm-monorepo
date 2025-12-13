@@ -47,7 +47,9 @@ const SelectCell = memo(
     onChange: (value: boolean) => void;
     onShiftClick?: () => void;
   }) => (
-    <div
+    <Checkbox
+      checked={checked}
+      onCheckedChange={onChange}
       onClick={(e) => {
         e.stopPropagation();
         if (e.shiftKey && onShiftClick) {
@@ -55,9 +57,7 @@ const SelectCell = memo(
           onShiftClick();
         }
       }}
-    >
-      <Checkbox checked={checked} onCheckedChange={onChange} />
-    </div>
+    />
   )
 );
 SelectCell.displayName = "SelectCell";

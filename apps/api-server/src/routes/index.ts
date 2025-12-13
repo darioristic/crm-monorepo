@@ -21,6 +21,7 @@ import { addEmailJob, getQueuesStatus } from "../jobs";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
 import { tenantMgmtRoutes } from "../tenant-mgmt/routes";
+import { audioTranscriptionRoutes } from "./audio-transcription";
 // Auth routes
 import {
   changePasswordHandler,
@@ -31,6 +32,7 @@ import {
   switchTenantHandler,
 } from "./auth";
 import { bankImportRoutes } from "./bank-import";
+import { categoryEmbeddingsRoutes } from "./category-embeddings";
 import { chatRoutes } from "./chat";
 import { companyRoutes } from "./companies";
 import { connectedAccountRoutes } from "./connected-accounts";
@@ -39,6 +41,7 @@ import { crmApiRoutes } from "./crm-api";
 import { currencyRoutes } from "./currency";
 import { documentRoutes } from "./documents";
 import { fileRoutes } from "./files";
+import { firecrawlRoutes } from "./firecrawl";
 // Import route modules
 import { healthRoutes } from "./health";
 import type { Route } from "./helpers";
@@ -53,7 +56,9 @@ import { projectRoutes } from "./projects";
 import { recurringTransactionRoutes } from "./recurring-transactions";
 import { reportRoutes } from "./reports";
 import { salesRoutes } from "./sales";
+import { smartFiltersRoutes } from "./smart-filters";
 import { superadminRoutes } from "./superadmin";
+import { taxRatesRoutes } from "./tax-rates";
 import { tenantAdminRoutes } from "./tenant-admin";
 import { transactionAttachmentRoutes } from "./transaction-attachments";
 import { transactionCategoryRoutes } from "./transaction-categories";
@@ -151,6 +156,21 @@ const routes: Route[] = [
 
   // Currency & Exchange Rates
   ...currencyRoutes,
+
+  // Smart Filters (AI-powered NLP)
+  ...smartFiltersRoutes,
+
+  // Audio Transcription
+  ...audioTranscriptionRoutes,
+
+  // Category Embeddings
+  ...categoryEmbeddingsRoutes,
+
+  // Tax Rate Intelligence
+  ...taxRatesRoutes,
+
+  // Firecrawl Integration
+  ...firecrawlRoutes,
 ];
 
 // ============================================

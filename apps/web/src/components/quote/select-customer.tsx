@@ -192,7 +192,10 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
             <div className="border-t border-border p-2">
               <RadioGroup
                 value={filterType}
-                onValueChange={(v) => handleFilterChange(v as any)}
+                onValueChange={(v) => {
+                  const next = v === "individual" || v === "organization" ? v : "all";
+                  handleFilterChange(next);
+                }}
                 className="grid grid-cols-3 gap-2"
               >
                 <div className="flex items-center gap-2 text-[11px]">
@@ -279,20 +282,12 @@ export function SelectCustomer({ companies, onSelect, onCompanyCreated }: Props)
                 <form
                   onSubmit={individualForm.handleSubmit(async (data) => {
                     const res = await contactsApi.create({
-                      id: crypto.randomUUID(),
                       firstName: data.firstName,
                       lastName: data.lastName,
                       email: data.email || "",
                       phone: data.phone,
-                      company: undefined,
-                      position: undefined,
-                      address: undefined,
-                      notes: undefined,
-                      leadId: undefined,
                       jmbg: data.jmbg,
-                      createdAt: new Date().toISOString(),
-                      updatedAt: new Date().toISOString(),
-                    } as any);
+                    });
                     if (res.success && res.data) {
                       setShowCreateSheet(false);
                       onSelect("individual", res.data.id);

@@ -4,7 +4,7 @@ import { z } from "zod";
 import { companyQueries } from "../../db/queries/companies";
 
 const getCustomersSchema = z.object({
-  pageSize: z.number().min(1).max(50).default(10).describe("Number of customers to return"),
+  pageSize: z.number().min(1).max(50).optional().describe("Number of customers to return"),
   search: z.string().optional().describe("Search by name, industry, city, or country"),
   industry: z.string().optional().describe("Filter by industry"),
   country: z.string().optional().describe("Filter by country"),
@@ -14,9 +14,9 @@ type GetCustomersParams = z.infer<typeof getCustomersSchema>;
 
 export const getCustomersTool = tool({
   description: "Search and retrieve customers (companies) with filtering options",
-  parameters: getCustomersSchema,
-  execute: async (params: GetCustomersParams): Promise<string> => {
-    const { pageSize = 10, search, industry, country } = params;
+  inputSchema: getCustomersSchema,
+  execute: async (input: GetCustomersParams): Promise<string> => {
+    const { pageSize = 10, search, industry, country } = input;
     try {
       let result: { data: Company[]; total: number };
 
@@ -60,9 +60,9 @@ type GetCustomerByIdParams = z.infer<typeof getCustomerByIdSchema>;
 
 export const getCustomerByIdTool = tool({
   description: "Get detailed information about a specific customer by ID",
-  parameters: getCustomerByIdSchema,
-  execute: async (params: GetCustomerByIdParams): Promise<string> => {
-    const { customerId } = params;
+  inputSchema: getCustomerByIdSchema,
+  execute: async (input: GetCustomerByIdParams): Promise<string> => {
+    const { customerId } = input;
     try {
       const company = await companyQueries.findById(customerId);
 
@@ -97,7 +97,7 @@ const emptySchema = z.object({});
 
 export const getIndustriesSummaryTool = tool({
   description: "Get a summary of customers grouped by industry",
-  parameters: emptySchema,
+  inputSchema: emptySchema,
   execute: async (): Promise<string> => {
     try {
       const industries = await companyQueries.getIndustries();

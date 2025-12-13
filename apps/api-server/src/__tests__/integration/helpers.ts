@@ -1,4 +1,4 @@
-import type { Company } from "@crm/types";
+import type { Company, UserRole } from "@crm/types";
 import { cache } from "../../cache/redis";
 import { sql } from "../../db/client";
 import { authQueries } from "../../db/queries/auth";
@@ -100,9 +100,9 @@ export async function createTestCompany(companyData: Partial<Company> = {}): Pro
 
 export async function createTestSession(userId: string): Promise<string> {
   const user = await userQueries.findById(userId);
-  const role =
+  const role: UserRole =
     user?.role === "superadmin" || user?.role === "tenant_admin" || user?.role === "crm_user"
-      ? (user.role as any)
+      ? (user.role as UserRole)
       : "crm_user";
 
   const sessionId = crypto.randomUUID();
@@ -118,7 +118,7 @@ export async function createTestSession(userId: string): Promise<string> {
 
   await cache.setSession(sessionId, sessionData as unknown as Record<string, unknown>, 3600);
 
-  const token = await generateJWT(userId, role as any, user?.tenantId, user?.companyId, sessionId);
+  const token = await generateJWT(userId, role, user?.tenantId, user?.companyId, sessionId);
   return token;
 }
 

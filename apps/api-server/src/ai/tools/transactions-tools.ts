@@ -18,8 +18,8 @@ const getTransactionsSchema = z.object({
   category: z.string().describe("Filter by category slug").optional(),
   minAmount: z.number().describe("Minimum amount").optional(),
   maxAmount: z.number().describe("Maximum amount").optional(),
-  type: z.enum(["income", "expense", "all"]).default("all").describe("Transaction type"),
-  limit: z.number().default(50).describe("Maximum results"),
+  type: z.enum(["income", "expense", "all"]).optional().describe("Transaction type"),
+  limit: z.number().optional().describe("Maximum results"),
 });
 
 type GetTransactionsParams = z.infer<typeof getTransactionsSchema>;
@@ -27,9 +27,18 @@ type GetTransactionsParams = z.infer<typeof getTransactionsSchema>;
 export const getTransactionsTool = tool({
   description:
     "Search and retrieve transactions (payments) with various filters. Use for transaction history.",
-  parameters: getTransactionsSchema,
-  execute: async (params: GetTransactionsParams): Promise<string> => {
-    const { tenantId, startDate, endDate, category, minAmount, maxAmount, type, limit } = params;
+  inputSchema: getTransactionsSchema,
+  execute: async (input: GetTransactionsParams): Promise<string> => {
+    const {
+      tenantId,
+      startDate,
+      endDate,
+      category,
+      minAmount,
+      maxAmount,
+      type = "all",
+      limit = 50,
+    } = input;
 
     try {
       const transactions = await sql`
@@ -108,7 +117,7 @@ export const getTransactionsTool = tool({
 const searchTransactionsSchema = z.object({
   tenantId: z.string().describe("The tenant ID"),
   query: z.string().describe("Search term (company name, notes, reference number)"),
-  limit: z.number().default(20).describe("Maximum results"),
+  limit: z.number().optional().describe("Maximum results"),
 });
 
 type SearchTransactionsParams = z.infer<typeof searchTransactionsSchema>;
@@ -116,9 +125,9 @@ type SearchTransactionsParams = z.infer<typeof searchTransactionsSchema>;
 export const searchTransactionsTool = tool({
   description:
     "Full-text search across transaction descriptions, companies, and reference numbers.",
-  parameters: searchTransactionsSchema,
-  execute: async (params: SearchTransactionsParams): Promise<string> => {
-    const { tenantId, query, limit } = params;
+  inputSchema: searchTransactionsSchema,
+  execute: async (input: SearchTransactionsParams): Promise<string> => {
+    const { tenantId, query, limit = 20 } = input;
 
     try {
       const transactions = await sql`
@@ -174,16 +183,16 @@ export const searchTransactionsTool = tool({
 
 const getTransactionStatsSchema = z.object({
   tenantId: z.string().describe("The tenant ID"),
-  period: z.enum(["week", "month", "quarter", "year"]).default("month").describe("Analysis period"),
+  period: z.enum(["week", "month", "quarter", "year"]).optional().describe("Analysis period"),
 });
 
 type GetTransactionStatsParams = z.infer<typeof getTransactionStatsSchema>;
 
 export const getTransactionStatsTool = tool({
   description: "Get transaction statistics with breakdowns by category, vendor, and trends.",
-  parameters: getTransactionStatsSchema,
-  execute: async (params: GetTransactionStatsParams): Promise<string> => {
-    const { tenantId, period } = params;
+  inputSchema: getTransactionStatsSchema,
+  execute: async (input: GetTransactionStatsParams): Promise<string> => {
+    const { tenantId, period = "month" } = input;
 
     const periodInterval =
       period === "week"
@@ -311,9 +320,9 @@ type GetRecurringTransactionsParams = z.infer<typeof getRecurringTransactionsSch
 
 export const getRecurringTransactionsTool = tool({
   description: "Identify recurring payments and subscriptions based on transaction patterns.",
-  parameters: getRecurringTransactionsSchema,
-  execute: async (params: GetRecurringTransactionsParams): Promise<string> => {
-    const { tenantId } = params;
+  inputSchema: getRecurringTransactionsSchema,
+  execute: async (input: GetRecurringTransactionsParams): Promise<string> => {
+    const { tenantId } = input;
 
     try {
       // Find vendors with multiple transactions at similar amounts
@@ -418,9 +427,9 @@ type GetTransactionsByVendorParams = z.infer<typeof getTransactionsByVendorSchem
 
 export const getTransactionsByVendorTool = tool({
   description: "Get all transactions for a specific vendor or company.",
-  parameters: getTransactionsByVendorSchema,
-  execute: async (params: GetTransactionsByVendorParams): Promise<string> => {
-    const { tenantId, vendorName } = params;
+  inputSchema: getTransactionsByVendorSchema,
+  execute: async (input: GetTransactionsByVendorParams): Promise<string> => {
+    const { tenantId, vendorName } = input;
 
     try {
       const transactions = await sql`

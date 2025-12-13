@@ -583,6 +583,61 @@ router.put("/api/v1/companies/:id", async (request, _url, params) => {
   });
 });
 
+router.post("/api/v1/companies/:id/enrich/firecrawl", async (request, url, params) => {
+  return withAuth(request, async (auth) => {
+    const { getCompanyById } = await import("../db/queries/companies-enhanced");
+    const company = await getCompanyById(params.id);
+    if (!company) {
+      return errorResponse("NOT_FOUND", "Company not found");
+    }
+    const tenantIdParam = url.searchParams.get("tenantId") || auth.activeTenantId || null;
+    const tenantId = tenantIdParam || auth.activeTenantId || auth.companyId || auth.userId;
+    if (!tenantId) {
+      return errorResponse("VALIDATION_ERROR", "Tenant required");
+    }
+    const { firecrawlClient } = await import("../integrations/firecrawl.client");
+    const targetUrl =
+      company.website || `https://www.google.com/search?q=${encodeURIComponent(company.name)}`;
+    const extractPayload = {
+      urls: [targetUrl],
+      prompt:
+        "Extract company description, tech stack list, social links, and 5 metadata tags relevant to the company. Return JSON with keys: description, techStack (array), socialLinks (array), tags (array).",
+    };
+    const result = await firecrawlClient.extract<Record<string, unknown>>(tenantId, extractPayload);
+    if (!result.success || !result.data) {
+      return errorResponse("FIRECRAWL_ERROR", result.error?.message || "Failed to enrich company");
+    }
+    const data = result.data as Record<string, unknown>;
+    const description = typeof data.description === "string" ? (data.description as string) : null;
+    let noteUpdate = company.note || null;
+    if (description) {
+      noteUpdate = description;
+    }
+    await updateCompanyById({
+      id: params.id,
+      note: noteUpdate ?? undefined,
+    });
+    const enriched = await getCompanyById(params.id);
+    const { EventStore } = await import("../infrastructure/EventStore");
+    const { DomainEvent } = await import("../domain/base/Event");
+    const eventStore = new EventStore();
+    const event = new (class CompanyEvent extends DomainEvent {
+      constructor() {
+        super({
+          aggregateId: params.id,
+          aggregateType: "Company",
+          eventType: "CompanyEnrichedFromFirecrawl",
+          eventVersion: 1,
+          eventData: { input: extractPayload, output: data },
+          metadata: { tenantId, userId: auth.userId, timestamp: new Date() },
+        });
+      }
+    })();
+    await eventStore.append([event]);
+    return successResponse({ company: enriched, enrichment: data });
+  });
+});
+
 // ============================================
 // Upload Company Logo
 // ============================================

@@ -33,7 +33,7 @@ export function ProfitAnalysisWidget() {
         <div className="flex items-end gap-1 w-full h-full">
           {[40, 60, 45, 70, 55, 65, 50, 75, 60, 80, 55, 70].map((height, i) => (
             <div
-              key={i}
+              key={`bar-${i}-${height}`}
               className="flex-1 bg-muted-foreground/30"
               style={{ height: `${height}%` }}
             />

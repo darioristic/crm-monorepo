@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -54,7 +55,7 @@ export function FilePreview({ mimetype, name, filePath, small, className }: File
     if (src) {
       setIsLoading(true);
       setIsError(false);
-      const img = new Image();
+      const img = new window.Image();
       img.src = src;
       img.onload = () => {
         setIsLoading(false);
@@ -85,11 +86,13 @@ export function FilePreview({ mimetype, name, filePath, small, className }: File
   return (
     <div className={cn("w-full h-full relative", className)}>
       {isLoading && <Skeleton className="absolute inset-0 w-full h-full" />}
-      <img
+      <Image
         src={src}
         alt={name || "File Preview"}
+        fill
+        sizes="(max-width: 768px) 100vw, 50vw"
         className={cn(
-          "w-full h-full object-contain border border-border dark:border-none",
+          "object-contain border border-border dark:border-none",
           isLoading ? "opacity-0" : "opacity-100",
           "transition-opacity duration-100"
         )}

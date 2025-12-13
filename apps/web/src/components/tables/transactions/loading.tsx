@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -29,6 +30,10 @@ export function Loading({ isEmpty = false, rows = 10 }: LoadingProps) {
 }
 
 function LoadingSkeleton({ rows }: { rows: number }) {
+  const skeletonKeys = useMemo(
+    () => Array.from({ length: rows }, () => crypto.randomUUID()),
+    [rows]
+  );
   return (
     <div className="rounded-md border overflow-hidden">
       <Table>
@@ -65,8 +70,8 @@ function LoadingSkeleton({ rows }: { rows: number }) {
           </TableRow>
         </TableHeader>
         <TableBody>
-          {Array.from({ length: rows }).map((_, index) => (
-            <TableRow key={index}>
+          {skeletonKeys.map((key) => (
+            <TableRow key={key}>
               <TableCell>
                 <Skeleton className="h-4 w-4" />
               </TableCell>

@@ -66,15 +66,13 @@ function LineItem({
   index,
   onRemove,
   control,
-  register,
   watchedItem,
   canRemove,
 }: {
   index: number;
   onRemove: () => void;
-  control: any;
-  register: any;
-  watchedItem: any;
+  control: import("react-hook-form").Control<QuoteFormValues>;
+  watchedItem: QuoteFormValues["items"][number];
   canRemove: boolean;
 }) {
   const dragControls = useDragControls();
@@ -497,7 +495,6 @@ export function QuoteSheet({ quote, mode, open, onOpenChange, onSuccess }: Quote
                       index={index}
                       onRemove={() => remove(index)}
                       control={form.control}
-                      register={form.register}
                       watchedItem={watchedItems[index]}
                       canRemove={fields.length > 1}
                     />

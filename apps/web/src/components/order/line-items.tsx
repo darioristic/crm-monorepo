@@ -7,7 +7,7 @@ import { LabelInput } from "@/components/invoice/label-input";
 import { Button } from "@/components/ui/button";
 import { QuantityInput } from "@/components/ui/quantity-input";
 import { calculateLineItemTotal, formatOrderAmount } from "@/utils/order-calculate";
-import type { FormValues } from "./form-context";
+import type { FormValues, LineItemFormValues } from "./form-context";
 import { ProductAutocomplete } from "./product-autocomplete";
 import { ProductAwareAmountInput } from "./product-aware-amount-input";
 import { ProductAwareUnitInput } from "./product-aware-unit-input";
@@ -143,7 +143,7 @@ function LineItemRow({
   index: number;
   handleRemove: (index: number) => void;
   isReorderable: boolean;
-  item: any;
+  item: LineItemFormValues;
   currency: string;
   maximumFractionDigits: number;
   includeUnits?: boolean;

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
+import type { AuthUser } from "@/lib/auth";
 
 interface Tenant {
   id: string;
@@ -32,9 +33,9 @@ export function TenantProvider({ children }: { children: ReactNode }) {
   // Load tenant data from user object
   useEffect(() => {
     if (user) {
-      // Check if user has tenantRoles property (typed as any to avoid TypeScript errors)
-      const userData = user as any;
-      const tenants = userData.tenantRoles || [];
+      type UserWithTenants = AuthUser & { tenantRoles?: Tenant[]; activeTenant?: Tenant };
+      const userData = user as UserWithTenants;
+      const tenants = userData.tenantRoles ?? [];
       setAvailableTenants(tenants);
 
       // Set current tenant from user.activeTenant

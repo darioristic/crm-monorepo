@@ -104,8 +104,8 @@ export function TransactionDetails() {
       return res;
     },
   });
-  const transactions = Array.isArray(listData?.data) ? listData?.data : [];
-  const currentIndex = transactions.findIndex((t: any) => t.id === transactionId);
+  const transactions = Array.isArray(listData?.data) ? (listData?.data as EnrichedPayment[]) : [];
+  const currentIndex = transactions.findIndex((t) => t.id === transactionId);
   const canPrev = currentIndex > 0;
   const canNext = currentIndex >= 0 && currentIndex < transactions.length - 1;
   const handlePrev = () => {

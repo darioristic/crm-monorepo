@@ -1,6 +1,7 @@
 "use client";
 
 import { ImageOff } from "lucide-react";
+import Image from "next/image";
 import { useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -28,11 +29,13 @@ export function ImageViewer({ url }: { url: string }) {
 
       {isError && <ErrorImage />}
 
-      <img
+      <Image
         src={url}
         alt="Document preview"
+        width={1200}
+        height={800}
         className={cn(
-          "max-h-full max-w-full object-contain",
+          "h-auto w-auto max-h-full max-w-full object-contain",
           isLoading ? "opacity-0" : "opacity-100"
         )}
         onLoad={() => setIsLoading(false)}

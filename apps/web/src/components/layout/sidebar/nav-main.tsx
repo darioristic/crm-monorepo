@@ -124,6 +124,10 @@ export const navItems: NavGroup[] = [
     ],
   },
   {
+    title: "Lead Generation",
+    items: [],
+  },
+  {
     title: "Sales",
     items: [
       {
@@ -235,7 +239,7 @@ export const navItems: NavGroup[] = [
   },
 ];
 
-export function NavMain() {
+export const NavMain = React.memo(function NavMain() {
   const pathname = usePathname();
   const { isMobile } = useSidebar();
   const [mounted, setMounted] = React.useState(false);
@@ -260,13 +264,17 @@ export function NavMain() {
                 const contentId = `collapsible-content-${slug}`;
                 const triggerId = `dropdown-trigger-${slug}`;
                 return (
-                  <SidebarMenuItem key={item.title}>
+                  <SidebarMenuItem key={item.href}>
                     {Array.isArray(item.items) && item.items.length > 0 ? (
                       <>
                         <div className="hidden group-data-[collapsible=icon]:block">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                              <SidebarMenuButton tooltip={item.title} id={triggerId}>
+                              <SidebarMenuButton
+                                tooltip={item.title}
+                                id={triggerId}
+                                aria-haspopup="menu"
+                              >
                                 {item.icon && <item.icon className="h-4 w-4" />}
                                 <span>{item.title}</span>
                                 <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -281,11 +289,16 @@ export function NavMain() {
                               <DropdownMenuLabel>{item.title}</DropdownMenuLabel>
                               {item.items?.map((subItem) => (
                                 <DropdownMenuItem
-                                  className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10! active:bg-[var(--primary)]/10!"
+                                  className="hover:text-foreground active:text-foreground hover:!bg-[var(--primary)]/10 active:!bg-[var(--primary)]/10"
                                   asChild
-                                  key={subItem.title}
+                                  key={subItem.href}
                                 >
-                                  <Link href={subItem.href}>{subItem.title}</Link>
+                                  <Link
+                                    href={subItem.href}
+                                    aria-current={pathname === subItem.href ? "page" : undefined}
+                                  >
+                                    {subItem.title}
+                                  </Link>
                                 </DropdownMenuItem>
                               ))}
                             </DropdownMenuContent>
@@ -315,7 +328,10 @@ export function NavMain() {
                                     className="hover:text-foreground active:text-foreground hover:bg-[var(--primary)]/10 active:bg-[var(--primary)]/10 w-full"
                                     isActive={pathname === subItem.href}
                                   >
-                                    <Link href={subItem.href}>
+                                    <Link
+                                      href={subItem.href}
+                                      aria-current={pathname === subItem.href ? "page" : undefined}
+                                    >
                                       <span>{subItem.title}</span>
                                     </Link>
                                   </SidebarMenuSubButton>
@@ -332,7 +348,10 @@ export function NavMain() {
                         isActive={pathname === item.href}
                         tooltip={item.title}
                       >
-                        <Link href={item.href}>
+                        <Link
+                          href={item.href}
+                          aria-current={pathname === item.href ? "page" : undefined}
+                        >
                           {item.icon && <item.icon className="h-4 w-4" />}
                           <span>{item.title}</span>
                         </Link>
@@ -347,4 +366,4 @@ export function NavMain() {
       ))}
     </>
   );
-}
+});

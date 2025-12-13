@@ -84,21 +84,34 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
             <h4 className="font-medium">Bill to</h4>
             <div className="text-sm space-y-0.5 text-muted-foreground">
               {(() => {
-                const cd = invoice.customerDetails as any;
-                let doc: any = null;
+                const cd = invoice.customerDetails;
+                type EditorDocLike = { type: string; content?: unknown[] };
+                type Details = {
+                  name?: string;
+                  address?: string;
+                  city?: string;
+                  zip?: string | number;
+                  country?: string;
+                  email?: string;
+                  phone?: string;
+                  vatNumber?: string;
+                };
+                let doc: EditorDocLike | null = null;
                 if (cd && typeof cd === "string") {
                   try {
-                    const parsed = JSON.parse(cd);
+                    const parsed = JSON.parse(cd) as EditorDocLike;
                     if (parsed && typeof parsed === "object" && parsed.type === "doc") {
                       doc = parsed;
                     }
                   } catch {}
-                } else if (cd && typeof cd === "object" && cd.type === "doc") {
-                  doc = cd;
+                } else if (cd && typeof cd === "object" && (cd as EditorDocLike).type === "doc") {
+                  doc = cd as EditorDocLike;
                 }
 
                 if (doc) {
-                  const lines = extractTextFromEditorDoc(doc)
+                  const lines = extractTextFromEditorDoc(
+                    doc as unknown as Parameters<typeof extractTextFromEditorDoc>[0]
+                  )
                     .split("\n")
                     .map((l) => l.trim())
                     .filter(Boolean);
@@ -106,19 +119,35 @@ export function InvoiceDetailsSheet({ open, onOpenChange, invoice }: Props) {
                 }
 
                 if (cd && typeof cd === "object") {
+                  const det = cd as Details;
                   const lines: string[] = [];
-                  if (cd.name) lines.push(String(cd.name));
-                  if (cd.address) lines.push(String(cd.address));
-                  const cityZipCountry = [cd.zip, cd.city, cd.country].filter(Boolean).join(" ");
+                  if (det.name) lines.push(String(det.name));
+                  if (det.address) lines.push(String(det.address));
+                  const cityZipCountry = [det.zip, det.city, det.country].filter(Boolean).join(" ");
                   if (cityZipCountry) lines.push(cityZipCountry);
-                  if (cd.email) lines.push(String(cd.email));
-                  if (cd.phone) lines.push(String(cd.phone));
-                  if (cd.vatNumber) lines.push(`PIB: ${String(cd.vatNumber)}`);
+                  if (det.email) lines.push(String(det.email));
+                  if (det.phone) lines.push(String(det.phone));
+                  if (det.vatNumber) lines.push(`PIB: ${String(det.vatNumber)}`);
                   return lines.length ? lines.map((line) => <p key={line}>{line}</p>) : null;
                 }
 
-                const company = (invoice as any).company;
-                const companyName = (invoice as any).companyName || company?.name;
+                const company = (
+                  invoice as unknown as {
+                    company?: {
+                      name?: string;
+                      address?: string;
+                      addressLine1?: string;
+                      city?: string;
+                      zip?: string;
+                      country?: string;
+                      vatNumber?: string;
+                      email?: string;
+                      billingEmail?: string;
+                    };
+                  }
+                ).company;
+                const companyName =
+                  (invoice as unknown as { companyName?: string }).companyName || company?.name;
                 const addressLine =
                   [company?.zip, company?.city].filter(Boolean).join(" ") ||
                   company?.address ||

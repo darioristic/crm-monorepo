@@ -3,7 +3,7 @@ import { z } from "zod";
 import { invoiceQueries } from "../../db/queries/invoices";
 
 const getInvoicesSchema = z.object({
-  pageSize: z.number().min(1).max(50).default(10).describe("Number of invoices to return"),
+  pageSize: z.number().min(1).max(50).optional().describe("Number of invoices to return"),
   status: z
     .enum(["draft", "sent", "paid", "overdue", "cancelled", "partial"])
     .optional()
@@ -15,9 +15,9 @@ type GetInvoicesParams = z.infer<typeof getInvoicesSchema>;
 
 export const getInvoicesTool = tool({
   description: "Retrieve and filter invoices with pagination and status filtering",
-  parameters: getInvoicesSchema,
-  execute: async (params: GetInvoicesParams): Promise<string> => {
-    const { pageSize = 10, status, search } = params;
+  inputSchema: getInvoicesSchema,
+  execute: async (input: GetInvoicesParams): Promise<string> => {
+    const { pageSize = 10, status, search } = input;
     try {
       const result = await invoiceQueries.findAll(null, { page: 1, pageSize }, { status, search });
 
@@ -75,7 +75,7 @@ const emptySchema = z.object({});
 
 export const getOverdueInvoicesTool = tool({
   description: "Get all overdue invoices that need attention",
-  parameters: emptySchema,
+  inputSchema: emptySchema,
   execute: async (): Promise<string> => {
     try {
       const overdueInvoices = await invoiceQueries.getOverdue(null);

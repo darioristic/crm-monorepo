@@ -9,7 +9,7 @@ const createCustomerSchema = z.object({
   tenantId: z.string().describe("The tenant ID (use tenant_id from context)"),
   name: z.string().min(2).describe("Customer/company name"),
   address: z.string().min(5).describe("Full address"),
-  industry: z.string().default("Consulting").describe("Industry name"),
+  industry: z.string().optional().describe("Industry name"),
   vatNumber: z.string().optional().describe("VAT number (PIB)"),
   companyNumber: z.string().optional().describe("Company registration number (matični broj)"),
   email: z.string().email().optional().describe("Contact email"),
@@ -27,8 +27,8 @@ type CreateCustomerParams = z.infer<typeof createCustomerSchema>;
 export const createCustomerTool = tool({
   description:
     "Create a new customer (company) in the current tenant. Use when the requested customer doesn't exist.",
-  parameters: createCustomerSchema,
-  execute: async (params: CreateCustomerParams): Promise<string> => {
+  inputSchema: createCustomerSchema,
+  execute: async (input: CreateCustomerParams): Promise<string> => {
     const {
       tenantId,
       name,
@@ -44,7 +44,7 @@ export const createCustomerTool = tool({
       vatNumber,
       companyNumber,
       note,
-    } = params;
+    } = input;
 
     try {
       // Pick a user from this tenant to act as creator
@@ -63,7 +63,7 @@ export const createCustomerTool = tool({
 
       const companyId = await createCompany({
         name,
-        industry,
+        industry: industry || "Consulting",
         address,
         userId,
         email,

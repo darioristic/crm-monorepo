@@ -150,15 +150,16 @@ export function InvoiceSubmitButton({
           <DropdownMenuSeparator />
 
           <div className="p-2">
-            <div
-              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer hover:bg-accent ${
+            <button
+              type="button"
+              className={`flex items-center gap-2 p-2 rounded-md hover:bg-accent ${
                 deliveryType === "scheduled" ? "bg-accent" : ""
               }`}
               onClick={() => handleOptionChange("scheduled")}
             >
               <CalendarIcon className="h-4 w-4" />
               <span>Schedule</span>
-            </div>
+            </button>
 
             {deliveryType === "scheduled" && (
               <div className="mt-3 space-y-3">

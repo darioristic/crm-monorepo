@@ -73,7 +73,7 @@ export async function notifyAutoMatch(params: AutoMatchNotificationParams): Prom
 
     await notificationsService.createNotification({
       userId,
-      type: "inbox_matched" as any, // Will need to add this type to NotificationType enum
+      type: "inbox_matched",
       channel: "in_app",
       title,
       message,
@@ -135,7 +135,7 @@ export async function notifyNeedsReview(params: NeedsReviewNotificationParams): 
 
     await notificationsService.createNotification({
       userId,
-      type: "inbox_needs_review" as any,
+      type: "inbox_needs_review",
       channel: "in_app",
       title,
       message,
@@ -218,7 +218,7 @@ export async function notifyMatchConfirmed(params: {
 
     await notificationsService.createNotification({
       userId,
-      type: "inbox_matched" as any,
+      type: "inbox_matched",
       channel: "in_app",
       title: "Match Confirmed",
       message: `"${documentName}" has been linked to the ${amount} transaction.`,

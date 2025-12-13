@@ -155,7 +155,7 @@ function DeliveryNoteSheetContent({
   deliveryNoteId,
   deliveryNoteData,
   onSuccess,
-  onClose,
+  onClose: _onClose,
   isLoading,
 }: DeliveryNoteSheetContentProps) {
   const [size] = useState(700);
@@ -255,9 +255,11 @@ function SuccessContent({
     async function loadCompany() {
       if (company || !deliveryNote?.companyId) return;
       try {
-        const res = await companiesApi.getById(deliveryNote.companyId);
-        if (res && (res as any).success && (res as any).data && active) {
-          setCompany((res as any).data as Company);
+        const result = await companiesApi.getById(deliveryNote.companyId);
+        if (result && active) {
+          if (result.success && result.data) {
+            setCompany(result.data);
+          }
         }
       } catch {}
     }
@@ -311,14 +313,25 @@ function SuccessContent({
               {company?.phone && (
                 <p className="text-sm text-muted-foreground">Tel: {company.phone}</p>
               )}
-              {(company?.email || (company as any)?.billingEmail) && (
+              {(company?.email ||
+                (company &&
+                  "billingEmail" in company &&
+                  (company as EnhancedCompany).billingEmail)) && (
                 <p className="text-sm text-muted-foreground">
                   E-mail:{" "}
                   <a
-                    href={`mailto:${company?.email || (company as any)?.billingEmail}`}
+                    href={`mailto:${
+                      company?.email ||
+                      (company && "billingEmail" in company
+                        ? (company as EnhancedCompany).billingEmail || ""
+                        : "")
+                    }`}
                     className="underline"
                   >
-                    {company?.email || (company as any)?.billingEmail}
+                    {company?.email ||
+                      (company && "billingEmail" in company
+                        ? (company as EnhancedCompany).billingEmail || ""
+                        : "")}
                   </a>
                 </p>
               )}

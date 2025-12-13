@@ -298,6 +298,7 @@ export function InvoicePublicView({ invoice, token }: InvoicePublicViewProps) {
     lineItems:
       invoice.items?.map((item) => ({
         name: item.productName || item.description || "",
+        description: item.description || "",
         quantity: item.quantity || 1,
         price: item.unitPrice || 0,
         unit: item.unit || "pcs",

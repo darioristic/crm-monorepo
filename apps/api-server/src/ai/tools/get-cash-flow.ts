@@ -9,8 +9,8 @@ import { sql } from "../../db/client";
 
 const getCashFlowSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  period: z.enum(["week", "month", "quarter", "year"]).default("month").describe("Analysis period"),
-  compareWithPrevious: z.boolean().default(true).describe("Compare with previous period"),
+  period: z.enum(["week", "month", "quarter", "year"]).optional().describe("Analysis period"),
+  compareWithPrevious: z.boolean().optional().describe("Compare with previous period"),
 });
 
 type GetCashFlowParams = z.infer<typeof getCashFlowSchema>;
@@ -18,9 +18,9 @@ type GetCashFlowParams = z.infer<typeof getCashFlowSchema>;
 export const getCashFlowTool = tool({
   description:
     "Analyze cash flow patterns including inflows, outflows, net flow, and trends. Useful for understanding money movement.",
-  parameters: getCashFlowSchema,
-  execute: async (params: GetCashFlowParams): Promise<string> => {
-    const { tenantId, period, compareWithPrevious } = params;
+  inputSchema: getCashFlowSchema,
+  execute: async (input: GetCashFlowParams): Promise<string> => {
+    const { tenantId, period = "month", compareWithPrevious = true } = input;
 
     try {
       // Determine date ranges based on period

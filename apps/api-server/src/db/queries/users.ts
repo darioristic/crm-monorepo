@@ -7,6 +7,7 @@ import type {
   UserWithCompany,
 } from "@crm/types";
 import { sql as db, sql } from "../client";
+import type { QueryParam } from "../query-builder";
 import { createQueryBuilder, sanitizeSortColumn, sanitizeSortOrder } from "../query-builder";
 
 // ============================================

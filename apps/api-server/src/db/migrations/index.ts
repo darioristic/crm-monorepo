@@ -27,6 +27,7 @@ import * as migration024_orgs from "./024_add_customer_organizations";
 import * as migration025 from "./025_create_tenant_accounts_and_migrate";
 import * as migration026 from "./026_create_inbox_tables";
 import * as migration027 from "./027_fix_inbox_constraints";
+import * as migration028 from "./028_create_document_shares";
 
 interface Migration {
   name: string;
@@ -63,6 +64,7 @@ const migrations: Migration[] = [
   migration025,
   migration026,
   migration027,
+  migration028,
 ];
 
 // Migrations tracking table

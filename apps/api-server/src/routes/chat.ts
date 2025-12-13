@@ -4,11 +4,17 @@
 
 import { openai } from "@ai-sdk/openai";
 import { errorResponse } from "@crm/utils";
-import { type CoreMessage, generateText } from "ai";
+import { type CoreMessage, generateText, stepCountIs, streamText } from "ai";
 import { z } from "zod";
 // Import AI components
-import { AVAILABLE_AGENTS, mainAgent, routeToAgent } from "../ai/agents";
-import { buildAppContext, getChatHistory, saveChatMessage } from "../ai/agents/config/shared";
+import { AVAILABLE_AGENTS, routeToAgent } from "../ai/agents";
+import {
+  buildAppContext,
+  COMMON_AGENT_RULES,
+  formatContextForLLM,
+  getChatHistory,
+  saveChatMessage,
+} from "../ai/agents/config/shared";
 import { createCustomerTool } from "../ai/tools/create-customer";
 import { createInvoiceTool } from "../ai/tools/create-invoice";
 // Financial Analysis Tools
@@ -61,6 +67,7 @@ import {
   searchTransactionsTool,
 } from "../ai/tools/transactions-tools";
 import type { ChatUserContext, ToolSet } from "../ai/types";
+import { env } from "../config/env";
 import { logger } from "../lib/logger";
 import { verifyAndGetUser } from "../middleware/auth";
 import type { Route } from "./helpers";
@@ -120,6 +127,28 @@ const tools = {
   getRecurringTransactions: getRecurringTransactionsTool,
   getTransactionsByVendor: getTransactionsByVendorTool,
 };
+
+// Helpers to build system prompts without relying on Agent methods
+function buildTriagePrompt(ctx: import("../ai/types").AppContext): string {
+  return `Route user requests to the appropriate specialist.
+
+<background-data>
+${formatContextForLLM(ctx)}
+</background-data>`;
+}
+
+function buildAgentPrompt(agentName: string, ctx: import("../ai/types").AppContext): string {
+  return `You are a ${agentName} specialist.
+
+<background-data>
+${formatContextForLLM(ctx)}
+</background-data>
+
+${COMMON_AGENT_RULES}`;
+}
+
+// Strict triage schema: only allow known agent names
+const AGENT_NAMES = Object.keys(AVAILABLE_AGENTS) as [string, ...string[]];
 
 // Get tools for specific agent
 function getAgentTools(agentName: string): ToolSet {
@@ -202,7 +231,9 @@ export const chatRoutes: Route[] = [
     pattern: /^\/api\/v1\/chat$/,
     handler: async (request) => {
       const auth = await verifyAndGetUser(request);
-      if (!auth) {
+      const allowPublicChat =
+        env.NODE_ENV !== "production" || process.env.ENABLE_PUBLIC_CHAT === "true";
+      if (!auth && !allowPublicChat) {
         return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
       }
 
@@ -221,23 +252,33 @@ export const chatRoutes: Route[] = [
         logger.info({ message, chatId }, "[Chat] Parsed message");
 
         // Build user context - use activeTenantId for proper multi-tenant support
-        const userContext: ChatUserContext = {
-          userId: auth.userId,
-          teamId: auth.activeTenantId || auth.companyId || auth.userId,
-          teamName: null,
-          fullName: null,
-          baseCurrency: "EUR",
-          locale: "sr-RS",
-          timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
-        };
+        const userContext: ChatUserContext = auth
+          ? {
+              userId: auth.userId,
+              teamId: auth.activeTenantId || auth.companyId || auth.userId,
+              teamName: null,
+              fullName: null,
+              baseCurrency: "EUR",
+              locale: "sr-RS",
+              timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            }
+          : {
+              userId: "public",
+              teamId: "public",
+              teamName: null,
+              fullName: null,
+              baseCurrency: "EUR",
+              locale: "sr-RS",
+              timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            };
 
         const appContext = buildAppContext(userContext, chatId);
         logger.info(
           {
             teamId: userContext.teamId,
-            activeTenantId: auth.activeTenantId,
-            companyId: auth.companyId,
-            userId: auth.userId,
+            activeTenantId: auth?.activeTenantId ?? null,
+            companyId: auth?.companyId ?? null,
+            userId: auth?.userId ?? "public",
           },
           "[Chat] User context built"
         );
@@ -272,10 +313,18 @@ export const chatRoutes: Route[] = [
         try {
           const routing = await generateText({
             model: openai("gpt-4o-mini"),
-            system: mainAgent.getSystemPrompt(appContext),
+            system: `${buildTriagePrompt(appContext)}
+
+Return ONLY a JSON object like {"agent":"<one of: ${AGENT_NAMES.join(", ")} >"} with no extra text.`,
             messages: [{ role: "user", content: message }],
           });
-          agentName = routing.text.trim() || "general";
+          let parsedName = "general";
+          try {
+            const obj = JSON.parse(routing.text || "{}");
+            const name = String(obj.agent || "").toLowerCase();
+            if (AGENT_NAMES.includes(name)) parsedName = name;
+          } catch {}
+          agentName = parsedName;
         } catch (routingError) {
           logger.warn(
             { error: routingError },
@@ -285,7 +334,7 @@ export const chatRoutes: Route[] = [
         }
         logger.info({ agentName }, "[Chat] Routed to agent");
 
-        const selectedAgent = routeToAgent(agentName);
+        routeToAgent(agentName);
         const agentTools: ToolSet = getAgentTools(agentName);
         logger.info({ toolCount: Object.keys(agentTools).length }, "[Chat] Got agent tools");
 
@@ -305,10 +354,10 @@ export const chatRoutes: Route[] = [
         try {
           const result = await generateText({
             model: openai("gpt-4o-mini"),
-            system: selectedAgent.getSystemPrompt(appContext),
+            system: buildAgentPrompt(agentName, appContext),
             messages,
             tools: agentTools,
-            maxSteps: 5,
+            stopWhen: stepCountIs(5),
           });
 
           logger.info(
@@ -381,6 +430,127 @@ export const chatRoutes: Route[] = [
       } catch (error) {
         logger.error({ error }, "Error in chat endpoint");
         return json(errorResponse("INTERNAL_ERROR", "Chat processing failed"), 500);
+      }
+    },
+    params: [],
+  },
+
+  // POST /api/v1/chat/stream - Streaming chat endpoint
+  {
+    method: "POST",
+    pattern: /^\/api\/v1\/chat\/stream$/,
+    handler: async (request) => {
+      const auth = await verifyAndGetUser(request);
+      const allowPublicChat =
+        env.NODE_ENV !== "production" || process.env.ENABLE_PUBLIC_CHAT === "true";
+      if (!auth && !allowPublicChat) {
+        return json(errorResponse("UNAUTHORIZED", "Authentication required"), 401);
+      }
+
+      try {
+        const body = await request.json();
+        logger.info({ body }, "[Chat Stream] Received request");
+
+        const validationResult = chatRequestSchema.safeParse(body);
+
+        if (!validationResult.success) {
+          logger.error({ error: validationResult.error }, "[Chat Stream] Validation failed");
+          return json(errorResponse("VALIDATION_ERROR", validationResult.error.message), 400);
+        }
+
+        const { message, chatId = crypto.randomUUID(), timezone } = validationResult.data;
+        logger.info({ message, chatId }, "[Chat Stream] Parsed message");
+
+        // Build user context
+        const userContext: ChatUserContext = auth
+          ? {
+              userId: auth.userId,
+              teamId: auth.activeTenantId || auth.companyId || auth.userId,
+              teamName: null,
+              fullName: null,
+              baseCurrency: "EUR",
+              locale: "sr-RS",
+              timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            }
+          : {
+              userId: "public",
+              teamId: "public",
+              teamName: null,
+              fullName: null,
+              baseCurrency: "EUR",
+              locale: "sr-RS",
+              timezone: timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+            };
+
+        const appContext = buildAppContext(userContext, chatId);
+
+        // Check for OpenAI API key
+        if (!process.env.OPENAI_API_KEY) {
+          logger.warn("[Chat Stream] OPENAI_API_KEY missing");
+          return json(errorResponse("CONFIG_ERROR", "AI service not configured"), 503);
+        }
+
+        // Get chat history
+        const history = await getChatHistory(chatId, 10);
+
+        // Route to appropriate agent
+        let agentName = "general";
+        try {
+          const routing = await generateText({
+            model: openai("gpt-4o-mini"),
+            system: `${buildTriagePrompt(appContext)}
+
+Return ONLY a JSON object like {"agent":"<one of: ${AGENT_NAMES.join(", ")} >"} with no extra text.`,
+            messages: [{ role: "user", content: message }],
+          });
+          let parsedName = "general";
+          try {
+            const obj = JSON.parse(routing.text || "{}");
+            const name = String(obj.agent || "").toLowerCase();
+            if (AGENT_NAMES.includes(name)) parsedName = name;
+          } catch {}
+          agentName = parsedName;
+        } catch (routingError) {
+          logger.warn({ error: routingError }, "[Chat Stream] Routing failed, using general");
+          agentName = "general";
+        }
+        logger.info({ agentName }, "[Chat Stream] Routed to agent");
+
+        routeToAgent(agentName);
+        const agentTools: ToolSet = getAgentTools(agentName);
+
+        // Save user message
+        await saveChatMessage(chatId, { role: "user", content: message });
+
+        // Build messages array
+        const messages: CoreMessage[] = [...history, { role: "user", content: message }];
+
+        // Stream the response
+        const result = streamText({
+          model: openai("gpt-4o-mini"),
+          system: buildAgentPrompt(agentName, appContext),
+          messages,
+          tools: agentTools,
+          stopWhen: stepCountIs(5),
+          onFinish: async ({ text }) => {
+            // Save final response to history
+            if (text) {
+              await saveChatMessage(chatId, { role: "assistant", content: text });
+            }
+          },
+        });
+
+        // Return the UI message stream response (AI SDK v5)
+        // This format is compatible with useChat from @ai-sdk/react
+        return result.toUIMessageStreamResponse({
+          headers: {
+            "X-Chat-Id": chatId,
+            "X-Agent": agentName,
+          },
+        });
+      } catch (error) {
+        logger.error({ error }, "[Chat Stream] Error");
+        return json(errorResponse("INTERNAL_ERROR", "Chat streaming failed"), 500);
       }
     },
     params: [],

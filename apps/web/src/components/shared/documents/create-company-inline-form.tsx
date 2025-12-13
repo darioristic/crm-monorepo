@@ -308,7 +308,7 @@ export function CreateCompanyInlineForm({
       const idToStore = (mode === "create" && result.data?.id) || companyId;
       onSuccess(String(idToStore));
     } else {
-      toast.error(String((result as any)?.error || "Failed to create company"));
+      toast.error(String(result.error || "Failed to create company"));
     }
   };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import type { CustomerOrganization } from "@crm/types";
-import { ArrowUpDown, MapPin, Pencil, Star, StarOff, Trash2 } from "lucide-react";
+import { ArrowUpDown, Globe, Loader2, MapPin, Pencil, Star, StarOff, Trash2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -16,7 +16,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { organizationsApi } from "@/lib/api";
+import { firecrawlApi, organizationsApi } from "@/lib/api";
 import { getWebsiteLogo } from "@/lib/logos";
 
 type Props = {
@@ -41,6 +41,7 @@ export function OrganizationsDataTable({
   onSortChange,
 }: Props) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
   const router = useRouter();
   const pathname = usePathname();
 
@@ -62,6 +63,16 @@ export function OrganizationsDataTable({
   const handleDelete = async (id: string) => {
     await organizationsApi.delete(id);
     onRefresh();
+  };
+
+  const handleEnrich = async (id: string) => {
+    setEnrichingId(id);
+    try {
+      await firecrawlApi.enrichCompany({ companyId: id });
+      onRefresh();
+    } finally {
+      setEnrichingId(null);
+    }
   };
 
   const formatLocation = (org: CustomerOrganization) => {
@@ -169,6 +180,20 @@ export function OrganizationsDataTable({
                         <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />
                       ) : (
                         <StarOff className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8"
+                      disabled={enrichingId === c.id}
+                      onClick={() => handleEnrich(c.id)}
+                      aria-label="Enrich with Firecrawl"
+                    >
+                      {enrichingId === c.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Globe className="h-4 w-4" />
                       )}
                     </Button>
                     <Button

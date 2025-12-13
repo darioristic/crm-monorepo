@@ -3,7 +3,7 @@ import { z } from "zod";
 import { sql as db } from "../../db/client";
 
 const getProductsSchema = z.object({
-  pageSize: z.number().min(1).max(50).default(10).describe("Number of products to return"),
+  pageSize: z.number().min(1).max(50).optional().describe("Number of products to return"),
   search: z.string().optional().describe("Search by product name or SKU"),
   category: z.string().optional().describe("Filter by category"),
 });
@@ -12,9 +12,9 @@ type GetProductsParams = z.infer<typeof getProductsSchema>;
 
 export const getProductsTool = tool({
   description: "Search and retrieve products with filtering options",
-  parameters: getProductsSchema,
-  execute: async (params: GetProductsParams): Promise<string> => {
-    const { pageSize = 10, search, category } = params;
+  inputSchema: getProductsSchema,
+  execute: async (input: GetProductsParams): Promise<string> => {
+    const { pageSize = 10, search, category } = input;
     try {
       let query = `
         SELECT p.*, c.name as category_name
@@ -72,7 +72,7 @@ const emptySchema = z.object({});
 
 export const getProductCategoriesSummaryTool = tool({
   description: "Get a summary of products grouped by category",
-  parameters: emptySchema,
+  inputSchema: emptySchema,
   execute: async (): Promise<string> => {
     try {
       const result = await db`

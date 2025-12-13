@@ -241,10 +241,16 @@ export const useChatStore = create<ChatState>()(
           updatedAt: new Date().toISOString(),
         };
 
-        set((state) => ({
-          sessions: [session, ...state.sessions],
-          currentChatId: id,
-        }));
+        set((state) => {
+          // Check if session already exists
+          if (state.sessions.some((s) => s.id === id)) {
+            return { currentChatId: id };
+          }
+          return {
+            sessions: [session, ...state.sessions],
+            currentChatId: id,
+          };
+        });
 
         return id;
       },
@@ -358,8 +364,24 @@ export const useChatStore = create<ChatState>()(
     {
       name: "chat-storage",
       partialize: (state) => ({
-        sessions: state.sessions.slice(0, 20), // Keep last 20 sessions
+        // Deduplicate sessions before persisting
+        sessions: state.sessions
+          .filter((session, index, self) => index === self.findIndex((s) => s.id === session.id))
+          .slice(0, 20), // Keep last 20 sessions
       }),
+      onRehydrateStorage: () => (state) => {
+        // Clean up duplicates when loading from storage
+        if (state?.sessions) {
+          const seen = new Set<string>();
+          state.sessions = state.sessions.filter((session) => {
+            if (seen.has(session.id)) {
+              return false;
+            }
+            seen.add(session.id);
+            return true;
+          });
+        }
+      },
     }
   )
 );

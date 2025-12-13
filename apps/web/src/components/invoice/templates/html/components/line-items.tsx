@@ -6,6 +6,7 @@ type Props = {
   currency: string | null;
   descriptionLabel: string;
   quantityLabel: string;
+  unitLabel?: string;
   priceLabel: string;
   totalLabel: string;
   includeDecimals?: boolean;
@@ -52,6 +53,7 @@ export function LineItems({
   currency,
   descriptionLabel,
   quantityLabel,
+  unitLabel,
   priceLabel,
   totalLabel,
   includeDecimals = false,
@@ -81,7 +83,9 @@ export function LineItems({
       >
         <div className="text-[11px] text-[#878787]">{descriptionLabel}</div>
         <div className="text-[11px] text-[#878787] text-center">{quantityLabel || "Qty"}</div>
-        {includeUnits && <div className="text-[11px] text-[#878787] text-center">Unit</div>}
+        {includeUnits && (
+          <div className="text-[11px] text-[#878787] text-center">{unitLabel || "Unit"}</div>
+        )}
         <div className="text-[11px] text-[#878787] text-center">{priceLabel}</div>
         {includeDiscount && <div className="text-[11px] text-[#878787] text-center">Disc %</div>}
         {includeVat && <div className="text-[11px] text-[#878787] text-center">VAT %</div>}
@@ -97,7 +101,9 @@ export function LineItems({
           <div className="self-start">
             <Description content={item.name} />
             {item.description && (
-              <div className="text-[10px] text-[#666666] italic mt-0.5">{item.description}</div>
+              <div className="text-[#666666] italic mt-0.5 break-words">
+                <Description content={item.description} />
+              </div>
             )}
           </div>
           <div className="text-[11px] self-start text-center">{item.quantity ?? 0}</div>

@@ -79,10 +79,10 @@ type SuccessContentProps = {
 };
 
 function SuccessContent({
-  invoiceId,
+  invoiceId: _invoiceId,
   onViewInvoice,
   onCreateAnother,
-  onClose,
+  onClose: _onClose,
 }: SuccessContentProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full p-8 text-center">

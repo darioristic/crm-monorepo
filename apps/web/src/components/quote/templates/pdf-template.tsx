@@ -73,10 +73,30 @@ function calculateLineItemTotalWithDiscount({
 /**
  * Render EditorDoc content for PDF
  */
-function renderEditorContent(content: EditorDoc | string | null) {
-  const text = extractTextFromEditorDoc(content);
-  return text.split("\n").map((line) => (
-    <Text key={line || "line"} style={{ fontSize: 9, lineHeight: 1.6 }}>
+function renderEditorContent(content: EditorDoc | string | null, style?: Record<string, unknown>) {
+  let parsed: EditorDoc | string | null = content;
+  if (typeof content === "string") {
+    try {
+      const obj = JSON.parse(content);
+      if (obj && typeof obj === "object" && "type" in obj) {
+        parsed = obj as EditorDoc;
+      }
+    } catch {
+      parsed = content;
+    }
+  }
+  const extracted = extractTextFromEditorDoc(parsed);
+  const text =
+    extracted && extracted.trim().length > 0
+      ? extracted
+      : typeof content === "string"
+        ? content
+        : "";
+  return text.split("\n").map((line, idx) => (
+    <Text
+      key={`${idx}-${line || "line"}`}
+      style={{ fontSize: 9, lineHeight: 1.6, ...(style || {}) }}
+    >
       {line || " "}
     </Text>
   ));
@@ -235,6 +255,18 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
             >
               {template.quantityLabel}
             </Text>
+            {template.includeUnits && (
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: 9,
+                  fontWeight: 500,
+                  textAlign: "center",
+                }}
+              >
+                {(template as unknown as Record<string, string>).unitLabel || "Unit"}
+              </Text>
+            )}
             <Text
               style={{
                 flex: 1,
@@ -309,9 +341,13 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
                   <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
                     {item.quantity ?? 0}
                   </Text>
+                  {template.includeUnits && (
+                    <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
+                      {item.unit || ""}
+                    </Text>
+                  )}
                   <Text style={{ flex: 1, fontSize: 9, textAlign: "center" }}>
                     {formatAmount(item.price ?? 0)}
-                    {template.includeUnits && item.unit ? ` / ${item.unit}` : ""}
                   </Text>
                   {template.includeDiscount && (
                     <Text style={{ flex: 0.7, fontSize: 9, textAlign: "center" }}>
@@ -327,13 +363,22 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
                     {formatAmount(itemTotal)}
                   </Text>
                 </View>
-                {/* Description row - shown below name in gray */}
                 {item.description && (
                   <View style={{ flexDirection: "row", marginTop: 2 }}>
                     <View style={{ width: 25 }} />
-                    <Text style={{ flex: 3, fontSize: 8, color: "#666666", fontStyle: "italic" }}>
-                      {item.description}
-                    </Text>
+                    <View style={{ flex: 3 }}>
+                      {renderEditorContent(item.description, {
+                        fontSize: 8,
+                        color: "#666666",
+                        fontStyle: "italic",
+                      })}
+                    </View>
+                    <Text style={{ flex: 1 }} />
+                    {template.includeUnits && <Text style={{ flex: 1 }} />}
+                    <Text style={{ flex: 1 }} />
+                    {template.includeDiscount && <Text style={{ flex: 0.7 }} />}
+                    {template.includeVat && <Text style={{ flex: 0.7 }} />}
+                    <Text style={{ flex: 1 }} />
                   </View>
                 )}
               </View>
@@ -467,27 +512,46 @@ export async function PdfTemplate({ quote }: PdfTemplateProps) {
           </View>
         )}
 
-        {/* Payment Details - Single row at bottom */}
-        {quote.paymentDetails && (
+        {/* Fixed bottom area with Payment Details above footer line and page number */}
+        <View
+          fixed
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: 20,
+            right: 20,
+          }}
+        >
+          {quote.paymentDetails && (
+            <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.paymentLabel}</Text>
+                <View style={{ marginTop: 6 }}>{renderEditorContent(quote.paymentDetails)}</View>
+              </View>
+              {qrCode && (
+                <View style={{ marginLeft: 20 }}>
+                  <Image src={qrCode} style={{ width: 40, height: 40 }} />
+                </View>
+              )}
+            </View>
+          )}
           <View
             style={{
-              marginTop: 20,
+              marginTop: 3,
+              borderTopWidth: 0.5,
+              borderTopColor: "#e5e5e5",
+              paddingTop: 6,
               flexDirection: "row",
-              alignItems: "flex-start",
+              justifyContent: "space-between",
             }}
-            wrap={false}
           >
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.paymentLabel}</Text>
-              <View style={{ marginTop: 6 }}>{renderEditorContent(quote.paymentDetails)}</View>
-            </View>
-            {qrCode && (
-              <View style={{ marginLeft: 20 }}>
-                <Image src={qrCode} style={{ width: 40, height: 40 }} />
-              </View>
-            )}
+            <Text style={{ fontSize: 8, color: "#666666" }} />
+            <Text
+              style={{ fontSize: 8, color: "#666666" }}
+              render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+            />
           </View>
-        )}
+        </View>
       </Page>
     </Document>
   );

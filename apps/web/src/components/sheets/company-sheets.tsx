@@ -1,5 +1,5 @@
 "use client";
 
 export function CompanySheets() {
-  return <></>;
+  return null;
 }

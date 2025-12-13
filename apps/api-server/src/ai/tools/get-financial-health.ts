@@ -9,7 +9,7 @@ import { sql } from "../../db/client";
 
 const getFinancialHealthSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  detailed: z.boolean().default(true).describe("Include detailed breakdown"),
+  detailed: z.boolean().optional().describe("Include detailed breakdown"),
 });
 
 type GetFinancialHealthParams = z.infer<typeof getFinancialHealthSchema>;
@@ -25,9 +25,9 @@ interface HealthMetric {
 export const getFinancialHealthTool = tool({
   description:
     "Generate a comprehensive financial health score with detailed breakdown. Analyzes profitability, liquidity, growth, and risk factors.",
-  parameters: getFinancialHealthSchema,
-  execute: async (params: GetFinancialHealthParams): Promise<string> => {
-    const { tenantId, detailed } = params;
+  inputSchema: getFinancialHealthSchema,
+  execute: async (input: GetFinancialHealthParams): Promise<string> => {
+    const { tenantId, detailed = true } = input;
 
     try {
       // Get various financial metrics for health scoring

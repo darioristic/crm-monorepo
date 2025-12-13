@@ -21,7 +21,11 @@ export function SubmitButton({ isSubmitting, disabled, isEditMode }: SubmitButto
   const { control, setValue } = useFormContext<FormValues>();
   const deliveryType = useWatch({ control, name: "template.deliveryType" });
 
-  const options = isEditMode
+  const options: Array<{
+    value: FormValues["template"]["deliveryType"];
+    label: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }> = isEditMode
     ? [
         { value: "create", label: "Update", icon: Save },
         { value: "create_and_send", label: "Update & send", icon: Send },
@@ -70,7 +74,7 @@ export function SubmitButton({ isSubmitting, disabled, isEditMode }: SubmitButto
               <DropdownMenuItem
                 key={option.value}
                 onClick={() =>
-                  setValue("template.deliveryType", option.value as any, {
+                  setValue("template.deliveryType", option.value, {
                     shouldDirty: true,
                   })
                 }

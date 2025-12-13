@@ -199,10 +199,46 @@ function createDocumentProcessingWorker(): Worker {
           summary?: string;
           tags?: string[];
           language?: string;
+          content?: string;
         } = {};
 
-        if (processingType === "classify" || processingType === "full") {
-          // Use AI to classify and extract metadata
+        // Check if this is an image that needs OCR
+        const isImage = aiService.isImageForOcr(mimetype);
+
+        if (isImage) {
+          // Use OCR for images
+          try {
+            const fileStorage = await import("../services/file-storage.service");
+            const imageBuffer = await fileStorage.readFileAsBuffer(filePath);
+
+            if (imageBuffer) {
+              const ocrResult = await aiService.extractTextFromImage({
+                imageBuffer,
+                mimetype,
+                filename: filePath[filePath.length - 1],
+              });
+
+              if (ocrResult) {
+                result = {
+                  title: ocrResult.title,
+                  summary: ocrResult.summary,
+                  tags: ocrResult.tags,
+                  content: ocrResult.text,
+                };
+                logger.info(
+                  { jobId: job.id, documentId, textLength: ocrResult.text.length },
+                  "OCR extraction completed"
+                );
+              }
+            }
+          } catch (ocrError) {
+            logger.warn(
+              { jobId: job.id, error: ocrError },
+              "OCR extraction failed, continuing with basic processing"
+            );
+          }
+        } else if (processingType === "classify" || processingType === "full") {
+          // Use AI to classify and extract metadata for non-image files
           try {
             const classificationResult = await aiService.classifyDocument({
               documentId,
@@ -223,6 +259,7 @@ function createDocumentProcessingWorker(): Worker {
         await documentQueries.update(documentId, companyId, {
           title: result.title || undefined,
           summary: result.summary || undefined,
+          content: result.content || undefined,
           language: result.language || undefined,
           processingStatus: "completed",
         });

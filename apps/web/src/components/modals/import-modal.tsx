@@ -159,7 +159,7 @@ export function ImportModal({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: acceptedFileTypes.reduce((acc, type) => ({ ...acc, [type]: [] }), {}),
+    accept: Object.fromEntries(acceptedFileTypes.map((type) => [type, []])),
     maxFiles: 1,
   });
 

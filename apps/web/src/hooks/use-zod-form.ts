@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type UseFormProps, useForm } from "react-hook-form";
+import { type Resolver, type UseFormProps, useForm } from "react-hook-form";
 import type { z } from "zod";
 
 export const useZodForm = <T extends z.ZodTypeAny>(
@@ -7,7 +7,7 @@ export const useZodForm = <T extends z.ZodTypeAny>(
   options?: Omit<UseFormProps<z.infer<T>>, "resolver">
 ) => {
   return useForm<z.infer<T>>({
-    resolver: zodResolver(schema) as any,
+    resolver: zodResolver(schema) as Resolver<z.infer<T>>,
     ...options,
   });
 };

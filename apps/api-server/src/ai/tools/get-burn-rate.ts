@@ -9,8 +9,8 @@ import { sql } from "../../db/client";
 
 const getBurnRateSchema = z.object({
   tenantId: z.string().describe("The tenant ID to analyze"),
-  months: z.number().min(1).max(24).default(6).describe("Number of months to analyze"),
-  includeProjections: z.boolean().default(true).describe("Include future projections"),
+  months: z.number().min(1).max(24).optional().describe("Number of months to analyze"),
+  includeProjections: z.boolean().optional().describe("Include future projections"),
 });
 
 type GetBurnRateParams = z.infer<typeof getBurnRateSchema>;
@@ -26,9 +26,9 @@ interface MonthlyBurn {
 export const getBurnRateTool = tool({
   description:
     "Calculate monthly burn rate, spending trends, and runway projections. Use this to understand how fast money is being spent.",
-  parameters: getBurnRateSchema,
-  execute: async (params: GetBurnRateParams): Promise<string> => {
-    const { tenantId, months, includeProjections } = params;
+  inputSchema: getBurnRateSchema,
+  execute: async (input: GetBurnRateParams): Promise<string> => {
+    const { tenantId, months = 6, includeProjections = true } = input;
 
     try {
       // Get monthly expense and income data from payments

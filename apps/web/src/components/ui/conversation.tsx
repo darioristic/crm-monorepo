@@ -19,7 +19,7 @@ interface ConversationProps {
 export function Conversation({
   children,
   className,
-  stickyOffset = 100,
+  stickyOffset: _stickyOffset = 100,
   autoScrollThreshold = 150,
   onScrollStateChange,
 }: ConversationProps) {
@@ -134,7 +134,8 @@ export function ScrollToBottomButton({
       ) : (
         <span>Scroll to bottom</span>
       )}
-      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <svg className="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" role="img">
+        <title>Arrow down</title>
         <path
           strokeLinecap="round"
           strokeLinejoin="round"

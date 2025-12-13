@@ -90,6 +90,7 @@ export function TransactionTagManager({
             />
             {tag.name}
             <button
+              type="button"
               onClick={() => onRemoveTag(tag.id)}
               className="ml-1 rounded-full hover:bg-muted p-0.5"
               disabled={isLoading}
@@ -124,6 +125,7 @@ export function TransactionTagManager({
                 <div className="flex flex-wrap gap-2">
                   {TAG_COLORS.map((color) => (
                     <button
+                      type="button"
                       key={color}
                       onClick={() => setSelectedColor(color)}
                       className={cn(
@@ -164,6 +166,7 @@ export function TransactionTagManager({
                   <CommandEmpty>
                     {showCreateOption ? (
                       <button
+                        type="button"
                         onClick={() => {
                           setNewTagName(search);
                           setIsCreating(true);

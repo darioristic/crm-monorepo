@@ -79,6 +79,10 @@ export interface DocumentsListResult {
     cursor: string | undefined;
     hasPreviousPage: boolean;
     hasNextPage: boolean;
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
   };
 }
 
@@ -231,6 +235,10 @@ export const documentQueries = {
             cursor: undefined,
             hasPreviousPage: offset > 0,
             hasNextPage: false,
+            totalCount: 0,
+            page: Math.floor(offset / safePageSize) + 1,
+            pageSize: safePageSize,
+            totalPages: 0,
           },
         };
       }
@@ -291,6 +299,20 @@ export const documentQueries = {
       })
     );
 
+    // Get total count for pagination
+    let totalCount = 0;
+    try {
+      const countQuery = `SELECT COUNT(*) as count FROM documents ${whereClause}`;
+      const countResult = await db.unsafe(countQuery, values as QueryParam[]);
+      totalCount = Number(countResult[0]?.count ?? 0);
+    } catch (error) {
+      logger.error({ error }, "Error counting documents");
+    }
+
+    // Calculate pagination info
+    const currentPage = Math.floor(offset / safePageSize) + 1;
+    const totalPages = Math.ceil(totalCount / safePageSize);
+
     // Generate next cursor
     const nextCursor =
       data.length === safePageSize ? (offset + safePageSize).toString() : undefined;
@@ -301,6 +323,10 @@ export const documentQueries = {
         cursor: nextCursor,
         hasPreviousPage: offset > 0,
         hasNextPage: data.length === safePageSize,
+        totalCount,
+        page: currentPage,
+        pageSize: safePageSize,
+        totalPages,
       },
     };
   },

@@ -1,7 +1,12 @@
 export { ChatHeader } from "./chat-header";
-export { ChatHistory } from "./chat-history";
+export { ChatHistory, ChatHistoryDropdown } from "./chat-history";
+export { ChatHistoryButton } from "./chat-history-button";
 export { ChatInput } from "./chat-input";
 export { ChatInterface } from "./chat-interface";
 export { ChatMessages } from "./chat-messages";
 export { ChatStatusIndicators } from "./chat-status-indicators";
+export { Icons } from "./icons";
+export { RecordButton } from "./record-button";
+export { SuggestedActionsButton } from "./suggested-actions-button";
 export { DynamicSuggestions, InlineSuggestions, SuggestedPrompts } from "./suggested-prompts";
+export { WebSearchButton } from "./web-search-button";

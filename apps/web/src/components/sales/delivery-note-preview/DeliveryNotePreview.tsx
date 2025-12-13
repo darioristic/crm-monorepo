@@ -1,6 +1,7 @@
 "use client";
 
 import type { DeliveryNote } from "@crm/types";
+import Image from "next/image";
 import { formatCurrency } from "@/lib/utils";
 
 interface DeliveryNotePreviewProps {
@@ -114,7 +115,13 @@ export function DeliveryNotePreview({
         {/* Logo */}
         {config.logoUrl && (
           <div className="max-w-[200px]">
-            <img src={config.logoUrl} alt="Company Logo" className="h-16 object-contain" />
+            <Image
+              src={config.logoUrl}
+              alt="Company Logo"
+              width={200}
+              height={64}
+              className="h-16 w-auto object-contain"
+            />
           </div>
         )}
       </div>

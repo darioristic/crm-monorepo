@@ -122,7 +122,7 @@ export function CustomerDetails() {
           ct.email,
           ct.phone,
           ct.jmbg ? `JMBG: ${ct.jmbg}` : undefined,
-        ].filter(Boolean);
+        ].filter((l): l is string => !!l);
         const content = {
           type: "doc",
           content: lines.map((line: string) => ({
@@ -273,13 +273,15 @@ function transformCustomerToContent(customer: Company): JSONContent {
   const mbSource = extCustomer.companyNumber || extCustomer.registrationNumber;
   const mb = mbSource ? `MB: ${String(mbSource)}` : null;
 
-  const lines = [customer.name, addressLine, country, email, pib, mb].filter(Boolean);
+  const lines = [customer.name, addressLine, country, email, pib, mb].filter(
+    (l): l is string => !!l
+  );
 
   return {
     type: "doc",
     content: lines.map((line) => ({
       type: "paragraph",
-      content: [{ type: "text", text: line as string }],
+      content: [{ type: "text", text: line }],
     })),
   };
 }

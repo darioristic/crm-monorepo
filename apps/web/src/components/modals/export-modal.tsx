@@ -168,18 +168,24 @@ export function ExportModal({
                 {formats.map((fmt) => {
                   const config = formatConfig[fmt];
                   const Icon = config.icon;
+                  const id = `export-format-${fmt}`;
                   return (
-                    <label
+                    <div
                       key={fmt}
                       className={cn(
-                        "flex cursor-pointer flex-col items-center gap-2 rounded-lg border p-4 transition-colors",
+                        "flex flex-col items-center gap-2 rounded-lg border p-4 transition-colors",
                         format === fmt ? "border-primary bg-primary/5" : "hover:border-primary/50"
                       )}
                     >
-                      <RadioGroupItem value={fmt} className="sr-only" />
-                      <Icon className="size-6 text-muted-foreground" />
-                      <span className="text-sm font-medium">{config.label}</span>
-                    </label>
+                      <RadioGroupItem value={fmt} id={id} className="sr-only" />
+                      <Label
+                        htmlFor={id}
+                        className="flex cursor-pointer flex-col items-center gap-2"
+                      >
+                        <Icon className="size-6 text-muted-foreground" />
+                        <span className="text-sm font-medium">{config.label}</span>
+                      </Label>
+                    </div>
                   );
                 })}
               </RadioGroup>
@@ -199,15 +205,21 @@ export function ExportModal({
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2 max-h-[200px] overflow-y-auto rounded-lg border p-3">
-                {fields.map((field) => (
-                  <label key={field.key} className="flex items-center gap-2 cursor-pointer">
-                    <Checkbox
-                      checked={selectedFields.includes(field.key)}
-                      onCheckedChange={() => toggleField(field.key)}
-                    />
-                    <span className="text-sm">{field.label}</span>
-                  </label>
-                ))}
+                {fields.map((field) => {
+                  const id = `export-field-${field.key}`;
+                  return (
+                    <div key={field.key} className="flex items-center gap-2">
+                      <Checkbox
+                        id={id}
+                        checked={selectedFields.includes(field.key)}
+                        onCheckedChange={() => toggleField(field.key)}
+                      />
+                      <Label htmlFor={id} className="cursor-pointer text-sm">
+                        {field.label}
+                      </Label>
+                    </div>
+                  );
+                })}
               </div>
               <p className="text-xs text-muted-foreground">
                 {selectedFields.length} of {fields.length} fields selected

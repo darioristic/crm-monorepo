@@ -73,10 +73,30 @@ function calculateLineItemTotalWithDiscount({
 /**
  * Render EditorDoc content for PDF
  */
-function renderEditorContent(content: EditorDoc | string | null) {
-  const text = extractTextFromEditorDoc(content);
-  return text.split("\n").map((line) => (
-    <Text key={line || "line"} style={{ fontSize: 9, lineHeight: 1.6 }}>
+function renderEditorContent(content: EditorDoc | string | null, style?: Record<string, unknown>) {
+  let parsed: EditorDoc | string | null = content;
+  if (typeof content === "string") {
+    try {
+      const obj = JSON.parse(content);
+      if (obj && typeof obj === "object" && "type" in obj) {
+        parsed = obj as EditorDoc;
+      }
+    } catch {
+      parsed = content;
+    }
+  }
+  const extracted = extractTextFromEditorDoc(parsed);
+  const text =
+    extracted && extracted.trim().length > 0
+      ? extracted
+      : typeof content === "string"
+        ? content
+        : "";
+  return text.split("\n").map((line, idx) => (
+    <Text
+      key={`${idx}-${line || "line"}`}
+      style={{ fontSize: 9, lineHeight: 1.6, ...(style || {}) }}
+    >
       {line || " "}
     </Text>
   ));
@@ -244,7 +264,7 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                   textAlign: "center",
                 }}
               >
-                Unit
+                {template.unitLabel}
               </Text>
             )}
             <Text
@@ -343,13 +363,22 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                     {formatAmount(itemTotal)}
                   </Text>
                 </View>
-                {/* Description row - shown below name in gray */}
                 {item.description && (
                   <View style={{ flexDirection: "row", marginTop: 2 }}>
-                    <View style={{ width: 25 }} />
-                    <Text style={{ flex: 3, fontSize: 8, color: "#666666", fontStyle: "italic" }}>
-                      {item.description}
-                    </Text>
+                    <Text style={{ width: 25 }} />
+                    <View style={{ flex: 3 }}>
+                      {renderEditorContent(item.description, {
+                        fontSize: 8,
+                        color: "#666666",
+                        fontStyle: "italic",
+                      })}
+                    </View>
+                    <Text style={{ flex: 1 }} />
+                    {template.includeUnits && <Text style={{ flex: 1 }} />}
+                    <Text style={{ flex: 1 }} />
+                    {template.includeDiscount && <Text style={{ flex: 0.7 }} />}
+                    {template.includeVat && <Text style={{ flex: 0.7 }} />}
+                    <Text style={{ flex: 1 }} />
                   </View>
                 )}
               </View>
@@ -424,6 +453,8 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
                 flexDirection: "row",
                 paddingVertical: 4,
                 width: "100%",
+                borderBottomWidth: 0.5,
+                borderBottomColor: "#e5e5e5",
               }}
             >
               <Text style={{ fontSize: 9, flex: 1, color: "#000" }}>
@@ -479,16 +510,17 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
           </View>
         )}
 
-        {/* Payment Details - Single row at bottom */}
-        {invoice.paymentDetails && (
-          <View
-            style={{
-              marginTop: 20,
-              flexDirection: "row",
-              alignItems: "flex-start",
-            }}
-            wrap={false}
-          >
+        {/* Fixed bottom area with Payment Details 3px above footer line and page number */}
+        <View
+          fixed
+          style={{
+            position: "absolute",
+            bottom: 20,
+            left: 20,
+            right: 20,
+          }}
+        >
+          <View style={{ flexDirection: "row", alignItems: "flex-start" }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 9, fontWeight: 500 }}>{template.paymentLabel}</Text>
               <View style={{ marginTop: 6 }}>{renderEditorContent(invoice.paymentDetails)}</View>
@@ -499,7 +531,23 @@ export async function PdfTemplate({ invoice }: PdfTemplateProps) {
               </View>
             )}
           </View>
-        )}
+          <View
+            style={{
+              marginTop: 3,
+              borderTopWidth: 0.5,
+              borderTopColor: "#e5e5e5",
+              paddingTop: 6,
+              flexDirection: "row",
+              justifyContent: "space-between",
+            }}
+          >
+            <Text style={{ fontSize: 8, color: "#666666" }} />
+            <Text
+              style={{ fontSize: 8, color: "#666666" }}
+              render={({ pageNumber, totalPages }) => `Page ${pageNumber}/${totalPages}`}
+            />
+          </View>
+        </View>
       </Page>
     </Document>
   );

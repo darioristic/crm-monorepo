@@ -103,12 +103,27 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
   const [_detectedDomain, setDetectedDomain] = useState<string | null>(null);
   const [logoError, setLogoError] = useState(false);
 
-  const createMutation = useMutation<any, any>((values) =>
-    companiesApi.create({
-      ...values,
+  const createMutation = useMutation((values: z.input<typeof formSchema>) => {
+    const payload = {
+      name: values.name,
+      industry: values.industry ?? "Other",
+      address: values.address ?? "",
+      email: values.email || undefined,
+      phone: values.phone || undefined,
+      website: values.website || undefined,
+      contact: values.contact || undefined,
+      vatNumber: values.vatNumber || undefined,
+      companyNumber: values.companyNumber || undefined,
+      city: values.city || undefined,
+      country: values.country || undefined,
+      countryCode: values.countryCode || undefined,
+      zip: values.zip || undefined,
+      note: values.note || undefined,
+      logoUrl: values.logoUrl || undefined,
       source: "customer",
-    })
-  );
+    } as const;
+    return companiesApi.create(payload);
+  });
 
   const form = useForm<z.input<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -211,17 +226,17 @@ export function CreateCompanyInlineForm({ prefillName, onSuccess, onCancel }: Pr
       name: values.name,
       industry: values.industry || "Other",
       address: values.address || "",
-      email: values.email || null,
-      phone: values.phone || null,
-      website: values.website || null,
-      contact: values.contact || null,
-      city: values.city || null,
-      zip: values.zip || null,
-      country: values.country || null,
-      countryCode: values.countryCode || null,
-      vatNumber: values.vatNumber || null,
-      companyNumber: values.companyNumber || null,
-      note: values.note || null,
+      email: values.email || undefined,
+      phone: values.phone || undefined,
+      website: values.website || undefined,
+      contact: values.contact || undefined,
+      city: values.city || undefined,
+      zip: values.zip || undefined,
+      country: values.country || undefined,
+      countryCode: values.countryCode || undefined,
+      vatNumber: values.vatNumber || undefined,
+      companyNumber: values.companyNumber || undefined,
+      note: values.note || undefined,
       logoUrl: logoUrl, // Use generated logo or provided one
       source: "customer" as const, // Mark as customer company (not shown in /dashboard/companies)
     };

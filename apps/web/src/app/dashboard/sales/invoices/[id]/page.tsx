@@ -312,6 +312,7 @@ function transformInvoiceToTemplateData(invoice: InvoiceWithRelations): InvoiceT
     scheduledAt: null,
     lineItems: (invoice.items || []).map((item: InvoiceWithRelations["items"][number]) => ({
       name: item.productName || item.description || "",
+      description: item.description || "",
       quantity: Number(item.quantity) || 1,
       price: Number(item.unitPrice) || 0,
       unit: item.unit || "pcs",

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Invoice as InvoiceData } from "@crm/types";
+import Image from "next/image";
 import { formatCurrency } from "@/lib/utils";
 
 interface InvoicePreviewProps {
@@ -66,13 +67,24 @@ export function InvoicePreview({ invoice, template = {}, className }: InvoicePre
   };
 
   const balance = Number(invoice.total) - Number(invoice.paidAmount);
+  type Details = {
+    name?: string;
+    address?: string;
+    city?: string;
+    zip?: string | number;
+    state?: string;
+    country?: string;
+    email?: string;
+    phone?: string;
+    vatNumber?: string;
+  };
   const from =
     invoice.fromDetails && typeof invoice.fromDetails === "object"
-      ? (invoice.fromDetails as any)
+      ? (invoice.fromDetails as Details)
       : null;
   const to =
     invoice.customerDetails && typeof invoice.customerDetails === "object"
-      ? (invoice.customerDetails as any)
+      ? (invoice.customerDetails as Details)
       : null;
 
   return (
@@ -111,7 +123,13 @@ export function InvoicePreview({ invoice, template = {}, className }: InvoicePre
         {/* Logo */}
         {config.logoUrl && (
           <div className="max-w-[200px]">
-            <img src={config.logoUrl} alt="Company Logo" className="h-16 object-contain" />
+            <Image
+              src={config.logoUrl}
+              alt="Company Logo"
+              width={200}
+              height={64}
+              className="h-16 w-auto object-contain"
+            />
           </div>
         )}
       </div>

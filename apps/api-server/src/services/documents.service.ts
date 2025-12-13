@@ -721,11 +721,597 @@ export const documentsService = {
       return errorResponse("INTERNAL_ERROR", "Failed to find document");
     }
   },
+
+  /**
+   * Semantic search within document content
+   * Uses vector embeddings to find documents matching natural language queries
+   */
+  async semanticSearch(
+    companyId: string,
+    query: string,
+    options: { limit?: number; threshold?: number } = {}
+  ): Promise<ApiResponse<Array<DocumentWithTags & { similarity: number }>>> {
+    const { limit = 10, threshold = 0.3 } = options;
+
+    try {
+      // First, resolve tenant_id from company
+      const tenantRow = await db`
+        SELECT tenant_id FROM companies WHERE id = ${companyId} LIMIT 1
+      `;
+      const tenantId = tenantRow.length > 0 ? (tenantRow[0].tenant_id as string) : null;
+
+      if (!tenantId) {
+        return errorResponse("NOT_FOUND", "Company not found");
+      }
+
+      // Generate embedding for the search query
+      const { generateEmbedding } = await import("./embeddings");
+      const { embedding } = await generateEmbedding(query);
+
+      // Use pgvector to find similar documents
+      const vectorString = `[${embedding.join(",")}]`;
+      const results = await db`
+        SELECT
+          d.*,
+          1 - (de.embedding <=> ${vectorString}::vector) as similarity,
+          de.source_text
+        FROM documents d
+        JOIN document_embeddings de ON d.id = de.document_id
+        WHERE de.tenant_id = ${tenantId}
+          AND 1 - (de.embedding <=> ${vectorString}::vector) >= ${threshold}
+        ORDER BY de.embedding <=> ${vectorString}::vector
+        LIMIT ${limit}
+      `;
+
+      // Map results and fetch tags
+      const documentsWithTags: Array<DocumentWithTags & { similarity: number }> = await Promise.all(
+        results.map(async (row) => {
+          const tagAssignments = await db`
+            SELECT dta.document_id, dt.id as tag_id, dt.name as tag_name, dt.slug as tag_slug, dt.company_id as tag_company_id, dt.created_at as tag_created_at
+            FROM document_tag_assignments dta
+            JOIN document_tags dt ON dta.tag_id = dt.id
+            WHERE dta.document_id = ${row.id as string}
+          `;
+
+          return {
+            id: row.id as string,
+            name: row.name as string | null,
+            title: row.title as string | null,
+            summary: row.summary as string | null,
+            content: row.content as string | null,
+            body: row.body as string | null,
+            tag: row.tag as string | null,
+            date: row.date ? (row.date as Date).toISOString() : null,
+            language: row.language as string | null,
+            pathTokens: (row.path_tokens as string[]) || [],
+            metadata: (row.metadata as Record<string, unknown>) || {},
+            processingStatus: row.processing_status as
+              | "pending"
+              | "processing"
+              | "completed"
+              | "failed",
+            companyId: row.company_id as string,
+            ownerId: row.owner_id as string | null,
+            createdAt: (row.created_at as Date).toISOString(),
+            updatedAt: (row.updated_at as Date).toISOString(),
+            similarity: Number(row.similarity),
+            documentTagAssignments: tagAssignments.map((ta) => ({
+              documentTag: {
+                id: ta.tag_id as string,
+                name: ta.tag_name as string,
+                slug: ta.tag_slug as string,
+                companyId: ta.tag_company_id as string,
+                createdAt: (ta.tag_created_at as Date).toISOString(),
+              },
+            })),
+          };
+        })
+      );
+
+      serviceLogger.info(
+        { query, resultsCount: documentsWithTags.length, threshold },
+        "Semantic search completed"
+      );
+
+      return successResponse(documentsWithTags);
+    } catch (error) {
+      serviceLogger.error({ error, query }, "Error in semantic search");
+      return errorResponse("INTERNAL_ERROR", "Failed to perform semantic search");
+    }
+  },
+
+  /**
+   * Batch rename documents
+   */
+  async batchRename(
+    companyId: string,
+    data: {
+      documentIds: string[];
+      pattern: string;
+      options?: {
+        prefix?: string;
+        suffix?: string;
+        startNumber?: number;
+        preserveExtension?: boolean;
+      };
+    }
+  ): Promise<
+    ApiResponse<{
+      renamed: Array<{ id: string; oldTitle: string; newTitle: string }>;
+      failed: Array<{ id: string; reason: string }>;
+    }>
+  > {
+    try {
+      const { documentIds, pattern, options = {} } = data;
+      const { prefix = "", suffix = "", startNumber = 1, preserveExtension = true } = options;
+
+      const renamed: Array<{ id: string; oldTitle: string; newTitle: string }> = [];
+      const failed: Array<{ id: string; reason: string }> = [];
+
+      for (let i = 0; i < documentIds.length; i++) {
+        const docId = documentIds[i];
+
+        try {
+          const doc = await documentQueries.findById(docId, companyId);
+          if (!doc) {
+            failed.push({ id: docId, reason: "Document not found" });
+            continue;
+          }
+
+          const oldTitle =
+            doc.title ||
+            (doc.metadata?.originalName as string) ||
+            doc.pathTokens?.at(-1) ||
+            "Untitled";
+          const extension = preserveExtension ? oldTitle.match(/\.[^.]+$/)?.[0] || "" : "";
+          const nameWithoutExt = oldTitle.replace(/\.[^.]+$/, "");
+
+          // Build new title based on pattern
+          let newTitle = pattern
+            .replace("{name}", nameWithoutExt)
+            .replace("{n}", String(startNumber + i))
+            .replace("{N}", String(startNumber + i).padStart(3, "0"))
+            .replace("{date}", new Date().toISOString().split("T")[0]);
+
+          newTitle = `${prefix}${newTitle}${suffix}${extension}`;
+
+          await documentQueries.update(docId, companyId, { title: newTitle });
+          renamed.push({ id: docId, oldTitle, newTitle });
+        } catch (error) {
+          serviceLogger.error({ error, docId }, "Failed to rename document");
+          failed.push({ id: docId, reason: "Update failed" });
+        }
+      }
+
+      return successResponse({ renamed, failed });
+    } catch (error) {
+      serviceLogger.error(error, "Error in batch rename");
+      return errorResponse("INTERNAL_ERROR", "Failed to batch rename documents");
+    }
+  },
+
+  /**
+   * Track document view
+   */
+  async trackDocumentView(
+    documentId: string,
+    companyId: string,
+    userId?: string
+  ): Promise<ApiResponse<void>> {
+    try {
+      auditService.logAction({
+        userId,
+        action: "VIEW_DOCUMENT",
+        entityType: "document",
+        entityId: documentId,
+        metadata: { companyId },
+      });
+      return successResponse(undefined);
+    } catch (error) {
+      serviceLogger.error(error, "Error tracking document view");
+      return errorResponse("INTERNAL_ERROR", "Failed to track view");
+    }
+  },
+
+  /**
+   * Track document download
+   */
+  async trackDocumentDownload(
+    documentId: string,
+    companyId: string,
+    userId?: string
+  ): Promise<ApiResponse<void>> {
+    try {
+      auditService.logAction({
+        userId,
+        action: "DOWNLOAD_DOCUMENT",
+        entityType: "document",
+        entityId: documentId,
+        metadata: { companyId },
+      });
+      return successResponse(undefined);
+    } catch (error) {
+      serviceLogger.error(error, "Error tracking document download");
+      return errorResponse("INTERNAL_ERROR", "Failed to track download");
+    }
+  },
+
+  /**
+   * Get document activity/audit log
+   */
+  async getDocumentActivity(
+    documentId: string,
+    _companyId: string,
+    options: { page?: number; pageSize?: number } = {}
+  ): Promise<
+    ApiResponse<{
+      activities: Array<{
+        id: string;
+        action: string;
+        userId: string | null;
+        userName?: string;
+        createdAt: string;
+        metadata: Record<string, unknown> | null;
+      }>;
+      totalCount: number;
+    }>
+  > {
+    try {
+      const { page = 1, pageSize = 20 } = options;
+
+      const result = await auditService.getLogs({
+        entityType: "document",
+        entityId: documentId,
+        page,
+        pageSize,
+      });
+
+      // Get user names for the activities
+      const userIds = [...new Set(result.data.map((a) => a.userId).filter(Boolean))] as string[];
+
+      // biome-ignore lint/suspicious/noExplicitAny: Dynamic SQL query result
+      let userMap: Record<string, any> = {};
+      if (userIds.length > 0) {
+        const users = await db`
+          SELECT id, first_name, last_name, email
+          FROM users
+          WHERE id = ANY(${userIds})
+        `;
+        userMap = Object.fromEntries(users.map((u) => [u.id, u]));
+      }
+
+      const activities = result.data.map((log) => {
+        const user = log.userId ? userMap[log.userId] : null;
+        return {
+          id: log.id,
+          action: log.action,
+          userId: log.userId,
+          userName: user ? `${user.first_name} ${user.last_name}`.trim() || user.email : null,
+          createdAt: log.createdAt,
+          metadata: log.metadata,
+        };
+      });
+
+      return successResponse({
+        activities,
+        totalCount: result.total,
+      });
+    } catch (error) {
+      serviceLogger.error(error, "Error fetching document activity");
+      return errorResponse("INTERNAL_ERROR", "Failed to fetch activity");
+    }
+  },
 };
 
 // ============================================
 // Document Tags Service
 // ============================================
+
+// ============================================
+// Document Shares Service
+// ============================================
+
+export interface DocumentShare {
+  id: string;
+  documentId: string;
+  companyId: string;
+  token: string;
+  createdBy: string | null;
+  expiresAt: string | null;
+  passwordHash: string | null;
+  viewCount: number;
+  maxViews: number | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export const documentSharesService = {
+  /**
+   * Generate a unique share token
+   */
+  generateToken(): string {
+    const timestamp = Date.now().toString(36);
+    const randomPart = Math.random().toString(36).substring(2, 15);
+    return `doc_${timestamp}_${randomPart}`;
+  },
+
+  /**
+   * Create a share link for a document
+   */
+  async createShare(
+    companyId: string,
+    data: {
+      documentId: string;
+      createdBy?: string;
+      expiresAt?: Date;
+      password?: string;
+      maxViews?: number;
+    }
+  ): Promise<ApiResponse<DocumentShare>> {
+    try {
+      // Verify document exists and belongs to company
+      const document = await documentQueries.findById(data.documentId, companyId);
+      if (!document) {
+        return errorResponse("NOT_FOUND", "Document not found");
+      }
+
+      const token = this.generateToken();
+      let passwordHash: string | null = null;
+
+      if (data.password) {
+        // Simple hash for password (in production, use bcrypt)
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(data.password);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        passwordHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+      }
+
+      const result = await db`
+        INSERT INTO document_shares (
+          document_id, company_id, token, created_by, expires_at, password_hash, max_views
+        ) VALUES (
+          ${data.documentId}, ${companyId}, ${token}, ${data.createdBy || null},
+          ${data.expiresAt || null}, ${passwordHash}, ${data.maxViews || null}
+        )
+        RETURNING *
+      `;
+
+      const share = {
+        id: result[0].id as string,
+        documentId: result[0].document_id as string,
+        companyId: result[0].company_id as string,
+        token: result[0].token as string,
+        createdBy: result[0].created_by as string | null,
+        expiresAt: result[0].expires_at ? (result[0].expires_at as Date).toISOString() : null,
+        passwordHash: result[0].password_hash as string | null,
+        viewCount: result[0].view_count as number,
+        maxViews: result[0].max_views as number | null,
+        isActive: result[0].is_active as boolean,
+        createdAt: (result[0].created_at as Date).toISOString(),
+        updatedAt: (result[0].updated_at as Date).toISOString(),
+      };
+
+      auditService.logAction({
+        userId: data.createdBy,
+        action: "CREATE_DOCUMENT_SHARE",
+        entityType: "document_share",
+        entityId: share.id,
+        metadata: { documentId: data.documentId, token },
+      });
+
+      return successResponse(share);
+    } catch (error) {
+      serviceLogger.error(error, "Error creating document share");
+      return errorResponse("INTERNAL_ERROR", "Failed to create share link");
+    }
+  },
+
+  /**
+   * Get shares for a document
+   */
+  async getSharesForDocument(
+    documentId: string,
+    companyId: string
+  ): Promise<ApiResponse<DocumentShare[]>> {
+    try {
+      const result = await db`
+        SELECT * FROM document_shares
+        WHERE document_id = ${documentId}
+        AND company_id = ${companyId}
+        ORDER BY created_at DESC
+      `;
+
+      const shares = result.map((row) => ({
+        id: row.id as string,
+        documentId: row.document_id as string,
+        companyId: row.company_id as string,
+        token: row.token as string,
+        createdBy: row.created_by as string | null,
+        expiresAt: row.expires_at ? (row.expires_at as Date).toISOString() : null,
+        passwordHash: row.password_hash as string | null,
+        viewCount: row.view_count as number,
+        maxViews: row.max_views as number | null,
+        isActive: row.is_active as boolean,
+        createdAt: (row.created_at as Date).toISOString(),
+        updatedAt: (row.updated_at as Date).toISOString(),
+      }));
+
+      return successResponse(shares);
+    } catch (error) {
+      serviceLogger.error(error, "Error fetching document shares");
+      return errorResponse("INTERNAL_ERROR", "Failed to fetch shares");
+    }
+  },
+
+  /**
+   * Get document by share token (for public access)
+   */
+  async getDocumentByToken(
+    token: string,
+    password?: string
+  ): Promise<ApiResponse<{ document: DocumentWithTags; share: DocumentShare }>> {
+    try {
+      // Find share by token
+      const shareResult = await db`
+        SELECT * FROM document_shares
+        WHERE token = ${token}
+        AND is_active = true
+      `;
+
+      if (shareResult.length === 0) {
+        return errorResponse("NOT_FOUND", "Share link not found or expired");
+      }
+
+      const shareRow = shareResult[0];
+
+      // Check if expired
+      if (shareRow.expires_at && new Date(shareRow.expires_at as string) < new Date()) {
+        return errorResponse("FORBIDDEN", "Share link has expired");
+      }
+
+      // Check max views
+      if (
+        shareRow.max_views !== null &&
+        (shareRow.view_count as number) >= (shareRow.max_views as number)
+      ) {
+        return errorResponse("FORBIDDEN", "Share link has reached maximum views");
+      }
+
+      // Check password if required
+      if (shareRow.password_hash) {
+        if (!password) {
+          return errorResponse("UNAUTHORIZED", "Password required");
+        }
+
+        const encoder = new TextEncoder();
+        const dataBuffer = encoder.encode(password);
+        const hashBuffer = await crypto.subtle.digest("SHA-256", dataBuffer);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const passwordHash = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+
+        if (passwordHash !== shareRow.password_hash) {
+          return errorResponse("UNAUTHORIZED", "Invalid password");
+        }
+      }
+
+      // Increment view count
+      await db`
+        UPDATE document_shares
+        SET view_count = view_count + 1, updated_at = NOW()
+        WHERE id = ${shareRow.id as string}
+      `;
+
+      // Get document
+      const document = await documentQueries.findById(
+        shareRow.document_id as string,
+        shareRow.company_id as string
+      );
+
+      if (!document) {
+        return errorResponse("NOT_FOUND", "Document not found");
+      }
+
+      const share: DocumentShare = {
+        id: shareRow.id as string,
+        documentId: shareRow.document_id as string,
+        companyId: shareRow.company_id as string,
+        token: shareRow.token as string,
+        createdBy: shareRow.created_by as string | null,
+        expiresAt: shareRow.expires_at ? (shareRow.expires_at as Date).toISOString() : null,
+        passwordHash: null, // Don't expose hash
+        viewCount: (shareRow.view_count as number) + 1,
+        maxViews: shareRow.max_views as number | null,
+        isActive: shareRow.is_active as boolean,
+        createdAt: (shareRow.created_at as Date).toISOString(),
+        updatedAt: (shareRow.updated_at as Date).toISOString(),
+      };
+
+      return successResponse({ document, share });
+    } catch (error) {
+      serviceLogger.error(error, "Error getting document by share token");
+      return errorResponse("INTERNAL_ERROR", "Failed to access shared document");
+    }
+  },
+
+  /**
+   * Delete/revoke a share link
+   */
+  async deleteShare(
+    shareId: string,
+    companyId: string,
+    userId?: string
+  ): Promise<ApiResponse<{ id: string }>> {
+    try {
+      const result = await db`
+        DELETE FROM document_shares
+        WHERE id = ${shareId}
+        AND company_id = ${companyId}
+        RETURNING id
+      `;
+
+      if (result.length === 0) {
+        return errorResponse("NOT_FOUND", "Share not found");
+      }
+
+      auditService.logAction({
+        userId,
+        action: "DELETE_DOCUMENT_SHARE",
+        entityType: "document_share",
+        entityId: shareId,
+      });
+
+      return successResponse({ id: result[0].id as string });
+    } catch (error) {
+      serviceLogger.error(error, "Error deleting document share");
+      return errorResponse("INTERNAL_ERROR", "Failed to delete share");
+    }
+  },
+
+  /**
+   * Toggle share active status
+   */
+  async toggleShareStatus(
+    shareId: string,
+    companyId: string,
+    isActive: boolean
+  ): Promise<ApiResponse<DocumentShare>> {
+    try {
+      const result = await db`
+        UPDATE document_shares
+        SET is_active = ${isActive}, updated_at = NOW()
+        WHERE id = ${shareId}
+        AND company_id = ${companyId}
+        RETURNING *
+      `;
+
+      if (result.length === 0) {
+        return errorResponse("NOT_FOUND", "Share not found");
+      }
+
+      const share = {
+        id: result[0].id as string,
+        documentId: result[0].document_id as string,
+        companyId: result[0].company_id as string,
+        token: result[0].token as string,
+        createdBy: result[0].created_by as string | null,
+        expiresAt: result[0].expires_at ? (result[0].expires_at as Date).toISOString() : null,
+        passwordHash: result[0].password_hash as string | null,
+        viewCount: result[0].view_count as number,
+        maxViews: result[0].max_views as number | null,
+        isActive: result[0].is_active as boolean,
+        createdAt: (result[0].created_at as Date).toISOString(),
+        updatedAt: (result[0].updated_at as Date).toISOString(),
+      };
+
+      return successResponse(share);
+    } catch (error) {
+      serviceLogger.error(error, "Error toggling share status");
+      return errorResponse("INTERNAL_ERROR", "Failed to update share");
+    }
+  },
+};
 
 export const documentTagsService = {
   /**

@@ -172,6 +172,79 @@ router.post("/api/v1/contacts", async (request) => {
   );
 });
 
+// Enrich Contact with Firecrawl
+router.post("/api/contacts/enrich", async (request) => {
+  return withAuth(request, async (auth) => {
+    const tenantId = auth.activeTenantId!;
+    const body = await parseBody<{ contactId: string; url?: string }>(request);
+    const contactId = body?.contactId;
+    const providedUrl = body?.url;
+    if (!contactId) {
+      return errorResponse("VALIDATION_ERROR", "Contact ID required");
+    }
+    const contact = await contactQueries.findById(contactId, tenantId);
+    if (!contact) {
+      return errorResponse("NOT_FOUND", "Contact not found");
+    }
+    const deriveUrlFromEmail = (email?: string) => {
+      if (!email) return undefined;
+      const parts = email.split("@");
+      if (parts.length !== 2) return undefined;
+      const domain = parts[1].trim();
+      if (!domain) return undefined;
+      return `https://${domain}`;
+    };
+    const targetUrl = providedUrl || deriveUrlFromEmail(contact.email);
+    if (!targetUrl) {
+      return errorResponse("VALIDATION_ERROR", "Contact email or URL required for enrichment");
+    }
+    const { firecrawlClient } = await import("../integrations/firecrawl.client");
+    const { firecrawlQueries } = await import("../db/queries/firecrawl");
+    const job = await firecrawlQueries.createJob(tenantId, auth.userId, "extract", {
+      urls: [targetUrl],
+      prompt:
+        "Extract a short professional bio for the person, a list of social links (array), and 5 relevant tags. Return JSON with keys: bio (string), socialLinks (array), tags (array).",
+    });
+    const result = await firecrawlClient.extract<Record<string, unknown>>(tenantId, {
+      urls: [targetUrl],
+      prompt:
+        "Extract a short professional bio for the person, a list of social links (array), and 5 relevant tags. Return JSON with keys: bio (string), socialLinks (array), tags (array).",
+    });
+    if (!result.success || !result.data) {
+      await firecrawlQueries.updateJobStatus(job.id, "failed", {
+        error: result.error?.message,
+      });
+      return errorResponse("FIRECRAWL_ERROR", result.error?.message || "Failed to enrich contact");
+    }
+    await firecrawlQueries.updateJobStatus(job.id, "completed", { completedAt: new Date() });
+    await firecrawlQueries.addResult(job.id, tenantId, auth.userId, result.data);
+    const bio =
+      typeof (result.data as Record<string, unknown>).bio === "string"
+        ? ((result.data as Record<string, unknown>).bio as string)
+        : undefined;
+    const noteUpdate = bio != null && bio.length > 0 ? bio : contact.notes || undefined;
+    await contactQueries.update(contactId, { notes: noteUpdate }, tenantId);
+    const updated = await contactQueries.findById(contactId, tenantId);
+    const { EventStore } = await import("../infrastructure/EventStore");
+    const { DomainEvent } = await import("../domain/base/Event");
+    const eventStore = new EventStore();
+    const event = new (class ContactEvent extends DomainEvent {
+      constructor() {
+        super({
+          aggregateId: contactId!,
+          aggregateType: "Contact",
+          eventType: "ContactEnrichedFromFirecrawl",
+          eventVersion: 1,
+          eventData: { input: { url: targetUrl }, output: result.data },
+          metadata: { tenantId, userId: auth.userId, timestamp: new Date() },
+        });
+      }
+    })();
+    await eventStore.append([event]);
+    return successResponse({ contact: updated, enrichment: result.data });
+  });
+});
+
 // ============================================
 // ACCOUNTS: Unified search (companies + contacts)
 // ============================================

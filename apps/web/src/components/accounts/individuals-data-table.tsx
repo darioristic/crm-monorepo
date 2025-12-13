@@ -1,7 +1,7 @@
 "use client";
 
 import type { Contact } from "@crm/types";
-import { ArrowUpDown, Pencil, Star, StarOff, Trash2 } from "lucide-react";
+import { ArrowUpDown, Globe, Loader2, Pencil, Star, StarOff, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -13,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { contactsApi } from "@/lib/api";
+import { contactsApi, firecrawlApi } from "@/lib/api";
 import { ContactFormSheet } from "./contact-form-sheet";
 
 type Props = {
@@ -39,6 +39,7 @@ export function IndividualsDataTable({
 }: Props) {
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [editId, setEditId] = useState<string | null>(null);
+  const [enrichingId, setEnrichingId] = useState<string | null>(null);
 
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
@@ -58,6 +59,26 @@ export function IndividualsDataTable({
   const handleDelete = async (id: string) => {
     await contactsApi.delete(id);
     onRefresh();
+  };
+
+  const emailDomainToUrl = (email?: string | null) => {
+    if (!email) return undefined;
+    const parts = email.split("@");
+    if (parts.length !== 2) return undefined;
+    const domain = parts[1].trim();
+    if (!domain) return undefined;
+    return `https://${domain}`;
+  };
+
+  const handleEnrich = async (id: string, email?: string | null) => {
+    setEnrichingId(id);
+    try {
+      const url = emailDomainToUrl(email);
+      await firecrawlApi.enrichContact({ contactId: id, url });
+      onRefresh();
+    } finally {
+      setEnrichingId(null);
+    }
   };
 
   return (
@@ -116,6 +137,19 @@ export function IndividualsDataTable({
                         <Star className="h-4 w-4 text-yellow-500" />
                       ) : (
                         <StarOff className="h-4 w-4" />
+                      )}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label="Enrich with Firecrawl"
+                      disabled={enrichingId === c.id}
+                      onClick={() => handleEnrich(c.id, c.email)}
+                    >
+                      {enrichingId === c.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Globe className="h-4 w-4" />
                       )}
                     </Button>
                     <Button variant="ghost" size="icon" onClick={() => setEditId(c.id)}>

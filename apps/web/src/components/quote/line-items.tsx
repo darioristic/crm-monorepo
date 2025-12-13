@@ -7,7 +7,7 @@ import { LabelInput } from "@/components/invoice/label-input";
 import { Button } from "@/components/ui/button";
 import { QuantityInput } from "@/components/ui/quantity-input";
 import { calculateLineItemTotal, formatQuoteAmount } from "@/utils/quote-calculate";
-import type { FormValues } from "./form-context";
+import type { FormValues, LineItemFormValues } from "./form-context";
 import { ProductAutocomplete } from "./product-autocomplete";
 import { ProductAwareAmountInput } from "./product-aware-amount-input";
 import { ProductAwareUnitInput } from "./product-aware-unit-input";
@@ -143,7 +143,7 @@ function LineItemRow({
   index: number;
   handleRemove: (index: number) => void;
   isReorderable: boolean;
-  item: any;
+  item: LineItemFormValues;
   currency: string;
   maximumFractionDigits: number;
   includeUnits?: boolean;
@@ -267,7 +267,11 @@ function LineItemRow({
           type="number"
           {...register(`lineItems.${index}.discount`, {
             valueAsNumber: true,
-            setValueAs: (v) => (v === "" || v === null || Number.isNaN(v as any) ? 0 : Number(v)),
+            setValueAs: (v) => {
+              if (v === "" || v === null) return 0;
+              const num = typeof v === "number" ? v : Number(v);
+              return Number.isNaN(num) ? 0 : num;
+            },
           })}
           placeholder="0"
           className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -280,7 +284,11 @@ function LineItemRow({
           type="number"
           {...register(`lineItems.${index}.vat`, {
             valueAsNumber: true,
-            setValueAs: (v) => (v === "" || v === null || Number.isNaN(v as any) ? 0 : Number(v)),
+            setValueAs: (v) => {
+              if (v === "" || v === null) return 0;
+              const num = typeof v === "number" ? v : Number(v);
+              return Number.isNaN(num) ? 0 : num;
+            },
           })}
           placeholder="20"
           className="p-0 border-0 h-6 bg-transparent border-b border-transparent focus:border-border outline-none text-center w-full text-xs [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"

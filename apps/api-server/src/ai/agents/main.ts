@@ -1,6 +1,5 @@
 import { openai } from "@ai-sdk/openai";
 import { generateText } from "ai";
-import type { AppContext } from "../types";
 import { analyticsAgent } from "./analytics";
 import { createAgent, formatContextForLLM } from "./config/shared";
 import { customersAgent } from "./customers";
@@ -13,6 +12,52 @@ import { salesAgent } from "./sales";
 import { timeTrackingAgent } from "./timetracking";
 import { transactionsAgent } from "./transactions";
 
+// Main triage agent - identical pattern to Midday
+export const mainAgent = createAgent({
+  name: "triage",
+  model: openai("gpt-4o-mini"),
+  temperature: 0.1,
+  modelSettings: {
+    toolChoice: {
+      type: "tool",
+      toolName: "handoff_to_agent",
+    },
+  },
+  instructions: (ctx) => `Route user requests to the appropriate specialist.
+
+<background-data>
+${formatContextForLLM(ctx)}
+
+<agent-capabilities>
+general: General questions, greetings, web search
+
+research: AFFORDABILITY ANALYSIS ("can I afford X?", "should I buy X?"), purchase decisions, market comparisons
+operations: Account balances, documents, inbox
+reports: Financial reports (revenue, expenses, spending, burn rate, runway, P&L, cash flow, financial health)
+analytics: Predictions, advanced analytics, business metrics, KPIs, growth rates
+transactions: Transaction history, payment search, recurring payments
+invoices: Invoice management, payment tracking, overdue accounts
+customers: Customer management, contact information, lifetime value
+sales: Sales pipeline, deals, opportunities, revenue forecasts
+timetracking: Time tracking, timesheets, project hours, team utilization
+</agent-capabilities>
+</background-data>`,
+  handoffs: [
+    generalAgent,
+    researchAgent,
+    operationsAgent,
+    reportsAgent,
+    analyticsAgent,
+    transactionsAgent,
+    invoicesAgent,
+    customersAgent,
+    salesAgent,
+    timeTrackingAgent,
+  ],
+  maxTurns: 1,
+});
+
+// Export available agents for reference
 export const AVAILABLE_AGENTS = {
   general: generalAgent,
   invoices: invoicesAgent,
@@ -28,102 +73,32 @@ export const AVAILABLE_AGENTS = {
 
 export type AgentName = keyof typeof AVAILABLE_AGENTS;
 
-export const mainAgent = createAgent({
-  name: "triage",
-  model: openai("gpt-4o-mini"),
-  temperature: 0.1,
-  instructions: (
-    ctx
-  ) => `You are a triage agent that routes user requests to the appropriate specialist.
-Your job is to understand the user's intent and determine which specialist should handle the request.
-
-<background-data>
-${formatContextForLLM(ctx)}
-</background-data>
-
-<agent-capabilities>
-general: General questions, greetings, help with navigation, system guidance, web search
-
-invoices: Invoice management, payment tracking, overdue accounts, billing questions, invoice creation, payment analysis
-
-customers: Customer management, contact information, customer activity, lifetime value, customer search, relationship management
-
-sales: Sales pipeline, deals, opportunities, revenue forecasts, conversion rates, sales performance
-
-analytics: Business metrics, KPIs, growth rates, trends, performance analysis, data insights, comparisons
-
-reports: Generating reports, summaries, dashboards, executive summaries, period comparisons, scorecards
-
-research: Market research, product comparisons, affordability analysis, pricing intelligence, vendor research, competitive analysis
-
-operations: Document management, inbox processing, account balances, OCR processing, file organization, email inbox sync
-
-timetracking: Time entries, timesheets, project hours, team utilization, billable hours, productivity tracking
-
-transactions: Transaction history, payment search, spending analysis, recurring payments, categorization, vendor transactions
-</agent-capabilities>
-
-<routing_rules>
-1. Analyze the user's message to determine the primary intent
-2. Route to the most appropriate specialist based on the topic
-3. If unclear, default to 'general' agent
-4. Consider keywords and context for routing decisions
-
-Examples:
-- "Show me overdue invoices" → invoices
-- "Find customer John Smith" → customers
-- "What deals are in negotiation?" → sales
-- "Hello, how can you help?" → general
-- "Revenue forecast for Q4" → sales
-- "Create a new invoice" → invoices
-- "Customer lifetime value analysis" → customers
-- "What's our growth rate?" → analytics
-- "Show me business metrics" → analytics
-- "Generate a monthly report" → reports
-- "Sales performance summary" → reports
-- "Compare this month to last month" → analytics
-- "Compare our products" → research
-- "Can we afford this purchase?" → research
-- "Market analysis" → research
-- "Show inbox items" → operations
-- "Process this receipt" → operations
-- "What are our account balances?" → operations
-- "How many hours logged this week?" → timetracking
-- "Team utilization report" → timetracking
-- "Project time breakdown" → timetracking
-- "Show recent transactions" → transactions
-- "Find recurring payments" → transactions
-- "Transactions with Microsoft" → transactions
-</routing_rules>
-
-Based on the user's message, respond with ONLY the agent name to route to.
-Valid responses: general, invoices, customers, sales, analytics, reports, research, operations, timetracking, transactions`,
-});
-
-export function routeToAgent(agentName: string): typeof generalAgent {
-  const normalizedName = agentName.toLowerCase().trim();
-
-  if (normalizedName in AVAILABLE_AGENTS) {
-    return AVAILABLE_AGENTS[normalizedName as AgentName];
-  }
-
-  // Default to general agent if unknown
-  return generalAgent;
+export function routeToAgent(name: string) {
+  const key = (name || "").toLowerCase() as AgentName;
+  return AVAILABLE_AGENTS[key] || AVAILABLE_AGENTS.general;
 }
 
-export async function routeMessage(message: string, context: AppContext): Promise<AgentName> {
-  const result = await generateText({
-    model: openai("gpt-4o-mini"),
-    system: mainAgent.getSystemPrompt(context),
-    prompt: message,
-    temperature: 0.1,
-  });
+export async function routeMessage(message: string, appContext: unknown): Promise<AgentName> {
+  try {
+    const result = await generateText({
+      model: openai("gpt-4o-mini"),
+      system: `Route user requests to the appropriate specialist.
 
-  const agentName = result.text.toLowerCase().trim() as AgentName;
-
-  if (agentName in AVAILABLE_AGENTS) {
-    return agentName;
+<background-data>
+${formatContextForLLM(appContext as import("../types").AppContext)}
+</background-data>`,
+      messages: [{ role: "user", content: message }],
+    });
+    let name = "general" as AgentName;
+    try {
+      const obj = JSON.parse(result.text || "{}");
+      const candidate = String(obj.agent || "").toLowerCase();
+      if ((Object.keys(AVAILABLE_AGENTS) as Array<AgentName>).includes(candidate as AgentName)) {
+        name = candidate as AgentName;
+      }
+    } catch {}
+    return name;
+  } catch {
+    return "general";
   }
-
-  return "general";
 }

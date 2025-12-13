@@ -16,7 +16,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/auth-context";
 import type { EditorDoc, Quote } from "@/types/quote";
-import { DEFAULT_QUOTE_TEMPLATE, formatQuoteNumber } from "@/types/quote";
+import { createEditorDocFromText, DEFAULT_QUOTE_TEMPLATE, formatQuoteNumber } from "@/types/quote";
 
 // API Quote Response Type
 interface QuoteApiResponse {
@@ -252,6 +252,23 @@ function buildFromDetails(
   };
 }
 
+function parseDoc(raw: unknown): EditorDoc | null {
+  if (!raw) return null;
+  if (typeof raw === "string") {
+    try {
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === "object" && (obj as EditorDoc).type === "doc") {
+        return obj as EditorDoc;
+      }
+    } catch {}
+    return createEditorDocFromText(raw);
+  }
+  if (raw && typeof raw === "object" && (raw as EditorDoc).type === "doc") {
+    return raw as EditorDoc;
+  }
+  return null;
+}
+
 export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
   const { isAuthenticated } = useAuth();
   const [isCopied, setIsCopied] = useState(false);
@@ -284,38 +301,17 @@ export function QuotePublicView({ quote, token }: QuotePublicViewProps) {
     lineItems:
       quote.items?.map((item) => ({
         name: item.productName || item.description || "",
+        description: item.description || "",
         quantity: item.quantity || 1,
         price: item.unitPrice || 0,
         unit: item.unit || "pcs",
         discount: item.discount ?? 0,
         vat: item.vat ?? item.vatRate ?? quote.vatRate ?? 20,
       })) || [],
-    paymentDetails:
-      paymentDetails ||
-      (quote.terms
-        ? {
-            type: "doc",
-            content: [
-              {
-                type: "paragraph",
-                content: [{ type: "text", text: quote.terms }],
-              },
-            ],
-          }
-        : null),
+    paymentDetails: paymentDetails || parseDoc(quote.terms),
     customerDetails: buildCustomerDetails(quote),
     fromDetails: buildFromDetails(quote.fromDetails, fromDetails),
-    noteDetails: quote.notes
-      ? {
-          type: "doc",
-          content: [
-            {
-              type: "paragraph",
-              content: [{ type: "text", text: quote.notes }],
-            },
-          ],
-        }
-      : null,
+    noteDetails: parseDoc(quote.notes),
     note: quote.notes ?? null,
     internalNote: null,
     vat: quote.vat || null,
